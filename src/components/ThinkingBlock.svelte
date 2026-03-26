@@ -26,7 +26,7 @@
 </div>
 
 <style>
-  .thinking-block { padding: 8px 10px; background: rgba(168, 85, 247, 0.04); }
+  .thinking-block { padding: 8px 10px; background: var(--bg-thinking); }
   .header {
     display: flex;
     justify-content: space-between;
@@ -47,20 +47,20 @@
   .toggle { color: var(--text-dim); font-size: 11px; }
   .content {
     font-size: 13px;
-    color: #c4b5fd;
+    color: var(--thinking-text);
     line-height: 1.6;
     padding: 6px 8px;
-    background: rgba(168, 85, 247, 0.04);
+    background: var(--bg-thinking);
     border-radius: 4px;
     font-style: italic;
-    border: 1px solid rgba(168, 85, 247, 0.1);
+    border: 1px solid var(--border-thinking);
     white-space: pre-wrap;
     max-height: 300px;
     overflow-y: auto;
   }
   .preview {
     font-size: 12px;
-    color: #8b7fc7;
+    color: var(--thinking-preview);
     padding: 2px 8px;
     overflow: hidden;
     white-space: nowrap;

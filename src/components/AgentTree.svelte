@@ -22,8 +22,8 @@
 <style>
   .tree {
     padding: 5px 14px;
-    border-bottom: 1px solid rgba(30, 41, 59, 0.07);
-    background: rgba(255, 255, 255, 0.01);
+    border-bottom: 1px solid var(--border-subtle);
+    background: var(--bg-subtle);
     font-size: 12px;
     color: var(--text-secondary);
   }

@@ -49,7 +49,7 @@
     justify-content: space-between;
     padding: 3px 6px;
     border-radius: 4px;
-    background: rgba(249, 115, 22, 0.03);
+    background: var(--bg-file);
     font-size: 12px;
     margin-bottom: 2px;
   }

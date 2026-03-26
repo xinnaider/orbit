@@ -49,14 +49,14 @@
   .command-input {
     padding: 8px 14px;
     border-top: 1px solid var(--border);
-    background: rgba(255, 255, 255, 0.01);
+    background: var(--bg-subtle);
   }
   .input-row { display: flex; gap: 8px; align-items: center; }
   .input-wrapper {
     flex: 1;
     display: flex;
     align-items: center;
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--bg-overlay);
     border: 1px solid var(--border);
     border-radius: 6px;
     padding: 0 10px;
@@ -75,7 +75,7 @@
   .send-btn {
     background: var(--blue-dim);
     color: var(--blue);
-    border: 1px solid rgba(96, 165, 250, 0.2);
+    border: 1px solid var(--border-send);
     padding: 5px 14px;
     border-radius: 6px;
     font-size: 13px;
@@ -89,12 +89,12 @@
   .quick-actions button {
     font-size: 11px;
     color: var(--text-dim);
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--bg-overlay);
     border: none;
     padding: 2px 6px;
     border-radius: 4px;
     cursor: pointer;
   }
-  .quick-actions button:hover { background: rgba(255, 255, 255, 0.06); }
+  .quick-actions button:hover { background: var(--bg-hover); }
   .quick-actions button.ctrl-c { color: var(--red); }
 </style>

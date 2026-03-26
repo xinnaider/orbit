@@ -1,4 +1,4 @@
-:root {
+:root, [data-theme="dark"] {
   --bg-primary: #0a0a0f;
   --bg-secondary: #111118;
   --bg-tertiary: #1a1a24;
@@ -20,6 +20,76 @@
   --orange: #f97316;
   --orange-dim: #f9731633;
   --pink: #f472b6;
+
+  /* Subtle backgrounds */
+  --bg-hover: rgba(255, 255, 255, 0.02);
+  --bg-selected: rgba(96, 165, 250, 0.08);
+  --bg-subtle: rgba(255, 255, 255, 0.01);
+  --bg-overlay: rgba(255, 255, 255, 0.03);
+  --bg-inset: rgba(0, 0, 0, 0.2);
+  --bg-code: rgba(0, 0, 0, 0.15);
+  --bg-user: rgba(96, 165, 250, 0.04);
+  --bg-assistant: rgba(168, 85, 247, 0.02);
+  --bg-thinking: rgba(168, 85, 247, 0.04);
+  --bg-file: rgba(249, 115, 22, 0.03);
+  --bg-active-toggle: rgba(96, 165, 250, 0.15);
+  --bg-idle: rgba(71, 85, 105, 0.2);
+  --bg-system-badge: rgba(255, 255, 255, 0.08);
+  --border-subtle: rgba(30, 41, 59, 0.13);
+  --border-thinking: rgba(168, 85, 247, 0.1);
+  --border-send: rgba(96, 165, 250, 0.2);
+  --pulse-glow: rgba(245, 158, 11, 0.1);
+  --user-badge-bg: rgba(59, 130, 246, 0.2);
+  --thinking-text: #c4b5fd;
+  --thinking-preview: #8b7fc7;
+  --scrollbar-thumb: var(--border);
+}
+
+[data-theme="light"] {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #f1f5f9;
+  --bg-tertiary: #e2e8f0;
+  --border: #cbd5e1;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --text-dim: #94a3b8;
+  --green: #16a34a;
+  --green-dim: #16a34a22;
+  --amber: #d97706;
+  --amber-dim: #d9770622;
+  --red: #dc2626;
+  --red-dim: #dc262622;
+  --blue: #2563eb;
+  --blue-dim: #2563eb18;
+  --purple: #7c3aed;
+  --purple-dim: #7c3aed22;
+  --orange: #ea580c;
+  --orange-dim: #ea580c22;
+  --pink: #db2777;
+
+  /* Subtle backgrounds */
+  --bg-hover: rgba(0, 0, 0, 0.03);
+  --bg-selected: rgba(37, 99, 235, 0.08);
+  --bg-subtle: rgba(0, 0, 0, 0.01);
+  --bg-overlay: rgba(0, 0, 0, 0.03);
+  --bg-inset: rgba(0, 0, 0, 0.05);
+  --bg-code: rgba(0, 0, 0, 0.05);
+  --bg-user: rgba(37, 99, 235, 0.06);
+  --bg-assistant: rgba(124, 58, 237, 0.04);
+  --bg-thinking: rgba(124, 58, 237, 0.06);
+  --bg-file: rgba(234, 88, 12, 0.06);
+  --bg-active-toggle: rgba(37, 99, 235, 0.12);
+  --bg-idle: rgba(100, 116, 139, 0.15);
+  --bg-system-badge: rgba(0, 0, 0, 0.06);
+  --border-subtle: rgba(203, 213, 225, 0.5);
+  --border-thinking: rgba(124, 58, 237, 0.2);
+  --border-send: rgba(37, 99, 235, 0.3);
+  --pulse-glow: rgba(217, 119, 6, 0.15);
+  --user-badge-bg: rgba(37, 99, 235, 0.15);
+  --thinking-text: #6d28d9;
+  --thinking-preview: #7c3aed;
+  --scrollbar-thumb: #cbd5e1;
 }
 
 * {
@@ -49,7 +119,7 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--border);
+  background: var(--scrollbar-thumb);
   border-radius: 3px;
 }
 

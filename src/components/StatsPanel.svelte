@@ -57,7 +57,7 @@
     justify-content: space-between;
     font-size: 13px;
     padding: 4px 0;
-    border-bottom: 1px solid rgba(30, 41, 59, 0.3);
+    border-bottom: 1px solid var(--border-subtle);
   }
   .stat-row.total { font-weight: 600; border-bottom: none; margin-top: 4px; }
   .label { color: var(--text-muted); }

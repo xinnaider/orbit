@@ -49,27 +49,27 @@
 <style>
   .entry { padding: 8px 10px; border-radius: 6px; }
   .entry.user {
-    background: rgba(96, 165, 250, 0.04);
+    background: var(--bg-user);
     border-left: 3px solid var(--blue);
   }
   .entry.assistant {
-    background: rgba(168, 85, 247, 0.02);
+    background: var(--bg-assistant);
   }
   .entry.tool-result {
     padding: 4px 10px;
   }
   .header { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
   .badge { padding: 1px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; }
-  .user-badge { background: rgba(59, 130, 246, 0.2); color: var(--blue); }
+  .user-badge { background: var(--user-badge-bg); color: var(--blue); }
   .assistant-badge { background: var(--purple-dim); color: var(--purple); }
-  .system-badge { background: rgba(255, 255, 255, 0.08); color: var(--text-muted); }
+  .system-badge { background: var(--bg-system-badge); color: var(--text-muted); }
   .entry.system { opacity: 0.7; }
   .time { color: var(--text-dim); font-size: 11px; }
   .text { font-size: 13px; line-height: 1.5; }
   .output {
     font-size: 11px;
     color: var(--text-secondary);
-    background: rgba(0, 0, 0, 0.15);
+    background: var(--bg-code);
     padding: 4px 8px;
     border-radius: 3px;
     max-height: 80px;

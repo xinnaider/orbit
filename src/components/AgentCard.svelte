@@ -39,18 +39,18 @@
     padding: 10px 12px;
     border-left: 2px solid transparent;
     cursor: pointer;
-    border-bottom: 1px solid rgba(30, 41, 59, 0.13);
+    border-bottom: 1px solid var(--border-subtle);
     transition: background 0.15s;
   }
-  .card:hover { background: rgba(255, 255, 255, 0.02); }
+  .card:hover { background: var(--bg-hover); }
   .card.selected {
-    background: rgba(96, 165, 250, 0.08);
+    background: var(--bg-selected);
     border-left-color: var(--blue);
   }
   .card.input { animation: pulse 2s ease-in-out infinite; }
   @keyframes pulse {
     0%, 100% { box-shadow: none; }
-    50% { box-shadow: inset 0 0 12px rgba(245, 158, 11, 0.1); }
+    50% { box-shadow: inset 0 0 12px var(--pulse-glow); }
   }
   .header { display: flex; justify-content: space-between; align-items: center; }
   .name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
@@ -62,7 +62,7 @@
   }
   .status.working { background: var(--green-dim); color: var(--green); }
   .status.input { background: var(--amber-dim); color: var(--amber); }
-  .status.idle { background: rgba(71, 85, 105, 0.2); color: var(--text-muted); }
+  .status.idle { background: var(--bg-idle); color: var(--text-muted); }
   .status.new { background: var(--blue-dim); color: var(--blue); }
   .meta { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
   .context-bar {

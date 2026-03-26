@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { AgentState } from '../lib/types';
   import AgentCard from './AgentCard.svelte';
+  import { theme } from '../lib/stores/preferences';
 
   export let agents: AgentState[];
   export let selectedId: string | null;
@@ -13,7 +14,12 @@
 <aside class="sidebar">
   <div class="sidebar-header">
     <span class="title">Agents</span>
-    <span class="badge">{agents.length}</span>
+    <div class="header-right">
+      <button class="theme-toggle" onclick={() => theme.toggle()} title="Toggle theme">
+        {$theme === 'dark' ? '☀' : '☾'}
+      </button>
+      <span class="badge">{agents.length}</span>
+    </div>
   </div>
   <div class="sidebar-content">
     {#if agents.length === 0}
@@ -53,6 +59,17 @@
     font-weight: 600;
     font-size: 14px;
   }
+  .header-right { display: flex; align-items: center; gap: 8px; }
+  .theme-toggle {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 2px;
+    line-height: 1;
+  }
+  .theme-toggle:hover { color: var(--text-primary); }
   .badge {
     background: var(--green-dim);
     color: var(--green);

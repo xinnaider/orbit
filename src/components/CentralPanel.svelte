@@ -75,12 +75,12 @@
   .status { padding: 1px 6px; border-radius: 8px; font-size: 11px; }
   .status.working { background: var(--green-dim); color: var(--green); }
   .status.input { background: var(--amber-dim); color: var(--amber); }
-  .status.idle { background: rgba(71,85,105,0.2); color: var(--text-muted); }
+  .status.idle { background: var(--bg-idle); color: var(--text-muted); }
   .meta { font-size: 12px; color: var(--text-dim); }
   .level-toggle {
     display: flex;
     gap: 2px;
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--bg-overlay);
     border-radius: 6px;
     padding: 2px;
   }
@@ -94,7 +94,7 @@
     cursor: pointer;
   }
   .level-toggle button.active {
-    background: rgba(96, 165, 250, 0.15);
+    background: var(--bg-active-toggle);
     color: var(--blue);
   }
   .log {
