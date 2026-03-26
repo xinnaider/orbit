@@ -12,9 +12,11 @@
   "app": {
     "windows": [
       {
-        "title": "agent-dashboard-v2",
-        "width": 800,
-        "height": 600
+        "title": "Agent Dashboard",
+        "width": 1200,
+        "height": 750,
+        "minWidth": 900,
+        "minHeight": 500
       }
     ],
     "security": {

@@ -1,5 +1,6 @@
 <script lang="ts">
-  export let sessionId: string;
+  interface Props { sessionId: string; }
+  let { sessionId }: Props = $props();
 
   // Placeholder — will be populated from diff_builder commands
   let diffContent = 'Select an edit in the log to view its diff';

@@ -33,6 +33,7 @@ struct RawEntry {
     #[serde(default)]
     timestamp: Option<String>,
     #[serde(default)]
+    #[allow(dead_code)]
     data: Option<Value>,
 }
 
@@ -369,12 +370,10 @@ fn truncate_output(text: &str, max: usize) -> String {
 
 fn detect_pending_approval(entries: &[JournalEntry]) -> Option<String> {
     // Walk backwards: if the last tool_call has no tool_result after it, it's pending
-    let mut saw_tool_call = false;
     for entry in entries.iter().rev() {
         match entry.entry_type {
             JournalEntryType::ToolResult => return None, // tool was answered
             JournalEntryType::ToolCall => {
-                saw_tool_call = true;
                 let tool = entry.tool.as_deref().unwrap_or("tool");
                 let target = entry.tool_input.as_ref()
                     .and_then(|v| v.get("file_path"))
@@ -382,9 +381,7 @@ fn detect_pending_approval(entries: &[JournalEntry]) -> Option<String> {
                     .unwrap_or("");
                 return Some(format!("Allow {} to {}?", tool, target));
             }
-            _ => {
-                if saw_tool_call { return None; }
-            }
+            _ => {}
         }
     }
     None

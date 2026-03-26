@@ -84,5 +84,4 @@
     cursor: pointer;
   }
   .tab.active { color: var(--blue); border-bottom-color: var(--blue); }
-  .panel-content { flex: 1; overflow-y: auto; }
 </style>
