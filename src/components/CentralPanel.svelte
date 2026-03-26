@@ -11,13 +11,33 @@
   export let agent: AgentState;
 
   let logContainer: HTMLDivElement;
+  let userScrolledUp = false;
+  let showScrollBtn = false;
+
+  function handleScroll() {
+    if (!logContainer) return;
+    const { scrollTop, scrollHeight, clientHeight } = logContainer;
+    const atBottom = scrollHeight - scrollTop - clientHeight < 60;
+    userScrolledUp = !atBottom;
+    showScrollBtn = !atBottom;
+  }
+
+  function scrollToBottom() {
+    if (logContainer) {
+      logContainer.scrollTop = logContainer.scrollHeight;
+      userScrolledUp = false;
+      showScrollBtn = false;
+    }
+  }
 
   async function loadJournal(sessionId: string) {
     const entries = await getJournal(sessionId);
     journal.set(entries);
-    requestAnimationFrame(() => {
-      if (logContainer) logContainer.scrollTop = logContainer.scrollHeight;
-    });
+    if (!userScrolledUp) {
+      requestAnimationFrame(() => {
+        if (logContainer) logContainer.scrollTop = logContainer.scrollHeight;
+      });
+    }
   }
 
   $: if (agent) {
@@ -27,6 +47,33 @@
   $: filteredEntries = $detailLevel === 'compact'
     ? $journal.filter(e => e.entryType === 'toolCall' || e.entryType === 'toolResult')
     : $journal;
+
+  // Build display list: pair toolCall with its following toolResult, skip standalone toolResults
+  $: displayEntries = (() => {
+    const result: { entry: typeof filteredEntries[0]; resultEntry: typeof filteredEntries[0] | null; skip: boolean }[] = [];
+    const skipSet = new Set<number>();
+
+    for (let i = 0; i < filteredEntries.length; i++) {
+      if (skipSet.has(i)) continue;
+      const entry = filteredEntries[i];
+
+      if (entry.entryType === 'toolCall') {
+        const next = filteredEntries[i + 1];
+        if (next && next.entryType === 'toolResult') {
+          result.push({ entry, resultEntry: next, skip: false });
+          skipSet.add(i + 1);
+        } else {
+          result.push({ entry, resultEntry: null, skip: false });
+        }
+      } else if (entry.entryType === 'toolResult') {
+        // Orphan toolResult (no preceding toolCall) — skip it
+        continue;
+      } else {
+        result.push({ entry, resultEntry: null, skip: false });
+      }
+    }
+    return result;
+  })();
 
   // Determine typing label based on last entry
   $: typingLabel = (() => {
@@ -65,34 +112,43 @@
 
   <AgentTree subagents={agent.subagents} />
 
-  <div class="log" bind:this={logContainer}>
-    {#if $detailLevel === 'raw'}
-      <pre class="raw-log mono">{JSON.stringify($journal, null, 2)}</pre>
-    {:else}
-      {#each filteredEntries as entry, i (entry.timestamp + entry.entryType + i)}
-        {@const prevEntry = filteredEntries[i - 1]}
-        {@const isNewGroup = !prevEntry ||
-          (entry.entryType === 'user' && prevEntry.entryType !== 'user') ||
-          (entry.entryType === 'assistant' && prevEntry.entryType !== 'thinking' && prevEntry.entryType !== 'assistant') ||
-          (entry.entryType === 'thinking' && prevEntry.entryType !== 'thinking')}
-        {#if isNewGroup && i > 0}
-          <div class="separator"></div>
+  <div class="log-wrapper">
+    <div class="log" bind:this={logContainer} onscroll={handleScroll}>
+      {#if $detailLevel === 'raw'}
+        <pre class="raw-log mono">{JSON.stringify($journal, null, 2)}</pre>
+      {:else}
+        {#each displayEntries as { entry, resultEntry }, i (entry.timestamp + entry.entryType + i)}
+          {@const prevItem = displayEntries[i - 1]}
+          {@const isChild = entry.entryType === 'toolCall'}
+          {@const isNewGroup = !prevItem ||
+            (entry.entryType === 'user' && prevItem.entry.entryType !== 'user') ||
+            (entry.entryType === 'assistant' && prevItem.entry.entryType !== 'thinking' && prevItem.entry.entryType !== 'assistant') ||
+            (entry.entryType === 'thinking' && prevItem.entry.entryType !== 'thinking')}
+          {#if isNewGroup && i > 0}
+            <div class="gap"></div>
+          {/if}
+          <div class="entry-row" class:child={isChild}>
+            <JournalEntry {entry} {resultEntry} />
+          </div>
+        {/each}
+
+        {#if agent.status === 'working'}
+          <TypingIndicator label={typingLabel} />
         {/if}
-        <div class="entry-wrapper">
-          <JournalEntry {entry} />
-        </div>
-      {/each}
 
-      {#if agent.status === 'working'}
-        <TypingIndicator label={typingLabel} />
+        {#if agent.status === 'input' && agent.pendingApproval}
+          <div class="approval-banner">
+            <span class="approval-icon">⏳</span>
+            <span class="approval-text">{agent.pendingApproval}</span>
+          </div>
+        {/if}
       {/if}
+    </div>
 
-      {#if agent.status === 'input' && agent.pendingApproval}
-        <div class="approval-banner">
-          <span class="approval-icon">⏳</span>
-          <span class="approval-text">{agent.pendingApproval}</span>
-        </div>
-      {/if}
+    {#if showScrollBtn}
+      <button class="scroll-btn" onclick={scrollToBottom} title="Scroll to bottom">
+        ↓
+      </button>
     {/if}
   </div>
 
@@ -155,8 +211,14 @@
     background: var(--bg-active-toggle);
     color: var(--blue);
   }
-  .log {
+
+  .log-wrapper {
     flex: 1;
+    position: relative;
+    overflow: hidden;
+  }
+  .log {
+    height: 100%;
     overflow-y: auto;
     padding: 12px 16px;
     display: flex;
@@ -169,19 +231,42 @@
     line-height: 1.4;
     white-space: pre-wrap;
   }
-  .separator {
-    height: 1px;
-    background: var(--border);
-    margin: 8px 0;
-    opacity: 0.5;
-  }
-  .entry-wrapper {
+  .gap { height: 10px; }
+  .entry-row {
     animation: fadeIn 0.2s ease-out;
+  }
+  .entry-row.child {
+    margin-left: 16px;
   }
   @keyframes fadeIn {
     from { opacity: 0; transform: translateY(4px); }
     to { opacity: 1; transform: translateY(0); }
   }
+
+  .scroll-btn {
+    position: absolute;
+    bottom: 12px;
+    right: 20px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    transition: all 0.15s;
+    z-index: 10;
+  }
+  .scroll-btn:hover {
+    background: var(--bg-tertiary);
+    transform: scale(1.1);
+  }
+
   .approval-banner {
     display: flex;
     align-items: center;

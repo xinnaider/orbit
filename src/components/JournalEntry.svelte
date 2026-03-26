@@ -5,6 +5,7 @@
   import Markdown from './Markdown.svelte';
 
   export let entry: JEntry;
+  export let resultEntry: JEntry | null = null;
 
   $: timeStr = entry.timestamp.slice(11, 16);
 </script>
@@ -32,11 +33,7 @@
     <div class="text"><Markdown content={entry.text ?? ''} /></div>
   </div>
 {:else if entry.entryType === 'toolCall'}
-  <ToolCallEntry {entry} />
-{:else if entry.entryType === 'toolResult'}
-  <div class="entry tool-result">
-    <div class="output mono">{entry.output?.slice(0, 500)}{(entry.output?.length ?? 0) > 500 ? '...' : ''}</div>
-  </div>
+  <ToolCallEntry {entry} {resultEntry} />
 {:else if entry.entryType === 'system'}
   <div class="entry system">
     <div class="entry-header">
@@ -49,27 +46,22 @@
 
 <style>
   .entry {
-    padding: 10px 12px;
-    border-radius: 8px;
-    margin: 1px 0;
+    padding: 10px 14px;
+    border-radius: 10px;
+    margin: 2px 0;
   }
   .entry.user {
     background: var(--bg-user);
-    border-left: 3px solid var(--blue);
-    padding-left: 12px;
   }
   .entry.assistant {
     background: var(--bg-assistant);
-    border-left: 3px solid var(--purple);
-    padding-left: 12px;
   }
-  .entry.tool-result {
-    padding: 4px 12px;
-    margin-left: 16px;
-    border-left: 1px solid var(--border);
+  .entry.user, .entry.assistant {
+    border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
   }
   .entry.system {
-    opacity: 0.6;
+    border: 1px solid var(--border);
+    opacity: 0.7;
     font-style: italic;
   }
   .entry-header {
@@ -91,17 +83,6 @@
   .time { color: var(--text-dim); font-size: 11px; }
   .text {
     font-size: 13px;
-    line-height: 1.5;
-  }
-  .output {
-    font-size: 11px;
-    color: var(--text-secondary);
-    background: var(--bg-code);
-    padding: 6px 10px;
-    border-radius: 4px;
-    max-height: 100px;
-    overflow-y: auto;
-    white-space: pre-wrap;
     line-height: 1.5;
   }
 </style>

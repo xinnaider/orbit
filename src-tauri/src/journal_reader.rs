@@ -411,6 +411,9 @@ fn derive_status_from_tail(path: &Path, input_tokens: u64, output_tokens: u64) -
     let mut last_type = String::new();
     let mut last_timestamp = String::new();
     let mut awaiting_tool_result = false;
+    let mut saw_end_turn = false;
+    let mut saw_stop_hook = false;
+    let mut saw_last_prompt = false;
 
     let mut line = String::new();
     loop {
@@ -428,14 +431,29 @@ fn derive_status_from_tail(path: &Path, input_tokens: u64, output_tokens: u64) -
             last_type = "assistant".to_string();
             if trimmed.contains("\"type\":\"tool_use\"") {
                 awaiting_tool_result = true;
+                saw_end_turn = false;
+            }
+            // Detect stop_reason: "end_turn" — agent finished responding
+            if trimmed.contains("\"stop_reason\":\"end_turn\"") {
+                saw_end_turn = true;
+                awaiting_tool_result = false;
             }
         } else if trimmed.contains("\"type\":\"user\"") {
             last_type = "user".to_string();
             if trimmed.contains("\"tool_result\"") {
                 awaiting_tool_result = false;
             }
+            saw_end_turn = false;
         } else if trimmed.contains("\"type\":\"progress\"") {
             last_type = "progress".to_string();
+        } else if trimmed.contains("\"type\":\"system\"") {
+            // Detect stop_hook_summary — post-completion hook
+            if trimmed.contains("\"subtype\":\"stop_hook_summary\"") {
+                saw_stop_hook = true;
+            }
+        } else if trimmed.contains("\"type\":\"last-prompt\"") {
+            // Final entry in a completed session
+            saw_last_prompt = true;
         }
 
         if let Some(ts_start) = trimmed.find("\"timestamp\":\"") {
@@ -446,8 +464,18 @@ fn derive_status_from_tail(path: &Path, input_tokens: u64, output_tokens: u64) -
         }
     }
 
+    // If we saw definitive completion signals, agent is idle
+    if saw_last_prompt || saw_stop_hook {
+        return AgentStatus::Idle;
+    }
+
     if awaiting_tool_result {
         return AgentStatus::Input;
+    }
+
+    // end_turn without tool_use means the assistant finished its turn
+    if saw_end_turn {
+        return AgentStatus::Idle;
     }
 
     if !last_timestamp.is_empty() {

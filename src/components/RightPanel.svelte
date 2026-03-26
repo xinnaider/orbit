@@ -1,18 +1,13 @@
 <script lang="ts">
-  import type { AgentState, JournalEntry } from '../lib/types';
+  import type { AgentState } from '../lib/types';
   import { rightPanelTab } from '../lib/stores/preferences';
-  import DiffView from './DiffView.svelte';
-  import FilesImpact from './FilesImpact.svelte';
   import TasksProgress from './TasksProgress.svelte';
   import StatsPanel from './StatsPanel.svelte';
   import SubagentsPanel from './SubagentsPanel.svelte';
 
   export let agent: AgentState;
-  export let entries: JournalEntry[];
 
   const tabs: { key: typeof $rightPanelTab; label: string }[] = [
-    { key: 'diff', label: 'Diff' },
-    { key: 'files', label: 'Files' },
     { key: 'agents', label: 'Sub-agents' },
     { key: 'tasks', label: 'Tasks' },
     { key: 'stats', label: 'Stats' },
@@ -32,11 +27,7 @@
     {/each}
   </div>
   <div class="content">
-    {#if $rightPanelTab === 'diff'}
-      <DiffView sessionId={agent.sessionId} />
-    {:else if $rightPanelTab === 'files'}
-      <FilesImpact {entries} />
-    {:else if $rightPanelTab === 'agents'}
+    {#if $rightPanelTab === 'agents'}
       <SubagentsPanel sessionId={agent.sessionId} subagents={agent.subagents} />
     {:else if $rightPanelTab === 'tasks'}
       <TasksProgress />

@@ -42,7 +42,7 @@
   </main>
 
   {#if currentAgent}
-    <RightPanel agent={currentAgent} entries={$journal} />
+    <RightPanel agent={currentAgent} />
   {:else}
     <aside class="right-panel">
       <div class="panel-tabs">

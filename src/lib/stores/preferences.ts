@@ -37,4 +37,4 @@ function createThemeStore() {
 
 export const theme = createThemeStore();
 export const detailLevel = writable<DetailLevel>('full');
-export const rightPanelTab = writable<RightPanelTab>('diff');
+export const rightPanelTab = writable<RightPanelTab>('agents');

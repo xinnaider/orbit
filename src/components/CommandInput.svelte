@@ -6,10 +6,13 @@
 
   let inputText = '';
 
+  let textareaEl: HTMLTextAreaElement;
+
   async function handleSend() {
     if (!inputText.trim()) return;
     await sendMessage(sessionId, inputText);
     inputText = '';
+    if (textareaEl) textareaEl.style.height = 'auto';
   }
 
   async function handleQuickAction(key: string) {
@@ -28,12 +31,14 @@
   <div class="input-row">
     <div class="input-wrapper">
       <span class="prompt">$</span>
-      <input
-        type="text"
+      <textarea
+        bind:this={textareaEl}
         bind:value={inputText}
         onkeydown={handleKeydown}
-        placeholder="Send command to {agentName}..."
-      />
+        placeholder="Send command to {agentName}... (Shift+Enter for new line)"
+        rows="1"
+        oninput={(e) => { const t = e.currentTarget; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 120) + 'px'; }}
+      ></textarea>
     </div>
     <button class="send-btn" onclick={handleSend}>Send</button>
   </div>
@@ -51,18 +56,18 @@
     border-top: 1px solid var(--border);
     background: var(--bg-subtle);
   }
-  .input-row { display: flex; gap: 8px; align-items: center; }
+  .input-row { display: flex; gap: 8px; align-items: flex-end; }
   .input-wrapper {
     flex: 1;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     background: var(--bg-overlay);
     border: 1px solid var(--border);
     border-radius: 6px;
     padding: 0 10px;
   }
-  .prompt { color: var(--text-dim); font-size: 13px; margin-right: 6px; }
-  input {
+  .prompt { color: var(--text-dim); font-size: 13px; margin-right: 6px; margin-top: 8px; }
+  textarea {
     background: transparent;
     border: none;
     color: var(--text-primary);
@@ -71,6 +76,10 @@
     padding: 7px 0;
     width: 100%;
     outline: none;
+    resize: none;
+    line-height: 1.4;
+    overflow-y: auto;
+    max-height: 120px;
   }
   .send-btn {
     background: var(--blue-dim);
