@@ -9,5 +9,5 @@
 
 <style>
   .tasks { padding: 8px; }
-  .empty { color: var(--text-dim); font-size: 11px; text-align: center; padding: 20px; }
+  .empty { color: var(--text-dim); font-size: 13px; text-align: center; padding: 20px; }
 </style>

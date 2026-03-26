@@ -28,7 +28,7 @@
     padding: 4px 6px;
     background: rgba(0, 0, 0, 0.2);
     border-radius: 4px;
-    font-size: 9px;
+    font-size: 11px;
     font-family: 'Cascadia Code', 'Fira Code', monospace;
     line-height: 1.5;
   }

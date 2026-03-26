@@ -24,7 +24,7 @@
     padding: 5px 14px;
     border-bottom: 1px solid rgba(30, 41, 59, 0.07);
     background: rgba(255, 255, 255, 0.01);
-    font-size: 10px;
+    font-size: 12px;
     color: var(--text-secondary);
   }
   .main { color: var(--text-primary); }

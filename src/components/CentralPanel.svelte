@@ -71,12 +71,12 @@
     align-items: center;
   }
   .left { display: flex; align-items: center; gap: 8px; }
-  .name { font-weight: 600; font-size: 13px; }
-  .status { padding: 1px 6px; border-radius: 8px; font-size: 9px; }
+  .name { font-weight: 600; font-size: 14px; }
+  .status { padding: 1px 6px; border-radius: 8px; font-size: 11px; }
   .status.working { background: var(--green-dim); color: var(--green); }
   .status.input { background: var(--amber-dim); color: var(--amber); }
   .status.idle { background: rgba(71,85,105,0.2); color: var(--text-muted); }
-  .meta { font-size: 10px; color: var(--text-dim); }
+  .meta { font-size: 12px; color: var(--text-dim); }
   .level-toggle {
     display: flex;
     gap: 2px;
@@ -87,7 +87,7 @@
   .level-toggle button {
     padding: 3px 8px;
     border-radius: 4px;
-    font-size: 10px;
+    font-size: 12px;
     background: none;
     border: none;
     color: var(--text-muted);
@@ -106,7 +106,7 @@
     gap: 4px;
   }
   .raw-log {
-    font-size: 10px;
+    font-size: 12px;
     color: var(--text-secondary);
     line-height: 1.4;
     white-space: pre-wrap;

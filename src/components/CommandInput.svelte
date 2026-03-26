@@ -61,12 +61,12 @@
     border-radius: 6px;
     padding: 0 10px;
   }
-  .prompt { color: var(--text-dim); font-size: 11px; margin-right: 6px; }
+  .prompt { color: var(--text-dim); font-size: 13px; margin-right: 6px; }
   input {
     background: transparent;
     border: none;
     color: var(--text-primary);
-    font-size: 11px;
+    font-size: 13px;
     font-family: 'Cascadia Code', monospace;
     padding: 7px 0;
     width: 100%;
@@ -78,7 +78,7 @@
     border: 1px solid rgba(96, 165, 250, 0.2);
     padding: 5px 14px;
     border-radius: 6px;
-    font-size: 11px;
+    font-size: 13px;
     cursor: pointer;
   }
   .quick-actions {
@@ -87,7 +87,7 @@
     margin-top: 6px;
   }
   .quick-actions button {
-    font-size: 9px;
+    font-size: 11px;
     color: var(--text-dim);
     background: rgba(255, 255, 255, 0.03);
     border: none;

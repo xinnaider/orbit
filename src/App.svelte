@@ -64,7 +64,7 @@
     align-items: center;
     justify-content: center;
     color: var(--text-muted);
-    font-size: 13px;
+    font-size: 14px;
   }
   .right-panel {
     width: 300px;
@@ -76,7 +76,7 @@
   .panel-tabs { display: flex; border-bottom: 1px solid var(--border); }
   .tab {
     padding: 8px 12px;
-    font-size: 10px;
+    font-size: 12px;
     background: none;
     border: none;
     border-bottom: 2px solid transparent;

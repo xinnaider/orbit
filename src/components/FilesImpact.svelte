@@ -50,12 +50,12 @@
     padding: 3px 6px;
     border-radius: 4px;
     background: rgba(249, 115, 22, 0.03);
-    font-size: 10px;
+    font-size: 12px;
     margin-bottom: 2px;
   }
   .path { color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
   .stats { display: flex; gap: 4px; flex-shrink: 0; }
   .added { color: var(--green); }
   .removed { color: var(--red); }
-  .empty { color: var(--text-dim); font-size: 11px; text-align: center; padding: 20px; }
+  .empty { color: var(--text-dim); font-size: 13px; text-align: center; padding: 20px; }
 </style>

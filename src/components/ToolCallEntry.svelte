@@ -43,16 +43,16 @@
     gap: 2px;
     padding: 5px 8px;
     border-radius: 4px;
-    font-size: 10px;
+    font-size: 12px;
   }
   .main-row { display: flex; align-items: center; gap: 6px; }
-  .time { color: var(--text-dim); min-width: 38px; font-size: 10px; }
+  .time { color: var(--text-dim); min-width: 38px; font-size: 12px; }
   .tool { min-width: 32px; font-weight: 500; }
   .tool.read, .tool.grep { color: var(--blue); }
   .tool.edit, .tool.write { color: var(--orange); }
   .tool.bash { color: var(--green); }
   .tool.agent { color: var(--purple); }
-  .target { color: var(--text-secondary); font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .added { color: var(--green); font-size: 9px; }
-  .removed { color: var(--red); font-size: 9px; }
+  .target { color: var(--text-secondary); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .added { color: var(--green); font-size: 11px; }
+  .removed { color: var(--red); font-size: 11px; }
 </style>

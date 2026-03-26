@@ -55,7 +55,7 @@
   .stat-row {
     display: flex;
     justify-content: space-between;
-    font-size: 11px;
+    font-size: 13px;
     padding: 4px 0;
     border-bottom: 1px solid rgba(30, 41, 59, 0.3);
   }
@@ -63,7 +63,7 @@
   .label { color: var(--text-muted); }
   .value { color: var(--text-primary); }
   .context-section { margin-top: 12px; }
-  .context-label { font-size: 10px; color: var(--text-secondary); margin-bottom: 4px; }
+  .context-label { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
   .context-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
   .fill {
     height: 100%;

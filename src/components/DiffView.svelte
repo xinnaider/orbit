@@ -13,7 +13,7 @@
 </div>
 
 <style>
-  .diff-view { padding: 8px; font-size: 10px; }
+  .diff-view { padding: 8px; font-size: 12px; }
   .diff-content { line-height: 1.7; }
   .placeholder { color: var(--text-dim); padding: 20px; text-align: center; }
 </style>

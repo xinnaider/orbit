@@ -16,7 +16,7 @@ pub fn send_keystroke(session_id: String, key: String, state: State<AppState>) -
         .find(|s| s.session_id == session_id)
         .ok_or("Session not found")?;
 
-    keystroke_sender::send_keys(session.pid, &key);
+    keystroke_sender::send_keys(session.pid, &key)?;
     Ok(())
 }
 

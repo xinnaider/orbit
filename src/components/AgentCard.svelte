@@ -53,18 +53,18 @@
     50% { box-shadow: inset 0 0 12px rgba(245, 158, 11, 0.1); }
   }
   .header { display: flex; justify-content: space-between; align-items: center; }
-  .name { font-size: 11px; font-weight: 600; color: var(--text-primary); }
+  .name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
   .status {
     padding: 0 5px;
     border-radius: 6px;
-    font-size: 8px;
+    font-size: 10px;
     font-weight: 600;
   }
   .status.working { background: var(--green-dim); color: var(--green); }
   .status.input { background: var(--amber-dim); color: var(--amber); }
   .status.idle { background: rgba(71, 85, 105, 0.2); color: var(--text-muted); }
   .status.new { background: var(--blue-dim); color: var(--blue); }
-  .meta { font-size: 9px; color: var(--text-dim); margin-top: 2px; }
+  .meta { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
   .context-bar {
     margin-top: 4px;
     height: 2px;

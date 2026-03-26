@@ -40,13 +40,13 @@
     color: var(--purple);
     padding: 1px 6px;
     border-radius: 4px;
-    font-size: 9px;
+    font-size: 11px;
     font-weight: 600;
   }
-  .meta { color: var(--text-dim); font-size: 9px; }
-  .toggle { color: var(--text-dim); font-size: 9px; }
+  .meta { color: var(--text-dim); font-size: 11px; }
+  .toggle { color: var(--text-dim); font-size: 11px; }
   .content {
-    font-size: 11px;
+    font-size: 13px;
     color: #c4b5fd;
     line-height: 1.6;
     padding: 6px 8px;
@@ -59,7 +59,7 @@
     overflow-y: auto;
   }
   .preview {
-    font-size: 10px;
+    font-size: 12px;
     color: #8b7fc7;
     padding: 2px 8px;
     overflow: hidden;

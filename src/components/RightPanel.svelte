@@ -48,7 +48,7 @@
   .tabs { display: flex; border-bottom: 1px solid var(--border); }
   .tab {
     padding: 8px 12px;
-    font-size: 10px;
+    font-size: 12px;
     background: none;
     border: none;
     border-bottom: 2px solid transparent;
