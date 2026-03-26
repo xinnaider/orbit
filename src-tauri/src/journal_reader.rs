@@ -392,6 +392,14 @@ fn detect_pending_approval(entries: &[JournalEntry]) -> Option<String> {
     None
 }
 
+/// Flexible contains check that handles optional spaces around colons in JSON.
+/// e.g. matches both `"key":"value"` and `"key": "value"`.
+fn json_contains(haystack: &str, key: &str, value: &str) -> bool {
+    // Try without space and with space
+    haystack.contains(&format!("\"{}\":\"{}\"", key, value))
+        || haystack.contains(&format!("\"{}\": \"{}\"", key, value))
+}
+
 /// Derive agent status from the tail of the JSONL file.
 fn derive_status_from_tail(path: &Path, input_tokens: u64, output_tokens: u64) -> AgentStatus {
     if input_tokens == 0 && output_tokens == 0 {
@@ -408,12 +416,12 @@ fn derive_status_from_tail(path: &Path, input_tokens: u64, output_tokens: u64) -
     let seek_pos = file_size.saturating_sub(32768);
     let _ = reader.seek(SeekFrom::Start(seek_pos));
 
+    // Track the last entry's characteristics
     let mut last_type = String::new();
     let mut last_timestamp = String::new();
+    let mut last_is_tool_result = false;
     let mut awaiting_tool_result = false;
-    let mut saw_end_turn = false;
-    let mut saw_stop_hook = false;
-    let mut saw_last_prompt = false;
+    let mut finished = false; // definitive completion
 
     let mut line = String::new();
     loop {
@@ -427,68 +435,86 @@ fn derive_status_from_tail(path: &Path, input_tokens: u64, output_tokens: u64) -
         let trimmed = line.trim();
         if trimmed.is_empty() { continue; }
 
-        if trimmed.contains("\"type\":\"assistant\"") {
+        if json_contains(trimmed, "type", "assistant") {
             last_type = "assistant".to_string();
-            if trimmed.contains("\"type\":\"tool_use\"") {
+            last_is_tool_result = false;
+            finished = false;
+
+            if trimmed.contains("\"tool_use\"") {
                 awaiting_tool_result = true;
-                saw_end_turn = false;
             }
-            // Detect stop_reason: "end_turn" — agent finished responding
-            if trimmed.contains("\"stop_reason\":\"end_turn\"") {
-                saw_end_turn = true;
+            if json_contains(trimmed, "stop_reason", "end_turn") {
+                finished = true;
                 awaiting_tool_result = false;
             }
-        } else if trimmed.contains("\"type\":\"user\"") {
+        } else if json_contains(trimmed, "type", "user") {
             last_type = "user".to_string();
-            if trimmed.contains("\"tool_result\"") {
+            finished = false;
+
+            last_is_tool_result = trimmed.contains("\"tool_result\"");
+            if last_is_tool_result {
                 awaiting_tool_result = false;
             }
-            saw_end_turn = false;
-        } else if trimmed.contains("\"type\":\"progress\"") {
+        } else if json_contains(trimmed, "type", "progress") {
             last_type = "progress".to_string();
-        } else if trimmed.contains("\"type\":\"system\"") {
-            // Detect stop_hook_summary — post-completion hook
-            if trimmed.contains("\"subtype\":\"stop_hook_summary\"") {
-                saw_stop_hook = true;
+        } else if json_contains(trimmed, "type", "system") {
+            if json_contains(trimmed, "subtype", "stop_hook_summary") {
+                finished = true;
             }
-        } else if trimmed.contains("\"type\":\"last-prompt\"") {
-            // Final entry in a completed session
-            saw_last_prompt = true;
+        } else if json_contains(trimmed, "type", "last-prompt") {
+            finished = true;
         }
 
-        if let Some(ts_start) = trimmed.find("\"timestamp\":\"") {
-            let after = &trimmed[ts_start + 13..];
-            if let Some(ts_end) = after.find('"') {
-                last_timestamp = after[..ts_end].to_string();
+        if let Some(ts_start) = trimmed.find("\"timestamp\"") {
+            // Find the value after "timestamp": " or "timestamp":"
+            let after_key = &trimmed[ts_start + 11..];
+            if let Some(quote_start) = after_key.find('"') {
+                let after_quote = &after_key[quote_start + 1..];
+                if let Some(quote_end) = after_quote.find('"') {
+                    last_timestamp = after_quote[..quote_end].to_string();
+                }
             }
         }
     }
 
-    // If we saw definitive completion signals, agent is idle
-    if saw_last_prompt || saw_stop_hook {
+    // Definitive completion signals → idle
+    if finished {
         return AgentStatus::Idle;
     }
 
+    // Waiting for user to approve a tool call
     if awaiting_tool_result {
         return AgentStatus::Input;
     }
 
-    // end_turn without tool_use means the assistant finished its turn
-    if saw_end_turn {
+    // Determine working state based on what the last entry was:
+    // - Last entry is "user" (non-tool_result) → agent is processing user input → Working
+    // - Last entry is "user" with tool_result → agent got result, processing → Working
+    // - Last entry is "assistant" without end_turn → still generating → Working
+    // - Last entry is "progress" → actively working
+    // Use a generous 120s timeout as safety net (not primary detection)
+    let seconds_since_last = if !last_timestamp.is_empty() {
+        if let Ok(dt) = last_timestamp.parse::<chrono::DateTime<chrono::Utc>>() {
+            (chrono::Utc::now() - dt).num_seconds()
+        } else {
+            999
+        }
+    } else {
+        999
+    };
+
+    // Safety net: if nothing happened for 2 minutes, assume idle
+    if seconds_since_last > 120 {
         return AgentStatus::Idle;
     }
 
-    if !last_timestamp.is_empty() {
-        if let Ok(dt) = last_timestamp.parse::<chrono::DateTime<chrono::Utc>>() {
-            if (chrono::Utc::now() - dt).num_seconds() < 10 {
-                return AgentStatus::Working;
-            }
-        }
+    match last_type.as_str() {
+        // User sent a message or tool result came back → agent should be working
+        "user" => AgentStatus::Working,
+        // Assistant is still generating (no end_turn)
+        "assistant" => AgentStatus::Working,
+        // Progress event → actively working
+        "progress" => AgentStatus::Working,
+        _ => AgentStatus::Idle,
     }
-
-    if last_type == "progress" {
-        return AgentStatus::Working;
-    }
-
-    AgentStatus::Idle
 }
