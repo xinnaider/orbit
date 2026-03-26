@@ -10,7 +10,7 @@
 
 {#if entry.entryType === 'user'}
   <div class="entry user">
-    <div class="header">
+    <div class="entry-header">
       <span class="badge user-badge">USER</span>
       <span class="time">{timeStr}</span>
     </div>
@@ -24,7 +24,7 @@
   />
 {:else if entry.entryType === 'assistant'}
   <div class="entry assistant">
-    <div class="header">
+    <div class="entry-header">
       <span class="badge assistant-badge">ASSISTANT</span>
       <span class="time">{timeStr}</span>
     </div>
@@ -38,7 +38,7 @@
   </div>
 {:else if entry.entryType === 'system'}
   <div class="entry system">
-    <div class="header">
+    <div class="entry-header">
       <span class="badge system-badge">SYSTEM</span>
       <span class="time">{timeStr}</span>
     </div>
@@ -47,34 +47,61 @@
 {/if}
 
 <style>
-  .entry { padding: 8px 10px; border-radius: 6px; }
+  .entry {
+    padding: 10px 12px;
+    border-radius: 8px;
+    margin: 1px 0;
+  }
   .entry.user {
     background: var(--bg-user);
     border-left: 3px solid var(--blue);
+    padding-left: 12px;
   }
   .entry.assistant {
     background: var(--bg-assistant);
+    border-left: 3px solid var(--purple);
+    padding-left: 12px;
   }
   .entry.tool-result {
-    padding: 4px 10px;
+    padding: 4px 12px;
+    margin-left: 16px;
+    border-left: 1px solid var(--border);
   }
-  .header { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
-  .badge { padding: 1px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .entry.system {
+    opacity: 0.6;
+    font-style: italic;
+  }
+  .entry-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .badge {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
   .user-badge { background: var(--user-badge-bg); color: var(--blue); }
   .assistant-badge { background: var(--purple-dim); color: var(--purple); }
   .system-badge { background: var(--bg-system-badge); color: var(--text-muted); }
-  .entry.system { opacity: 0.7; }
   .time { color: var(--text-dim); font-size: 11px; }
-  .text { font-size: 13px; line-height: 1.5; }
+  .text {
+    font-size: 13px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+  }
   .output {
     font-size: 11px;
     color: var(--text-secondary);
     background: var(--bg-code);
-    padding: 4px 8px;
-    border-radius: 3px;
-    max-height: 80px;
+    padding: 6px 10px;
+    border-radius: 4px;
+    max-height: 100px;
     overflow-y: auto;
     white-space: pre-wrap;
-    line-height: 1.4;
+    line-height: 1.5;
   }
 </style>
