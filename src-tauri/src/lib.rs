@@ -1,5 +1,6 @@
 pub mod models;
 pub mod session_watcher;
+pub mod journal_reader;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
