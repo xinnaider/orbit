@@ -282,10 +282,10 @@ pub fn list_project_files(cwd: String) -> Vec<String> {
             let rel_str = rel.to_string_lossy().replace('\\', "/");
             if !rel_str.is_empty() {
                 files.push(rel_str.to_string());
+                if files.len() >= 5000 {
+                    break;
+                }
             }
-        }
-        if files.len() >= 5000 {
-            break;
         }
     }
 

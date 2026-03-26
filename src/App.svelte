@@ -8,20 +8,23 @@
   import RightPanel from './components/RightPanel.svelte';
 
   let prevAgentStatuses: Record<string, string> = {};
+  let audioCtx: AudioContext | null = null;
 
   function playNotificationBeep() {
     try {
-      const ctx = new AudioContext();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
+      if (!audioCtx || audioCtx.state === 'closed') {
+        audioCtx = new AudioContext();
+      }
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
       osc.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(audioCtx.destination);
       osc.frequency.value = 800;
       osc.type = 'sine';
       gain.gain.value = 0.3;
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 0.2);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+      osc.start(audioCtx.currentTime);
+      osc.stop(audioCtx.currentTime + 0.2);
     } catch {
       // Audio not available
     }
