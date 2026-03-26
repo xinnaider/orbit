@@ -5,7 +5,7 @@
 
   // Configure marked for inline-friendly rendering
   marked.setOptions({
-    breaks: true,
+    breaks: false,
     gfm: true,
   });
 
@@ -15,8 +15,9 @@
 <div class="md">{@html html}</div>
 
 <style>
-  .md :global(p) { margin: 0 0 6px 0; }
+  .md :global(p) { margin: 0 0 4px 0; }
   .md :global(p:last-child) { margin-bottom: 0; }
+  .md :global(p:only-child) { margin: 0; }
   .md :global(strong) { font-weight: 700; color: var(--text-primary); }
   .md :global(em) { font-style: italic; }
   .md :global(code) {

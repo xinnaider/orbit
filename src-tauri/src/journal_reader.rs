@@ -452,7 +452,7 @@ fn derive_status_from_tail(path: &Path, input_tokens: u64, output_tokens: u64) -
 
     if !last_timestamp.is_empty() {
         if let Ok(dt) = last_timestamp.parse::<chrono::DateTime<chrono::Utc>>() {
-            if (chrono::Utc::now() - dt).num_seconds() < 30 {
+            if (chrono::Utc::now() - dt).num_seconds() < 10 {
                 return AgentStatus::Working;
             }
         }

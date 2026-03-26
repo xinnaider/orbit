@@ -91,8 +91,7 @@
   .time { color: var(--text-dim); font-size: 11px; }
   .text {
     font-size: 13px;
-    line-height: 1.6;
-    white-space: pre-wrap;
+    line-height: 1.5;
   }
   .output {
     font-size: 11px;
