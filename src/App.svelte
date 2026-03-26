@@ -7,8 +7,44 @@
   import CentralPanel from './components/CentralPanel.svelte';
   import RightPanel from './components/RightPanel.svelte';
 
+  let prevAgentStatuses: Record<string, string> = {};
+
+  function playNotificationBeep() {
+    try {
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 800;
+      osc.type = 'sine';
+      gain.gain.value = 0.3;
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.2);
+    } catch {
+      // Audio not available
+    }
+  }
+
   onMount(() => {
     const unlisten = onAgentsUpdate((update) => {
+      // Check for agents transitioning to 'input' status
+      for (const agent of update) {
+        const prev = prevAgentStatuses[agent.sessionId];
+        if (agent.status === 'input' && prev && prev !== 'input') {
+          playNotificationBeep();
+          break; // One beep per update cycle is enough
+        }
+      }
+
+      // Store current statuses for next comparison
+      const newStatuses: Record<string, string> = {};
+      for (const agent of update) {
+        newStatuses[agent.sessionId] = agent.status;
+      }
+      prevAgentStatuses = newStatuses;
+
       agents.set(update);
       // Auto-select first agent if none selected
       if (!$selectedAgentId && update.length > 0) {
