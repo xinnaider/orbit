@@ -41,6 +41,7 @@ pub struct MiniLogEntry {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SubagentInfo {
+    pub id: String,
     pub agent_type: String,
     pub description: String,
     pub status: String,

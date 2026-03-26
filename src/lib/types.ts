@@ -15,6 +15,7 @@ export interface MiniLogEntry {
 }
 
 export interface SubagentInfo {
+  id: string;
   agentType: string;
   description: string;
   status: string;

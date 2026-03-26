@@ -36,6 +36,37 @@ pub fn read_subagents(session_id: &str) -> Vec<SubagentInfo> {
     vec![]
 }
 
+/// Read the JSONL log for a specific subagent, returning raw lines as strings.
+pub fn read_subagent_log(session_id: &str, subagent_id: &str) -> Vec<String> {
+    let projects_dir = match dirs::home_dir() {
+        Some(h) => h.join(".claude").join("projects"),
+        None => return vec![],
+    };
+
+    let entries = match fs::read_dir(&projects_dir) {
+        Ok(e) => e,
+        Err(_) => return vec![],
+    };
+
+    for project_entry in entries.flatten() {
+        let jsonl_path = project_entry.path()
+            .join(session_id)
+            .join("subagents")
+            .join(format!("{}.jsonl", subagent_id));
+
+        if jsonl_path.exists() {
+            if let Ok(content) = fs::read_to_string(&jsonl_path) {
+                return content.lines()
+                    .filter(|l| !l.trim().is_empty())
+                    .map(|l| l.to_string())
+                    .collect();
+            }
+        }
+    }
+
+    vec![]
+}
+
 fn read_meta_files(dir: &Path) -> Vec<SubagentInfo> {
     let entries = match fs::read_dir(dir) {
         Ok(e) => e,
@@ -57,8 +88,9 @@ fn read_meta_files(dir: &Path) -> Vec<SubagentInfo> {
         };
 
         if let Ok(meta) = serde_json::from_str::<AgentMeta>(&content) {
+            let id = name.replace(".meta.json", "");
             // Check if corresponding JSONL exists and has data (indicates completion)
-            let jsonl_name = name.replace(".meta.json", ".jsonl");
+            let jsonl_name = format!("{}.jsonl", &id);
             let jsonl_path = dir.join(&jsonl_name);
             let status = if jsonl_path.exists() {
                 let size = jsonl_path.metadata().map(|m| m.len()).unwrap_or(0);
@@ -68,6 +100,7 @@ fn read_meta_files(dir: &Path) -> Vec<SubagentInfo> {
             };
 
             agents.push(SubagentInfo {
+                id,
                 agent_type: meta.agent_type,
                 description: meta.description,
                 status,

@@ -48,7 +48,7 @@
       <div class="panel-tabs">
         <button class="tab active">Diff</button>
         <button class="tab">Files</button>
-        <button class="tab">Agents</button>
+        <button class="tab">Sub-agents</button>
         <button class="tab">Tasks</button>
         <button class="tab">Stats</button>
       </div>

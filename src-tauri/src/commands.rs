@@ -1,5 +1,6 @@
 use tauri::State;
 
+use crate::journal_reader;
 use crate::keystroke_sender;
 use crate::models::*;
 use crate::polling::AppState;
@@ -51,4 +52,36 @@ pub fn get_diff(session_id: String, file_hash: String, from_version: u32, to_ver
 #[tauri::command]
 pub fn get_file_versions(session_id: String) -> Vec<diff_builder::FileVersionInfo> {
     diff_builder::get_file_versions(&session_id)
+}
+
+#[tauri::command]
+pub fn get_subagent_journal(session_id: String, subagent_id: String) -> Vec<JournalEntry> {
+    // Find the subagent JSONL path
+    let projects_dir = match dirs::home_dir() {
+        Some(h) => h.join(".claude").join("projects"),
+        None => return vec![],
+    };
+
+    let entries = match std::fs::read_dir(&projects_dir) {
+        Ok(e) => e,
+        Err(_) => return vec![],
+    };
+
+    for project_entry in entries.flatten() {
+        let jsonl_path = project_entry.path()
+            .join(&session_id)
+            .join("subagents")
+            .join(format!("{}.jsonl", &subagent_id));
+
+        if jsonl_path.exists() {
+            let state = journal_reader::parse_journal(&jsonl_path, 0, None);
+            let mut result = state.entries;
+            for entry in &mut result {
+                entry.session_id = subagent_id.clone();
+            }
+            return result;
+        }
+    }
+
+    vec![]
 }

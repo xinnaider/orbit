@@ -10,7 +10,13 @@
   export let agent: AgentState;
   export let entries: JournalEntry[];
 
-  const tabs = ['diff', 'files', 'agents', 'tasks', 'stats'] as const;
+  const tabs: { key: typeof $rightPanelTab; label: string }[] = [
+    { key: 'diff', label: 'Diff' },
+    { key: 'files', label: 'Files' },
+    { key: 'agents', label: 'Sub-agents' },
+    { key: 'tasks', label: 'Tasks' },
+    { key: 'stats', label: 'Stats' },
+  ];
 </script>
 
 <aside class="right-panel">
@@ -18,10 +24,10 @@
     {#each tabs as tab}
       <button
         class="tab"
-        class:active={$rightPanelTab === tab}
-        onclick={() => rightPanelTab.set(tab)}
+        class:active={$rightPanelTab === tab.key}
+        onclick={() => rightPanelTab.set(tab.key)}
       >
-        {tab.charAt(0).toUpperCase() + tab.slice(1)}
+        {tab.label}
       </button>
     {/each}
   </div>
@@ -31,7 +37,7 @@
     {:else if $rightPanelTab === 'files'}
       <FilesImpact {entries} />
     {:else if $rightPanelTab === 'agents'}
-      <SubagentsPanel subagents={agent.subagents} />
+      <SubagentsPanel sessionId={agent.sessionId} subagents={agent.subagents} />
     {:else if $rightPanelTab === 'tasks'}
       <TasksProgress />
     {:else if $rightPanelTab === 'stats'}

@@ -14,6 +14,10 @@ export async function getJournal(sessionId: string): Promise<JournalEntry[]> {
   return await invoke('get_journal', { sessionId });
 }
 
+export async function getSubagentJournal(sessionId: string, subagentId: string): Promise<JournalEntry[]> {
+  return await invoke('get_subagent_journal', { sessionId, subagentId });
+}
+
 export function onAgentsUpdate(callback: (agents: AgentState[]) => void) {
   return listen<AgentState[]>('agents-update', (event) => {
     callback(event.payload);
