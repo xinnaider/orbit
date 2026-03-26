@@ -54,5 +54,11 @@ export interface JournalEntry {
   linesChanged: { added: number; removed: number } | null;
 }
 
+export interface SlashCommand {
+  cmd: string;
+  desc: string;
+  category: string;
+}
+
 export type DetailLevel = 'compact' | 'full' | 'raw';
 export type RightPanelTab = 'agents' | 'tasks' | 'stats';

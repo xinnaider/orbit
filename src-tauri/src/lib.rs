@@ -21,6 +21,7 @@ pub fn run() {
             commands::get_diff,
             commands::get_file_versions,
             commands::get_subagent_journal,
+            commands::get_slash_commands,
         ])
         .setup(|app| {
             polling::start_polling(app.handle().clone());

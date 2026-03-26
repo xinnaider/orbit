@@ -1,18 +1,48 @@
 <script lang="ts">
-  import { sendKeystroke, sendMessage } from '../lib/tauri';
+  import { onMount, tick } from 'svelte';
+  import { sendKeystroke, sendMessage, getSlashCommands } from '../lib/tauri';
   import { pendingMessages } from '../lib/stores/journal';
+  import type { SlashCommand } from '../lib/types';
 
   export let sessionId: string;
   export let agentName: string;
 
   let inputText = '';
-
   let textareaEl: HTMLTextAreaElement;
+  let selectedIdx = 0;
+  let showSuggestions = false;
+  let commands: SlashCommand[] = [];
+  let suggestionEls: HTMLButtonElement[] = [];
+
+  onMount(async () => {
+    try {
+      commands = await getSlashCommands();
+    } catch {
+      // Fallback: empty — built-ins are provided by the backend
+    }
+  });
+
+  $: query = inputText.startsWith('/') ? inputText.toLowerCase() : '';
+  $: filtered = query
+    ? commands.filter(c => c.cmd.toLowerCase().includes(query))
+    : [];
+  $: {
+    showSuggestions = filtered.length > 0 && inputText.startsWith('/');
+    if (selectedIdx >= filtered.length) selectedIdx = 0;
+  }
+
+  function scrollSelectedIntoView() {
+    tick().then(() => {
+      const el = suggestionEls[selectedIdx];
+      if (el) el.scrollIntoView({ block: 'nearest' });
+    });
+  }
 
   async function handleSend() {
     if (!inputText.trim()) return;
     const text = inputText;
     inputText = '';
+    showSuggestions = false;
     if (textareaEl) textareaEl.style.height = 'auto';
     pendingMessages.add(text);
     await sendMessage(sessionId, text);
@@ -24,7 +54,53 @@
     await sendKeystroke(sessionId, key);
   }
 
+  function selectCommand(cmd: string) {
+    inputText = cmd + ' ';
+    showSuggestions = false;
+    textareaEl?.focus();
+  }
+
   function handleKeydown(e: KeyboardEvent) {
+    if (showSuggestions) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        selectedIdx = (selectedIdx + 1) % filtered.length;
+        scrollSelectedIntoView();
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        selectedIdx = (selectedIdx - 1 + filtered.length) % filtered.length;
+        scrollSelectedIntoView();
+        return;
+      }
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        selectCommand(filtered[selectedIdx].cmd);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        showSuggestions = false;
+        return;
+      }
+      // Enter on exact match or selection sends the command
+      if (e.key === 'Enter' && !e.shiftKey) {
+        // If input exactly matches a command, send it directly
+        const exactMatch = filtered.find(c => c.cmd === inputText.trim());
+        if (exactMatch) {
+          e.preventDefault();
+          handleSend();
+          return;
+        }
+        // Otherwise autocomplete first
+        if (filtered.length > 0 && inputText.trim() !== filtered[selectedIdx].cmd) {
+          e.preventDefault();
+          selectCommand(filtered[selectedIdx].cmd);
+          return;
+        }
+      }
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -33,6 +109,23 @@
 </script>
 
 <div class="command-input">
+  {#if showSuggestions}
+    <div class="suggestions">
+      {#each filtered as item, i}
+        <button
+          bind:this={suggestionEls[i]}
+          class="suggestion"
+          class:selected={i === selectedIdx}
+          onclick={() => selectCommand(item.cmd)}
+          onmouseenter={() => selectedIdx = i}
+        >
+          <span class="cmd">{item.cmd}</span>
+          <span class="desc">{item.desc}</span>
+          <span class="cat {item.category}">{item.category}</span>
+        </button>
+      {/each}
+    </div>
+  {/if}
   <div class="input-row">
     <div class="input-wrapper">
       <span class="prompt">$</span>
@@ -40,7 +133,7 @@
         bind:this={textareaEl}
         bind:value={inputText}
         onkeydown={handleKeydown}
-        placeholder="Send command to {agentName}... (Shift+Enter for new line)"
+        placeholder="Send command to {agentName}... (/ for commands)"
         rows="1"
         oninput={(e) => { const t = e.currentTarget; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 120) + 'px'; }}
       ></textarea>
@@ -60,6 +153,7 @@
     padding: 8px 14px;
     border-top: 1px solid var(--border);
     background: var(--bg-subtle);
+    position: relative;
   }
   .input-row { display: flex; gap: 8px; align-items: flex-end; }
   .input-wrapper {
@@ -111,4 +205,66 @@
   }
   .quick-actions button:hover { background: var(--bg-hover); }
   .quick-actions button.ctrl-c { color: var(--red); }
+
+  /* Suggestions dropdown */
+  .suggestions {
+    position: absolute;
+    bottom: 100%;
+    left: 14px;
+    right: 14px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 4px;
+    margin-bottom: 4px;
+    max-height: 240px;
+    overflow-y: auto;
+    z-index: 50;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.2);
+  }
+  .suggestion {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 6px 10px;
+    border: none;
+    background: none;
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: left;
+    font-size: 12px;
+    color: var(--text-primary);
+  }
+  .suggestion:hover,
+  .suggestion.selected {
+    background: var(--bg-hover);
+  }
+  .suggestion .cmd {
+    font-family: 'Cascadia Code', monospace;
+    font-weight: 600;
+    color: var(--blue);
+    flex-shrink: 0;
+  }
+  .suggestion .desc {
+    color: var(--text-muted);
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .suggestion .cat {
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    flex-shrink: 0;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .cat.built-in { background: var(--bg-overlay); color: var(--text-dim); }
+  .cat.skill { background: var(--purple-dim); color: var(--purple); }
+  .cat.command { background: var(--green-dim); color: var(--green); }
+  .cat.agent { background: var(--amber-dim); color: var(--amber); }
 </style>

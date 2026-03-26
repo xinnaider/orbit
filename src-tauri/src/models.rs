@@ -134,6 +134,14 @@ pub enum DiffLineKind {
     Removed,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SlashCommand {
+    pub cmd: String,
+    pub desc: String,
+    pub category: String,
+}
+
 /// Map raw model IDs to human-friendly display names.
 pub fn model_display_name(model_id: &str) -> &str {
     match model_id {
