@@ -5,11 +5,12 @@
   import FilesImpact from './FilesImpact.svelte';
   import TasksProgress from './TasksProgress.svelte';
   import StatsPanel from './StatsPanel.svelte';
+  import SubagentsPanel from './SubagentsPanel.svelte';
 
   export let agent: AgentState;
   export let entries: JournalEntry[];
 
-  const tabs = ['diff', 'files', 'tasks', 'stats'] as const;
+  const tabs = ['diff', 'files', 'agents', 'tasks', 'stats'] as const;
 </script>
 
 <aside class="right-panel">
@@ -29,6 +30,8 @@
       <DiffView sessionId={agent.sessionId} />
     {:else if $rightPanelTab === 'files'}
       <FilesImpact {entries} />
+    {:else if $rightPanelTab === 'agents'}
+      <SubagentsPanel subagents={agent.subagents} />
     {:else if $rightPanelTab === 'tasks'}
       <TasksProgress />
     {:else if $rightPanelTab === 'stats'}

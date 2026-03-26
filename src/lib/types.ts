@@ -54,4 +54,4 @@ export interface JournalEntry {
 }
 
 export type DetailLevel = 'compact' | 'full' | 'raw';
-export type RightPanelTab = 'diff' | 'files' | 'tasks' | 'stats';
+export type RightPanelTab = 'diff' | 'files' | 'tasks' | 'stats' | 'agents';
