@@ -60,5 +60,15 @@ export interface SlashCommand {
   category: string;
 }
 
+export interface TaskItem {
+  id: string;
+  subject: string;
+  description: string;
+  activeForm: string | null;
+  status: 'pending' | 'in_progress' | 'completed';
+  blocks: string[];
+  blockedBy: string[];
+}
+
 export type DetailLevel = 'compact' | 'full' | 'raw';
 export type RightPanelTab = 'agents' | 'tasks' | 'stats';

@@ -30,7 +30,7 @@
     {#if $rightPanelTab === 'agents'}
       <SubagentsPanel sessionId={agent.sessionId} subagents={agent.subagents} />
     {:else if $rightPanelTab === 'tasks'}
-      <TasksProgress />
+      <TasksProgress sessionId={agent.sessionId} />
     {:else if $rightPanelTab === 'stats'}
       <StatsPanel {agent} />
     {/if}

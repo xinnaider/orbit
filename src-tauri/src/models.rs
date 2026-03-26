@@ -142,6 +142,18 @@ pub struct SlashCommand {
     pub category: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TaskItem {
+    pub id: String,
+    pub subject: String,
+    pub description: String,
+    pub active_form: Option<String>,
+    pub status: String,
+    pub blocks: Vec<String>,
+    pub blocked_by: Vec<String>,
+}
+
 /// Map raw model IDs to human-friendly display names.
 pub fn model_display_name(model_id: &str) -> &str {
     match model_id {

@@ -23,6 +23,7 @@ pub fn run() {
             commands::get_subagent_journal,
             commands::get_slash_commands,
             commands::list_project_files,
+            commands::get_tasks,
         ])
         .setup(|app| {
             polling::start_polling(app.handle().clone());

@@ -292,3 +292,43 @@ pub fn list_project_files(cwd: String) -> Vec<String> {
     files.sort();
     files
 }
+
+#[tauri::command]
+pub fn get_tasks(session_id: String) -> Vec<TaskItem> {
+    let tasks_dir = match dirs::home_dir() {
+        Some(h) => h.join(".claude").join("tasks").join(&session_id),
+        None => return vec![],
+    };
+
+    let entries = match std::fs::read_dir(&tasks_dir) {
+        Ok(e) => e,
+        Err(_) => return vec![],
+    };
+
+    let mut tasks: Vec<TaskItem> = Vec::new();
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.extension().is_some_and(|e| e == "json") {
+            continue;
+        }
+        let content = match std::fs::read_to_string(&path) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+        if let Ok(task) = serde_json::from_str::<TaskItem>(&content) {
+            if task.status != "deleted" {
+                tasks.push(task);
+            }
+        }
+    }
+
+    // Sort by ID numerically
+    tasks.sort_by(|a, b| {
+        let a_num: u32 = a.id.parse().unwrap_or(u32::MAX);
+        let b_num: u32 = b.id.parse().unwrap_or(u32::MAX);
+        a_num.cmp(&b_num)
+    });
+
+    tasks
+}
