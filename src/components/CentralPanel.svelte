@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { AgentState } from '../lib/types';
-  import { journal } from '../lib/stores/journal';
+  import { journal, pendingMessages } from '../lib/stores/journal';
   import { detailLevel } from '../lib/stores/preferences';
   import { getJournal } from '../lib/tauri';
   import JournalEntry from './JournalEntry.svelte';
@@ -30,8 +30,15 @@
     }
   }
 
+  let prevEntryCount = 0;
+
   async function loadJournal(sessionId: string) {
     const entries = await getJournal(sessionId);
+    // If new entries appeared, clear pending messages (they've been processed)
+    if (entries.length > prevEntryCount && prevEntryCount > 0) {
+      pendingMessages.clear();
+    }
+    prevEntryCount = entries.length;
     journal.set(entries);
     if (!userScrolledUp) {
       requestAnimationFrame(() => {
@@ -129,6 +136,14 @@
           {/if}
           <div class="entry-row" class:child={isChild}>
             <JournalEntry {entry} {resultEntry} />
+          </div>
+        {/each}
+
+        {#each $pendingMessages as msg (msg.id)}
+          <div class="pending-msg">
+            <span class="pending-icon">↗</span>
+            <span class="pending-text">{msg.text}</span>
+            <span class="pending-label">sending...</span>
           </div>
         {/each}
 
@@ -265,6 +280,38 @@
   .scroll-btn:hover {
     background: var(--bg-tertiary);
     transform: scale(1.1);
+  }
+
+  .pending-msg {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: 10px;
+    background: var(--bg-user);
+    border: 1px dashed color-mix(in srgb, var(--blue) 40%, transparent);
+    margin: 4px 0;
+    animation: fadeIn 0.2s ease-out;
+    opacity: 0.7;
+  }
+  .pending-icon {
+    color: var(--blue);
+    font-size: 12px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .pending-text {
+    font-size: 13px;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    flex: 1;
+    min-width: 0;
+  }
+  .pending-label {
+    font-size: 10px;
+    color: var(--text-dim);
+    flex-shrink: 0;
+    font-style: italic;
   }
 
   .approval-banner {

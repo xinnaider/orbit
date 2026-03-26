@@ -1,5 +1,6 @@
 <script lang="ts">
   import { sendKeystroke, sendMessage } from '../lib/tauri';
+  import { pendingMessages } from '../lib/stores/journal';
 
   export let sessionId: string;
   export let agentName: string;
@@ -10,12 +11,16 @@
 
   async function handleSend() {
     if (!inputText.trim()) return;
-    await sendMessage(sessionId, inputText);
+    const text = inputText;
     inputText = '';
     if (textareaEl) textareaEl.style.height = 'auto';
+    pendingMessages.add(text);
+    await sendMessage(sessionId, text);
   }
 
   async function handleQuickAction(key: string) {
+    const display = key === '\x03' ? 'Ctrl+C' : key;
+    pendingMessages.add(display);
     await sendKeystroke(sessionId, key);
   }
 

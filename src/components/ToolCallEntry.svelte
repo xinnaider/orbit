@@ -29,6 +29,8 @@
   export let entry: JournalEntry;
   export let resultEntry: JournalEntry | null = null;
 
+  let modalOpen = false;
+
   $: toolClass = (entry.tool ?? '').toLowerCase();
   $: target = extractTarget(entry);
   $: timeStr = entry.timestamp.slice(11, 16);
@@ -124,6 +126,9 @@
         <span class="removed">-{entry.linesChanged.removed}</span>
       </span>
     {/if}
+    {#if hasDetail || resultEntry?.output}
+      <button class="expand-btn" onclick={(e) => { e.stopPropagation(); modalOpen = true; }} title="Fullscreen">⛶</button>
+    {/if}
   </div>
 
   {#if hasDetail || resultEntry?.output}
@@ -169,6 +174,64 @@
   {/if}
 </div>
 
+{#if modalOpen}
+  <div class="modal-overlay" onclick={() => modalOpen = false} role="dialog" tabindex="-1" onkeydown={(e) => e.key === 'Escape' && (modalOpen = false)}>
+    <div class="modal" onclick={(e) => e.stopPropagation()}>
+      <div class="modal-header">
+        <div class="modal-title">
+          <span class="icon">{icon}</span>
+          <span class="tool {toolClass}">{entry.tool}</span>
+          <span class="target mono">{target}</span>
+        </div>
+        <button class="modal-close" onclick={() => modalOpen = false}>✕</button>
+      </div>
+      <div class="modal-body detail">
+        {#if hasEditDiff}
+          <div class="modal-section-label">Changes</div>
+          <div class="code-card modal-card">
+            <div class="modal-code-scroll">
+              {#each allDiffLines as dl}
+                <div class="diff-line {dl.type}">
+                  <span class="diff-prefix">{dl.type === 'rem' ? '-' : '+'}</span>
+                  <span class="diff-code">{@html doHighlight(dl.text, lang)}</span>
+                </div>
+              {/each}
+            </div>
+          </div>
+        {:else if hasBashCommand || hasWriteContent}
+          <div class="modal-section-label">{hasBashCommand ? 'Command' : 'Content'}</div>
+          <div class="code-card modal-card">
+            <pre class="modal-code-scroll code-text"><code>{@html doHighlight(codeText, hasBashCommand ? 'bash' : lang)}</code></pre>
+          </div>
+        {/if}
+
+        {#if resultEntry?.output}
+          <div class="modal-section-label">Output</div>
+          <div class="code-card modal-card">
+            {#if isReadTool}
+              {@const parsed = stripLineNumbers(resultEntry.output)}
+              <div class="modal-code-scroll read-output">
+                <table class="read-table">
+                  {#each parsed.code.split('\n') as line, li}
+                    <tr>
+                      <td class="line-num">{parsed.lineNums[li] ?? ''}</td>
+                      <td class="line-code">{@html doHighlight(line, lang)}</td>
+                    </tr>
+                  {/each}
+                </table>
+              </div>
+            {:else}
+              <div class="modal-code-scroll result-output">
+                <pre class="result-pre mono">{resultEntry.output}</pre>
+              </div>
+            {/if}
+          </div>
+        {/if}
+      </div>
+    </div>
+  </div>
+{/if}
+
 <style>
   .tool-wrap {
     margin: 2px 0;
@@ -209,6 +272,23 @@
   .changes { display: flex; gap: 3px; flex-shrink: 0; }
   .added { color: var(--green); font-size: 11px; }
   .removed { color: var(--red); font-size: 11px; }
+  .expand-btn {
+    flex-shrink: 0;
+    background: var(--bg-overlay);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 11px;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    line-height: 1;
+    transition: all 0.15s;
+  }
+  .expand-btn:hover {
+    background: var(--bg-hover);
+    color: var(--blue);
+    border-color: var(--blue);
+  }
 
   .detail {
     padding: 4px 10px 4px 10px;
@@ -340,4 +420,86 @@
 
   .detail :global(.hljs-params) { color: var(--text-primary); }
   .detail :global(.hljs-punctuation) { color: var(--text-secondary); }
+
+  /* Fullscreen modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    animation: fadeIn 0.15s ease-out;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  .modal {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    width: 100%;
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .modal-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    min-width: 0;
+  }
+  .modal-title .target {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .modal-close {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+  }
+  .modal-close:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+  .modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .modal-section-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .modal-code-scroll {
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 12px;
+    line-height: 1.7;
+    max-height: none;
+    overflow-y: visible;
+  }
 </style>
