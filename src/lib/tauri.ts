@@ -22,6 +22,10 @@ export async function getSlashCommands(): Promise<SlashCommand[]> {
   return await invoke('get_slash_commands');
 }
 
+export async function listProjectFiles(cwd: string): Promise<string[]> {
+  return await invoke('list_project_files', { cwd });
+}
+
 export function onAgentsUpdate(callback: (agents: AgentState[]) => void) {
   return listen<AgentState[]>('agents-update', (event) => {
     callback(event.payload);
