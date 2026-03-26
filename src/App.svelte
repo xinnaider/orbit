@@ -2,8 +2,10 @@
   import { onMount } from 'svelte';
   import { agents, selectedAgentId } from './lib/stores/agents';
   import { onAgentsUpdate } from './lib/tauri';
+  import { journal } from './lib/stores/journal';
   import Sidebar from './components/Sidebar.svelte';
   import CentralPanel from './components/CentralPanel.svelte';
+  import RightPanel from './components/RightPanel.svelte';
 
   onMount(() => {
     const unlisten = onAgentsUpdate((update) => {
@@ -39,15 +41,18 @@
     {/if}
   </main>
 
-  <aside class="right-panel">
-    <div class="panel-tabs">
-      <button class="tab active">Diff</button>
-      <button class="tab">Files</button>
-      <button class="tab">Tasks</button>
-      <button class="tab">Stats</button>
-    </div>
-    <div class="panel-content"></div>
-  </aside>
+  {#if currentAgent}
+    <RightPanel agent={currentAgent} entries={$journal} />
+  {:else}
+    <aside class="right-panel">
+      <div class="panel-tabs">
+        <button class="tab active">Diff</button>
+        <button class="tab">Files</button>
+        <button class="tab">Tasks</button>
+        <button class="tab">Stats</button>
+      </div>
+    </aside>
+  {/if}
 </div>
 
 <style>
