@@ -167,7 +167,7 @@
     {/if}
   </div>
 
-  <CommandInput sessionId={agent.sessionId} agentName={agent.project} />
+  <CommandInput sessionId={agent.sessionId} agentName={agent.project} agentCwd={agent.cwd} />
 </div>
 
 <style>

@@ -1,11 +1,12 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
-  import { sendKeystroke, sendMessage, getSlashCommands } from '../lib/tauri';
+  import { sendKeystroke, sendMessage, getSlashCommands, listProjectFiles } from '../lib/tauri';
   import { pendingMessages } from '../lib/stores/journal';
   import type { SlashCommand } from '../lib/types';
 
   export let sessionId: string;
   export let agentName: string;
+  export let agentCwd: string = '';
 
   let inputText = '';
   let textareaEl: HTMLTextAreaElement;
@@ -14,14 +15,28 @@
   let commands: SlashCommand[] = [];
   let suggestionEls: HTMLButtonElement[] = [];
 
+  // @ file picker state
+  let projectFiles: string[] = [];
+  let showFilePicker = false;
+  let fileSelectedIdx = 0;
+  let filePickerEls: HTMLButtonElement[] = [];
+
   onMount(async () => {
     try {
       commands = await getSlashCommands();
     } catch {
-      // Fallback: empty — built-ins are provided by the backend
+      // Fallback: empty
+    }
+    if (agentCwd) {
+      try {
+        projectFiles = await listProjectFiles(agentCwd);
+      } catch {
+        // Fallback: empty
+      }
     }
   });
 
+  // Slash command filtering
   $: query = inputText.startsWith('/') ? inputText.toLowerCase() : '';
   $: filtered = query
     ? commands.filter(c => c.cmd.toLowerCase().includes(query))
@@ -31,9 +46,57 @@
     if (selectedIdx >= filtered.length) selectedIdx = 0;
   }
 
+  // @ file picker: detect "@" token at cursor position
+  function getAtQuery(): string | null {
+    if (!textareaEl) return null;
+    const pos = textareaEl.selectionStart;
+    const textBefore = inputText.slice(0, pos);
+    // Find the last @ that isn't preceded by a non-space char
+    const lastAt = textBefore.lastIndexOf('@');
+    if (lastAt === -1) return null;
+    // @ must be at start or preceded by whitespace
+    if (lastAt > 0 && inputText[lastAt - 1] !== ' ' && inputText[lastAt - 1] !== '\n') return null;
+    const queryStr = textBefore.slice(lastAt + 1);
+    // If there's a space after the query, the user finished typing the path
+    if (queryStr.includes(' ')) return null;
+    return queryStr;
+  }
+
+  $: atQuery = (() => {
+    // Re-run when inputText changes
+    void inputText;
+    return getAtQuery();
+  })();
+
+  $: filteredFiles = (() => {
+    if (atQuery === null) return [];
+    if (atQuery === '') return projectFiles.slice(0, 15);
+    const q = atQuery.toLowerCase();
+    const matches: string[] = [];
+    for (const f of projectFiles) {
+      if (f.toLowerCase().includes(q)) {
+        matches.push(f);
+        if (matches.length >= 15) break;
+      }
+    }
+    return matches;
+  })();
+
+  $: {
+    showFilePicker = filteredFiles.length > 0 && atQuery !== null;
+    if (fileSelectedIdx >= filteredFiles.length) fileSelectedIdx = 0;
+  }
+
   function scrollSelectedIntoView() {
     tick().then(() => {
       const el = suggestionEls[selectedIdx];
+      if (el) el.scrollIntoView({ block: 'nearest' });
+    });
+  }
+
+  function scrollFileSelectedIntoView() {
+    tick().then(() => {
+      const el = filePickerEls[fileSelectedIdx];
       if (el) el.scrollIntoView({ block: 'nearest' });
     });
   }
@@ -43,6 +106,7 @@
     const text = inputText;
     inputText = '';
     showSuggestions = false;
+    showFilePicker = false;
     if (textareaEl) textareaEl.style.height = 'auto';
     pendingMessages.add(text);
     await sendMessage(sessionId, text);
@@ -60,7 +124,59 @@
     textareaEl?.focus();
   }
 
+  function selectFile(filePath: string) {
+    if (!textareaEl) return;
+    const pos = textareaEl.selectionStart;
+    const textBefore = inputText.slice(0, pos);
+    const lastAt = textBefore.lastIndexOf('@');
+    if (lastAt === -1) return;
+    const before = inputText.slice(0, lastAt);
+    const after = inputText.slice(pos);
+    inputText = before + '@' + filePath + ' ' + after;
+    showFilePicker = false;
+    tick().then(() => {
+      if (textareaEl) {
+        const newPos = lastAt + 1 + filePath.length + 1;
+        textareaEl.selectionStart = newPos;
+        textareaEl.selectionEnd = newPos;
+        textareaEl.focus();
+      }
+    });
+  }
+
   function handleKeydown(e: KeyboardEvent) {
+    // @ file picker navigation
+    if (showFilePicker) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        fileSelectedIdx = (fileSelectedIdx + 1) % filteredFiles.length;
+        scrollFileSelectedIntoView();
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        fileSelectedIdx = (fileSelectedIdx - 1 + filteredFiles.length) % filteredFiles.length;
+        scrollFileSelectedIntoView();
+        return;
+      }
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        selectFile(filteredFiles[fileSelectedIdx]);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        showFilePicker = false;
+        return;
+      }
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        selectFile(filteredFiles[fileSelectedIdx]);
+        return;
+      }
+    }
+
+    // Slash command navigation (existing)
     if (showSuggestions) {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
@@ -84,16 +200,13 @@
         showSuggestions = false;
         return;
       }
-      // Enter on exact match or selection sends the command
       if (e.key === 'Enter' && !e.shiftKey) {
-        // If input exactly matches a command, send it directly
         const exactMatch = filtered.find(c => c.cmd === inputText.trim());
         if (exactMatch) {
           e.preventDefault();
           handleSend();
           return;
         }
-        // Otherwise autocomplete first
         if (filtered.length > 0 && inputText.trim() !== filtered[selectedIdx].cmd) {
           e.preventDefault();
           selectCommand(filtered[selectedIdx].cmd);
@@ -109,7 +222,23 @@
 </script>
 
 <div class="command-input">
-  {#if showSuggestions}
+  {#if showFilePicker}
+    <div class="suggestions">
+      {#each filteredFiles as filePath, i}
+        <button
+          bind:this={filePickerEls[i]}
+          class="suggestion"
+          class:selected={i === fileSelectedIdx}
+          onclick={() => selectFile(filePath)}
+          onmouseenter={() => fileSelectedIdx = i}
+        >
+          <span class="file-icon">📄</span>
+          <span class="cmd">{filePath.split('/').pop()}</span>
+          <span class="desc">{filePath}</span>
+        </button>
+      {/each}
+    </div>
+  {:else if showSuggestions}
     <div class="suggestions">
       {#each filtered as item, i}
         <button
@@ -133,7 +262,7 @@
         bind:this={textareaEl}
         bind:value={inputText}
         onkeydown={handleKeydown}
-        placeholder="Send command to {agentName}... (/ for commands)"
+        placeholder="Send command to {agentName}... (/ for commands, @ for files)"
         rows="1"
         oninput={(e) => { const t = e.currentTarget; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 120) + 'px'; }}
       ></textarea>
@@ -244,6 +373,10 @@
     font-family: 'Cascadia Code', monospace;
     font-weight: 600;
     color: var(--blue);
+    flex-shrink: 0;
+  }
+  .suggestion .file-icon {
+    font-size: 12px;
     flex-shrink: 0;
   }
   .suggestion .desc {
