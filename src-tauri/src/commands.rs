@@ -136,16 +136,20 @@ fn scan_plugin(install_path: &Path, plugin_name: &str, out: &mut Vec<SlashComman
         }
     }
 
-    // Commands: commands/<name>.md
+    // Commands: commands/<name>.md (skip deprecated)
     let cmds_dir = install_path.join("commands");
     if let Ok(entries) = std::fs::read_dir(&cmds_dir) {
         for entry in entries.flatten() {
             let path = entry.path();
             if path.extension().map_or(false, |e| e == "md") {
                 if let Ok(content) = std::fs::read_to_string(&path) {
-                    let stem = path.file_stem().unwrap_or_default().to_string_lossy().to_string();
                     let desc = frontmatter_field(&content, "description")
                         .unwrap_or_default();
+                    let desc_lower = desc.to_lowercase();
+                    if desc_lower.contains("deprecated") {
+                        continue;
+                    }
+                    let stem = path.file_stem().unwrap_or_default().to_string_lossy().to_string();
                     let desc_short = if desc.len() > 80 {
                         format!("{}...", &desc[..77])
                     } else {
