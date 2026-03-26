@@ -3,6 +3,7 @@
   import { agents, selectedAgentId } from './lib/stores/agents';
   import { onAgentsUpdate } from './lib/tauri';
   import Sidebar from './components/Sidebar.svelte';
+  import CentralPanel from './components/CentralPanel.svelte';
 
   onMount(() => {
     const unlisten = onAgentsUpdate((update) => {
@@ -31,17 +32,11 @@
   />
 
   <main class="central">
-    <div class="central-header">
-      {#if currentAgent}
-        <span class="agent-name">{currentAgent.project}</span>
-        <span class="status {currentAgent.status}">{currentAgent.status.toUpperCase()}</span>
-      {:else}
-        <span class="placeholder">Select an agent</span>
-      {/if}
-    </div>
-    <div class="central-content">
-      <!-- CentralPanel will be added in Task 11 -->
-    </div>
+    {#if currentAgent}
+      <CentralPanel agent={currentAgent} />
+    {:else}
+      <div class="central-empty">Select an agent from the sidebar</div>
+    {/if}
   </main>
 
   <aside class="right-panel">
@@ -58,20 +53,14 @@
 <style>
   .workspace { display: flex; height: 100vh; width: 100vw; }
   .central { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-  .central-header {
-    padding: 8px 14px;
-    border-bottom: 1px solid var(--border);
+  .central-empty {
+    flex: 1;
     display: flex;
     align-items: center;
-    gap: 8px;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 13px;
   }
-  .agent-name { font-weight: 600; font-size: 13px; }
-  .status { padding: 1px 6px; border-radius: 8px; font-size: 9px; }
-  .status.working { background: var(--green-dim); color: var(--green); }
-  .status.input { background: var(--amber-dim); color: var(--amber); }
-  .status.idle { background: rgba(71,85,105,0.2); color: var(--text-muted); }
-  .placeholder { color: var(--text-muted); font-size: 13px; }
-  .central-content { flex: 1; overflow-y: auto; }
   .right-panel {
     width: 300px;
     border-left: 1px solid var(--border);
