@@ -46,7 +46,7 @@
     </div>
   </div>
 
-  <AgentTree status={agent.status} subagents={agent.subagents} />
+  <AgentTree subagents={agent.subagents} />
 
   <div class="log" bind:this={logContainer}>
     {#if $detailLevel === 'raw'}

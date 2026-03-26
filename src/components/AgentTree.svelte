@@ -1,7 +1,6 @@
 <script lang="ts">
-  import type { SubagentInfo, AgentStatus } from '../lib/types';
+  import type { SubagentInfo } from '../lib/types';
 
-  export let status: AgentStatus;
   export let subagents: SubagentInfo[];
 
   $: running = subagents.filter(a => a.status === 'running');

@@ -333,7 +333,7 @@ fn extract_tool_target(tool: &str, input: &Option<Value>) -> String {
                 .and_then(|v| v.as_str())
                 .map(|cmd| {
                     let first = cmd.lines().next().unwrap_or(cmd);
-                    if first.len() > 60 { format!("{}...", &first[..60]) } else { first.to_string() }
+                    if first.len() > 60 { format!("{}...", &first[..first.floor_char_boundary(60)]) } else { first.to_string() }
                 })
                 .unwrap_or_default()
         }
@@ -350,7 +350,7 @@ fn extract_tool_target(tool: &str, input: &Option<Value>) -> String {
             input.get("pattern")
                 .and_then(|v| v.as_str())
                 .map(|p| {
-                    if p.len() > 30 { format!("{}...", &p[..30]) } else { p.to_string() }
+                    if p.len() > 30 { format!("{}...", &p[..p.floor_char_boundary(30)]) } else { p.to_string() }
                 })
                 .unwrap_or_default()
         }
@@ -365,7 +365,12 @@ fn extract_tool_target(tool: &str, input: &Option<Value>) -> String {
 }
 
 fn truncate_output(text: &str, max: usize) -> String {
-    if text.len() <= max { text.to_string() } else { format!("{}...", &text[..max]) }
+    if text.len() <= max {
+        text.to_string()
+    } else {
+        let end = text.floor_char_boundary(max);
+        format!("{}...", &text[..end])
+    }
 }
 
 fn detect_pending_approval(entries: &[JournalEntry]) -> Option<String> {
