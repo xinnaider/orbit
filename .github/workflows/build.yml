@@ -43,6 +43,7 @@ jobs:
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: front -> front/target
+          shared-key: "rust-windows"
 
       - run: npm ci
 
@@ -82,6 +83,7 @@ jobs:
         uses: swatinem/rust-cache@v2
         with:
           workspaces: front -> front/target
+          shared-key: "rust-windows"
 
       - name: Install Node dependencies
         run: npm ci
