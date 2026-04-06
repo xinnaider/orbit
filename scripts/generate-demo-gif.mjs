@@ -22,7 +22,7 @@ const GIF_W = 960;
 const GIF_H = 600;
 const FPS = 2;
 const FRAME_DELAY = Math.round(100 / FPS); // centiseconds
-const OUT = join(ROOT, 'demo.gif');
+const OUT = join(ROOT, 'media', 'demo.gif');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
