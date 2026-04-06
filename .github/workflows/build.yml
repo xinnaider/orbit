@@ -65,6 +65,7 @@ jobs:
     name: Build Windows (.exe)
     runs-on: windows-latest
     needs: lint
+    if: github.event_name == 'push'
 
     steps:
       - name: Checkout
