@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, State};
 
-use crate::models::{Session, SessionId, JournalEntry};
+use crate::models::{JournalEntry, Session, SessionId};
 use crate::services::session_manager::SessionManager;
 use crate::services::spawn_manager::find_claude;
 
@@ -118,12 +118,25 @@ pub fn diagnose_spawn() -> serde_json::Value {
         let current = std::env::var("PATH").unwrap_or_default();
         #[cfg(windows)]
         if let Some(home) = dirs::home_dir() {
-            format!("{};{};{};{}",
-                home.join("AppData").join("Roaming").join("npm").to_string_lossy(),
-                home.join("AppData").join("Local").join("pnpm").to_string_lossy(),
-                home.join("AppData").join("Local").join("nvm").to_string_lossy(),
-                current)
-        } else { current }
+            format!(
+                "{};{};{};{}",
+                home.join("AppData")
+                    .join("Roaming")
+                    .join("npm")
+                    .to_string_lossy(),
+                home.join("AppData")
+                    .join("Local")
+                    .join("pnpm")
+                    .to_string_lossy(),
+                home.join("AppData")
+                    .join("Local")
+                    .join("nvm")
+                    .to_string_lossy(),
+                current
+            )
+        } else {
+            current
+        }
         #[cfg(not(windows))]
         current
     };
@@ -136,7 +149,11 @@ pub fn diagnose_spawn() -> serde_json::Value {
         .map(|o| {
             let stdout = String::from_utf8_lossy(&o.stdout).trim().to_string();
             let stderr = String::from_utf8_lossy(&o.stderr).trim().to_string();
-            if !stdout.is_empty() { stdout } else { stderr }
+            if !stdout.is_empty() {
+                stdout
+            } else {
+                stderr
+            }
         })
         .unwrap_or_else(|e| format!("version check failed: {e}"));
 
@@ -170,9 +187,6 @@ pub fn rename_session(
 
 /// Delete a session (removes from DB, stops if running).
 #[tauri::command]
-pub fn delete_session(
-    session_id: SessionId,
-    state: State<SessionState>,
-) -> Result<(), String> {
+pub fn delete_session(session_id: SessionId, state: State<SessionState>) -> Result<(), String> {
     state.0.lock().unwrap().delete_session(session_id)
 }

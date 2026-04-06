@@ -85,7 +85,7 @@
 </div>
 
 {#if modalAgent}
-  <div class="modal-backdrop" onclick={handleBackdropClick} role="dialog">
+  <div class="modal-backdrop" onclick={handleBackdropClick} onkeydown={(e) => e.key === 'Escape' && (modalAgent = null)} role="dialog" tabindex="-1">
     <div class="modal">
       <div class="modal-header">
         <div class="modal-title">

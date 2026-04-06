@@ -1,11 +1,16 @@
 use std::path::Path;
 
+use crate::diff_builder;
 use crate::journal_reader;
 use crate::models::*;
-use crate::diff_builder;
 
 #[tauri::command]
-pub fn get_diff(session_id: String, file_hash: String, from_version: u32, to_version: u32) -> Result<DiffResult, String> {
+pub fn get_diff(
+    session_id: String,
+    file_hash: String,
+    from_version: u32,
+    to_version: u32,
+) -> Result<DiffResult, String> {
     diff_builder::build_diff(&session_id, &file_hash, from_version, to_version)
         .ok_or_else(|| "Could not build diff".to_string())
 }
@@ -29,7 +34,8 @@ pub fn get_subagent_journal(session_id: String, subagent_id: String) -> Vec<Jour
     };
 
     for project_entry in entries.flatten() {
-        let jsonl_path = project_entry.path()
+        let jsonl_path = project_entry
+            .path()
             .join(&session_id)
             .join("subagents")
             .join(format!("{}.jsonl", &subagent_id));
@@ -78,8 +84,7 @@ fn scan_plugin(install_path: &Path, plugin_name: &str, out: &mut Vec<SlashComman
                 if let Ok(content) = std::fs::read_to_string(&skill_file) {
                     let name = frontmatter_field(&content, "name")
                         .unwrap_or_else(|| entry.file_name().to_string_lossy().to_string());
-                    let desc = frontmatter_field(&content, "description")
-                        .unwrap_or_default();
+                    let desc = frontmatter_field(&content, "description").unwrap_or_default();
                     // Truncate long descriptions
                     let desc_short = if desc.len() > 80 {
                         format!("{}...", &desc[..77])
@@ -103,13 +108,16 @@ fn scan_plugin(install_path: &Path, plugin_name: &str, out: &mut Vec<SlashComman
             let path = entry.path();
             if path.extension().is_some_and(|e| e == "md") {
                 if let Ok(content) = std::fs::read_to_string(&path) {
-                    let desc = frontmatter_field(&content, "description")
-                        .unwrap_or_default();
+                    let desc = frontmatter_field(&content, "description").unwrap_or_default();
                     let desc_lower = desc.to_lowercase();
                     if desc_lower.contains("deprecated") {
                         continue;
                     }
-                    let stem = path.file_stem().unwrap_or_default().to_string_lossy().to_string();
+                    let stem = path
+                        .file_stem()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string();
                     let desc_short = if desc.len() > 80 {
                         format!("{}...", &desc[..77])
                     } else {
@@ -132,10 +140,13 @@ fn scan_plugin(install_path: &Path, plugin_name: &str, out: &mut Vec<SlashComman
             let path = entry.path();
             if path.extension().is_some_and(|e| e == "md") {
                 if let Ok(content) = std::fs::read_to_string(&path) {
-                    let name = frontmatter_field(&content, "name")
-                        .unwrap_or_else(|| path.file_stem().unwrap_or_default().to_string_lossy().to_string());
-                    let desc = frontmatter_field(&content, "description")
-                        .unwrap_or_default();
+                    let name = frontmatter_field(&content, "name").unwrap_or_else(|| {
+                        path.file_stem()
+                            .unwrap_or_default()
+                            .to_string_lossy()
+                            .to_string()
+                    });
+                    let desc = frontmatter_field(&content, "description").unwrap_or_default();
                     let desc_short = if desc.len() > 80 {
                         format!("{}...", &desc[..77])
                     } else {
@@ -189,7 +200,10 @@ pub fn get_slash_commands() -> Vec<SlashCommand> {
         None => return result,
     };
 
-    let plugins_file = home.join(".claude").join("plugins").join("installed_plugins.json");
+    let plugins_file = home
+        .join(".claude")
+        .join("plugins")
+        .join("installed_plugins.json");
     let content = match std::fs::read_to_string(&plugins_file) {
         Ok(c) => c,
         Err(_) => return result,
@@ -227,8 +241,8 @@ pub fn list_project_files(cwd: String) -> Vec<String> {
 
     let mut files = Vec::new();
     let walker = WalkBuilder::new(&cwd)
-        .hidden(true)        // skip hidden files
-        .git_ignore(true)    // respect .gitignore
+        .hidden(true) // skip hidden files
+        .git_ignore(true) // respect .gitignore
         .git_global(true)
         .git_exclude(true)
         .max_depth(Some(12))

@@ -1,4 +1,4 @@
-use rusqlite::{Connection, Result as SqlResult, params, OptionalExtension};
+use rusqlite::{params, Connection, OptionalExtension, Result as SqlResult};
 use std::path::Path;
 use std::sync::Mutex;
 
@@ -11,14 +11,18 @@ pub struct DatabaseService {
 impl DatabaseService {
     pub fn open(path: &Path) -> SqlResult<Self> {
         let conn = Connection::open(path)?;
-        let db = DatabaseService { conn: Mutex::new(conn) };
+        let db = DatabaseService {
+            conn: Mutex::new(conn),
+        };
         db.migrate()?;
         Ok(db)
     }
 
     pub fn open_in_memory() -> SqlResult<Self> {
         let conn = Connection::open_in_memory()?;
-        let db = DatabaseService { conn: Mutex::new(conn) };
+        let db = DatabaseService {
+            conn: Mutex::new(conn),
+        };
         db.migrate()?;
         Ok(db)
     }
@@ -28,7 +32,8 @@ impl DatabaseService {
         // Run schema migrations
         let _ = conn.execute_batch("ALTER TABLE sessions ADD COLUMN claude_session_id TEXT");
 
-        conn.execute_batch("
+        conn.execute_batch(
+            "
             CREATE TABLE IF NOT EXISTS projects (
                 id         INTEGER PRIMARY KEY AUTOINCREMENT,
                 name       TEXT NOT NULL,
@@ -63,7 +68,8 @@ impl DatabaseService {
 
             CREATE INDEX IF NOT EXISTS idx_session_outputs_session_id
                 ON session_outputs(session_id);
-        ")?;
+        ",
+        )?;
         Ok(())
     }
 
@@ -76,12 +82,14 @@ impl DatabaseService {
         let project = conn.query_row(
             "SELECT id, name, path, created_at FROM projects WHERE path = ?1",
             params![path],
-            |row| Ok(Project {
-                id: row.get(0)?,
-                name: row.get(1)?,
-                path: row.get(2)?,
-                created_at: row.get(3)?,
-            }),
+            |row| {
+                Ok(Project {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    path: row.get(2)?,
+                    created_at: row.get(3)?,
+                })
+            },
         )?;
         Ok(project)
     }
@@ -98,7 +106,14 @@ impl DatabaseService {
         conn.execute(
             "INSERT INTO sessions (project_id, name, cwd, status, permission_mode, model)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            params![project_id, name, cwd, crate::models::SessionStatus::Initializing.as_str(), permission_mode, model],
+            params![
+                project_id,
+                name,
+                cwd,
+                crate::models::SessionStatus::Initializing.as_str(),
+                permission_mode,
+                model
+            ],
         )?;
         Ok(conn.last_insert_rowid())
     }
@@ -126,30 +141,32 @@ impl DatabaseService {
         let mut stmt = conn.prepare(
             "SELECT id, project_id, name, status, worktree_path, branch_name,
                     permission_mode, model, pid, cwd, created_at, updated_at
-             FROM sessions ORDER BY created_at DESC"
+             FROM sessions ORDER BY created_at DESC",
         )?;
-        let sessions = stmt.query_map([], |row| {
-            Ok(Session {
-                id: row.get(0)?,
-                project_id: row.get(1)?,
-                name: row.get(2)?,
-                status: row.get(3)?,
-                worktree_path: row.get(4)?,
-                branch_name: row.get(5)?,
-                permission_mode: row.get(6)?,
-                model: row.get(7)?,
-                pid: row.get(8)?,
-                created_at: row.get(10)?,
-                updated_at: row.get(11)?,
-                cwd: row.get(9)?,
-                project_name: None,
-                git_branch: None,
-                tokens: None,
-                context_percent: None,
-                pending_approval: None,
-                mini_log: None,
-            })
-        })?.collect::<SqlResult<Vec<_>>>()?;
+        let sessions = stmt
+            .query_map([], |row| {
+                Ok(Session {
+                    id: row.get(0)?,
+                    project_id: row.get(1)?,
+                    name: row.get(2)?,
+                    status: row.get(3)?,
+                    worktree_path: row.get(4)?,
+                    branch_name: row.get(5)?,
+                    permission_mode: row.get(6)?,
+                    model: row.get(7)?,
+                    pid: row.get(8)?,
+                    created_at: row.get(10)?,
+                    updated_at: row.get(11)?,
+                    cwd: row.get(9)?,
+                    project_name: None,
+                    git_branch: None,
+                    tokens: None,
+                    context_percent: None,
+                    pending_approval: None,
+                    mini_log: None,
+                })
+            })?
+            .collect::<SqlResult<Vec<_>>>()?;
         Ok(sessions)
     }
 
@@ -158,44 +175,49 @@ impl DatabaseService {
         let mut stmt = conn.prepare(
             "SELECT id, project_id, name, status, worktree_path, branch_name,
                     permission_mode, model, pid, cwd, created_at, updated_at
-             FROM sessions WHERE id = ?1"
+             FROM sessions WHERE id = ?1",
         )?;
-        let session = stmt.query_row(params![id], |row| {
-            Ok(Session {
-                id: row.get(0)?,
-                project_id: row.get(1)?,
-                name: row.get(2)?,
-                status: row.get(3)?,
-                worktree_path: row.get(4)?,
-                branch_name: row.get(5)?,
-                permission_mode: row.get(6)?,
-                model: row.get(7)?,
-                pid: row.get(8)?,
-                created_at: row.get(10)?,
-                updated_at: row.get(11)?,
-                cwd: row.get(9)?,
-                project_name: None,
-                git_branch: None,
-                tokens: None,
-                context_percent: None,
-                pending_approval: None,
-                mini_log: None,
+        let session = stmt
+            .query_row(params![id], |row| {
+                Ok(Session {
+                    id: row.get(0)?,
+                    project_id: row.get(1)?,
+                    name: row.get(2)?,
+                    status: row.get(3)?,
+                    worktree_path: row.get(4)?,
+                    branch_name: row.get(5)?,
+                    permission_mode: row.get(6)?,
+                    model: row.get(7)?,
+                    pid: row.get(8)?,
+                    created_at: row.get(10)?,
+                    updated_at: row.get(11)?,
+                    cwd: row.get(9)?,
+                    project_name: None,
+                    git_branch: None,
+                    tokens: None,
+                    context_percent: None,
+                    pending_approval: None,
+                    mini_log: None,
+                })
             })
-        }).optional()?;
+            .optional()?;
         Ok(session)
     }
 
     pub fn get_projects(&self) -> SqlResult<Vec<Project>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare(
-            "SELECT id, name, path, created_at FROM projects ORDER BY name ASC"
-        )?;
-        let projects = stmt.query_map([], |row| Ok(Project {
-            id: row.get(0)?,
-            name: row.get(1)?,
-            path: row.get(2)?,
-            created_at: row.get(3)?,
-        }))?.collect::<SqlResult<Vec<_>>>()?;
+        let mut stmt =
+            conn.prepare("SELECT id, name, path, created_at FROM projects ORDER BY name ASC")?;
+        let projects = stmt
+            .query_map([], |row| {
+                Ok(Project {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    path: row.get(2)?,
+                    created_at: row.get(3)?,
+                })
+            })?
+            .collect::<SqlResult<Vec<_>>>()?;
         Ok(projects)
     }
 
@@ -219,11 +241,13 @@ impl DatabaseService {
 
     pub fn get_claude_session_id(&self, id: SessionId) -> SqlResult<Option<String>> {
         let conn = self.conn.lock().unwrap();
-        let result = conn.query_row(
-            "SELECT claude_session_id FROM sessions WHERE id = ?1",
-            params![id],
-            |row| row.get(0),
-        ).optional()?;
+        let result = conn
+            .query_row(
+                "SELECT claude_session_id FROM sessions WHERE id = ?1",
+                params![id],
+                |row| row.get(0),
+            )
+            .optional()?;
         Ok(result)
     }
 
@@ -238,17 +262,20 @@ impl DatabaseService {
 
     pub fn delete_session(&self, id: SessionId) -> SqlResult<()> {
         let conn = self.conn.lock().unwrap();
-        conn.execute("DELETE FROM session_outputs WHERE session_id = ?1", params![id])?;
+        conn.execute(
+            "DELETE FROM session_outputs WHERE session_id = ?1",
+            params![id],
+        )?;
         conn.execute("DELETE FROM sessions WHERE id = ?1", params![id])?;
         Ok(())
     }
 
     pub fn get_outputs(&self, session_id: SessionId) -> SqlResult<Vec<String>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare(
-            "SELECT data FROM session_outputs WHERE session_id = ?1 ORDER BY id ASC"
-        )?;
-        let rows = stmt.query_map(params![session_id], |row| row.get(0))?
+        let mut stmt =
+            conn.prepare("SELECT data FROM session_outputs WHERE session_id = ?1 ORDER BY id ASC")?;
+        let rows = stmt
+            .query_map(params![session_id], |row| row.get(0))?
             .collect::<SqlResult<Vec<String>>>()?;
         Ok(rows)
     }
@@ -285,7 +312,9 @@ mod tests {
     #[test]
     fn test_create_session() {
         let db = DatabaseService::open_in_memory().unwrap();
-        let id = db.create_session(None, Some("task 1"), "/tmp/proj", "ignore", None).unwrap();
+        let id = db
+            .create_session(None, Some("task 1"), "/tmp/proj", "ignore", None)
+            .unwrap();
         assert!(id > 0);
         let sessions = db.get_sessions().unwrap();
         assert_eq!(sessions.len(), 1);
@@ -296,7 +325,9 @@ mod tests {
     #[test]
     fn test_update_session_status() {
         let db = DatabaseService::open_in_memory().unwrap();
-        let id = db.create_session(None, None, "/tmp/proj", "ignore", None).unwrap();
+        let id = db
+            .create_session(None, None, "/tmp/proj", "ignore", None)
+            .unwrap();
         db.update_session_status(id, "running").unwrap();
         let sessions = db.get_sessions().unwrap();
         assert_eq!(sessions[0].status, "running");
@@ -305,7 +336,9 @@ mod tests {
     #[test]
     fn test_insert_and_get_outputs() {
         let db = DatabaseService::open_in_memory().unwrap();
-        let id = db.create_session(None, None, "/tmp/proj", "ignore", None).unwrap();
+        let id = db
+            .create_session(None, None, "/tmp/proj", "ignore", None)
+            .unwrap();
         db.insert_output(id, r#"{"type":"assistant"}"#).unwrap();
         db.insert_output(id, r#"{"type":"user"}"#).unwrap();
         let rows = db.get_outputs(id).unwrap();
@@ -316,7 +349,9 @@ mod tests {
     #[test]
     fn test_get_session() {
         let db = DatabaseService::open_in_memory().unwrap();
-        let id = db.create_session(None, Some("test"), "/tmp/proj", "ignore", None).unwrap();
+        let id = db
+            .create_session(None, Some("test"), "/tmp/proj", "ignore", None)
+            .unwrap();
         let session = db.get_session(id).unwrap();
         assert!(session.is_some());
         assert_eq!(session.unwrap().status, "initializing");
@@ -328,7 +363,9 @@ mod tests {
     #[test]
     fn test_update_session_pid_sets_running() {
         let db = DatabaseService::open_in_memory().unwrap();
-        let id = db.create_session(None, None, "/tmp/proj", "ignore", None).unwrap();
+        let id = db
+            .create_session(None, None, "/tmp/proj", "ignore", None)
+            .unwrap();
         assert_eq!(db.get_session(id).unwrap().unwrap().status, "initializing");
 
         db.update_session_pid(id, 12345).unwrap();
@@ -361,7 +398,15 @@ mod tests {
     fn test_session_with_project_foreign_key() {
         let db = DatabaseService::open_in_memory().unwrap();
         let project = db.create_project("myapp", "/myapp").unwrap();
-        let id = db.create_session(Some(project.id), Some("feat"), "/myapp", "approve", Some("claude-sonnet-4-6")).unwrap();
+        let id = db
+            .create_session(
+                Some(project.id),
+                Some("feat"),
+                "/myapp",
+                "approve",
+                Some("claude-sonnet-4-6"),
+            )
+            .unwrap();
 
         let session = db.get_session(id).unwrap().unwrap();
         assert_eq!(session.project_id, Some(project.id));
@@ -373,10 +418,13 @@ mod tests {
     #[test]
     fn test_outputs_ordered_by_insertion() {
         let db = DatabaseService::open_in_memory().unwrap();
-        let id = db.create_session(None, None, "/tmp", "ignore", None).unwrap();
+        let id = db
+            .create_session(None, None, "/tmp", "ignore", None)
+            .unwrap();
 
         for i in 0..5 {
-            db.insert_output(id, &format!(r#"{{"line":{}}}"#, i)).unwrap();
+            db.insert_output(id, &format!(r#"{{"line":{}}}"#, i))
+                .unwrap();
         }
 
         let rows = db.get_outputs(id).unwrap();

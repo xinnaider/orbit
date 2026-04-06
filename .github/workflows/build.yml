@@ -23,7 +23,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
         with:
-          components: clippy
+          components: clippy, rustfmt
 
       - uses: swatinem/rust-cache@v2
         with:
@@ -31,11 +31,17 @@ jobs:
 
       - run: npm ci
 
-      - name: Clippy (Rust)
+      - name: Format check — Rust (rustfmt)
+        run: cargo fmt --manifest-path front/Cargo.toml --check
+
+      - name: Format check — TypeScript/Svelte (prettier)
+        run: npx prettier --check "api/**/*.{ts,svelte,css}"
+
+      - name: Lint — Rust (clippy)
         run: cargo clippy --manifest-path front/Cargo.toml -- -D warnings
 
-      - name: svelte-check (TypeScript)
-        run: npx svelte-check --tsconfig tsconfig.json --fail-on-warnings
+      - name: Lint — TypeScript/Svelte (eslint + svelte-check)
+        run: npx eslint api --max-warnings 0 && npx svelte-check --tsconfig tsconfig.json --fail-on-warnings
 
   build-windows:
     name: Build Windows (.exe)

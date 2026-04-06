@@ -1,8 +1,8 @@
 use std::fs;
 use std::path::Path;
 
-use serde::Deserialize;
 use crate::models::SubagentInfo;
+use serde::Deserialize;
 
 #[derive(Deserialize)]
 struct AgentMeta {
@@ -49,14 +49,16 @@ pub fn read_subagent_log(session_id: &str, subagent_id: &str) -> Vec<String> {
     };
 
     for project_entry in entries.flatten() {
-        let jsonl_path = project_entry.path()
+        let jsonl_path = project_entry
+            .path()
             .join(session_id)
             .join("subagents")
             .join(format!("{}.jsonl", subagent_id));
 
         if jsonl_path.exists() {
             if let Ok(content) = fs::read_to_string(&jsonl_path) {
-                return content.lines()
+                return content
+                    .lines()
                     .filter(|l| !l.trim().is_empty())
                     .map(|l| l.to_string())
                     .collect();
@@ -77,7 +79,10 @@ fn read_meta_files(dir: &Path) -> Vec<SubagentInfo> {
 
     for entry in entries.flatten() {
         let path = entry.path();
-        let name = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+        let name = path
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_default();
         if !name.ends_with(".meta.json") {
             continue;
         }
@@ -94,7 +99,11 @@ fn read_meta_files(dir: &Path) -> Vec<SubagentInfo> {
             let jsonl_path = dir.join(&jsonl_name);
             let status = if jsonl_path.exists() {
                 let size = jsonl_path.metadata().map(|m| m.len()).unwrap_or(0);
-                if size > 0 { "done".to_string() } else { "running".to_string() }
+                if size > 0 {
+                    "done".to_string()
+                } else {
+                    "running".to_string()
+                }
             } else {
                 "running".to_string()
             };

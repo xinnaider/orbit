@@ -19,7 +19,7 @@
   let sendError = '';
 
   onMount(async () => {
-    try { commands = await getSlashCommands(); } catch {}
+    try { commands = await getSlashCommands(); } catch (_e) { /* no-op */ }
   });
 
   // Reset on session switch

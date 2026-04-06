@@ -155,12 +155,14 @@
             {@const parsed = stripLineNumbers(resultEntry.output)}
             <div class="code-inner read-output">
               <table class="read-table">
+                <tbody>
                 {#each parsed.code.split('\n') as line, li}
                   <tr>
                     <td class="line-num">{parsed.lineNums[li] ?? ''}</td>
                     <td class="line-code">{@html doHighlight(line, lang)}</td>
                   </tr>
                 {/each}
+                </tbody>
               </table>
             </div>
           {:else}
@@ -176,6 +178,7 @@
 
 {#if modalOpen}
   <div class="modal-overlay" onclick={() => modalOpen = false} role="dialog" tabindex="-1" onkeydown={(e) => e.key === 'Escape' && (modalOpen = false)}>
+    <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
     <div class="modal" onclick={(e) => e.stopPropagation()}>
       <div class="modal-header">
         <div class="modal-title">
@@ -212,12 +215,14 @@
               {@const parsed = stripLineNumbers(resultEntry.output)}
               <div class="modal-code-scroll read-output">
                 <table class="read-table">
+                  <tbody>
                   {#each parsed.code.split('\n') as line, li}
                     <tr>
                       <td class="line-num">{parsed.lineNums[li] ?? ''}</td>
                       <td class="line-code">{@html doHighlight(line, lang)}</td>
                     </tr>
                   {/each}
+                  </tbody>
                 </table>
               </div>
             {:else}

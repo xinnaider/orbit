@@ -24,7 +24,7 @@
   onMount(async () => {
     try {
       commands = await getSlashCommands();
-    } catch {
+    } catch (_e) {
       // Fallback: empty
     }
   });

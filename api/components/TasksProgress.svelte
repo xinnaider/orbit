@@ -11,7 +11,7 @@
   async function loadTasks() {
     try {
       tasks = await getSessionTasks(sessionId);
-    } catch {
+    } catch (_e) {
       // ignore
     }
   }
@@ -35,7 +35,6 @@
   $: progressPercent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
   // Build a set of task IDs for quick lookup
-  $: taskIds = new Set(tasks.map(t => t.id));
 
   function statusDot(status: string): string {
     if (status === 'completed') return 'dot-completed';

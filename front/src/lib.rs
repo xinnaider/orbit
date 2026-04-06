@@ -1,17 +1,16 @@
-pub mod models;
-pub mod journal_reader;
-pub mod diff_builder;
 pub mod agent_tree;
 pub mod commands;
-pub mod services;
+pub mod diff_builder;
 pub mod ipc;
+pub mod journal_reader;
+pub mod models;
+pub mod services;
 
-
-use std::sync::{Arc, Mutex};
-use tauri::Manager;
+use ipc::session::SessionState;
 use services::database::DatabaseService;
 use services::session_manager::SessionManager;
-use ipc::session::SessionState;
+use std::sync::{Arc, Mutex};
+use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -20,16 +19,14 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             // Resolve app data directory for SQLite DB
-            let data_dir = app.path().app_data_dir()
+            let data_dir = app
+                .path()
+                .app_data_dir()
                 .expect("Could not resolve app data dir");
-            std::fs::create_dir_all(&data_dir)
-                .expect("Could not create app data dir");
+            std::fs::create_dir_all(&data_dir).expect("Could not create app data dir");
 
             let db_path = data_dir.join("agent-dashboard.db");
-            let db = Arc::new(
-                DatabaseService::open(&db_path)
-                    .expect("Could not open database")
-            );
+            let db = Arc::new(DatabaseService::open(&db_path).expect("Could not open database"));
 
             let session_manager = {
                 let mut sm = SessionManager::new(db);
@@ -40,7 +37,9 @@ pub fn run() {
 
             // Set window icon programmatically — bypasses Windows icon cache in dev mode
             if let Some(window) = app.get_webview_window("main") {
-                if let Ok(icon) = tauri::image::Image::from_bytes(include_bytes!("../icons/icon.png")) {
+                if let Ok(icon) =
+                    tauri::image::Image::from_bytes(include_bytes!("../icons/icon.png"))
+                {
                     let _ = window.set_icon(icon);
                 }
             }

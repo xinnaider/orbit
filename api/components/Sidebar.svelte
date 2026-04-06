@@ -27,7 +27,7 @@
     } else if (action === 'delete') {
       confirmDelete = { id: sessionId, name: sessionName };
     } else if (action === 'stop') {
-      try { await stopSession(sessionId); } catch {}
+      try { await stopSession(sessionId); } catch (_e) { /* no-op */ }
     }
   }
 

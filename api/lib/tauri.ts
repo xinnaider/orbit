@@ -11,7 +11,6 @@ import { mockInvoke, mockListen } from './mock/tauri-mock';
 const IS_MOCK = import.meta.env.VITE_MOCK === 'true'
   || !(window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   if (IS_MOCK) return mockInvoke(cmd, args) as Promise<T>;
   return _invoke<T>(cmd, args);

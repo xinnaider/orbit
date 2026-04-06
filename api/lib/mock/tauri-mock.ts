@@ -6,7 +6,7 @@
  * Then open http://localhost:1420 in any browser.
  */
 import type { Session, TokenUsage } from '../stores/sessions';
-import type { JournalEntry, SlashCommand, TaskItem } from '../types';
+import type { JournalEntry, SlashCommand } from '../types';
 
 // ── Fake data ─────────────────────────────────────────────────
 

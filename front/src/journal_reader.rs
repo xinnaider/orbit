@@ -155,21 +155,41 @@ pub fn parse_journal(
 
                     // Extract token usage (cumulative)
                     if let Some(usage) = msg.get("usage") {
-                        state.input_tokens = usage.get("input_tokens").and_then(|v| v.as_u64()).unwrap_or(0)
-                            + usage.get("cache_creation_input_tokens").and_then(|v| v.as_u64()).unwrap_or(0)
-                            + usage.get("cache_read_input_tokens").and_then(|v| v.as_u64()).unwrap_or(0);
-                        state.output_tokens = usage.get("output_tokens").and_then(|v| v.as_u64()).unwrap_or(0);
-                        state.cache_read = usage.get("cache_read_input_tokens").and_then(|v| v.as_u64()).unwrap_or(0);
-                        state.cache_write = usage.get("cache_creation_input_tokens").and_then(|v| v.as_u64()).unwrap_or(0);
+                        state.input_tokens = usage
+                            .get("input_tokens")
+                            .and_then(|v| v.as_u64())
+                            .unwrap_or(0)
+                            + usage
+                                .get("cache_creation_input_tokens")
+                                .and_then(|v| v.as_u64())
+                                .unwrap_or(0)
+                            + usage
+                                .get("cache_read_input_tokens")
+                                .and_then(|v| v.as_u64())
+                                .unwrap_or(0);
+                        state.output_tokens = usage
+                            .get("output_tokens")
+                            .and_then(|v| v.as_u64())
+                            .unwrap_or(0);
+                        state.cache_read = usage
+                            .get("cache_read_input_tokens")
+                            .and_then(|v| v.as_u64())
+                            .unwrap_or(0);
+                        state.cache_write = usage
+                            .get("cache_creation_input_tokens")
+                            .and_then(|v| v.as_u64())
+                            .unwrap_or(0);
                     }
 
                     // Extract content blocks (thinking, text, tool_use)
                     if let Some(content) = msg.get("content").and_then(|v| v.as_array()) {
                         for block in content {
-                            let block_type = block.get("type").and_then(|v| v.as_str()).unwrap_or("");
+                            let block_type =
+                                block.get("type").and_then(|v| v.as_str()).unwrap_or("");
                             match block_type {
                                 "thinking" => {
-                                    let thinking_text = block.get("thinking")
+                                    let thinking_text = block
+                                        .get("thinking")
                                         .and_then(|v| v.as_str())
                                         .unwrap_or("")
                                         .to_string();
@@ -191,17 +211,23 @@ pub fn parse_journal(
                                     }
                                 }
                                 "text" => {
-                                    let text = block.get("text")
+                                    let text = block
+                                        .get("text")
                                         .and_then(|v| v.as_str())
                                         .unwrap_or("")
                                         .to_string();
                                     if !text.is_empty() {
                                         // Calculate thinking duration if we had a thinking block
-                                        let duration = last_thinking_ts.take().and_then(|think_ts| {
-                                            let t1 = think_ts.parse::<chrono::DateTime<chrono::Utc>>().ok()?;
-                                            let t2 = ts.parse::<chrono::DateTime<chrono::Utc>>().ok()?;
-                                            Some((t2 - t1).num_milliseconds() as f64 / 1000.0)
-                                        });
+                                        let duration =
+                                            last_thinking_ts.take().and_then(|think_ts| {
+                                                let t1 = think_ts
+                                                    .parse::<chrono::DateTime<chrono::Utc>>()
+                                                    .ok()?;
+                                                let t2 = ts
+                                                    .parse::<chrono::DateTime<chrono::Utc>>()
+                                                    .ok()?;
+                                                Some((t2 - t1).num_milliseconds() as f64 / 1000.0)
+                                            });
 
                                         // Update thinking_duration on the last thinking entry
                                         if let Some(d) = duration {
@@ -228,7 +254,8 @@ pub fn parse_journal(
                                     }
                                 }
                                 "tool_use" => {
-                                    let tool_name = block.get("name")
+                                    let tool_name = block
+                                        .get("name")
                                         .and_then(|v| v.as_str())
                                         .unwrap_or("unknown")
                                         .to_string();
@@ -275,8 +302,10 @@ pub fn parse_journal(
                         // Tool result (array with tool_result type)
                         if let Some(arr) = content.as_array() {
                             for block in arr {
-                                if block.get("type").and_then(|v| v.as_str()) == Some("tool_result") {
-                                    let output_text = block.get("content")
+                                if block.get("type").and_then(|v| v.as_str()) == Some("tool_result")
+                                {
+                                    let output_text = block
+                                        .get("content")
                                         .and_then(|v| v.as_str())
                                         .or_else(|| block.get("text").and_then(|v| v.as_str()))
                                         .unwrap_or("")
@@ -284,7 +313,10 @@ pub fn parse_journal(
 
                                     // Update last mini log entry with result
                                     if let Some(last) = state.mini_log.last_mut() {
-                                        last.success = Some(!output_text.contains("error") && !output_text.contains("Error"));
+                                        last.success = Some(
+                                            !output_text.contains("error")
+                                                && !output_text.contains("Error"),
+                                        );
                                     }
 
                                     state.entries.push(JournalEntry {
@@ -346,17 +378,21 @@ fn extract_tool_target(tool: &str, input: &Option<Value>) -> String {
     };
 
     match tool {
-        "Bash" => {
-            input.get("command")
-                .and_then(|v| v.as_str())
-                .map(|cmd| {
-                    let first = cmd.lines().next().unwrap_or(cmd);
-                    if first.len() > 60 { format!("{}...", char_boundary(first, 60)) } else { first.to_string() }
-                })
-                .unwrap_or_default()
-        }
+        "Bash" => input
+            .get("command")
+            .and_then(|v| v.as_str())
+            .map(|cmd| {
+                let first = cmd.lines().next().unwrap_or(cmd);
+                if first.len() > 60 {
+                    format!("{}...", char_boundary(first, 60))
+                } else {
+                    first.to_string()
+                }
+            })
+            .unwrap_or_default(),
         "Read" | "Edit" | "Write" => {
-            input.get("file_path")
+            input
+                .get("file_path")
                 .and_then(|v| v.as_str())
                 .map(|p| {
                     // Show just the basename
@@ -364,29 +400,35 @@ fn extract_tool_target(tool: &str, input: &Option<Value>) -> String {
                 })
                 .unwrap_or_default()
         }
-        "Grep" => {
-            input.get("pattern")
-                .and_then(|v| v.as_str())
-                .map(|p| {
-                    if p.len() > 30 { format!("{}...", char_boundary(p, 30)) } else { p.to_string() }
-                })
-                .unwrap_or_default()
-        }
-        "Agent" => {
-            input.get("description")
-                .and_then(|v| v.as_str())
-                .unwrap_or("subagent")
-                .to_string()
-        }
+        "Grep" => input
+            .get("pattern")
+            .and_then(|v| v.as_str())
+            .map(|p| {
+                if p.len() > 30 {
+                    format!("{}...", char_boundary(p, 30))
+                } else {
+                    p.to_string()
+                }
+            })
+            .unwrap_or_default(),
+        "Agent" => input
+            .get("description")
+            .and_then(|v| v.as_str())
+            .unwrap_or("subagent")
+            .to_string(),
         _ => String::new(),
     }
 }
 
 /// Find the largest char boundary <= max bytes (stable replacement for floor_char_boundary)
 fn char_boundary(s: &str, max: usize) -> &str {
-    if s.len() <= max { return s; }
+    if s.len() <= max {
+        return s;
+    }
     let mut end = max;
-    while end > 0 && !s.is_char_boundary(end) { end -= 1; }
+    while end > 0 && !s.is_char_boundary(end) {
+        end -= 1;
+    }
     &s[..end]
 }
 
@@ -405,7 +447,9 @@ fn detect_pending_approval(entries: &[JournalEntry]) -> Option<String> {
             JournalEntryType::ToolResult => return None, // tool was answered
             JournalEntryType::ToolCall => {
                 let tool = entry.tool.as_deref().unwrap_or("tool");
-                let target = entry.tool_input.as_ref()
+                let target = entry
+                    .tool_input
+                    .as_ref()
                     .and_then(|v| v.get("file_path"))
                     .and_then(|v| v.as_str())
                     .unwrap_or("");
@@ -457,7 +501,9 @@ fn derive_status_from_tail(path: &Path, input_tokens: u64, output_tokens: u64) -
         }
 
         let trimmed = line.trim();
-        if trimmed.is_empty() { continue; }
+        if trimmed.is_empty() {
+            continue;
+        }
 
         if json_contains(trimmed, "type", "assistant") {
             last_type = "assistant".to_string();
@@ -576,12 +622,30 @@ pub fn process_line(state: &mut JournalState, line: &str) {
 
                 // Extract token usage
                 if let Some(usage) = msg.get("usage") {
-                    state.input_tokens = usage.get("input_tokens").and_then(|v| v.as_u64()).unwrap_or(0)
-                        + usage.get("cache_creation_input_tokens").and_then(|v| v.as_u64()).unwrap_or(0)
-                        + usage.get("cache_read_input_tokens").and_then(|v| v.as_u64()).unwrap_or(0);
-                    state.output_tokens = usage.get("output_tokens").and_then(|v| v.as_u64()).unwrap_or(0);
-                    state.cache_read = usage.get("cache_read_input_tokens").and_then(|v| v.as_u64()).unwrap_or(0);
-                    state.cache_write = usage.get("cache_creation_input_tokens").and_then(|v| v.as_u64()).unwrap_or(0);
+                    state.input_tokens = usage
+                        .get("input_tokens")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(0)
+                        + usage
+                            .get("cache_creation_input_tokens")
+                            .and_then(|v| v.as_u64())
+                            .unwrap_or(0)
+                        + usage
+                            .get("cache_read_input_tokens")
+                            .and_then(|v| v.as_u64())
+                            .unwrap_or(0);
+                    state.output_tokens = usage
+                        .get("output_tokens")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(0);
+                    state.cache_read = usage
+                        .get("cache_read_input_tokens")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(0);
+                    state.cache_write = usage
+                        .get("cache_creation_input_tokens")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(0);
                 }
 
                 if let Some(stop) = msg.get("stop_reason").and_then(|v| v.as_str()) {
@@ -596,7 +660,8 @@ pub fn process_line(state: &mut JournalState, line: &str) {
                         let block_type = block.get("type").and_then(|v| v.as_str()).unwrap_or("");
                         match block_type {
                             "thinking" => {
-                                let thinking_text = block.get("thinking")
+                                let thinking_text = block
+                                    .get("thinking")
                                     .and_then(|v| v.as_str())
                                     .unwrap_or("")
                                     .to_string();
@@ -617,7 +682,8 @@ pub fn process_line(state: &mut JournalState, line: &str) {
                                 }
                             }
                             "text" => {
-                                let text = block.get("text")
+                                let text = block
+                                    .get("text")
                                     .and_then(|v| v.as_str())
                                     .unwrap_or("")
                                     .to_string();
@@ -639,7 +705,8 @@ pub fn process_line(state: &mut JournalState, line: &str) {
                             }
                             "tool_use" => {
                                 has_tool_use = true;
-                                let tool_name = block.get("name")
+                                let tool_name = block
+                                    .get("name")
                                     .and_then(|v| v.as_str())
                                     .unwrap_or("unknown")
                                     .to_string();
@@ -696,14 +763,18 @@ pub fn process_line(state: &mut JournalState, line: &str) {
                     if let Some(arr) = content.as_array() {
                         for block in arr {
                             if block.get("type").and_then(|v| v.as_str()) == Some("tool_result") {
-                                let output_text = block.get("content")
+                                let output_text = block
+                                    .get("content")
                                     .and_then(|v| v.as_str())
                                     .or_else(|| block.get("text").and_then(|v| v.as_str()))
                                     .unwrap_or("")
                                     .to_string();
 
                                 if let Some(last) = state.mini_log.last_mut() {
-                                    last.success = Some(!output_text.contains("error") && !output_text.contains("Error"));
+                                    last.success = Some(
+                                        !output_text.contains("error")
+                                            && !output_text.contains("Error"),
+                                    );
                                 }
 
                                 state.entries.push(JournalEntry {
@@ -746,7 +817,9 @@ pub fn process_line(state: &mut JournalState, line: &str) {
         }
 
         "system" => {
-            if let Some(subtype) = raw.message.as_ref()
+            if let Some(subtype) = raw
+                .message
+                .as_ref()
                 .and_then(|m| m.get("subtype"))
                 .and_then(|v| v.as_str())
             {
@@ -814,7 +887,10 @@ mod process_line_tests {
         process_line(&mut state, line);
         assert_eq!(state.entries.len(), 1);
         assert_eq!(state.entries[0].entry_type, JournalEntryType::Thinking);
-        assert_eq!(state.entries[0].thinking.as_deref(), Some("Let me reason..."));
+        assert_eq!(
+            state.entries[0].thinking.as_deref(),
+            Some("Let me reason...")
+        );
     }
 
     #[test]
@@ -838,9 +914,17 @@ mod process_line_tests {
         let result_line = r#"{"type":"user","message":{"content":[{"type":"tool_result","content":"file1.rs\nfile2.rs"}]}}"#;
         process_line(&mut state, result_line);
 
-        let tool_result = state.entries.iter().find(|e| e.entry_type == JournalEntryType::ToolResult);
+        let tool_result = state
+            .entries
+            .iter()
+            .find(|e| e.entry_type == JournalEntryType::ToolResult);
         assert!(tool_result.is_some());
-        assert!(tool_result.unwrap().output.as_ref().unwrap().contains("file1.rs"));
+        assert!(tool_result
+            .unwrap()
+            .output
+            .as_ref()
+            .unwrap()
+            .contains("file1.rs"));
         assert_eq!(state.status, AgentStatus::Working);
     }
 
@@ -856,10 +940,12 @@ mod process_line_tests {
     #[test]
     fn test_process_mini_log_capped_at_4() {
         let mut state = JournalState::default();
-        let tool_line = |name: &str| format!(
-            r#"{{"type":"assistant","message":{{"model":"m","content":[{{"type":"tool_use","name":"{}","input":{{"command":"x"}}}}],"usage":{{"input_tokens":1,"output_tokens":1,"cache_creation_input_tokens":0,"cache_read_input_tokens":0}}}}}}"#,
-            name
-        );
+        let tool_line = |name: &str| {
+            format!(
+                r#"{{"type":"assistant","message":{{"model":"m","content":[{{"type":"tool_use","name":"{}","input":{{"command":"x"}}}}],"usage":{{"input_tokens":1,"output_tokens":1,"cache_creation_input_tokens":0,"cache_read_input_tokens":0}}}}}}"#,
+                name
+            )
+        };
 
         for name in ["Bash", "Read", "Write", "Grep", "Edit"] {
             process_line(&mut state, &tool_line(name));
@@ -891,7 +977,8 @@ mod process_line_tests {
         assert!(state.pending_approval.is_some());
 
         // Tool result → pending_approval cleared
-        let result_line = r#"{"type":"user","message":{"content":[{"type":"tool_result","content":"done"}]}}"#;
+        let result_line =
+            r#"{"type":"user","message":{"content":[{"type":"tool_result","content":"done"}]}}"#;
         process_line(&mut state, result_line);
         assert!(state.pending_approval.is_none());
     }

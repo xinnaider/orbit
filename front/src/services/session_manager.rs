@@ -3,10 +3,10 @@ use std::sync::{Arc, Mutex};
 
 use tauri::{AppHandle, Emitter};
 
-use crate::journal_reader::{JournalState, process_line};
-use crate::models::{Session, SessionId, AgentStatus, TokenUsage};
+use crate::journal_reader::{process_line, JournalState};
+use crate::models::{AgentStatus, Session, SessionId, TokenUsage};
 use crate::services::database::DatabaseService;
-use crate::services::spawn_manager::{SpawnConfig, spawn_claude};
+use crate::services::spawn_manager::{spawn_claude, SpawnConfig};
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -41,7 +41,11 @@ pub struct SessionManager {
 
 impl SessionManager {
     pub fn new(db: Arc<DatabaseService>) -> Self {
-        SessionManager { db, active: HashMap::new(), journal_states: HashMap::new() }
+        SessionManager {
+            db,
+            active: HashMap::new(),
+            journal_states: HashMap::new(),
+        }
     }
 
     /// Phase 1 (fast): create DB record, return Session immediately.
@@ -57,34 +61,55 @@ impl SessionManager {
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_else(|| project_path.to_string());
 
-        let project = self.db.create_project(&project_name, project_path)
+        let project = self
+            .db
+            .create_project(&project_name, project_path)
             .map_err(|e| e.to_string())?;
 
-        let session_id = self.db.create_session(
-            Some(project.id), session_name, project_path, permission_mode, model,
-        ).map_err(|e| e.to_string())?;
+        let session_id = self
+            .db
+            .create_session(
+                Some(project.id),
+                session_name,
+                project_path,
+                permission_mode,
+                model,
+            )
+            .map_err(|e| e.to_string())?;
 
         let now = chrono::Utc::now().to_rfc3339();
         let session = Session {
             id: session_id,
             project_id: Some(project.id),
             name: session_name.map(|s| s.to_string()),
-            status: crate::models::SessionStatus::Initializing.as_str().to_string(),
-            worktree_path: None, branch_name: None,
+            status: crate::models::SessionStatus::Initializing
+                .as_str()
+                .to_string(),
+            worktree_path: None,
+            branch_name: None,
             permission_mode: permission_mode.to_string(),
             model: model.map(|s| s.to_string()),
-            pid: None, created_at: now.clone(), updated_at: now,
+            pid: None,
+            created_at: now.clone(),
+            updated_at: now,
             cwd: Some(project_path.to_string()),
             project_name: Some(project_name),
-            git_branch: None, tokens: None, context_percent: None,
-            pending_approval: None, mini_log: None,
+            git_branch: None,
+            tokens: None,
+            context_percent: None,
+            pending_approval: None,
+            mini_log: None,
         };
 
-        self.active.insert(session_id, ActiveSession {
-            session: session.clone(),
-            claude_session_id: None,
-        });
-        self.journal_states.insert(session_id, JournalState::default());
+        self.active.insert(
+            session_id,
+            ActiveSession {
+                session: session.clone(),
+                claude_session_id: None,
+            },
+        );
+        self.journal_states
+            .insert(session_id, JournalState::default());
 
         Ok(session)
     }
@@ -102,10 +127,13 @@ impl SessionManager {
             let a = match m.active.get(&session_id) {
                 Some(a) => a,
                 None => {
-                    let _ = app.emit("session:error", serde_json::json!({
-                        "sessionId": session_id,
-                        "error": "Session not found in active map"
-                    }));
+                    let _ = app.emit(
+                        "session:error",
+                        serde_json::json!({
+                            "sessionId": session_id,
+                            "error": "Session not found in active map"
+                        }),
+                    );
                     return;
                 }
             };
@@ -131,10 +159,16 @@ impl SessionManager {
         let handle = match spawn_claude(config) {
             Ok(h) => h,
             Err(e) => {
-                let _ = db.update_session_status(session_id, crate::models::SessionStatus::Error.as_str());
-                let _ = app.emit("session:error", serde_json::json!({
-                    "sessionId": session_id, "error": e
-                }));
+                let _ = db.update_session_status(
+                    session_id,
+                    crate::models::SessionStatus::Error.as_str(),
+                );
+                let _ = app.emit(
+                    "session:error",
+                    serde_json::json!({
+                        "sessionId": session_id, "error": e
+                    }),
+                );
                 return;
             }
         };
@@ -150,9 +184,12 @@ impl SessionManager {
             }
         }
 
-        let _ = app.emit("session:running", serde_json::json!({
-            "sessionId": session_id, "pid": pid
-        }));
+        let _ = app.emit(
+            "session:running",
+            serde_json::json!({
+                "sessionId": session_id, "pid": pid
+            }),
+        );
 
         // Emit user message entry immediately — Claude's -p flag doesn't echo it in the stream
         let user_entry = crate::models::JournalEntry {
@@ -173,7 +210,8 @@ impl SessionManager {
             "type": "user",
             "message": { "content": &prompt_text },
             "timestamp": &user_entry.timestamp
-        }).to_string();
+        })
+        .to_string();
         let _ = db.insert_output(session_id, &user_line);
 
         // Update in-memory journal
@@ -183,10 +221,13 @@ impl SessionManager {
             state.entries.push(user_entry.clone());
         }
 
-        let _ = app.emit("session:output", SessionOutputEvent {
-            session_id,
-            entry: user_entry,
-        });
+        let _ = app.emit(
+            "session:output",
+            SessionOutputEvent {
+                session_id,
+                entry: user_entry,
+            },
+        );
 
         Self::reader_loop(Arc::clone(&manager), app, session_id, handle.reader, db);
     }
@@ -232,15 +273,15 @@ impl SessionManager {
 
                     let (new_entries, state_event) = {
                         let mut m = manager.lock().unwrap();
-                        let state = m.journal_states
-                            .entry(session_id)
-                            .or_default();
+                        let state = m.journal_states.entry(session_id).or_default();
 
                         let prev_len = state.entries.len();
                         process_line(state, &trimmed);
                         let new_entries: Vec<_> = state.entries[prev_len..].to_vec();
 
-                        let window = state.model.as_deref()
+                        let window = state
+                            .model
+                            .as_deref()
                             .map(crate::models::context_window)
                             .unwrap_or(200_000);
                         let total = state.input_tokens + state.output_tokens;
@@ -250,7 +291,8 @@ impl SessionManager {
                             AgentStatus::Input => "input",
                             AgentStatus::Idle => "idle",
                             AgentStatus::New => "new",
-                        }.to_string();
+                        }
+                        .to_string();
 
                         let event = SessionStateEvent {
                             session_id,
@@ -261,7 +303,11 @@ impl SessionManager {
                                 cache_read: state.cache_read,
                                 cache_write: state.cache_write,
                             },
-                            context_percent: if window > 0 { (total as f64 / window as f64) * 100.0 } else { 0.0 },
+                            context_percent: if window > 0 {
+                                (total as f64 / window as f64) * 100.0
+                            } else {
+                                0.0
+                            },
                             pending_approval: state.pending_approval.clone(),
                             mini_log: state.mini_log.clone(),
                         };
@@ -271,7 +317,13 @@ impl SessionManager {
                     for entry in new_entries {
                         let mut e = entry.clone();
                         e.session_id = session_id.to_string();
-                        let _ = app.emit("session:output", SessionOutputEvent { session_id, entry: e });
+                        let _ = app.emit(
+                            "session:output",
+                            SessionOutputEvent {
+                                session_id,
+                                entry: e,
+                            },
+                        );
                     }
                     let _ = app.emit("session:state", &state_event);
                 }
@@ -287,10 +339,16 @@ impl SessionManager {
             if let Some(state) = m.journal_states.get_mut(&session_id) {
                 state.status = AgentStatus::Idle;
             }
-            let _ = db.update_session_status(session_id, crate::models::SessionStatus::Completed.as_str());
+            let _ = db.update_session_status(
+                session_id,
+                crate::models::SessionStatus::Completed.as_str(),
+            );
         }
 
-        let _ = app.emit("session:stopped", serde_json::json!({ "sessionId": session_id }));
+        let _ = app.emit(
+            "session:stopped",
+            serde_json::json!({ "sessionId": session_id }),
+        );
     }
 
     /// Send a follow-up message by spawning a new Claude process with --resume.
@@ -306,22 +364,25 @@ impl SessionManager {
             let mut m = manager.lock().unwrap();
             if !m.active.contains_key(&session_id) {
                 // Load from DB
-                let session = m.db.get_session(session_id)
-                    .map_err(|e| e.to_string())?
-                    .ok_or_else(|| format!("Session {session_id} not found"))?;
+                let session =
+                    m.db.get_session(session_id)
+                        .map_err(|e| e.to_string())?
+                        .ok_or_else(|| format!("Session {session_id} not found"))?;
 
                 if session.status == crate::models::SessionStatus::Stopped.as_str() {
                     return Err(format!("Session {session_id} was stopped"));
                 }
 
                 // Restore with claude_session_id from DB
-                let claude_session_id = m.db.get_claude_session_id(session_id)
-                    .ok().flatten();
+                let claude_session_id = m.db.get_claude_session_id(session_id).ok().flatten();
 
-                m.active.insert(session_id, ActiveSession {
-                    session,
-                    claude_session_id,
-                });
+                m.active.insert(
+                    session_id,
+                    ActiveSession {
+                        session,
+                        claude_session_id,
+                    },
+                );
                 m.journal_states.entry(session_id).or_default();
             }
         }
@@ -337,7 +398,9 @@ impl SessionManager {
 
     pub fn stop_session(&mut self, session_id: SessionId) -> Result<(), String> {
         self.active.remove(&session_id);
-        let _ = self.db.update_session_status(session_id, crate::models::SessionStatus::Stopped.as_str());
+        let _ = self
+            .db
+            .update_session_status(session_id, crate::models::SessionStatus::Stopped.as_str());
         Ok(())
     }
 
@@ -345,13 +408,23 @@ impl SessionManager {
         let mut sessions = self.db.get_sessions().unwrap_or_default();
         for s in &mut sessions {
             if let Some(state) = self.journal_states.get(&s.id) {
-                let window = state.model.as_deref().map(crate::models::context_window).unwrap_or(200_000);
+                let window = state
+                    .model
+                    .as_deref()
+                    .map(crate::models::context_window)
+                    .unwrap_or(200_000);
                 let total = state.input_tokens + state.output_tokens;
                 s.tokens = Some(TokenUsage {
-                    input: state.input_tokens, output: state.output_tokens,
-                    cache_read: state.cache_read, cache_write: state.cache_write,
+                    input: state.input_tokens,
+                    output: state.output_tokens,
+                    cache_read: state.cache_read,
+                    cache_write: state.cache_write,
                 });
-                s.context_percent = Some(if window > 0 { (total as f64 / window as f64) * 100.0 } else { 0.0 });
+                s.context_percent = Some(if window > 0 {
+                    (total as f64 / window as f64) * 100.0
+                } else {
+                    0.0
+                });
                 s.pending_approval = state.pending_approval.clone();
                 s.mini_log = Some(state.mini_log.clone());
             }
@@ -364,13 +437,20 @@ impl SessionManager {
     }
 
     pub fn get_journal(&self, session_id: SessionId) -> Vec<crate::models::JournalEntry> {
-        self.journal_states.get(&session_id).map(|state| {
-            state.entries.iter().map(|e| {
-                let mut entry = e.clone();
-                entry.session_id = session_id.to_string();
-                entry
-            }).collect()
-        }).unwrap_or_default()
+        self.journal_states
+            .get(&session_id)
+            .map(|state| {
+                state
+                    .entries
+                    .iter()
+                    .map(|e| {
+                        let mut entry = e.clone();
+                        entry.session_id = session_id.to_string();
+                        entry
+                    })
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 
     pub fn is_session_active(&self, session_id: SessionId) -> bool {
@@ -378,13 +458,17 @@ impl SessionManager {
     }
 
     pub fn rename_session(&mut self, session_id: SessionId, name: &str) -> Result<(), String> {
-        self.db.rename_session(session_id, name).map_err(|e| e.to_string())
+        self.db
+            .rename_session(session_id, name)
+            .map_err(|e| e.to_string())
     }
 
     pub fn delete_session(&mut self, session_id: SessionId) -> Result<(), String> {
         self.active.remove(&session_id);
         self.journal_states.remove(&session_id);
-        self.db.delete_session(session_id).map_err(|e| e.to_string())
+        self.db
+            .delete_session(session_id)
+            .map_err(|e| e.to_string())
     }
 
     pub fn restore_from_db(&mut self) {
@@ -393,14 +477,20 @@ impl SessionManager {
             Err(_) => return,
         };
         for session in sessions {
-            if self.journal_states.contains_key(&session.id) { continue; }
+            if self.journal_states.contains_key(&session.id) {
+                continue;
+            }
             let rows = match self.db.get_outputs(session.id) {
                 Ok(r) => r,
                 Err(_) => continue,
             };
-            if rows.is_empty() { continue; }
+            if rows.is_empty() {
+                continue;
+            }
             let mut state = JournalState::default();
-            for line in &rows { process_line(&mut state, line); }
+            for line in &rows {
+                process_line(&mut state, line);
+            }
             self.journal_states.insert(session.id, state);
         }
     }
@@ -419,7 +509,11 @@ mod tests {
     #[test]
     fn test_init_session_creates_db_record() {
         let mgr = make_manager();
-        let s = mgr.lock().unwrap().init_session("/tmp/proj", None, "ignore", None).unwrap();
+        let s = mgr
+            .lock()
+            .unwrap()
+            .init_session("/tmp/proj", None, "ignore", None)
+            .unwrap();
         assert!(s.id > 0);
         assert_eq!(s.status, "initializing");
     }
@@ -427,7 +521,11 @@ mod tests {
     #[test]
     fn test_init_session_populates_journal_state() {
         let mgr = make_manager();
-        let s = mgr.lock().unwrap().init_session("/tmp/proj", None, "ignore", None).unwrap();
+        let s = mgr
+            .lock()
+            .unwrap()
+            .init_session("/tmp/proj", None, "ignore", None)
+            .unwrap();
         assert!(mgr.lock().unwrap().journal_states.contains_key(&s.id));
     }
 
@@ -445,14 +543,22 @@ mod tests {
     #[test]
     fn test_init_populates_active() {
         let mgr = make_manager();
-        let s = mgr.lock().unwrap().init_session("/tmp/proj", None, "ignore", None).unwrap();
+        let s = mgr
+            .lock()
+            .unwrap()
+            .init_session("/tmp/proj", None, "ignore", None)
+            .unwrap();
         assert!(mgr.lock().unwrap().is_session_active(s.id));
     }
 
     #[test]
     fn test_stop_session_updates_db() {
         let mgr = make_manager();
-        let s = mgr.lock().unwrap().init_session("/tmp/proj", None, "ignore", None).unwrap();
+        let s = mgr
+            .lock()
+            .unwrap()
+            .init_session("/tmp/proj", None, "ignore", None)
+            .unwrap();
         mgr.lock().unwrap().stop_session(s.id).unwrap();
         let sessions = mgr.lock().unwrap().get_sessions();
         assert_eq!(sessions[0].status, "stopped");
@@ -461,7 +567,11 @@ mod tests {
     #[test]
     fn test_delete_removes_from_active_and_state() {
         let mgr = make_manager();
-        let s = mgr.lock().unwrap().init_session("/tmp/proj", None, "ignore", None).unwrap();
+        let s = mgr
+            .lock()
+            .unwrap()
+            .init_session("/tmp/proj", None, "ignore", None)
+            .unwrap();
         mgr.lock().unwrap().delete_session(s.id).unwrap();
         assert_eq!(mgr.lock().unwrap().get_sessions().len(), 0);
         assert!(!mgr.lock().unwrap().journal_states.contains_key(&s.id));
@@ -470,7 +580,9 @@ mod tests {
     #[test]
     fn test_restore_from_db_rebuilds_journal() {
         let db = Arc::new(DatabaseService::open_in_memory().unwrap());
-        let sid = db.create_session(None, None, "/tmp", "ignore", None).unwrap();
+        let sid = db
+            .create_session(None, None, "/tmp", "ignore", None)
+            .unwrap();
         let line = r#"{"type":"assistant","message":{"model":"claude-sonnet-4-6","content":[{"type":"text","text":"Hi!"}],"usage":{"input_tokens":5,"output_tokens":3,"cache_creation_input_tokens":0,"cache_read_input_tokens":0}}}"#;
         db.insert_output(sid, line).unwrap();
         let mut sm = SessionManager::new(db);

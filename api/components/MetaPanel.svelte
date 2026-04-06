@@ -11,7 +11,7 @@
   let tab: Tab = 'stats';
 
   async function stop() {
-    try { await stopSession(session.id); } catch {}
+    try { await stopSession(session.id); } catch (_e) { /* no-op */ }
   }
 
   $: tokens = session.tokens;

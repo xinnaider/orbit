@@ -19,7 +19,7 @@
       if (entries.length > 0) {
         journal.update(m => new Map(m).set(id, entries));
       }
-    } catch {}
+    } catch (_e) { /* no-op */ }
   }
 
   $: if (session) loadHistory(session.id);

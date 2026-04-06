@@ -26,12 +26,16 @@ pub fn get_file_versions(session_id: &str) -> Vec<FileVersionInfo> {
 
     for entry in entries.flatten() {
         let path = entry.path();
-        let name = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+        let name = path
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_default();
 
         // Format: {fileHashId}@v{N}
         if let Some((hash, version_str)) = name.split_once("@v") {
             if let Ok(version) = version_str.parse::<u32>() {
-                files.entry(hash.to_string())
+                files
+                    .entry(hash.to_string())
                     .or_default()
                     .push((version, path));
             }
@@ -66,7 +70,10 @@ pub fn build_diff(
     from_version: u32,
     to_version: u32,
 ) -> Option<DiffResult> {
-    let history_dir = dirs::home_dir()?.join(".claude").join("file-history").join(session_id);
+    let history_dir = dirs::home_dir()?
+        .join(".claude")
+        .join("file-history")
+        .join(session_id);
 
     let old_path = history_dir.join(format!("{}@v{}", file_hash, from_version));
     let new_path = history_dir.join(format!("{}@v{}", file_hash, to_version));
@@ -78,10 +85,16 @@ pub fn build_diff(
     let new_lines: Vec<&str> = new_content.lines().collect();
 
     let hunks = compute_diff_hunks(&old_lines, &new_lines);
-    let added: u32 = hunks.iter().flat_map(|h| &h.lines)
-        .filter(|l| l.kind == DiffLineKind::Added).count() as u32;
-    let removed: u32 = hunks.iter().flat_map(|h| &h.lines)
-        .filter(|l| l.kind == DiffLineKind::Removed).count() as u32;
+    let added: u32 = hunks
+        .iter()
+        .flat_map(|h| &h.lines)
+        .filter(|l| l.kind == DiffLineKind::Added)
+        .count() as u32;
+    let removed: u32 = hunks
+        .iter()
+        .flat_map(|h| &h.lines)
+        .filter(|l| l.kind == DiffLineKind::Removed)
+        .count() as u32;
 
     Some(DiffResult {
         file_path: file_hash.to_string(), // caller should map to real path
@@ -117,14 +130,23 @@ fn compute_diff_hunks(old: &[&str], new: &[&str]) -> Vec<DiffHunk> {
     let mut j = 0;
     while i < m || j < n {
         if i < m && j < n && old[i] == new[j] {
-            lines.push(DiffLine { kind: DiffLineKind::Context, content: old[i].to_string() });
+            lines.push(DiffLine {
+                kind: DiffLineKind::Context,
+                content: old[i].to_string(),
+            });
             i += 1;
             j += 1;
         } else if j < n && (i >= m || dp[i][j + 1] >= dp[i + 1][j]) {
-            lines.push(DiffLine { kind: DiffLineKind::Added, content: new[j].to_string() });
+            lines.push(DiffLine {
+                kind: DiffLineKind::Added,
+                content: new[j].to_string(),
+            });
             j += 1;
         } else if i < m {
-            lines.push(DiffLine { kind: DiffLineKind::Removed, content: old[i].to_string() });
+            lines.push(DiffLine {
+                kind: DiffLineKind::Removed,
+                content: old[i].to_string(),
+            });
             i += 1;
         }
     }

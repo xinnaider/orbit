@@ -1,3 +1,11 @@
 msrv = "1.85"
-# Suppress MSRV warnings for stdlib APIs — we target latest stable
 avoid-breaking-exported-api = false
+
+# Cognitive complexity threshold
+cognitive-complexity-threshold = 30
+
+# Max function lines
+too-many-lines-threshold = 100
+
+# Allow longer type names in this codebase
+type-complexity-threshold = 250

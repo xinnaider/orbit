@@ -9,7 +9,7 @@
   let timer: ReturnType<typeof setInterval>;
 
   async function load() {
-    try { tasks = await getSessionTasks(sessionId); } catch {}
+    try { tasks = await getSessionTasks(sessionId); } catch (_e) { /* no-op */ }
   }
 
   onMount(() => { load(); timer = setInterval(load, 3000); });

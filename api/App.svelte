@@ -31,7 +31,7 @@
       gain.gain.value = 0.15;
       gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
       osc.start(); osc.stop(audioCtx.currentTime + 0.15);
-    } catch {}
+    } catch (_e) { /* no-op */ }
   }
 
   onMount(async () => {

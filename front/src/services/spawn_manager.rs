@@ -22,12 +22,26 @@ fn extended_path() -> String {
     #[cfg(windows)]
     {
         let extra: Vec<String> = dirs::home_dir()
-            .map(|h| vec![
-                h.join(".local").join("bin").to_string_lossy().into_owned(),
-                h.join("AppData").join("Roaming").join("npm").to_string_lossy().into_owned(),
-                h.join("AppData").join("Local").join("pnpm").to_string_lossy().into_owned(),
-                h.join("AppData").join("Roaming").join("nvm").to_string_lossy().into_owned(),
-            ])
+            .map(|h| {
+                vec![
+                    h.join(".local").join("bin").to_string_lossy().into_owned(),
+                    h.join("AppData")
+                        .join("Roaming")
+                        .join("npm")
+                        .to_string_lossy()
+                        .into_owned(),
+                    h.join("AppData")
+                        .join("Local")
+                        .join("pnpm")
+                        .to_string_lossy()
+                        .into_owned(),
+                    h.join("AppData")
+                        .join("Roaming")
+                        .join("nvm")
+                        .to_string_lossy()
+                        .into_owned(),
+                ]
+            })
             .unwrap_or_default();
         format!("{};{}", extra.join(";"), current)
     }
@@ -35,11 +49,16 @@ fn extended_path() -> String {
     #[cfg(not(windows))]
     {
         let extra: Vec<String> = dirs::home_dir()
-            .map(|h| vec![
-                h.join(".local").join("bin").to_string_lossy().into_owned(),
-                h.join(".npm-global").join("bin").to_string_lossy().into_owned(),
-                "/usr/local/bin".to_string(),
-            ])
+            .map(|h| {
+                vec![
+                    h.join(".local").join("bin").to_string_lossy().into_owned(),
+                    h.join(".npm-global")
+                        .join("bin")
+                        .to_string_lossy()
+                        .into_owned(),
+                    "/usr/local/bin".to_string(),
+                ]
+            })
             .unwrap_or_default();
         format!("{}:{}", extra.join(":"), current)
     }
@@ -60,7 +79,9 @@ pub fn find_claude() -> Option<String> {
         if out.status.success() {
             if let Some(line) = String::from_utf8_lossy(&out.stdout).lines().next() {
                 let p = line.trim().to_string();
-                if !p.is_empty() { return Some(p); }
+                if !p.is_empty() {
+                    return Some(p);
+                }
             }
         }
     }
@@ -74,7 +95,9 @@ pub fn find_claude() -> Option<String> {
             .ok()?;
         if out.status.success() {
             let p = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            if !p.is_empty() { return Some(p); }
+            if !p.is_empty() {
+                return Some(p);
+            }
         }
     }
 
@@ -84,18 +107,28 @@ pub fn find_claude() -> Option<String> {
         let candidates = [
             home.join(".local").join("bin").join("claude.exe"),
             home.join(".local").join("bin").join("claude"),
-            home.join("AppData").join("Roaming").join("npm").join("claude.cmd"),
-            home.join("AppData").join("Local").join("pnpm").join("claude.cmd"),
+            home.join("AppData")
+                .join("Roaming")
+                .join("npm")
+                .join("claude.cmd"),
+            home.join("AppData")
+                .join("Local")
+                .join("pnpm")
+                .join("claude.cmd"),
         ];
         for p in &candidates {
-            if p.exists() { return Some(p.to_string_lossy().into_owned()); }
+            if p.exists() {
+                return Some(p.to_string_lossy().into_owned());
+            }
         }
     }
 
     #[cfg(not(windows))]
     {
         for p in &["/usr/local/bin/claude", "/opt/homebrew/bin/claude"] {
-            if std::path::Path::new(p).exists() { return Some(p.to_string()); }
+            if std::path::Path::new(p).exists() {
+                return Some(p.to_string());
+            }
         }
     }
 
@@ -108,8 +141,9 @@ pub fn find_claude() -> Option<String> {
 ///
 /// Uses piped stdout instead of PTY — avoids ConPTY issues on Windows.
 pub fn spawn_claude(config: SpawnConfig) -> Result<SpawnHandle, String> {
-    let claude = find_claude()
-        .ok_or_else(|| "claude not found — install with: npm i -g @anthropic-ai/claude-code".to_string())?;
+    let claude = find_claude().ok_or_else(|| {
+        "claude not found — install with: npm i -g @anthropic-ai/claude-code".to_string()
+    })?;
 
     let mut cmd = std::process::Command::new(&claude);
     cmd.args(["--output-format", "stream-json", "--verbose"]);
@@ -119,7 +153,9 @@ pub fn spawn_claude(config: SpawnConfig) -> Result<SpawnHandle, String> {
     }
 
     if let Some(ref model) = config.model {
-        if model != "auto" { cmd.args(["--model", model]); }
+        if model != "auto" {
+            cmd.args(["--model", model]);
+        }
     }
 
     // Resume previous conversation if we have a Claude session ID
@@ -137,17 +173,18 @@ pub fn spawn_claude(config: SpawnConfig) -> Result<SpawnHandle, String> {
     cmd.stdout(std::process::Stdio::piped());
     cmd.stderr(std::process::Stdio::null());
 
-    let mut child = cmd.spawn()
-        .map_err(|e| format!("spawn failed: {e}"))?;
+    let mut child = cmd.spawn().map_err(|e| format!("spawn failed: {e}"))?;
 
     let pid = child.id();
-    let stdout = child.stdout.take()
-        .ok_or_else(|| "no stdout".to_string())?;
+    let stdout = child.stdout.take().ok_or_else(|| "no stdout".to_string())?;
 
     // Keep child alive until it exits naturally
     std::mem::forget(child);
 
-    Ok(SpawnHandle { pid, reader: Box::new(stdout) })
+    Ok(SpawnHandle {
+        pid,
+        reader: Box::new(stdout),
+    })
 }
 
 #[cfg(test)]
