@@ -1,7 +1,7 @@
 import { writable } from 'svelte/store';
 import type { JournalEntry } from '../types';
 
-export const journal = writable<JournalEntry[]>([]);
+export const journal = writable<Map<number, JournalEntry[]>>(new Map());
 
 export interface PendingMessage {
   id: number;

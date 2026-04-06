@@ -1,13 +1,21 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { agents, selectedAgentId } from './lib/stores/agents';
-  import { onAgentsUpdate } from './lib/tauri';
+  import {
+    sessions, selectedSessionId, upsertSession, updateSessionState
+  } from './lib/stores/sessions';
   import { journal } from './lib/stores/journal';
+  import {
+    listSessions,
+    onSessionCreated,
+    onSessionOutput,
+    onSessionState,
+    onSessionStopped,
+  } from './lib/tauri';
   import Sidebar from './components/Sidebar.svelte';
   import CentralPanel from './components/CentralPanel.svelte';
   import RightPanel from './components/RightPanel.svelte';
 
-  let prevAgentStatuses: Record<string, string> = {};
+  let prevStatuses: Record<number, string> = {};
   let audioCtx: AudioContext | null = null;
 
   function playNotificationBeep() {
@@ -30,98 +38,66 @@
     }
   }
 
-  onMount(() => {
-    const unlisten = onAgentsUpdate((update) => {
-      // Check for agents transitioning to 'input' status
-      for (const agent of update) {
-        const prev = prevAgentStatuses[agent.sessionId];
-        if (agent.status === 'input' && prev && prev !== 'input') {
-          playNotificationBeep();
-          break; // One beep per update cycle is enough
-        }
-      }
+  onMount(async () => {
+    // Load existing sessions on startup
+    const existing = await listSessions();
+    sessions.set(existing);
+    if (existing.length > 0 && !$selectedSessionId) {
+      selectedSessionId.set(existing[0].id);
+    }
 
-      // Store current statuses for next comparison
-      const newStatuses: Record<string, string> = {};
-      for (const agent of update) {
-        newStatuses[agent.sessionId] = agent.status;
-      }
-      prevAgentStatuses = newStatuses;
-
-      agents.set(update);
-      // Auto-select first agent if none selected
-      if (!$selectedAgentId && update.length > 0) {
-        selectedAgentId.set(update[0].sessionId);
-      }
+    // session:created — new session spawned
+    const unCreated = onSessionCreated((session) => {
+      sessions.update(list => upsertSession(list, session));
+      if (!$selectedSessionId) selectedSessionId.set(session.id);
     });
 
-    return () => { unlisten.then(fn => fn()); };
+    // session:output — new journal entry
+    const unOutput = onSessionOutput(({ sessionId, entry }) => {
+      journal.update(map => {
+        const entries = map.get(sessionId) ?? [];
+        return new Map(map).set(sessionId, [...entries, entry]);
+      });
+    });
+
+    // session:state — status/token update
+    const unState = onSessionState((payload) => {
+      const prev = prevStatuses[payload.sessionId];
+      if (payload.status === 'input' && prev && prev !== 'input') {
+        playNotificationBeep();
+      }
+      prevStatuses[payload.sessionId] = payload.status;
+
+      sessions.update(list => updateSessionState(list, payload.sessionId, {
+        status: payload.status as any,
+        tokens: payload.tokens,
+        contextPercent: payload.contextPercent,
+        pendingApproval: payload.pendingApproval,
+        miniLog: payload.miniLog,
+      }));
+    });
+
+    // session:stopped
+    const unStopped = onSessionStopped((sessionId) => {
+      sessions.update(list => updateSessionState(list, sessionId, { status: 'completed' }));
+    });
+
+    return () => {
+      Promise.all([unCreated, unOutput, unState, unStopped]).then(fns => fns.forEach(fn => fn()));
+    };
   });
-
-  function handleSelect(id: string) {
-    selectedAgentId.set(id);
-  }
-
-  $: currentAgent = $agents.find(a => a.sessionId === $selectedAgentId) ?? null;
 </script>
 
-<div class="workspace">
-  <Sidebar
-    agents={$agents}
-    selectedId={$selectedAgentId}
-    onSelect={handleSelect}
-  />
-
-  <main class="central">
-    {#if currentAgent}
-      <CentralPanel agent={currentAgent} />
-    {:else}
-      <div class="central-empty">Select an agent from the sidebar</div>
-    {/if}
-  </main>
-
-  {#if currentAgent}
-    <RightPanel agent={currentAgent} />
-  {:else}
-    <aside class="right-panel">
-      <div class="panel-tabs">
-        <button class="tab active">Diff</button>
-        <button class="tab">Files</button>
-        <button class="tab">Sub-agents</button>
-        <button class="tab">Tasks</button>
-        <button class="tab">Stats</button>
-      </div>
-    </aside>
-  {/if}
+<div class="app-layout">
+  <Sidebar />
+  <CentralPanel />
+  <RightPanel />
 </div>
 
 <style>
-  .workspace { display: flex; height: 100vh; width: 100vw; }
-  .central { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-  .central-empty {
-    flex: 1;
+  .app-layout {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-muted);
-    font-size: 14px;
+    height: 100vh;
+    overflow: hidden;
   }
-  .right-panel {
-    width: 300px;
-    border-left: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    flex-shrink: 0;
-  }
-  .panel-tabs { display: flex; border-bottom: 1px solid var(--border); }
-  .tab {
-    padding: 8px 12px;
-    font-size: 12px;
-    background: none;
-    border: none;
-    border-bottom: 2px solid transparent;
-    color: var(--text-muted);
-    cursor: pointer;
-  }
-  .tab.active { color: var(--blue); border-bottom-color: var(--blue); }
 </style>

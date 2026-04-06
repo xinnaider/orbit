@@ -2,19 +2,30 @@
   import type { AgentState } from '../lib/types';
   import AgentCard from './AgentCard.svelte';
   import { theme } from '../lib/stores/preferences';
+  import CreateSessionDialog from './CreateSessionDialog.svelte';
 
   export let agents: AgentState[];
   export let selectedId: string | null;
   export let onSelect: (id: string) => void;
 
+  let showCreateDialog = false;
+
   $: totalTokens = agents.reduce((sum, a) => sum + a.tokens.input + a.tokens.output, 0);
   $: awaitingCount = agents.filter(a => a.status === 'input').length;
 </script>
+
+{#if showCreateDialog}
+  <CreateSessionDialog
+    on:created={() => showCreateDialog = false}
+    on:cancel={() => showCreateDialog = false}
+  />
+{/if}
 
 <aside class="sidebar">
   <div class="sidebar-header">
     <span class="title">Agents</span>
     <div class="header-right">
+      <button class="new-session-btn" on:click={() => showCreateDialog = true} title="New Session">+ New Session</button>
       <button class="theme-toggle" onclick={() => theme.toggle()} title="Toggle theme">
         {$theme === 'dark' ? '☀' : '☾'}
       </button>
@@ -60,6 +71,18 @@
     font-size: 14px;
   }
   .header-right { display: flex; align-items: center; gap: 8px; }
+  .new-session-btn {
+    background: #3b82f6;
+    border: none;
+    border-radius: 4px;
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 3px 8px;
+    line-height: 1.4;
+  }
+  .new-session-btn:hover { background: #2563eb; }
   .theme-toggle {
     background: none;
     border: none;
