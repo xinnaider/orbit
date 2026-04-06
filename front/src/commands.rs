@@ -4,6 +4,104 @@ use crate::diff_builder;
 use crate::journal_reader;
 use crate::models::*;
 
+// ── Orbit statusline capture ─────────────────────────────────────────────────
+
+const CAPTURE_SCRIPT: &str = r#"#!/bin/bash
+# Orbit statusline capture — do not modify
+INPUT=$(cat)
+ORBIT_DIR="$HOME/.orbit/status"
+mkdir -p "$ORBIT_DIR" 2>/dev/null
+if [ -n "$PPID" ] && [ "$PPID" -gt 0 ] 2>/dev/null; then
+  printf '%s' "$INPUT" | jq -c '{
+    cost: (.cost.total_cost_usd // 0),
+    five_hour_pct: (.rate_limits.five_hour.used_percentage // 0),
+    five_hour_reset: (.rate_limits.five_hour.resets_at // 0),
+    seven_day_pct: (.rate_limits.seven_day.used_percentage // 0),
+    seven_day_reset: (.rate_limits.seven_day.resets_at // 0),
+    context_pct: (.context_window.used_percentage // 0)
+  }' > "$ORBIT_DIR/$PPID.json" 2>/dev/null
+fi
+# Delegate to original statusline if stored
+if [ -f "$HOME/.orbit/original-statusline.sh" ]; then
+  printf '%s' "$INPUT" | bash "$HOME/.orbit/original-statusline.sh"
+fi
+"#;
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, Default)]
+pub struct OrbitSessionStatus {
+    pub cost: f64,
+    pub five_hour_pct: f64,
+    pub five_hour_reset: i64,
+    pub seven_day_pct: f64,
+    pub seven_day_reset: i64,
+    pub context_pct: f64,
+}
+
+#[tauri::command]
+pub fn setup_orbit_statusline() -> Result<(), String> {
+    let home = dirs::home_dir().ok_or("No home dir")?;
+    let orbit_dir = home.join(".orbit");
+    std::fs::create_dir_all(orbit_dir.join("status")).map_err(|e| e.to_string())?;
+
+    let script_path = orbit_dir.join("statusline-capture.sh");
+    std::fs::write(&script_path, CAPTURE_SCRIPT).map_err(|e| e.to_string())?;
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(&script_path, std::fs::Permissions::from_mode(0o755));
+    }
+
+    let script_unix = script_path.to_string_lossy().replace('\\', "/");
+    let our_command = format!("bash \"{}\"", script_unix);
+
+    let settings_path = home.join(".claude").join("settings.json");
+    let raw = std::fs::read_to_string(&settings_path).unwrap_or_else(|_| "{}".to_string());
+    let mut settings: serde_json::Value =
+        serde_json::from_str(&raw).unwrap_or_else(|_| serde_json::json!({}));
+
+    // Already set up — skip
+    if let Some(cmd) = settings
+        .get("statusLine")
+        .and_then(|s| s.get("command"))
+        .and_then(|c| c.as_str())
+    {
+        if cmd.contains("statusline-capture.sh") {
+            return Ok(());
+        }
+        // Preserve existing statusline
+        let original_path = orbit_dir.join("original-statusline.sh");
+        let content = format!("#!/bin/bash\n{}", cmd);
+        std::fs::write(&original_path, content).map_err(|e| e.to_string())?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ =
+                std::fs::set_permissions(&original_path, std::fs::Permissions::from_mode(0o755));
+        }
+    }
+
+    settings["statusLine"] = serde_json::json!({
+        "type": "command",
+        "command": our_command
+    });
+
+    let updated = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
+    std::fs::write(&settings_path, updated).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn read_session_status(pid: u32) -> Option<OrbitSessionStatus> {
+    let home = dirs::home_dir()?;
+    let path = home
+        .join(".orbit")
+        .join("status")
+        .join(format!("{}.json", pid));
+    let content = std::fs::read_to_string(path).ok()?;
+    serde_json::from_str(&content).ok()
+}
+
 #[tauri::command]
 pub fn get_diff(
     session_id: String,

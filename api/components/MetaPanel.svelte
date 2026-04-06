@@ -1,7 +1,9 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import type { Session } from '../lib/stores/sessions';
   import { estimateCost, formatCost, formatTokens } from '../lib/cost';
-  import { stopSession } from '../lib/tauri';
+  import { stopSession, readSessionStatus } from '../lib/tauri';
+  import type { OrbitSessionStatus } from '../lib/tauri';
   import { isActive } from '../lib/status';
   import TasksList from './TasksList.svelte';
 
@@ -9,6 +11,8 @@
 
   type Tab = 'stats' | 'tasks';
   let tab: Tab = 'stats';
+  let liveStatus: OrbitSessionStatus | null = null;
+  let pollTimer: ReturnType<typeof setInterval> | null = null;
 
   async function stop() {
     try {
@@ -18,10 +22,47 @@
     }
   }
 
+  async function pollStatus() {
+    if (!session.pid) return;
+    try {
+      liveStatus = await readSessionStatus(session.pid);
+    } catch (_e) {
+      /* no-op */
+    }
+  }
+
+  $: {
+    if (pollTimer) clearInterval(pollTimer);
+    liveStatus = null;
+    if (session.pid) {
+      pollStatus();
+      pollTimer = setInterval(pollStatus, 15_000);
+    }
+  }
+
+  onDestroy(() => {
+    if (pollTimer) clearInterval(pollTimer);
+  });
+
+  function formatReset(ts: number): string {
+    if (!ts) return '--';
+    const diff = ts - Math.floor(Date.now() / 1000);
+    if (diff <= 0) return 'agora';
+    const h = Math.floor(diff / 3600);
+    const m = Math.floor((diff % 3600) / 60);
+    return h > 0 ? `${h}h${m}m` : `${m}m`;
+  }
+
+  function pctColor(pct: number): string {
+    if (pct >= 90) return 'var(--s-error)';
+    if (pct >= 70) return 'var(--s-input)';
+    return 'var(--ac)';
+  }
+
   $: tokens = session.tokens;
   $: total = (tokens?.input ?? 0) + (tokens?.output ?? 0);
-  $: cost = tokens ? estimateCost(tokens, session.model) : 0;
-  $: ctx = session.contextPercent ?? 0;
+  $: cost = liveStatus ? liveStatus.cost : tokens ? estimateCost(tokens, session.model) : 0;
+  $: ctx = liveStatus ? liveStatus.contextPct : (session.contextPercent ?? 0);
   $: active = isActive(session.status);
   $: stopped = session.status === 'stopped';
 </script>
@@ -62,9 +103,47 @@
         </div>
 
         <div class="stat-group">
-          <div class="stat-label">cost</div>
+          <div class="stat-label">cost{liveStatus ? '' : ' (est.)'}</div>
           <div class="stat-value big">{formatCost(cost)}</div>
         </div>
+
+        {#if liveStatus}
+          <div class="stat-group">
+            <div class="stat-label">uso · 5h</div>
+            <div class="ctx-row">
+              <div class="ctx-bar">
+                <div
+                  class="ctx-fill"
+                  style="width:{Math.min(liveStatus.fiveHourPct, 100)}%;background:{pctColor(
+                    liveStatus.fiveHourPct
+                  )}"
+                ></div>
+              </div>
+              <span class="ctx-pct">{Math.round(liveStatus.fiveHourPct)}%</span>
+            </div>
+            <div class="stat-row dim">
+              <span>reset em</span><span>{formatReset(liveStatus.fiveHourReset)}</span>
+            </div>
+          </div>
+
+          <div class="stat-group">
+            <div class="stat-label">uso · 7d</div>
+            <div class="ctx-row">
+              <div class="ctx-bar">
+                <div
+                  class="ctx-fill"
+                  style="width:{Math.min(liveStatus.sevenDayPct, 100)}%;background:{pctColor(
+                    liveStatus.sevenDayPct
+                  )}"
+                ></div>
+              </div>
+              <span class="ctx-pct">{Math.round(liveStatus.sevenDayPct)}%</span>
+            </div>
+            <div class="stat-row dim">
+              <span>reset em</span><span>{formatReset(liveStatus.sevenDayReset)}</span>
+            </div>
+          </div>
+        {/if}
 
         {#if ctx > 0}
           <div class="stat-group">

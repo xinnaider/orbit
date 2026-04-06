@@ -45,6 +45,9 @@ pub fn run() {
                 }
             }
 
+            // Set up Orbit statusline capture (non-fatal)
+            let _ = commands::setup_orbit_statusline();
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -66,6 +69,8 @@ pub fn run() {
             commands::list_project_files,
             commands::get_tasks,
             commands::get_claude_usage_stats,
+            commands::setup_orbit_statusline,
+            commands::read_session_status,
             ipc::updater::check_update,
             ipc::updater::install_update,
         ])

@@ -70,10 +70,11 @@
       .catch((e) => console.warn('[InputBar] listProjectFiles failed:', e));
   }
 
-  $: suggestions =
-    text.startsWith('/') && text.length > 1
-      ? commands.filter((c) => c.cmd.toLowerCase().includes(text.toLowerCase())).slice(0, 8)
-      : [];
+  $: suggestions = text.startsWith('/')
+    ? text.length === 1
+      ? commands.slice(0, 8)
+      : commands.filter((c) => c.cmd.toLowerCase().includes(text.toLowerCase())).slice(0, 8)
+    : [];
   $: showSuggestions = suggestions.length > 0;
   $: if (selIdx >= suggestions.length) selIdx = 0;
 
