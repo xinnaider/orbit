@@ -24,8 +24,6 @@
 - **@ file picker** — reference files inline with `@filename`
 - **Context menu** — right-click to rename, stop, or delete sessions
 
----
-
 ## Installation
 
 ### Requirements
@@ -43,8 +41,6 @@
 2. Download the `.exe` installer
 3. Run the installer
 4. Open Orbit, click **+** to create your first session
-
----
 
 ## Contributing
 
@@ -76,8 +72,6 @@ npm run test:rust  # Backend (cargo test)
 npm run lint       # ESLint + clippy
 npm run format     # Prettier + rustfmt
 ```
-
----
 
 ## License
 
