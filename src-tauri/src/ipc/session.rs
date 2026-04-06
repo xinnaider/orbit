@@ -6,6 +6,9 @@ use crate::services::session_manager::SessionManager;
 
 pub struct SessionState(pub Arc<Mutex<SessionManager>>);
 
+/// Create a session: returns immediately after creating the DB record (status = "initializing").
+/// The actual Claude process spawns in a background thread — non-blocking.
+/// Frontend should listen to "session:running" (ready) or "session:error" (spawn failed).
 #[tauri::command]
 pub fn create_session(
     project_path: String,
@@ -17,15 +20,26 @@ pub fn create_session(
     app: AppHandle,
 ) -> Result<Session, String> {
     let mode = permission_mode.unwrap_or_else(|| "ignore".to_string());
-    SessionManager::create_session(
-        Arc::clone(&state.0),
-        app,
-        project_path,
-        prompt,
-        model,
-        mode,
-        session_name,
-    )
+
+    // Phase 1: fast — create DB record, return session immediately
+    let session = {
+        let mut m = state.0.lock().unwrap();
+        m.init_session(
+            &project_path,
+            session_name.as_deref(),
+            &mode,
+            model.as_deref(),
+        )?
+    };
+
+    // Phase 2: slow — spawn PTY in background (non-blocking)
+    let manager = Arc::clone(&state.0);
+    let session_clone = session.clone();
+    std::thread::spawn(move || {
+        SessionManager::do_spawn(manager, app, session_clone, prompt);
+    });
+
+    Ok(session)
 }
 
 #[tauri::command]

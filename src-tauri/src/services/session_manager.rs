@@ -47,69 +47,45 @@ impl SessionManager {
         }
     }
 
-    /// Create a new session: persist to DB, spawn PTY, start reader thread.
-    pub fn create_session(
-        manager: Arc<Mutex<SessionManager>>,
-        app: AppHandle,
-        project_path: String,
-        prompt: String,
-        model: Option<String>,
-        permission_mode: String,
-        session_name: Option<String>,
+    /// Phase 1 (fast): create DB records and return Session immediately.
+    /// Does NOT spawn any process. Call do_spawn in a background thread after this.
+    pub fn init_session(
+        &mut self,
+        project_path: &str,
+        session_name: Option<&str>,
+        permission_mode: &str,
+        model: Option<&str>,
     ) -> Result<Session, String> {
-        // 1. Resolve project name from path
-        let project_name = std::path::Path::new(&project_path)
+        let project_name = std::path::Path::new(project_path)
             .file_name()
             .map(|n| n.to_string_lossy().to_string())
-            .unwrap_or_else(|| project_path.clone());
+            .unwrap_or_else(|| project_path.to_string());
 
-        let db = {
-            let m = manager.lock().unwrap();
-            m.db.clone()
-        };
-
-        // 2. Create or get project record
-        let project = db.create_project(&project_name, &project_path)
+        let project = self.db.create_project(&project_name, project_path)
             .map_err(|e| e.to_string())?;
 
-        // 3. Create session record in DB
-        let session_id = db.create_session(
+        let session_id = self.db.create_session(
             Some(project.id),
-            session_name.as_deref(),
-            &project_path,
-            &permission_mode,
-            model.as_deref(),
+            session_name,
+            project_path,
+            permission_mode,
+            model,
         ).map_err(|e| e.to_string())?;
 
-        // 4. Spawn PTY process
-        let handle = spawn_claude(SpawnConfig {
-            session_id,
-            cwd: std::path::PathBuf::from(&project_path),
-            permission_mode: permission_mode.clone(),
-            model: model.clone(),
-        })?;
-
-        let pid = handle.pid as i32;
-
-        // 5. Update DB with PID and status = "running"
-        db.update_session_pid(session_id, pid)
-            .map_err(|e| e.to_string())?;
-
-        // 6. Build in-memory Session struct
         let now = chrono::Utc::now().to_rfc3339();
         let session = Session {
             id: session_id,
             project_id: Some(project.id),
-            name: session_name,
-            status: crate::models::SessionStatus::Running.as_str().to_string(),
+            name: session_name.map(|s| s.to_string()),
+            status: crate::models::SessionStatus::Initializing.as_str().to_string(),
             worktree_path: None,
             branch_name: None,
-            permission_mode: permission_mode.clone(),
-            model,
-            pid: Some(pid),
+            permission_mode: permission_mode.to_string(),
+            model: model.map(|s| s.to_string()),
+            pid: None,
             created_at: now.clone(),
             updated_at: now,
-            cwd: Some(project_path.clone()),
+            cwd: Some(project_path.to_string()),
             project_name: Some(project_name),
             git_branch: None,
             tokens: None,
@@ -118,17 +94,71 @@ impl SessionManager {
             mini_log: None,
         };
 
-        // 7. Register session + writer in active map
+        self.journal_states.insert(session_id, JournalState::default());
+
+        Ok(session)
+    }
+
+    /// Phase 2 (slow): spawn the Claude PTY process for an already-initialised session.
+    /// Runs in a background thread. Emits session:error if spawn fails.
+    pub fn do_spawn(
+        manager: Arc<Mutex<SessionManager>>,
+        app: AppHandle,
+        session: Session,
+        prompt: String,
+    ) {
+        let session_id = session.id;
+
+        let (db, permission_mode, model, cwd) = {
+            let m = manager.lock().unwrap();
+            (
+                m.db.clone(),
+                session.permission_mode.clone(),
+                session.model.clone(),
+                session.cwd.clone().unwrap_or_default(),
+            )
+        };
+
+        // Spawn the PTY
+        let handle = match spawn_claude(SpawnConfig {
+            session_id,
+            cwd: std::path::PathBuf::from(&cwd),
+            permission_mode: permission_mode.clone(),
+            model: model.clone(),
+        }) {
+            Ok(h) => h,
+            Err(e) => {
+                let _ = db.update_session_status(session_id, crate::models::SessionStatus::Error.as_str());
+                let _ = app.emit("session:error", serde_json::json!({
+                    "sessionId": session_id,
+                    "error": e
+                }));
+                return;
+            }
+        };
+
+        let pid = handle.pid as i32;
+        let _ = db.update_session_pid(session_id, pid);
+
+        // Register writer and update session status
         {
             let mut m = manager.lock().unwrap();
+            let mut updated = session.clone();
+            updated.status = crate::models::SessionStatus::Running.as_str().to_string();
+            updated.pid = Some(pid);
             m.active.insert(session_id, ActiveSession {
-                session: session.clone(),
+                session: updated,
                 writer: handle.writer,
             });
-            m.journal_states.insert(session_id, JournalState::default());
         }
 
-        // 8. Send initial prompt via PTY stdin
+        // Emit session:running so frontend updates status
+        let _ = app.emit("session:running", serde_json::json!({
+            "sessionId": session_id,
+            "pid": pid
+        }));
+
+        // Write initial prompt to PTY stdin
         {
             let mut m = manager.lock().unwrap();
             if let Some(active) = m.active.get_mut(&session_id) {
@@ -136,17 +166,8 @@ impl SessionManager {
             }
         }
 
-        // 9. Spawn PTY reader thread
-        let manager_clone = Arc::clone(&manager);
-        let app_clone = app.clone();
-        std::thread::spawn(move || {
-            Self::pty_reader_loop(manager_clone, app_clone, session_id, handle.reader);
-        });
-
-        // 10. Emit session:created event
-        let _ = app.emit("session:created", &session);
-
-        Ok(session)
+        // Start PTY reader loop (blocks until process exits)
+        Self::pty_reader_loop(Arc::clone(&manager), app, session_id, handle.reader);
     }
 
     fn pty_reader_loop(

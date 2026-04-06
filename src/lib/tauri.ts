@@ -98,3 +98,15 @@ export function onSessionState(cb: (payload: SessionStatePayload) => void) {
 export function onSessionStopped(cb: (sessionId: number) => void) {
   return listen<{ sessionId: number }>('session:stopped', e => cb(e.payload.sessionId));
 }
+
+export function onSessionRunning(cb: (sessionId: number, pid: number) => void) {
+  return listen<{ sessionId: number; pid: number }>('session:running', e =>
+    cb(e.payload.sessionId, e.payload.pid)
+  );
+}
+
+export function onSessionError(cb: (sessionId: number, error: string) => void) {
+  return listen<{ sessionId: number; error: string }>('session:error', e =>
+    cb(e.payload.sessionId, e.payload.error)
+  );
+}

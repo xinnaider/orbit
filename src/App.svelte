@@ -10,6 +10,8 @@
     onSessionOutput,
     onSessionState,
     onSessionStopped,
+    onSessionRunning,
+    onSessionError,
   } from './lib/tauri';
   import Sidebar from './components/Sidebar.svelte';
   import CentralPanel from './components/CentralPanel.svelte';
@@ -82,8 +84,20 @@
       sessions.update(list => updateSessionState(list, sessionId, { status: 'completed' }));
     });
 
+    // session:running — spawn succeeded, update status + pid
+    const unRunning = onSessionRunning((sessionId, pid) => {
+      sessions.update(list => updateSessionState(list, sessionId, { status: 'running', pid }));
+    });
+
+    // session:error — spawn failed
+    const unError = onSessionError((sessionId, error) => {
+      sessions.update(list => updateSessionState(list, sessionId, { status: 'error' }));
+      console.error(`Session ${sessionId} spawn error:`, error);
+    });
+
     return () => {
-      Promise.all([unCreated, unOutput, unState, unStopped]).then(fns => fns.forEach(fn => fn()));
+      Promise.all([unCreated, unOutput, unState, unStopped, unRunning, unError])
+        .then(fns => fns.forEach(fn => fn()));
     };
   });
 </script>
