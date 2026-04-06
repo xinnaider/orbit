@@ -66,21 +66,21 @@
     <span class="value">{session.model ?? '—'}</span>
   </div>
   {#if usage}
-  <div class="usage-section">
-    <div class="usage-title">Weekly usage (7d)</div>
-    <div class="stat-row">
-      <span class="label">Tokens</span>
-      <span class="value">{formatTokens(usage.weeklyTokens)}</span>
+    <div class="usage-section">
+      <div class="usage-title">Weekly usage (7d)</div>
+      <div class="stat-row">
+        <span class="label">Tokens</span>
+        <span class="value">{formatTokens(usage.weeklyTokens)}</span>
+      </div>
+      <div class="stat-row">
+        <span class="label">Today</span>
+        <span class="value">{formatTokens(usage.todayTokens)}</span>
+      </div>
+      <div class="stat-row">
+        <span class="label">Messages</span>
+        <span class="value">{usage.weeklyMessages.toLocaleString()}</span>
+      </div>
     </div>
-    <div class="stat-row">
-      <span class="label">Today</span>
-      <span class="value">{formatTokens(usage.todayTokens)}</span>
-    </div>
-    <div class="stat-row">
-      <span class="label">Messages</span>
-      <span class="value">{usage.weeklyMessages.toLocaleString()}</span>
-    </div>
-  </div>
   {/if}
 </div>
 

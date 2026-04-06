@@ -3,7 +3,16 @@
   import { diffLines } from 'diff';
   import type { Change } from 'diff';
   import {
-    FileText, FilePen, FilePlus, Terminal, Search, Folder, Bot, Wrench, Settings, Maximize2,
+    FileText,
+    FilePen,
+    FilePlus,
+    Terminal,
+    Search,
+    Folder,
+    Bot,
+    Wrench,
+    Settings,
+    Maximize2,
   } from 'lucide-svelte';
   import hljs from 'highlight.js/lib/core';
   import javascript from 'highlight.js/lib/languages/javascript';
@@ -56,10 +65,7 @@
 
   // Diff lines — real Myers algorithm
   $: rawChunks = hasEditDiff
-    ? diffLines(
-        entry.toolInput!.old_string as string,
-        entry.toolInput!.new_string as string,
-      )
+    ? diffLines(entry.toolInput!.old_string as string, entry.toolInput!.new_string as string)
     : [];
   $: inlineLines = buildInlineLines(rawChunks);
   $: inlineOverflow = Math.max(0, inlineLines.length - 6);
@@ -243,7 +249,9 @@
             {#each inlineVisible as dl}
               <div class="diff-line {dl.type}">
                 <span class="dl-num">{dl.lineNo}</span>
-                <span class="dl-prefix">{dl.type === 'add' ? '+' : dl.type === 'rem' ? '-' : ' '}</span>
+                <span class="dl-prefix"
+                  >{dl.type === 'add' ? '+' : dl.type === 'rem' ? '-' : ' '}</span
+                >
                 <span class="dl-code">{@html doHighlight(dl.text, lang)}</span>
               </div>
             {/each}
@@ -269,9 +277,7 @@
             {/if}
           </div>
         {:else if hasBashCommand}
-          <pre class="code-inner code-text"><code
-              >{@html doHighlight(codeText, 'bash')}</code
-            ></pre>
+          <pre class="code-inner code-text"><code>{@html doHighlight(codeText, 'bash')}</code></pre>
         {/if}
 
         {#if resultEntry?.output}
@@ -329,7 +335,9 @@
               {#each modalLines as dl}
                 <div class="diff-line {dl.type}">
                   <span class="dl-num">{dl.lineNo}</span>
-                  <span class="dl-prefix">{dl.type === 'add' ? '+' : dl.type === 'rem' ? '-' : ' '}</span>
+                  <span class="dl-prefix"
+                    >{dl.type === 'add' ? '+' : dl.type === 'rem' ? '-' : ' '}</span
+                  >
                   <span class="dl-code">{@html doHighlight(dl.text, lang)}</span>
                 </div>
               {/each}
@@ -407,10 +415,22 @@
     align-items: center;
     flex-shrink: 0;
   }
-  .tool-icon.read, .tool-icon.grep, .tool-icon.glob { color: var(--user-fg); }
-  .tool-icon.edit, .tool-icon.write { color: var(--tool-fg); }
-  .tool-icon.bash { color: var(--ac); }
-  .tool-icon.agent, .tool-icon.skill { color: var(--think-fg); }
+  .tool-icon.read,
+  .tool-icon.grep,
+  .tool-icon.glob {
+    color: var(--user-fg);
+  }
+  .tool-icon.edit,
+  .tool-icon.write {
+    color: var(--tool-fg);
+  }
+  .tool-icon.bash {
+    color: var(--ac);
+  }
+  .tool-icon.agent,
+  .tool-icon.skill {
+    color: var(--think-fg);
+  }
 
   .tool {
     font-weight: 600;
@@ -587,9 +607,15 @@
     width: 10px;
     user-select: none;
   }
-  .diff-line.add .dl-prefix { color: var(--ac); }
-  .diff-line.rem .dl-prefix { color: var(--s-error); }
-  .diff-line.ctx .dl-prefix { color: var(--t3); }
+  .diff-line.add .dl-prefix {
+    color: var(--ac);
+  }
+  .diff-line.rem .dl-prefix {
+    color: var(--s-error);
+  }
+  .diff-line.ctx .dl-prefix {
+    color: var(--t3);
+  }
   .dl-code {
     flex: 1;
     min-width: 0;
@@ -695,8 +721,12 @@
     animation: fadeIn 0.15s ease-out;
   }
   @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
   .modal {
     background: var(--bg1);

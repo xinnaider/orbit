@@ -149,7 +149,7 @@
   .think-who {
     color: var(--think-fg);
   }
-.row-ts {
+  .row-ts {
     font-size: var(--xs);
     color: var(--t3);
   }

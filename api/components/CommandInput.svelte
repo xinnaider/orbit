@@ -340,7 +340,8 @@
     <button class="ctrl-c" onclick={() => handleQuickAction('\x03')}>Ctrl+C</button>
   </div> -->
   <div class="hint-bar" class:fade-out={!hintVisible}>
-    <span class="hint-icon">◎</span> {currentHint}
+    <span class="hint-icon">◎</span>
+    {currentHint}
   </div>
 </div>
 

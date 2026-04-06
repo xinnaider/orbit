@@ -89,7 +89,10 @@
     return q;
   }
   let aq: string | null = null;
-  $: aq = (() => { void text; return atQuery(); })();
+  $: aq = (() => {
+    void text;
+    return atQuery();
+  })();
   $: fileSuggestions =
     aq === null
       ? []
@@ -262,7 +265,8 @@
     <button class="qb danger" on:click={() => quickAction('\x03')}>ctrl+c</button>
   </div> -->
   <div class="hint-bar" class:fade-out={!hintVisible}>
-    <span class="hint-icon">◎</span> {currentHint}
+    <span class="hint-icon">◎</span>
+    {currentHint}
   </div>
 </div>
 
