@@ -1,86 +1,53 @@
 <div align="center">
 
-<img src="front/icons/orbit-source.svg" width="96" height="96" alt="Orbit logo"/>
+<img src="front/icons/orbit-source.svg" width="88" height="88" alt="Orbit"/>
 
 # Orbit
 
-**Desktop app for running multiple [Claude Code](https://github.com/anthropics/claude-code) agents simultaneously.**
+Run multiple Claude Code agents simultaneously — each in its own session, all in one place.
 
-[![Build](https://img.shields.io/github/actions/workflow/status/xinnaider/orbit/build.yml?branch=master)](https://github.com/xinnaider/orbit/actions)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Platform: Windows](https://img.shields.io/badge/platform-Windows-blue.svg)](#installation)
-
-[orbit.jfernando.dev](https://orbit.jfernando.dev)
+[orbit.jfernando.dev](https://orbit.jfernando.dev) · [Download](https://github.com/xinnaider/orbit/releases/latest) · [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 </div>
 
 ---
 
-## Features
-
-- **Multi-session** — run multiple Claude Code agents in parallel across different projects
-- **Real-time feed** — streaming output with thinking blocks, tool calls, and responses
-- **Persistent history** — sessions survive app restarts; conversations resume automatically
-- **Cost tracking** — per-session token usage and estimated cost in USD
-- **Slash commands** — `/` autocomplete from installed Claude Code plugins
-- **@ file picker** — reference files inline with `@filename`
-- **Context menu** — right-click to rename, stop, or delete sessions
+**Multi-session** — parallel agents across different projects  
+**Real-time feed** — streaming output with thinking blocks and tool calls  
+**Cost tracking** — per-session token usage and USD cost  
+**Persistent history** — sessions survive restarts  
+**Slash commands & @ files** — full Claude Code plugin support
 
 ---
 
-## Installation
+## Install
 
-### Requirements
+Requires **Windows 10 1903+** and [Claude Code](https://github.com/anthropics/claude-code) installed and logged in.
 
-- **Windows 10 1903+**
-- **[Claude Code CLI](https://github.com/anthropics/claude-code)** installed and logged in:
-  ```bash
-  npm install -g @anthropic-ai/claude-code
-  claude login
-  ```
-
-### Download
-
-1. Go to [Releases](https://github.com/xinnaider/orbit/releases/latest)
-2. Download the `.exe` installer
-3. Run the installer
-4. Open Orbit, click **+** to create your first session
+1. Download the `.exe` from [Releases](https://github.com/xinnaider/orbit/releases/latest)
+2. Run the installer
+3. Open Orbit and click **+** to start a session
 
 ---
 
-## Contributing
+## Development
 
-Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-### Development setup
-
-**Requirements:** Node.js ≥ 20, Rust stable ([rustup](https://rustup.rs)), npm ≥ 10
+**Requirements:** Node.js ≥ 20, Rust stable, npm ≥ 10
 
 ```bash
 git clone https://github.com/xinnaider/orbit.git
 cd orbit
 npm install
-npm run tauri:dev   # starts frontend + backend together
+npm run tauri:dev
 ```
 
-`tauri:dev` runs the Vite dev server and the Rust backend in one command, with hot reload on frontend changes.
-
-### Testing
-
 ```bash
-npm test           # Frontend (Vitest)
-npm run test:rust  # Backend (cargo test)
-```
-
-### Linting & formatting
-
-```bash
-npm run lint       # ESLint + clippy
-npm run format     # Prettier + rustfmt
+npm test            # Vitest
+npm run test:rust   # cargo test
+npm run lint        # ESLint + clippy
+npm run format      # Prettier + rustfmt
 ```
 
 ---
-
-## License
 
 MIT © josefernando
