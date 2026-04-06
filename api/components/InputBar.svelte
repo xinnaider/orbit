@@ -18,6 +18,9 @@
   let fileSelIdx = 0;
   let sendError = '';
 
+  // Commands that require an interactive TTY — sending them kills the session.
+  const INTERACTIVE_CMDS = new Set(['/model', '/mcp', '/login', '/logout', '/init', '/doctor']);
+
   const hints = [
     'Orbit keeps all your Claude agents in sync — one dashboard, infinite sessions',
     'Each agent runs in its own orbit — isolated, parallel, always tracked',
@@ -106,6 +109,14 @@
   async function send() {
     const msg = text.trim();
     if (!msg) return;
+
+    const cmd = msg.split(/\s/)[0].toLowerCase();
+    if (INTERACTIVE_CMDS.has(cmd)) {
+      sendError = `${cmd} requires interactive input and is not supported inside Orbit`;
+      setTimeout(() => (sendError = ''), 5000);
+      return;
+    }
+
     text = '';
     sendError = '';
     if (textarea) textarea.style.height = 'auto';
@@ -114,7 +125,6 @@
       await sendSessionMessage(sessionId, msg);
     } catch (e: any) {
       sendError = e?.message ?? String(e);
-      // Clear error after 4s
       setTimeout(() => (sendError = ''), 4000);
     }
   }
