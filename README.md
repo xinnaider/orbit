@@ -14,7 +14,7 @@
 
 </div>
 
-![Orbit screenshot](media/screenshot.png)
+![Orbit demo](media/demo.gif)
 
 ## Features
 

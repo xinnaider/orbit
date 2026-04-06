@@ -25,7 +25,8 @@
     "tauri": "tauri",
     "tauri:dev": "tauri dev --config front/tauri.conf.json",
     "tauri:build": "tauri build --config front/tauri.conf.json",
-    "tauri:icon": "tauri icon --config front/tauri.conf.json"
+    "tauri:icon": "tauri icon --config front/tauri.conf.json",
+    "demo:gif": "node scripts/generate-demo-gif.mjs"
   },
   "license": "MIT",
   "dependencies": {
@@ -48,9 +49,12 @@
     "@typescript-eslint/parser": "^8.58.0",
     "eslint": "^9.0.0",
     "eslint-plugin-svelte": "^2.46.0",
+    "gifenc": "^1.0.3",
     "globals": "^15.0.0",
     "prettier": "^3.8.1",
     "prettier-plugin-svelte": "^3.5.1",
+    "puppeteer": "^24.40.0",
+    "sharp": "^0.34.5",
     "svelte": "^5.0.0",
     "svelte-check": "^4.0.0",
     "svelte-eslint-parser": "^0.43.0",
