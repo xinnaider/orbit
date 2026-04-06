@@ -6,10 +6,6 @@ pub mod commands;
 pub mod services;
 pub mod ipc;
 
-// Legacy observer modules — kept until Phase 5 cleanup
-pub mod session_watcher;
-pub mod keystroke_sender;
-pub mod polling;
 
 use std::sync::{Arc, Mutex};
 use tauri::Manager;

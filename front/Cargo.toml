@@ -8,15 +8,8 @@ default-run = "orbit"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[[bin]]
-name = "send-keys"
-path = "src/bin/send_keys.rs"
-
 [lib]
-# The `_lib` suffix may seem redundant but it is necessary
-# to make the lib name unique and wouldn't conflict with the bin name.
-# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
-name = "agent_dashboard_v2_lib"
+name = "orbit_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
@@ -33,9 +26,5 @@ chrono = "0.4"
 tokio = { version = "1", features = ["full"] }
 ignore = "0.4"
 rusqlite = { version = "0.31", features = ["bundled"] }
-portable-pty = "0.8"
-uuid = { version = "1", features = ["v4"] }
 
-[target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.59", features = ["Win32_System_Console", "Win32_Foundation"] }
 
