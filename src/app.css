@@ -122,8 +122,9 @@
   box-sizing: border-box;
 }
 
-html {
+html, body {
   height: 100%;
+  overflow: hidden;
 }
 
 body {
@@ -131,14 +132,13 @@ body {
   background: var(--bg-primary);
   color: var(--text-primary);
   font-size: 14px;
-  overflow: hidden;
-  height: 100%;
 }
 
 #app {
   height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 ::-webkit-scrollbar {

@@ -186,7 +186,14 @@
 </div>
 
 <style>
-  .central-panel { display: flex; flex-direction: column; height: 100%; }
+  .central-panel {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
   .header {
     padding: 10px 16px;
     border-bottom: 1px solid var(--border);

@@ -102,17 +102,16 @@
   .app-layout {
     display: flex;
     flex: 1;
-    height: 100%;
-    overflow: hidden;
     min-height: 0;
+    overflow: hidden;
   }
   .empty-state {
     flex: 1;
+    min-width: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     color: var(--text-muted);
     font-size: 14px;
-    min-width: 0;
   }
 </style>
