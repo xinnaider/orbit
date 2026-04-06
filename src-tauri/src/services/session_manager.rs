@@ -170,7 +170,7 @@ impl SessionManager {
                     }
 
                     // Update in-memory journal state and collect new entries + state event
-                    let (new_entries, state_event) = {
+                    let (new_entries, state_event, db) = {
                         let mut m = manager.lock().unwrap();
                         let state = m.journal_states
                             .entry(session_id)
@@ -211,8 +211,12 @@ impl SessionManager {
                             mini_log: state.mini_log.clone(),
                         };
 
-                        (new_entries, event)
+                        let db = m.db.clone();
+                        (new_entries, event, db)
                     };
+
+                    // Persist raw line to DB outside of lock
+                    let _ = db.insert_output(session_id, &trimmed);
 
                     // Emit new journal entries as individual events
                     for entry in new_entries {
@@ -301,6 +305,36 @@ impl SessionManager {
                 entry
             }).collect(),
             None => vec![],
+        }
+    }
+
+    /// Load journal states for all existing sessions from DB on startup.
+    /// Call this once from lib.rs setup after SessionManager is created.
+    pub fn restore_from_db(&mut self) {
+        let sessions = match self.db.get_sessions() {
+            Ok(s) => s,
+            Err(_) => return,
+        };
+
+        for session in sessions {
+            if self.journal_states.contains_key(&session.id) {
+                continue; // already loaded (active session)
+            }
+
+            let rows = match self.db.get_outputs(session.id) {
+                Ok(r) => r,
+                Err(_) => continue,
+            };
+
+            if rows.is_empty() {
+                continue;
+            }
+
+            let mut state = JournalState::default();
+            for line in &rows {
+                process_line(&mut state, line);
+            }
+            self.journal_states.insert(session.id, state);
         }
     }
 }

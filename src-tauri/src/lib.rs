@@ -34,7 +34,11 @@ pub fn run() {
                     .expect("Could not open database")
             );
 
-            let session_manager = Arc::new(Mutex::new(SessionManager::new(db)));
+            let session_manager = {
+                let mut sm = SessionManager::new(db);
+                sm.restore_from_db();
+                Arc::new(Mutex::new(sm))
+            };
             app.manage(SessionState(session_manager));
 
             Ok(())
