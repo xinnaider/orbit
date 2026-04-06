@@ -20,6 +20,9 @@
     onSessionRateLimit,
   } from './lib/tauri';
   import type { ClaudeCheck } from './lib/tauri';
+  import UpdateBanner from './components/UpdateBanner.svelte';
+  import { checkUpdate } from './lib/tauri';
+  import type { UpdateInfo } from './lib/types';
   import Sidebar from './components/Sidebar.svelte';
   import CentralPanel from './components/CentralPanel.svelte';
   import MetaPanel from './components/MetaPanel.svelte';
@@ -31,6 +34,8 @@
   let spawnError: { sessionId: number; error: string } | null = null;
   let rateLimitError: { sessionId: number } | null = null;
   let rateLimitDismissTimer: ReturnType<typeof setTimeout> | null = null;
+  let availableUpdate: UpdateInfo | null = null;
+  let updateInterval: ReturnType<typeof setInterval> | null = null;
 
   function beep() {
     try {
@@ -105,9 +110,24 @@
     Promise.all([u1, u2, u3, u4, u5, u6, u7]).then((fns) => {
       unlisteners = fns;
     });
+
+    async function tryCheckUpdate() {
+      try {
+        const info = await checkUpdate();
+        if (info) availableUpdate = info;
+      } catch (_e) {
+        // silencioso — falha de rede não afeta o uso do app
+      }
+    }
+
+    setTimeout(tryCheckUpdate, 3000);
+    updateInterval = setInterval(tryCheckUpdate, 30 * 60 * 1000);
   });
 
-  onDestroy(() => unlisteners.forEach((fn) => fn()));
+  onDestroy(() => {
+    unlisteners.forEach((fn) => fn());
+    if (updateInterval) clearInterval(updateInterval);
+  });
 
   $: selected = getSelectedSession($sessions, $selectedSessionId);
 </script>
@@ -132,6 +152,10 @@
     </div>
     <button class="spawn-error-close" on:click={() => (spawnError = null)}>✕</button>
   </div>
+{/if}
+
+{#if availableUpdate}
+  <UpdateBanner update={availableUpdate} />
 {/if}
 
 <div class="layout">
