@@ -19,6 +19,9 @@ on:
       - 'LICENSE'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   lint:
     name: Lint
