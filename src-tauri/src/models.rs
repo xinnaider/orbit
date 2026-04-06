@@ -174,3 +174,86 @@ pub fn context_window(model_id: &str) -> u64 {
         _ => 200_000,
     }
 }
+
+// Session ID type — SQLite AUTOINCREMENT rowid
+pub type SessionId = i64;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub enum SessionStatus {
+    Initializing,
+    Running,
+    Waiting,
+    Completed,
+    Stopped,
+    Error,
+}
+
+impl SessionStatus {
+    pub fn as_str(&self) -> &str {
+        match self {
+            SessionStatus::Initializing => "initializing",
+            SessionStatus::Running => "running",
+            SessionStatus::Waiting => "waiting",
+            SessionStatus::Completed => "completed",
+            SessionStatus::Stopped => "stopped",
+            SessionStatus::Error => "error",
+        }
+    }
+}
+
+impl std::fmt::Display for SessionStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Project {
+    pub id: i64,
+    pub name: String,
+    pub path: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Session {
+    pub id: SessionId,
+    pub project_id: Option<i64>,
+    pub name: Option<String>,
+    pub status: String,
+    pub worktree_path: Option<String>,
+    pub branch_name: Option<String>,
+    pub permission_mode: String,
+    pub model: Option<String>,
+    pub pid: Option<i32>,
+    pub created_at: String,
+    pub updated_at: String,
+    // Runtime fields (not in DB)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cwd: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub project_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub git_branch: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tokens: Option<TokenUsage>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub context_percent: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pending_approval: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mini_log: Option<Vec<MiniLogEntry>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CreateSessionRequest {
+    pub project_path: String,
+    pub prompt: String,
+    pub model: Option<String>,
+    pub permission_mode: String, // "ignore" | "approve"
+    pub use_worktree: bool,
+    pub session_name: Option<String>,
+}
