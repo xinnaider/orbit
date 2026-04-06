@@ -213,8 +213,26 @@ npm run dev:mock
 
 ### Git
 - Commits em inglês, prefixo convencional: `feat:`, `fix:`, `refactor:`, `chore:`, `docs:`
-- Pre-commit hook executa lint + format automático e atualiza `CHANGELOG.md`
 - Nunca commitar com `--no-verify`
+
+#### Git hooks (`.git/hooks/`)
+
+**`pre-commit`** — roda antes da mensagem ser escrita:
+1. **Prettier** auto-formata `api/**/*.{ts,svelte,css}` e re-adiciona ao stage
+2. **rustfmt** auto-formata o código Rust e re-adiciona ao stage
+3. **ESLint** com `--max-warnings 0` — bloqueia o commit se falhar
+4. **svelte-check** com `--fail-on-warnings` — bloqueia o commit se falhar
+5. **Clippy** com `-D warnings` — bloqueia o commit se falhar
+
+**`commit-msg`** — roda após o usuário escrever a mensagem:
+1. Lê a mensagem de commit (ignora linhas de comentário `#`)
+2. Insere entrada no topo do `CHANGELOG.md` com:
+   - Data/hora, branch, autor
+   - **Primeira linha da mensagem** como título (descrição da alteração)
+   - **Corpo da mensagem** como "Detalhes" (se houver)
+   - Estatísticas (`N files changed, N insertions, N deletions`)
+   - Lista dos arquivos alterados
+3. Faz `git add CHANGELOG.md` para incluir no commit atual
 
 ---
 
