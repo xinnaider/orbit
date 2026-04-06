@@ -110,6 +110,45 @@ jobs:
             Write-Host "File: $($exe.FullName)"
           }
 
+      - name: Generate latest.json for updater
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}"
+          if (-not $version.StartsWith("v")) { $version = "0.0.0-nightly" }
+          $version = $version.TrimStart("v")
+
+          $zip = Get-ChildItem front/target/release/bundle/nsis/*.nsis.zip -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($null -eq $zip) {
+            Write-Host "Nenhum .nsis.zip encontrado, pulando geração do latest.json"
+            exit 0
+          }
+
+          $sigFile = "$($zip.FullName).sig"
+          if (-not (Test-Path $sigFile)) {
+            Write-Host "Arquivo .sig não encontrado: $sigFile"
+            exit 0
+          }
+
+          $signature = Get-Content $sigFile -Raw
+          $pubDate = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
+          $downloadUrl = "https://github.com/xinnaider/orbit/releases/download/v$version/$($zip.Name)"
+
+          $latestJson = @{
+            version  = $version
+            notes    = "Veja o changelog completo em https://github.com/xinnaider/orbit/releases/tag/v$version"
+            pub_date = $pubDate
+            platforms = @{
+              "windows-x86_64" = @{
+                signature = $signature.Trim()
+                url       = $downloadUrl
+              }
+            }
+          } | ConvertTo-Json -Depth 5
+
+          $latestJson | Out-File -FilePath latest.json -Encoding utf8NoBOM
+          Write-Host "latest.json gerado:"
+          Get-Content latest.json
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -117,7 +156,9 @@ jobs:
           path: |
             front/target/release/bundle/msi/*.msi
             front/target/release/bundle/nsis/*.exe
+            front/target/release/bundle/nsis/*.nsis.zip
             front/target/release/orbit.exe
+            latest.json
             sha256sum.txt
           if-no-files-found: warn
           retention-days: 30
@@ -147,6 +188,8 @@ jobs:
           files: |
             front/target/release/bundle/msi/*.msi
             front/target/release/bundle/nsis/*.exe
+            front/target/release/bundle/nsis/*.nsis.zip
+            latest.json
             sha256sum.txt
           generate_release_notes: true
         env:
