@@ -42,6 +42,12 @@ pub fn run() {
             };
             app.manage(SessionState(session_manager));
 
+            // Set window icon programmatically — bypasses Windows icon cache in dev mode
+            if let Some(window) = app.get_webview_window("main") {
+                if let Ok(icon) = tauri::image::Image::from_bytes(include_bytes!("../icons/icon.png")) {
+                    let _ = window.set_icon(icon);
+                }
+            }
 
             Ok(())
         })
