@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import {
     sessions, selectedSessionId,
     upsertSession, updateSessionState, getSelectedSession
@@ -18,6 +18,7 @@
   let prevStatuses: Record<number, string> = {};
   let audioCtx: AudioContext | null = null;
   let claudeCheck: ClaudeCheck | null = null;
+  let unlisteners: Array<() => void> = [];
 
   function beep() {
     try {
@@ -73,10 +74,11 @@
       console.error('session:error', id, error);
     });
 
-    return async () => {
-      (await Promise.all([u1, u2, u3, u4, u5, u6])).forEach(fn => fn());
-    };
+    // Resolve all unlisten functions and store for cleanup
+    Promise.all([u1, u2, u3, u4, u5, u6]).then(fns => { unlisteners = fns; });
   });
+
+  onDestroy(() => unlisteners.forEach(fn => fn()));
 
   $: selected = getSelectedSession($sessions, $selectedSessionId);
 </script>

@@ -253,6 +253,7 @@ impl SessionManager {
                     // Emit state update
                     let _ = app.emit("session:state", &state_event);
                 }
+                // Error reading PTY — typically Windows error 232 (pipe closed) when process exits
                 Err(_) => break,
             }
         }

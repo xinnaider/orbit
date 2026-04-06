@@ -54,7 +54,7 @@
   on:contextmenu|preventDefault
 >
   {#each items as item}
-    {#if item.divider}
+    {#if item.divider || item.action === 'divider'}
       <div class="divider"></div>
     {:else}
       <button

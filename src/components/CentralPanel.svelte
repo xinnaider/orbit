@@ -97,7 +97,7 @@
   </div>
 
   <!-- Approval banner -->
-  {#if session.pendingApproval && session.status !== 'working'}
+  {#if session.pendingApproval && (session.status as string) !== 'working'}
     <div class="approval">
       <span class="approval-icon">⚑</span>
       <span class="approval-text">{session.pendingApproval}</span>

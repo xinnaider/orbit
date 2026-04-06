@@ -3,7 +3,8 @@
   import { statusColor, statusLabel, isPulsing } from '../lib/status';
   import NewSessionModal from './NewSessionModal.svelte';
   import ContextMenu from './ContextMenu.svelte';
-  import { estimateCost, formatCost, formatTokens, renameSession, deleteSession, stopSession } from '../lib/tauri';
+  import { renameSession, deleteSession, stopSession } from '../lib/tauri';
+  import { estimateCost, formatCost, formatTokens } from '../lib/cost';
 
   // Context menu state
   let ctxMenu: { x: number; y: number; sessionId: number; sessionName: string } | null = null;
@@ -77,9 +78,9 @@
   <ContextMenu
     x={ctxMenu.x} y={ctxMenu.y}
     items={[
-      { label: 'Rename', action: 'rename' },
-      { label: 'Stop', action: 'stop' },
-      { divider: true },
+      { label: 'Rename', action: 'rename', danger: false },
+      { label: 'Stop', action: 'stop', danger: false },
+      { label: '—', action: 'divider', divider: true },
       { label: 'Delete', action: 'delete', danger: true },
     ]}
     on:select={e => handleCtxAction(e.detail)}
