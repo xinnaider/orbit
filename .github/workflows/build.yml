@@ -114,24 +114,20 @@ jobs:
       - name: Generate latest.json for updater
         shell: pwsh
         run: |
-          Write-Host "=== Bundle output ==="
-          Get-ChildItem front/target/release/bundle -Recurse -File | Select-Object -ExpandProperty FullName
-          Write-Host "====================="
-
           $version = "${{ github.ref_name }}"
           if (-not $version.StartsWith("v")) { $version = "0.0.0-nightly" }
           $version = $version.TrimStart("v")
 
-          $zip = Get-ChildItem front/target/release/bundle/nsis/*.nsis.zip -ErrorAction SilentlyContinue | Select-Object -First 1
+          $zip = Get-ChildItem front/target/release/bundle -Recurse -Filter "*.nsis.zip" -ErrorAction SilentlyContinue | Select-Object -First 1
           if ($null -eq $zip) {
-            Write-Host "Nenhum .nsis.zip encontrado, pulando geração do latest.json"
-            exit 0
+            Write-Host "::error::Nenhum .nsis.zip encontrado em front/target/release/bundle — verifique se TAURI_SIGNING_PRIVATE_KEY está configurado"
+            exit 1
           }
 
           $sigFile = "$($zip.FullName).sig"
           if (-not (Test-Path $sigFile)) {
-            Write-Host "Arquivo .sig não encontrado: $sigFile"
-            exit 0
+            Write-Host "::error::Arquivo .sig não encontrado: $sigFile"
+            exit 1
           }
 
           $signature = Get-Content $sigFile -Raw
