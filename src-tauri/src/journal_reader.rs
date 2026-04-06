@@ -437,7 +437,6 @@ fn derive_status_from_tail(path: &Path, input_tokens: u64, output_tokens: u64) -
     // Track the last entry's characteristics
     let mut last_type = String::new();
     let mut last_timestamp = String::new();
-    let mut last_is_tool_result = false;
     let mut awaiting_tool_result = false;
     let mut finished = false; // definitive completion
 
@@ -455,7 +454,6 @@ fn derive_status_from_tail(path: &Path, input_tokens: u64, output_tokens: u64) -
 
         if json_contains(trimmed, "type", "assistant") {
             last_type = "assistant".to_string();
-            last_is_tool_result = false;
             finished = false;
 
             if trimmed.contains("\"tool_use\"") {
@@ -469,8 +467,7 @@ fn derive_status_from_tail(path: &Path, input_tokens: u64, output_tokens: u64) -
             last_type = "user".to_string();
             finished = false;
 
-            last_is_tool_result = trimmed.contains("\"tool_result\"");
-            if last_is_tool_result {
+            if trimmed.contains("\"tool_result\"") {
                 awaiting_tool_result = false;
             }
         } else if json_contains(trimmed, "type", "progress") {

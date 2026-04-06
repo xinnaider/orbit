@@ -7,7 +7,7 @@ use tauri::{AppHandle, Emitter};
 use crate::journal_reader::{JournalState, process_line};
 use crate::models::{Session, SessionId, AgentStatus, TokenUsage};
 use crate::services::database::DatabaseService;
-use crate::services::spawn_manager::{SpawnConfig, PtyHandle, spawn_claude};
+use crate::services::spawn_manager::{SpawnConfig, spawn_claude};
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
