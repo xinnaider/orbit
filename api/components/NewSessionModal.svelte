@@ -48,7 +48,7 @@
     try {
       await createSession({
         projectPath: path.trim(),
-        prompt: prompt.trim() || '.', // '.' starts Claude in interactive mode with no initial task
+        prompt: prompt.trim() || 'Hello',
         model: model === 'auto' ? undefined : model,
         permissionMode: approveMode ? 'approve' : 'ignore',
       });
