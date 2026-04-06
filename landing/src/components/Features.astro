@@ -1,0 +1,83 @@
+---
+const features = [
+  {
+    icon: '⊙',
+    title: 'Multi-session',
+    desc: 'Run <mark>multiple Claude agents</mark> in parallel across different projects simultaneously.',
+  },
+  {
+    icon: '▸',
+    title: 'Real-time feed',
+    desc: 'Streaming JSON displayed as structured entries — thinking blocks, tool calls, responses.',
+  },
+  {
+    icon: '◈',
+    title: 'Persistent history',
+    desc: 'SQLite-backed sessions. Close the app, reopen — <mark>conversations resume</mark> automatically.',
+  },
+  {
+    icon: '$',
+    title: 'Cost tracking',
+    desc: 'Per-session token usage and estimated cost in USD. Always know what each agent is spending.',
+  },
+  {
+    icon: '/',
+    title: 'Slash commands',
+    desc: 'Autocomplete from installed <mark>Claude Code plugins</mark>. File picker with @ references.',
+  },
+  {
+    icon: '○',
+    title: 'Context menu',
+    desc: 'Right-click sessions to rename, stop, or delete. No digging through menus.',
+  },
+];
+---
+
+<section class="features">
+  <p class="label">what it does</p>
+  <div class="grid">
+    {features.map((f) => (
+      <div class="cell">
+        <span class="icon">{f.icon}</span>
+        <div class="title">{f.title}</div>
+        <div class="desc" set:html={f.desc} />
+      </div>
+    ))}
+  </div>
+</section>
+
+<style>
+  .features {
+    padding: 100px 48px;
+    max-width: 960px; margin: 0 auto;
+    border-top: 1px solid var(--bd);
+  }
+  .label {
+    font-size: 9px; letter-spacing: 0.3em; text-transform: uppercase;
+    color: var(--t3); margin-bottom: 44px; text-align: center;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--bd);
+    border: 1px solid var(--bd);
+    border-radius: 6px; overflow: hidden;
+  }
+  .cell {
+    background: var(--bg); padding: 26px 22px;
+    transition: background 0.2s;
+  }
+  .cell:hover { background: var(--bg1); }
+  .icon { font-size: 17px; margin-bottom: 11px; display: block; }
+  .title { font-size: 12px; font-weight: 600; color: var(--t1); margin-bottom: 7px; }
+  .desc { font-size: 11px; color: #444; line-height: 1.6; }
+  .desc :global(mark) {
+    background: none; color: var(--ac);
+  }
+
+  @media (max-width: 768px) {
+    .features { padding: 60px 20px; }
+    .grid { grid-template-columns: 1fr; }
+  }
+</style>
