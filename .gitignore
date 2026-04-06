@@ -9,6 +9,8 @@ bash.exe.stackdump
 
 # Claude Code
 .claude/
+.agents/
+skills-lock.json
 
 # Docs (internal plans/specs)
 docs/
