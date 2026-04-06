@@ -25,8 +25,11 @@ export default defineConfig(async () => ({
         }
       : undefined,
     watch: {
-      // 3. tell Vite to ignore watching `src-tauri`
       ignored: ["**/front/**"],
+    },
+    fs: {
+      // Allow serving files from the api/ root (App.svelte, app.css, etc.)
+      allow: ["api", "static", "node_modules", ".svelte-kit"],
     },
   },
 }));
