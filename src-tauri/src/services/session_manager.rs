@@ -2,6 +2,33 @@ use std::collections::HashMap;
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 
+/// Strip ANSI escape sequences from a string.
+/// PTY output on Windows (ConPTY) includes sequences like ESC[...m, ESC[H, etc.
+fn strip_ansi(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut chars = s.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\x1b' {
+            // ESC [ ... letter  (CSI sequences)
+            if chars.peek() == Some(&'[') {
+                chars.next();
+                // Consume until we hit a letter (the command char)
+                for inner in chars.by_ref() {
+                    if inner.is_ascii_alphabetic() { break; }
+                }
+            } else {
+                // Other ESC sequences: skip next char
+                chars.next();
+            }
+        } else if c == '\r' {
+            // Skip carriage returns from PTY
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
 use tauri::{AppHandle, Emitter};
 
 use crate::journal_reader::{JournalState, process_line};
@@ -158,11 +185,13 @@ impl SessionManager {
             "pid": pid
         }));
 
+        // Give Claude time to initialize before sending the prompt
+        std::thread::sleep(std::time::Duration::from_millis(500));
+
         // Write initial prompt to PTY stdin
         {
             let mut m = manager.lock().unwrap();
             if let Some(active) = m.active.get_mut(&session_id) {
-                // ConPTY on Windows expects \r (carriage return) as Enter key
                 let _ = write!(active.writer, "{}\r", prompt);
             }
         }
@@ -186,10 +215,16 @@ impl SessionManager {
             match reader.read_line(&mut line) {
                 Ok(0) => break, // EOF — process exited
                 Ok(_) => {
-                    let trimmed = line.trim().to_string();
-                    if trimmed.is_empty() {
+                    // Strip ANSI escape sequences — PTY output on Windows includes them
+                    let clean = strip_ansi(line.trim());
+                    if clean.is_empty() {
                         continue;
                     }
+                    // Only process lines that look like JSON objects
+                    if !clean.starts_with('{') {
+                        continue;
+                    }
+                    let trimmed = clean;
 
                     // Update in-memory journal state and collect new entries + state event
                     let (new_entries, state_event, db) = {

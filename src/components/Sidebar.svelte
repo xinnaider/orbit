@@ -9,6 +9,7 @@
   // Context menu state
   let ctxMenu: { x: number; y: number; sessionId: number; sessionName: string } | null = null;
   let renaming: { id: number; value: string } | null = null;
+  let confirmDelete: { id: number; name: string } | null = null;
 
   function onContextMenu(e: MouseEvent, s: typeof $sessions[0]) {
     e.preventDefault();
@@ -23,11 +24,7 @@
     if (action === 'rename') {
       renaming = { id: sessionId, value: sessionName };
     } else if (action === 'delete') {
-      if (confirm(`Delete session "${sessionName}"?`)) {
-        await deleteSession(sessionId);
-        sessions.update(l => l.filter(s => s.id !== sessionId));
-        if ($selectedSessionId === sessionId) selectedSessionId.set(null);
-      }
+      confirmDelete = { id: sessionId, name: sessionName };
     } else if (action === 'stop') {
       try { await stopSession(sessionId); } catch {}
     }
@@ -72,6 +69,24 @@
 
 {#if showModal}
   <NewSessionModal on:done={() => showModal = false} on:cancel={() => showModal = false} />
+{/if}
+
+{#if confirmDelete}
+  <div class="confirm-overlay" role="dialog" tabindex="-1">
+    <div class="confirm-box">
+      <p>Delete <strong>{confirmDelete.name}</strong>?</p>
+      <div class="confirm-actions">
+        <button class="confirm-btn" on:click={() => confirmDelete = null}>cancel</button>
+        <button class="confirm-btn danger" on:click={async () => {
+          const { id } = confirmDelete!;
+          confirmDelete = null;
+          await deleteSession(id);
+          sessions.update(l => l.filter(s => s.id !== id));
+          if ($selectedSessionId === id) selectedSessionId.set(null);
+        }}>delete</button>
+      </div>
+    </div>
+  </div>
 {/if}
 
 {#if ctxMenu}
@@ -255,6 +270,29 @@
     padding-left: 14px;
   }
   .sep { color: var(--t3); }
+  .confirm-overlay {
+    position: fixed; inset: 0; z-index: 200;
+    background: rgba(0,0,0,0.5);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .confirm-box {
+    background: var(--bg2); border: 1px solid var(--bd1);
+    border-radius: 4px; padding: 16px 20px;
+    min-width: 200px;
+  }
+  .confirm-box p { font-size: var(--sm); color: var(--t0); margin-bottom: 12px; }
+  .confirm-box strong { color: var(--t0); }
+  .confirm-actions { display: flex; gap: 8px; justify-content: flex-end; }
+  .confirm-btn {
+    background: none; border: 1px solid var(--bd1);
+    border-radius: 3px; color: var(--t1);
+    font-size: var(--xs); padding: 4px 12px; cursor: pointer;
+    font-family: var(--mono);
+  }
+  .confirm-btn:hover { border-color: var(--bd2); color: var(--t0); }
+  .confirm-btn.danger { color: var(--s-error); }
+  .confirm-btn.danger:hover { border-color: var(--s-error); }
+
   .rename-input {
     flex: 1; min-width: 0;
     background: var(--bg3);
