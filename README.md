@@ -10,24 +10,9 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Platform: Windows](https://img.shields.io/badge/platform-Windows-blue.svg)](#installation)
 
+[orbit.jfernando.dev](https://orbit.jfernando.dev)
+
 </div>
-
----
-
-```
-┌─ orbit ──────────────────────────────────────────────────────────────┐
-│  sidebar        │  session feed              │  meta panel           │
-│  ─────────────  │  ──────────────────────    │  ───────────────────  │
-│  ● api-server   │  you · 14:32               │  tokens               │
-│    running      │    fix the auth bug        │  24.8K                │
-│    sonnet · 14K │                            │  input    19.2K       │
-│  ● dashboard    │  claude · 14:33            │  output    5.6K       │
-│    waiting      │    I'll look at auth.ts…   │                       │
-│    opus · 89K   │                            │  cost  $0.48          │
-│  ● utils-lib    │  run · bash                │                       │
-│    idle         │    $ git status            │  context  14.2%       │
-└─────────────────┴────────────────────────────┴───────────────────────┘
-```
 
 ---
 
