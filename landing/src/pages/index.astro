@@ -24,9 +24,40 @@ import '../styles/global.css';
     <meta name="theme-color"        content="#080808" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Orbit — Claude Agent Dashboard</title>
+    <!-- Prevent FOUC: set background immediately before any CSS loads -->
+    <style>
+      html { background: #080808; }
+      #loader {
+        position: fixed; inset: 0; z-index: 9999;
+        background: #080808;
+        display: flex; align-items: center; justify-content: center;
+        transition: opacity 0.4s ease;
+      }
+      #loader.fade-out { opacity: 0; pointer-events: none; }
+      .loader-dot {
+        width: 6px; height: 6px; border-radius: 50%;
+        background: #00d47e;
+        box-shadow: 0 0 12px #00d47e;
+        animation: loader-pulse 1.2s ease-in-out infinite;
+      }
+      @keyframes loader-pulse {
+        0%, 100% { opacity: 0.2; transform: scale(0.8); }
+        50%       { opacity: 1;   transform: scale(1.2); }
+      }
+    </style>
     <script defer src="https://cloud.umami.is/script.js" data-website-id="936470aa-597e-4221-8f26-9d11679f49e0"></script>
   </head>
   <body>
+    <div id="loader"><div class="loader-dot"></div></div>
+    <script>
+      window.addEventListener('DOMContentLoaded', () => {
+        const loader = document.getElementById('loader');
+        if (loader) {
+          loader.classList.add('fade-out');
+          setTimeout(() => loader.remove(), 420);
+        }
+      });
+    </script>
     <Nav />
     <main>
       <Hero />
