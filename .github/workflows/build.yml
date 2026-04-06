@@ -91,6 +91,18 @@ jobs:
       - name: Install Node dependencies
         run: npm ci
 
+      - name: Check signing key (debug)
+        shell: pwsh
+        run: |
+          if ($env:TAURI_SIGNING_PRIVATE_KEY) {
+            Write-Host "TAURI_SIGNING_PRIVATE_KEY está definida (length=$($env:TAURI_SIGNING_PRIVATE_KEY.Length))"
+          } else {
+            Write-Host "::error::TAURI_SIGNING_PRIVATE_KEY está VAZIA ou ausente"
+            exit 1
+          }
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+
       - name: Build Tauri app
         run: npm run tauri:build
         env:
