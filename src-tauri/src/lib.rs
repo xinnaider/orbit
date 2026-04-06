@@ -1,4 +1,5 @@
 pub mod models;
+pub mod services;
 pub mod session_watcher;
 pub mod journal_reader;
 pub mod diff_builder;
