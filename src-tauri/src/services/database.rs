@@ -1,4 +1,4 @@
-use rusqlite::{Connection, Result as SqlResult, params};
+use rusqlite::{Connection, Result as SqlResult, params, OptionalExtension};
 use std::path::Path;
 use std::sync::Mutex;
 
@@ -147,6 +147,38 @@ impl DatabaseService {
         Ok(sessions)
     }
 
+    pub fn get_session(&self, id: SessionId) -> SqlResult<Option<Session>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, project_id, name, status, worktree_path, branch_name,
+                    permission_mode, model, pid, cwd, created_at, updated_at
+             FROM sessions WHERE id = ?1"
+        )?;
+        let session = stmt.query_row(params![id], |row| {
+            Ok(Session {
+                id: row.get(0)?,
+                project_id: row.get(1)?,
+                name: row.get(2)?,
+                status: row.get(3)?,
+                worktree_path: row.get(4)?,
+                branch_name: row.get(5)?,
+                permission_mode: row.get(6)?,
+                model: row.get(7)?,
+                pid: row.get(8)?,
+                created_at: row.get(10)?,
+                updated_at: row.get(11)?,
+                cwd: row.get(9)?,
+                project_name: None,
+                git_branch: None,
+                tokens: None,
+                context_percent: None,
+                pending_approval: None,
+                mini_log: None,
+            })
+        }).optional()?;
+        Ok(session)
+    }
+
     pub fn get_projects(&self) -> SqlResult<Vec<Project>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
@@ -238,5 +270,17 @@ mod tests {
         let rows = db.get_outputs(id).unwrap();
         assert_eq!(rows.len(), 2);
         assert_eq!(rows[0], r#"{"type":"assistant"}"#);
+    }
+
+    #[test]
+    fn test_get_session() {
+        let db = DatabaseService::open_in_memory().unwrap();
+        let id = db.create_session(None, Some("test"), "/tmp/proj", "ignore", None).unwrap();
+        let session = db.get_session(id).unwrap();
+        assert!(session.is_some());
+        assert_eq!(session.unwrap().status, "initializing");
+
+        let missing = db.get_session(999).unwrap();
+        assert!(missing.is_none());
     }
 }
