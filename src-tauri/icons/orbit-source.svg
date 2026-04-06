@@ -1,0 +1,33 @@
+<svg viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="512" height="512" rx="80" fill="#0a0a0a"/>
+
+  <!-- Outer orbital ring -->
+  <ellipse
+    cx="256" cy="256"
+    rx="200" ry="78"
+    stroke="#00d47e"
+    stroke-width="16"
+    fill="none"
+    transform="rotate(-38 256 256)"
+  />
+
+  <!-- Inner orbital ring (fainter) -->
+  <ellipse
+    cx="256" cy="256"
+    rx="130" ry="50"
+    stroke="#00d47e"
+    stroke-width="8"
+    fill="none"
+    opacity="0.35"
+    transform="rotate(-38 256 256)"
+  />
+
+  <!-- Central body -->
+  <circle cx="256" cy="256" r="52" fill="#00d47e"/>
+  <circle cx="256" cy="256" r="36" fill="#0a0a0a"/>
+  <circle cx="256" cy="256" r="18" fill="#00d47e" opacity="0.8"/>
+
+  <!-- Satellite dot -->
+  <circle cx="418" cy="162" r="22" fill="#00d47e" opacity="0.85"/>
+</svg>
