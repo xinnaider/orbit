@@ -33,6 +33,10 @@ pub fn create_session(
         )?
     };
 
+    // Emit session:created immediately so frontend shows the session
+    use tauri::Emitter;
+    let _ = app.emit("session:created", &session);
+
     // Phase 2: slow — spawn PTY in background (non-blocking)
     let manager = Arc::clone(&state.0);
     let session_clone = session.clone();

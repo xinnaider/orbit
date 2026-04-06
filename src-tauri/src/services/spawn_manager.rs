@@ -69,14 +69,15 @@ pub fn find_claude() -> Option<String> {
         }
     }
 
-    // 2. Common Windows locations
+    // 2. Common Windows locations (check .exe first, then .cmd)
     #[cfg(windows)]
     if let Some(home) = dirs::home_dir() {
         let candidates = [
+            home.join(".local").join("bin").join("claude.exe"),
+            home.join(".local").join("bin").join("claude"),
             home.join("AppData").join("Roaming").join("npm").join("claude.cmd"),
             home.join("AppData").join("Local").join("pnpm").join("claude.cmd"),
             home.join("AppData").join("Roaming").join("npm").join("claude"),
-            home.join(".local").join("bin").join("claude"),
         ];
         for p in &candidates {
             if p.exists() { return Some(p.to_string_lossy().into_owned()); }
@@ -99,28 +100,34 @@ pub fn find_claude() -> Option<String> {
 }
 
 /// Build the CommandBuilder for claude.
-/// On Windows, .cmd scripts require cmd /c — CreateProcess only handles .exe/.com.
-/// We use the exact path from find_claude() when available.
+/// - .exe files are spawned directly (no wrapper needed)
+/// - .cmd/.bat files require `cmd /c` on Windows (CreateProcess doesn't expand .cmd)
 fn claude_command() -> Result<CommandBuilder, String> {
+    let path = find_claude();
+
     #[cfg(windows)]
     {
-        // First: try to find the exact path (e.g. C:\Users\...\npm\claude.cmd)
-        if let Some(path) = find_claude() {
-            let mut cmd = CommandBuilder::new("cmd");
-            cmd.args(["/c", &path]);
-            return Ok(cmd);
+        if let Some(ref p) = path {
+            let lower = p.to_lowercase();
+            if lower.ends_with(".exe") || lower.ends_with(".com") {
+                // Direct spawn — no cmd /c needed
+                return Ok(CommandBuilder::new(p));
+            }
+            if lower.ends_with(".cmd") || lower.ends_with(".bat") {
+                let mut cmd = CommandBuilder::new("cmd");
+                cmd.args(["/c", p.as_str()]);
+                return Ok(cmd);
+            }
         }
-        // Fallback: rely on PATH augmentation
+        // Fallback: use cmd /c claude (relies on PATH)
         let mut cmd = CommandBuilder::new("cmd");
         cmd.args(["/c", "claude"]);
         Ok(cmd)
     }
+
     #[cfg(not(windows))]
     {
-        if let Some(path) = find_claude() {
-            return Ok(CommandBuilder::new(&path));
-        }
-        Ok(CommandBuilder::new("claude"))
+        Ok(CommandBuilder::new(path.as_deref().unwrap_or("claude")))
     }
 }
 
