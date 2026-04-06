@@ -34,12 +34,12 @@
   }
 
   async function submit() {
-    if (!path.trim() || !prompt.trim()) { error = 'path and prompt required'; return; }
+    if (!path.trim()) { error = 'project path required'; return; }
     loading = true; error = '';
     try {
       await createSession({
         projectPath: path.trim(),
-        prompt: prompt.trim(),
+        prompt: prompt.trim() || '.',   // '.' starts Claude in interactive mode with no initial task
         model: model === 'auto' ? undefined : model,
         permissionMode: approveMode ? 'approve' : 'ignore',
       });
@@ -86,7 +86,7 @@
         id="ns-prompt"
         class="input textarea"
         bind:value={prompt}
-        placeholder="what should claude work on?"
+        placeholder="what should claude work on? (optional — leave blank to start interactively)"
         rows="3"
         disabled={loading}
         on:keydown={e => { if (e.key === 'Enter' && e.metaKey) submit(); }}
@@ -135,7 +135,7 @@
         {diagRunning ? 'testing...' : '⚙ diagnose'}
       </button>
       <button class="btn ghost" on:click={() => dispatch('cancel')} disabled={loading}>cancel</button>
-      <button class="btn primary" on:click={submit} disabled={loading || !path || !prompt}>
+      <button class="btn primary" on:click={submit} disabled={loading || !path}>
         {loading ? 'spawning...' : 'start session'}
       </button>
     </div>
