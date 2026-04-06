@@ -162,7 +162,8 @@ impl SessionManager {
         {
             let mut m = manager.lock().unwrap();
             if let Some(active) = m.active.get_mut(&session_id) {
-                let _ = write!(active.writer, "{}\n", prompt);
+                // ConPTY on Windows expects \r (carriage return) as Enter key
+                let _ = write!(active.writer, "{}\r", prompt);
             }
         }
 
@@ -273,10 +274,11 @@ impl SessionManager {
     }
 
     /// Write a message to the session's PTY stdin.
+    /// Uses \r (ConPTY Enter key on Windows).
     pub fn send_message(&mut self, session_id: SessionId, text: &str) -> Result<(), String> {
         let active = self.active.get_mut(&session_id)
-            .ok_or_else(|| format!("Session {session_id} not active"))?;
-        write!(active.writer, "{}\n", text)
+            .ok_or_else(|| format!("Session {session_id} not active — it may still be spawning"))?;
+        write!(active.writer, "{}\r", text)
             .map_err(|e| e.to_string())
     }
 

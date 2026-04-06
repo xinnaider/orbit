@@ -6,6 +6,7 @@
 
   export let sessionId: number;
   export let cwd: string = '';
+  export let sessionStatus: string = '';
 
   let text = '';
   let textarea: HTMLTextAreaElement;
@@ -15,6 +16,7 @@
   let fileSuggestions: string[] = [];
   let selIdx = 0;
   let fileSelIdx = 0;
+  let sendError = '';
 
   onMount(async () => {
     try { commands = await getSlashCommands(); } catch {}
@@ -69,9 +71,16 @@
     const msg = text.trim();
     if (!msg) return;
     text = '';
+    sendError = '';
     if (textarea) textarea.style.height = 'auto';
     pendingMessages.add(msg);
-    try { await sendSessionMessage(sessionId, msg); } catch {}
+    try {
+      await sendSessionMessage(sessionId, msg);
+    } catch (e: any) {
+      sendError = e?.message ?? String(e);
+      // Clear error after 4s
+      setTimeout(() => sendError = '', 4000);
+    }
   }
 
   function selectCmd(cmd: string) {
@@ -117,11 +126,19 @@
 
   async function quickAction(msg: string) {
     pendingMessages.add(msg);
-    try { await sendSessionMessage(sessionId, msg); } catch {}
+    try {
+      await sendSessionMessage(sessionId, msg);
+    } catch (e: any) {
+      sendError = e?.message ?? String(e);
+      setTimeout(() => sendError = '', 4000);
+    }
   }
 </script>
 
 <div class="input-area">
+  {#if sendError}
+    <div class="send-error">! {sendError}</div>
+  {/if}
   <!-- Autocomplete dropdowns -->
   {#if showFiles || showSuggestions}
     <div class="dropdown">
@@ -145,16 +162,17 @@
   {/if}
 
   <div class="input-row">
-    <span class="prompt-char">›</span>
+    <span class="prompt-char" class:dim={sessionStatus === 'initializing'}>›</span>
     <textarea
       bind:this={textarea}
       bind:value={text}
       on:keydown={onKey}
       on:input={autoResize}
-      placeholder="message... (/ for commands, @ for files)"
+      placeholder={sessionStatus === 'initializing' ? 'waiting for session to start...' : 'message... (/ for commands, @ for files)'}
       rows="1"
+      disabled={sessionStatus === 'initializing'}
     ></textarea>
-    <button class="send-btn" on:click={send} disabled={!text.trim()} title="Enter">⏎</button>
+    <button class="send-btn" on:click={send} disabled={!text.trim() || sessionStatus === 'initializing'} title="Enter">⏎</button>
   </div>
 
   <div class="quick-row">
@@ -171,6 +189,13 @@
     background: var(--bg1);
     position: relative;
     flex-shrink: 0;
+  }
+  .send-error {
+    padding: 5px 12px;
+    font-size: var(--xs);
+    color: var(--s-error);
+    border-bottom: 1px solid rgba(224,72,72,0.2);
+    background: rgba(224,72,72,0.05);
   }
 
   .dropdown {
@@ -198,8 +223,9 @@
   .prompt-char {
     color: var(--t2); font-size: var(--lg);
     line-height: 1; margin-bottom: 6px; margin-right: 8px;
-    flex-shrink: 0;
+    flex-shrink: 0; transition: color 0.2s;
   }
+  .prompt-char.dim { color: var(--t3); }
   textarea {
     flex: 1; background: none; border: none;
     color: var(--t0); font-size: var(--base);

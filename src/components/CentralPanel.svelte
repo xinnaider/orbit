@@ -24,8 +24,12 @@
 
   $: if (session) loadHistory(session.id);
 
-  // Auto-scroll when new entries arrive
-  $: $journal, scrollIfNeeded();
+  // Auto-scroll + clear pending messages when new entries arrive
+  $: {
+    const e = $journal.get(session?.id);
+    if (e && e.length > 0) pendingMessages.clear();
+    scrollIfNeeded();
+  }
 
   async function scrollIfNeeded() {
     if (!atBottom) return;
@@ -122,7 +126,7 @@
   {/if}
 
   <!-- Input -->
-  <InputBar sessionId={session.id} cwd={session.cwd ?? ''} />
+  <InputBar sessionId={session.id} cwd={session.cwd ?? ''} sessionStatus={session.status} />
 </div>
 
 <style>
