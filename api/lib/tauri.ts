@@ -1,7 +1,7 @@
 import { invoke as _invoke } from '@tauri-apps/api/core';
 import { listen as _listen } from '@tauri-apps/api/event';
 import type { Session, TokenUsage, MiniLogEntry } from './stores/sessions';
-import type { JournalEntry, SlashCommand, TaskItem } from './types';
+import type { JournalEntry, SlashCommand, TaskItem, UpdateInfo } from './types';
 import { mockInvoke, mockListen } from './mock/tauri-mock';
 
 const IS_MOCK =
@@ -169,4 +169,12 @@ export async function diagnoseSpawn(): Promise<SpawnDiagnostic> {
 
 export function onSessionRateLimit(cb: (sessionId: number) => void) {
   return listen<{ sessionId: number }>('session:rate-limit', (e) => cb(e.payload.sessionId));
+}
+
+export async function checkUpdate(): Promise<UpdateInfo | null> {
+  return await invoke<UpdateInfo | null>('check_update');
+}
+
+export async function installUpdate(): Promise<void> {
+  await invoke('install_update');
 }

@@ -79,3 +79,9 @@ export interface TaskItem {
 
 export type DetailLevel = 'compact' | 'full' | 'raw';
 export type RightPanelTab = 'agents' | 'tasks' | 'stats';
+
+export interface UpdateInfo {
+  version: string;
+  body: string;
+  currentVersion: string;
+}
