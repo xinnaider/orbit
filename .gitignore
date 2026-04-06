@@ -19,6 +19,10 @@ docs/
 node_modules/
 npm-debug.log*
 
+# Landing (Astro build output)
+landing/dist/
+landing/node_modules/
+
 # SvelteKit / Vite
 /build
 /.svelte-kit
