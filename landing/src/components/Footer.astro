@@ -1,0 +1,35 @@
+---
+// No props
+---
+
+<footer>
+  <span class="copy">orbit · MIT license · © josefernando</span>
+  <div class="links">
+    <a href="https://github.com/xinnaider/orbit">GitHub</a>
+    <a href="https://github.com/xinnaider/orbit/releases">Releases</a>
+    <a href="https://github.com/xinnaider/orbit/issues">Issues</a>
+  </div>
+</footer>
+
+<style>
+  footer {
+    display: flex; align-items: center; justify-content: space-between;
+    max-width: 960px; margin: 0 auto;
+    padding: 24px 48px;
+    border-top: 1px solid var(--bd);
+  }
+  .copy { font-size: 10px; color: var(--t3); letter-spacing: 0.08em; }
+  .links { display: flex; gap: 20px; }
+  .links a {
+    font-size: 10px; color: var(--t3); letter-spacing: 0.08em;
+    transition: color 0.15s;
+  }
+  .links a:hover { color: var(--t2); }
+
+  @media (max-width: 768px) {
+    footer {
+      flex-direction: column; gap: 12px;
+      text-align: center; padding: 20px;
+    }
+  }
+</style>
