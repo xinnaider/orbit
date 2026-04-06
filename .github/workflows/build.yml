@@ -5,8 +5,18 @@ on:
     branches: [master]
     tags:
       - 'v*'
+    paths-ignore:
+      - '**.md'
+      - '.github/ISSUE_TEMPLATE/**'
+      - 'docs/**'
+      - 'LICENSE'
   pull_request:
     branches: [master]
+    paths-ignore:
+      - '**.md'
+      - '.github/ISSUE_TEMPLATE/**'
+      - 'docs/**'
+      - 'LICENSE'
   workflow_dispatch:
 
 jobs:
