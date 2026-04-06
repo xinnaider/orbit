@@ -327,8 +327,7 @@ pub fn parse_journal(
                                     });
                                 }
                             }
-                        }
-                        else if let Some(text) = content.as_str() {
+                        } else if let Some(text) = content.as_str() {
                             if !text.is_empty() {
                                 state.entries.push(JournalEntry {
                                     session_id: String::new(),
@@ -380,13 +379,11 @@ fn extract_tool_target(tool: &str, input: &Option<Value>) -> String {
                 }
             })
             .unwrap_or_default(),
-        "Read" | "Edit" | "Write" => {
-            input
-                .get("file_path")
-                .and_then(|v| v.as_str())
-                .map(|p| p.rsplit(&['/', '\\']).next().unwrap_or(p).to_string())
-                .unwrap_or_default()
-        }
+        "Read" | "Edit" | "Write" => input
+            .get("file_path")
+            .and_then(|v| v.as_str())
+            .map(|p| p.rsplit(&['/', '\\']).next().unwrap_or(p).to_string())
+            .unwrap_or_default(),
         "Grep" => input
             .get("pattern")
             .and_then(|v| v.as_str())
