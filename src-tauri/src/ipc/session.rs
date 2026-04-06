@@ -37,11 +37,11 @@ pub fn create_session(
     use tauri::Emitter;
     let _ = app.emit("session:created", &session);
 
-    // Phase 2: slow — spawn PTY in background (non-blocking)
+    // Phase 2: spawn Claude in background with -p flag
     let manager = Arc::clone(&state.0);
-    let session_clone = session.clone();
+    let session_id = session.id;
     std::thread::spawn(move || {
-        SessionManager::do_spawn(manager, app, session_clone, prompt);
+        SessionManager::do_spawn(manager, app, session_id, prompt);
     });
 
     Ok(session)
@@ -62,8 +62,9 @@ pub fn send_session_message(
     session_id: SessionId,
     message: String,
     state: State<SessionState>,
+    app: AppHandle,
 ) -> Result<(), String> {
-    state.0.lock().unwrap().send_message(session_id, &message)
+    SessionManager::send_message(Arc::clone(&state.0), app, session_id, message)
 }
 
 #[tauri::command]
