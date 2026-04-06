@@ -226,20 +226,40 @@
     });
   });
 
-  // ── GitHub star count ────────────────────────────────────
-  fetch('https://api.github.com/repos/xinnaider/orbit')
-    .then((r) => r.json())
-    .then((data) => {
-      const count = data?.stargazers_count;
-      if (typeof count === 'number') {
-        const el = document.getElementById('star-count');
-        if (el) {
-          el.textContent = count >= 1000
-            ? `${(count / 1000).toFixed(1)}k`
-            : String(count);
-          el.style.display = 'inline';
-        }
+  // ── GitHub star count (cached 1h in localStorage) ────────
+  const CACHE_KEY = 'orbit_gh_stars';
+  const CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+  function showStars(count: number) {
+    const el = document.getElementById('star-count');
+    if (el) {
+      el.textContent = count >= 1000 ? `${(count / 1000).toFixed(1)}k` : String(count);
+      el.style.display = 'inline';
+    }
+  }
+
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      const { count, ts } = JSON.parse(cached);
+      if (Date.now() - ts < CACHE_TTL) {
+        showStars(count);
+      } else {
+        throw new Error('stale');
       }
-    })
-    .catch(() => { /* silently ignore if API fails */ });
+    } else {
+      throw new Error('miss');
+    }
+  } catch {
+    fetch('https://api.github.com/repos/xinnaider/orbit')
+      .then((r) => r.json())
+      .then((data) => {
+        const count = data?.stargazers_count;
+        if (typeof count === 'number') {
+          showStars(count);
+          localStorage.setItem(CACHE_KEY, JSON.stringify({ count, ts: Date.now() }));
+        }
+      })
+      .catch(() => { /* silently ignore if API fails */ });
+  }
 </script>
