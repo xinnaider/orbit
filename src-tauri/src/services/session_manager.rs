@@ -178,15 +178,15 @@ impl SessionManager {
                         continue;
                     }
 
-                    // Check for session_id in system/init message
-                    if trimmed.contains("\"type\":\"system\"") || trimmed.contains("\"type\": \"system\"") {
-                        if let Ok(val) = serde_json::from_str::<serde_json::Value>(&trimmed) {
-                            if let Some(sid) = val.get("session_id").and_then(|v| v.as_str()) {
-                                let mut m = manager.lock().unwrap();
-                                if let Some(a) = m.active.get_mut(&session_id) {
-                                    if a.claude_session_id.is_none() {
-                                        a.claude_session_id = Some(sid.to_string());
-                                    }
+                    // Extract and persist Claude session ID from system/init message
+                    if let Ok(val) = serde_json::from_str::<serde_json::Value>(&trimmed) {
+                        if let Some(claude_id) = val.get("session_id").and_then(|v| v.as_str()) {
+                            let mut m = manager.lock().unwrap();
+                            if let Some(a) = m.active.get_mut(&session_id) {
+                                if a.claude_session_id.is_none() {
+                                    a.claude_session_id = Some(claude_id.to_string());
+                                    // Persist to DB for restart recovery
+                                    let _ = db.update_claude_session_id(session_id, claude_id);
                                 }
                             }
                         }
@@ -259,22 +259,35 @@ impl SessionManager {
     }
 
     /// Send a follow-up message by spawning a new Claude process with --resume.
+    /// Reads session data from DB so it works even after app restart.
     pub fn send_message(
         manager: Arc<Mutex<SessionManager>>,
         app: AppHandle,
         session_id: SessionId,
         text: String,
     ) -> Result<(), String> {
-        // Verify session is active and get info
+        // Re-add to active map if missing (e.g. after app restart)
         {
-            let m = manager.lock().unwrap();
+            let mut m = manager.lock().unwrap();
             if !m.active.contains_key(&session_id) {
-                return Err(format!("Session {session_id} is not active (status: {})",
-                    m.db.get_session(session_id)
-                        .ok().flatten()
-                        .map(|s| s.status)
-                        .unwrap_or_else(|| "unknown".to_string())
-                ));
+                // Load from DB
+                let session = m.db.get_session(session_id)
+                    .map_err(|e| e.to_string())?
+                    .ok_or_else(|| format!("Session {session_id} not found"))?;
+
+                if session.status == crate::models::SessionStatus::Stopped.as_str() {
+                    return Err(format!("Session {session_id} was stopped"));
+                }
+
+                // Restore with claude_session_id from DB
+                let claude_session_id = m.db.get_claude_session_id(session_id)
+                    .ok().flatten();
+
+                m.active.insert(session_id, ActiveSession {
+                    session,
+                    claude_session_id,
+                });
+                m.journal_states.entry(session_id).or_insert_with(JournalState::default);
             }
         }
 

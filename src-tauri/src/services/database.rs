@@ -25,6 +25,9 @@ impl DatabaseService {
 
     fn migrate(&self) -> SqlResult<()> {
         let conn = self.conn.lock().unwrap();
+        // Run schema migrations
+        let _ = conn.execute_batch("ALTER TABLE sessions ADD COLUMN claude_session_id TEXT");
+
         conn.execute_batch("
             CREATE TABLE IF NOT EXISTS projects (
                 id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -34,19 +37,22 @@ impl DatabaseService {
             );
 
             CREATE TABLE IF NOT EXISTS sessions (
-                id              INTEGER PRIMARY KEY AUTOINCREMENT,
-                project_id      INTEGER REFERENCES projects(id),
-                name            TEXT,
-                status          TEXT NOT NULL DEFAULT 'initializing',
-                worktree_path   TEXT,
-                branch_name     TEXT,
-                permission_mode TEXT NOT NULL DEFAULT 'ignore',
-                model           TEXT,
-                pid             INTEGER,
-                cwd             TEXT,
-                created_at      TEXT NOT NULL DEFAULT (datetime('now')),
-                updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+                id                INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_id        INTEGER REFERENCES projects(id),
+                name              TEXT,
+                status            TEXT NOT NULL DEFAULT 'initializing',
+                worktree_path     TEXT,
+                branch_name       TEXT,
+                permission_mode   TEXT NOT NULL DEFAULT 'ignore',
+                model             TEXT,
+                pid               INTEGER,
+                cwd               TEXT,
+                claude_session_id TEXT,
+                created_at        TEXT NOT NULL DEFAULT (datetime('now')),
+                updated_at        TEXT NOT NULL DEFAULT (datetime('now'))
             );
+            -- Add claude_session_id column if upgrading from older schema
+            CREATE TABLE IF NOT EXISTS _migrations (name TEXT PRIMARY KEY);
 
             CREATE TABLE IF NOT EXISTS session_outputs (
                 id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -200,6 +206,25 @@ impl DatabaseService {
             params![session_id, data],
         )?;
         Ok(())
+    }
+
+    pub fn update_claude_session_id(&self, id: SessionId, claude_id: &str) -> SqlResult<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE sessions SET claude_session_id = ?1, updated_at = datetime('now') WHERE id = ?2",
+            params![claude_id, id],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_claude_session_id(&self, id: SessionId) -> SqlResult<Option<String>> {
+        let conn = self.conn.lock().unwrap();
+        let result = conn.query_row(
+            "SELECT claude_session_id FROM sessions WHERE id = ?1",
+            params![id],
+            |row| row.get(0),
+        ).optional()?;
+        Ok(result)
     }
 
     pub fn rename_session(&self, id: SessionId, name: &str) -> SqlResult<()> {
