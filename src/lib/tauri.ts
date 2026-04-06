@@ -1,18 +1,55 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import type { AgentState, JournalEntry, SlashCommand, TaskItem } from './types';
+import type { Session, TokenUsage, MiniLogEntry } from './stores/sessions';
+import type { JournalEntry, SlashCommand, TaskItem } from './types';
 
-export async function sendKeystroke(sessionId: string, key: string): Promise<void> {
-  await invoke('send_keystroke', { sessionId, key });
+// ── Session IPC ────────────────────────────────────────────────
+
+export interface CreateSessionOptions {
+  projectPath: string;
+  prompt: string;
+  model?: string;
+  permissionMode?: 'ignore' | 'approve';
+  sessionName?: string;
 }
 
-export async function sendMessage(sessionId: string, message: string): Promise<void> {
-  await invoke('send_message', { sessionId, message });
+export async function createSession(opts: CreateSessionOptions): Promise<Session> {
+  return await invoke('create_session', {
+    projectPath: opts.projectPath,
+    prompt: opts.prompt,
+    model: opts.model ?? null,
+    permissionMode: opts.permissionMode ?? 'ignore',
+    sessionName: opts.sessionName ?? null,
+  });
 }
 
-export async function getJournal(sessionId: string): Promise<JournalEntry[]> {
-  return await invoke('get_journal', { sessionId });
+export async function listSessions(): Promise<Session[]> {
+  return await invoke('list_sessions');
 }
+
+export async function stopSession(sessionId: number): Promise<void> {
+  await invoke('stop_session', { sessionId });
+}
+
+export async function sendSessionMessage(sessionId: number, message: string): Promise<void> {
+  await invoke('send_session_message', { sessionId, message });
+}
+
+export async function getSessionJournal(sessionId: number): Promise<JournalEntry[]> {
+  return await invoke('get_session_journal', { sessionId });
+}
+
+// ── Project IPC ────────────────────────────────────────────────
+
+export async function createProject(name: string, path: string) {
+  return await invoke('create_project', { name, path });
+}
+
+export async function listProjects() {
+  return await invoke('list_projects');
+}
+
+// ── Read-only commands (unchanged) ────────────────────────────
 
 export async function getSubagentJournal(sessionId: string, subagentId: string): Promise<JournalEntry[]> {
   return await invoke('get_subagent_journal', { sessionId, subagentId });
@@ -30,8 +67,34 @@ export async function getSessionTasks(sessionId: string): Promise<TaskItem[]> {
   return await invoke('get_tasks', { sessionId });
 }
 
-export function onAgentsUpdate(callback: (agents: AgentState[]) => void) {
-  return listen<AgentState[]>('agents-update', (event) => {
-    callback(event.payload);
-  });
+// ── Event listeners ────────────────────────────────────────────
+
+export interface SessionOutputPayload {
+  sessionId: number;
+  entry: JournalEntry;
+}
+
+export interface SessionStatePayload {
+  sessionId: number;
+  status: string;
+  tokens: TokenUsage;
+  contextPercent: number;
+  pendingApproval: string | null;
+  miniLog: MiniLogEntry[];
+}
+
+export function onSessionCreated(cb: (session: Session) => void) {
+  return listen<Session>('session:created', e => cb(e.payload));
+}
+
+export function onSessionOutput(cb: (payload: SessionOutputPayload) => void) {
+  return listen<SessionOutputPayload>('session:output', e => cb(e.payload));
+}
+
+export function onSessionState(cb: (payload: SessionStatePayload) => void) {
+  return listen<SessionStatePayload>('session:state', e => cb(e.payload));
+}
+
+export function onSessionStopped(cb: (sessionId: number) => void) {
+  return listen<{ sessionId: number }>('session:stopped', e => cb(e.payload.sessionId));
 }
