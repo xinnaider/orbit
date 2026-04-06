@@ -240,7 +240,7 @@
             {#each inlineVisible as dl}
               <div class="diff-line {dl.type}">
                 <span class="dl-num">{dl.lineNo}</span>
-                <span class="dl-prefix">{dl.type === 'add' ? '+' : '-'}</span>
+                <span class="dl-prefix">{dl.type === 'add' ? '+' : dl.type === 'rem' ? '-' : ' '}</span>
                 <span class="dl-code">{@html doHighlight(dl.text, lang)}</span>
               </div>
             {/each}
@@ -545,33 +545,64 @@
   }
 
   /* Diff lines */
+  .diff-block {
+    font-family: var(--mono);
+    font-size: 11px;
+  }
   .diff-line {
     display: flex;
-    padding: 0 8px;
-    white-space: pre-wrap;
-    word-break: break-all;
-  }
-  .diff-line.rem {
-    background: color-mix(in srgb, var(--red) 10%, transparent);
+    gap: 6px;
+    padding: 1px 8px;
+    line-height: 1.5;
   }
   .diff-line.add {
-    background: color-mix(in srgb, var(--green) 10%, transparent);
+    background: rgba(0, 212, 126, 0.07);
+    color: #6bffaa;
   }
-  .diff-prefix {
+  .diff-line.rem {
+    background: rgba(224, 72, 72, 0.08);
+    color: #ff8877;
+  }
+  .diff-line.ctx {
+    color: var(--t3);
+  }
+  .dl-num {
+    min-width: 28px;
+    text-align: right;
+    color: var(--t3);
     flex-shrink: 0;
-    width: 16px;
     user-select: none;
-    opacity: 0.6;
   }
-  .diff-line.rem .diff-prefix {
-    color: var(--red);
+  .dl-prefix {
+    flex-shrink: 0;
+    width: 10px;
+    user-select: none;
   }
-  .diff-line.add .diff-prefix {
-    color: var(--green);
-  }
-  .diff-code {
+  .diff-line.add .dl-prefix { color: var(--ac); }
+  .diff-line.rem .dl-prefix { color: var(--s-error); }
+  .diff-line.ctx .dl-prefix { color: var(--t3); }
+  .dl-code {
     flex: 1;
-    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: pre;
+  }
+  .diff-overflow {
+    display: block;
+    width: 100%;
+    background: none;
+    border: none;
+    border-top: 1px solid var(--bd);
+    color: var(--t3);
+    font-size: 10px;
+    font-family: var(--mono);
+    padding: 3px 8px;
+    text-align: center;
+    cursor: pointer;
+  }
+  .diff-overflow:hover {
+    color: var(--t1);
+    background: var(--bg3);
   }
 
   /* highlight.js tokens */
