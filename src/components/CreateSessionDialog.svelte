@@ -1,5 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
+  import { open } from '@tauri-apps/plugin-dialog';
   import { createSession } from '../lib/tauri';
   import type { CreateSessionOptions } from '../lib/tauri';
 
@@ -44,6 +45,13 @@
     }
   }
 
+  async function pickFolder() {
+    const selected = await open({ directory: true, multiple: false });
+    if (selected && typeof selected === 'string') {
+      projectPath = selected;
+    }
+  }
+
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape') dispatch('cancel');
   }
@@ -57,12 +65,17 @@
 
     <label>
       Project Path
-      <input
-        type="text"
-        bind:value={projectPath}
-        placeholder="/home/user/my-project"
-        disabled={loading}
-      />
+      <div class="path-row">
+        <input
+          type="text"
+          bind:value={projectPath}
+          placeholder="C:\Users\user\my-project"
+          disabled={loading}
+        />
+        <button class="browse-btn" type="button" on:click={pickFolder} disabled={loading} title="Browse folder">
+          📁
+        </button>
+      </div>
     </label>
 
     <label>
@@ -143,6 +156,24 @@
     font-size: 0.85rem;
     padding: 6px 8px;
   }
+  .path-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .path-row input { flex: 1; }
+  .browse-btn {
+    background: var(--bg-overlay);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: inherit;
+    font-size: 14px;
+    padding: 5px 8px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .browse-btn:hover { background: var(--bg-hover); }
+  .browse-btn:disabled { opacity: 0.5; cursor: not-allowed; }
   .permission-row { flex-direction: row; align-items: center; justify-content: space-between; }
   .error { color: #f87171; font-size: 0.8rem; margin: 0; }
   .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
