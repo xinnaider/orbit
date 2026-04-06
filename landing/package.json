@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "astro dev",
-    "prebuild": "node scripts/generate-og.mjs",
+    "og": "node scripts/generate-og.mjs",
     "build": "astro build",
     "preview": "astro preview"
   },
