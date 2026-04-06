@@ -234,13 +234,15 @@ O CHANGELOG é voltado para **usuários e clientes** — não para desenvolvedor
 - Descreva o *efeito* da mudança, não o *como* foi implementada
 - Sem nomes de arquivos, sem termos técnicos desnecessários, sem detalhes de implementação
 - Agrupe as entradas por **mês e ano** (ex: `## Abril 2026`)
-- Cada item é um parágrafo curto com título em negrito — não uma lista de bullets
+- Cada entrada tem data e categoria no título: `### DD/MM · <Categoria> — <Título>`
+- Categorias possíveis: **Novo**, **Melhoria**, **Ajuste**, **Correção**
+- Um parágrafo curto descrevendo o que o usuário percebe
 - Inclua apenas o que um usuário perceberia: nova funcionalidade, correção visível, melhoria de UX
 - Ignore refatorações internas, ajustes de lint, mudanças de config que não afetam o usuário
 
 **Exemplo de entrada boa:**
 ```
-### Aviso de limite de uso da API
+### 06/04 · Novo — Aviso de limite de uso da API
 Quando o limite de uso da API do Claude é atingido, o app exibe uma mensagem
 clara na tela em vez de simplesmente parar de responder.
 ```
