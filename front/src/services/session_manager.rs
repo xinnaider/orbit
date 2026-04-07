@@ -34,6 +34,7 @@ pub struct SessionStateEvent {
     pub pending_approval: Option<String>,
     pub mini_log: Vec<crate::models::MiniLogEntry>,
     pub cost_usd: Option<f64>,
+    pub git_branch: Option<String>,
 }
 
 struct ActiveSession {
@@ -348,6 +349,12 @@ impl SessionManager {
 
                     let (new_entries, state_event) = {
                         let mut m = manager.lock().unwrap();
+                        let cwd = m
+                            .active
+                            .get(&session_id)
+                            .and_then(|a| a.session.cwd.clone());
+                        let git_branch = cwd.as_deref().and_then(detect_git_branch);
+
                         let state = m.journal_states.entry(session_id).or_default();
 
                         let prev_len = state.entries.len();
@@ -386,6 +393,7 @@ impl SessionManager {
                             pending_approval: state.pending_approval.clone(),
                             mini_log: state.mini_log.clone(),
                             cost_usd: state.cost_usd,
+                            git_branch,
                         };
                         (new_entries, event)
                     };

@@ -389,6 +389,9 @@ export async function mockInvoke(cmd: string, args?: Record<string, unknown>): P
     case 'get_tasks':
       return [];
 
+    case 'get_changelog':
+      return '# Changelog\n\n## April 2026\n\n### 04/07 · New — In-app changelog\nYou can now view the history of Orbit updates directly inside the app.';
+
     default:
       console.warn('[mock] Unhandled invoke:', cmd, args);
       return null;

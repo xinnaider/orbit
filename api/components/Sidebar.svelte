@@ -53,6 +53,8 @@
     sessions.update((l) => updateSessionState(l, id, { name: value.trim() }));
   }
 
+  export let onOpenChangelog: () => void = () => {};
+
   let showModal = false;
 
   // Svelte action: auto-focus and select when mounted
@@ -131,7 +133,9 @@
       <span class="brand-logo">{@html OrbitLogo}</span>
       <span class="brand-name">orbit</span>
       {#if appVersion}
-        <span class="brand-version">v{appVersion}</span>
+        <button class="brand-version" on:click={onOpenChangelog} title="What's new"
+          >v{appVersion}</button
+        >
       {/if}
     </div>
     <button class="new-btn" on:click={() => (showModal = true)} title="New session">+</button>
@@ -238,9 +242,24 @@
   }
   .brand-version {
     font-size: 10px;
-    color: var(--t3);
+    color: var(--t2);
     letter-spacing: 0.04em;
     margin-top: 1px;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-family: var(--mono);
+    text-decoration: underline;
+    text-decoration-color: var(--t3);
+    text-underline-offset: 2px;
+    transition:
+      color 0.15s,
+      text-decoration-color 0.15s;
+  }
+  .brand-version:hover {
+    color: var(--t0);
+    text-decoration-color: var(--t1);
   }
   .new-btn {
     background: none;

@@ -12,13 +12,13 @@
   <div class="modal">
     <div class="modal-header">
       <div class="modal-title">
-        <span class="title-text">novidades do orbit</span>
+        <span class="title-text">what's new in orbit</span>
         <span class="version-badge">v{currentVersion}</span>
       </div>
-      <button class="close-btn" on:click={onClose} aria-label="Fechar">✕</button>
+      <button class="close-btn" on:click={onClose} aria-label="Close">✕</button>
     </div>
     <div class="modal-body">
-      <div class="current-badge">● versão atual — v{currentVersion}</div>
+      <div class="current-badge">● current version — v{currentVersion}</div>
       <Markdown content={changelogContent} />
     </div>
   </div>

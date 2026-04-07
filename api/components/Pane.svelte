@@ -24,10 +24,8 @@
   on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && focusPane(paneId)}
 >
   {#if canClose}
-    <button
-      class="close-btn"
-      title="Fechar painel"
-      on:click|stopPropagation={() => closePane(paneId)}>×</button
+    <button class="close-btn" title="Close panel" on:click|stopPropagation={() => closePane(paneId)}
+      >×</button
     >
   {/if}
 
@@ -36,7 +34,7 @@
   {:else}
     <div class="empty">
       <span class="plus">+</span>
-      <span class="hint">foque aqui e clique em uma sessão</span>
+      <span class="hint">focus here and click a session</span>
     </div>
   {/if}
 </div>

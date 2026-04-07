@@ -212,8 +212,8 @@ npm run dev:mock
 - Tipos TS espelham os structs Rust (camelCase no TS, snake_case no Rust)
 
 ### Git
-- Commits em inglês, prefixo convencional: `feat:`, `fix:`, `refactor:`, `chore:`, `docs:`
-- Nunca commitar com `--no-verify`
+- Commits in English, conventional prefix: `feat:`, `fix:`, `refactor:`, `chore:`, `docs:`
+- Never commit with `--no-verify`
 
 #### Git hook: `pre-commit`
 Roda automaticamente antes de todo commit:
@@ -223,31 +223,31 @@ Roda automaticamente antes de todo commit:
 4. **svelte-check** com `--fail-on-warnings` — bloqueia o commit se falhar
 5. **Clippy** com `-D warnings` — bloqueia o commit se falhar
 
-#### Política de CHANGELOG
+#### CHANGELOG Policy
 
-**Antes de cada commit com mudanças relevantes para o usuário, atualizar `CHANGELOG.md`.**
+**Before each commit with user-facing changes, update `CHANGELOG.md`.**
 
-O CHANGELOG é voltado para **usuários e clientes** — não para desenvolvedores. Escreva como se estivesse explicando o que mudou para alguém que usa o app, não para alguém que lê o código.
+The CHANGELOG is written for **users and customers** — not developers. Write as if explaining what changed to someone who uses the app, not someone who reads the code.
 
-**Regras:**
-- Linguagem simples, em português
-- Descreva o *efeito* da mudança, não o *como* foi implementada
-- Sem nomes de arquivos, sem termos técnicos desnecessários, sem detalhes de implementação
-- Agrupe as entradas por **mês e ano** (ex: `## Abril 2026`)
-- Cada entrada tem data e categoria no título: `### DD/MM · <Categoria> — <Título>`
-- Categorias possíveis: **Novo**, **Melhoria**, **Ajuste**, **Correção**
-- Um parágrafo curto descrevendo o que o usuário percebe
-- Inclua apenas o que um usuário perceberia: nova funcionalidade, correção visível, melhoria de UX
-- Ignore refatorações internas, ajustes de lint, mudanças de config que não afetam o usuário
+**Rules:**
+- Plain English
+- Describe the *effect* of the change, not *how* it was implemented
+- No file names, no unnecessary technical terms, no implementation details
+- Group entries by **month and year** (e.g. `## April 2026`)
+- Each entry has date and category in the title: `### MM/DD · <Category> — <Title>`
+- Categories: **New**, **Improvement**, **Adjustment**, **Fix**
+- One short paragraph describing what the user perceives
+- Only include what a user would notice: new feature, visible fix, UX improvement
+- Ignore internal refactors, lint fixes, config changes that don't affect the user
 
-**Exemplo de entrada boa:**
+**Good example:**
 ```
-### 06/04 · Novo — Aviso de limite de uso da API
-Quando o limite de uso da API do Claude é atingido, o app exibe uma mensagem
-clara na tela em vez de simplesmente parar de responder.
+### 04/06 · New — API rate limit warning
+When the Claude API rate limit is reached, the app now shows a clear message
+on screen instead of silently stopping.
 ```
 
-**Exemplo de entrada ruim:**
+**Bad example:**
 ```
 - fix: detect rate_limit_error in session_manager reader_loop stderr thread
 - updated api/App.svelte to listen for session:rate-limit event

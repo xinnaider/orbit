@@ -68,6 +68,7 @@ pub fn run() {
             commands::get_claude_usage_stats,
             ipc::updater::check_update,
             ipc::updater::install_update,
+            commands::get_changelog,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
