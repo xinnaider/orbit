@@ -10,6 +10,7 @@
   let appVersion = '';
   import { estimateCost, formatCost, formatTokens } from '../lib/cost';
   import OrbitLogo from '../lib/assets/orbit.svg?raw';
+  import ThemePicker from './ThemePicker.svelte';
 
   // Context menu state
   let ctxMenu: { x: number; y: number; sessionId: number; sessionName: string } | null = null;
@@ -138,7 +139,10 @@
         >
       {/if}
     </div>
-    <button class="new-btn" on:click={() => (showModal = true)} title="New session">+</button>
+    <div class="header-actions">
+      <ThemePicker />
+      <button class="new-btn" on:click={() => (showModal = true)} title="New session">+</button>
+    </div>
   </header>
 
   <div class="list">
@@ -260,6 +264,11 @@
   .brand-version:hover {
     color: var(--t0);
     text-decoration-color: var(--t1);
+  }
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
   }
   .new-btn {
     background: none;
