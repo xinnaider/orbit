@@ -3,6 +3,7 @@
   import { open } from '@tauri-apps/plugin-dialog';
   import { createSession, diagnoseSpawn } from '../lib/tauri';
   import type { SpawnDiagnostic } from '../lib/tauri';
+  import { generateSessionName } from '../lib/android-names';
 
   const dispatch = createEventDispatcher();
 
@@ -13,6 +14,14 @@
   let error = '';
   let diagRunning = false;
   let diag: SpawnDiagnostic | null = null;
+  let nickname = '';
+  let generatedName = '';
+  let useWorktree = false;
+
+  $: if (path) {
+    const projName = path.split(/[/\\]/).filter(Boolean).pop() ?? 'sessão';
+    generatedName = generateSessionName(projName);
+  }
 
   async function runDiag() {
     diagRunning = true;
@@ -42,6 +51,8 @@
       error = 'project path required';
       return;
     }
+    const projName = path.split(/[/\\]/).filter(Boolean).pop() ?? 'sessão';
+    const finalName = nickname.trim() || generatedName || generateSessionName(projName);
     loading = true;
     error = '';
     try {
@@ -50,6 +61,8 @@
         prompt: prompt.trim() || 'Hello',
         model: model === 'auto' ? undefined : model,
         permissionMode: 'ignore',
+        sessionName: finalName,
+        useWorktree,
       });
       dispatch('done');
     } catch (e: any) {
@@ -120,6 +133,22 @@
         </select>
       </div>
     </div>
+
+    <div class="field">
+      <label class="label" for="ns-nickname">apelido</label>
+      <input
+        id="ns-nickname"
+        class="input"
+        bind:value={nickname}
+        placeholder={generatedName || 'selecione um projeto para sugerir nome'}
+        disabled={loading}
+      />
+    </div>
+
+    <label class="toggle-row">
+      <input type="checkbox" bind:checked={useWorktree} disabled={loading} />
+      <span class="toggle-label">criar git worktree</span>
+    </label>
 
     {#if error}
       <p class="error">! {error}</p>
@@ -315,5 +344,23 @@
   .btn:disabled {
     opacity: 0.4;
     cursor: not-allowed;
+  }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .toggle-row input[type='checkbox'] {
+    accent-color: var(--ac);
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+  }
+  .toggle-label {
+    font-size: var(--sm);
+    color: var(--t1);
   }
 </style>
