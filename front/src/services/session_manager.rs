@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use tauri::{AppHandle, Emitter};
@@ -7,6 +8,14 @@ use crate::journal_reader::{process_line, JournalState};
 use crate::models::{AgentStatus, Session, SessionId, TokenUsage};
 use crate::services::database::DatabaseService;
 use crate::services::spawn_manager::{spawn_claude, SpawnConfig};
+
+/// Reads `.git/HEAD` to detect the current branch without spawning a subprocess.
+fn detect_git_branch(cwd: &str) -> Option<String> {
+    let head = std::fs::read_to_string(Path::new(cwd).join(".git/HEAD")).ok()?;
+    head.trim()
+        .strip_prefix("ref: refs/heads/")
+        .map(|b| b.to_string())
+}
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -95,7 +104,7 @@ impl SessionManager {
             updated_at: now,
             cwd: Some(project_path.to_string()),
             project_name: Some(project_name),
-            git_branch: None,
+            git_branch: detect_git_branch(project_path),
             tokens: None,
             context_percent: None,
             pending_approval: None,

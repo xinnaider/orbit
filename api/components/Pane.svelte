@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { splitLayout, closePane, focusPane, splitPane } from '../lib/stores/layout';
+  import { closePane, focusPane, splitPane } from '../lib/stores/layout';
   import type { PaneId } from '../lib/stores/layout';
   import type { Session } from '../lib/stores/sessions';
   import CentralPanel from './CentralPanel.svelte';
@@ -31,16 +31,8 @@
     >
   {/if}
 
-  {#if !atMaxPanes}
-    <button
-      class="split-btn"
-      title="Dividir painel"
-      on:click|stopPropagation={() => splitPane(paneId)}>⊞</button
-    >
-  {/if}
-
   {#if session}
-    <CentralPanel {session} />
+    <CentralPanel {session} onSplit={atMaxPanes ? null : () => splitPane(paneId)} />
   {:else}
     <div class="empty">
       <span class="plus">+</span>
@@ -72,10 +64,10 @@
     pointer-events: none;
   }
 
-  .close-btn,
-  .split-btn {
+  .close-btn {
     position: absolute;
-    top: 4px;
+    top: 6px;
+    right: 8px;
     z-index: 10;
     background: var(--bg3);
     border: 1px solid var(--bd1);
@@ -83,7 +75,7 @@
     width: 18px;
     height: 18px;
     border-radius: 3px;
-    font-size: 11px;
+    font-size: 13px;
     line-height: 1;
     display: flex;
     align-items: center;
@@ -93,28 +85,13 @@
     transition: opacity 0.15s;
   }
 
-  .close-btn {
-    right: 6px;
-    font-size: 13px;
-  }
-
-  .split-btn {
-    right: 28px;
-  }
-
-  .pane:hover .close-btn,
-  .pane:hover .split-btn {
+  .pane:hover .close-btn {
     opacity: 1;
   }
 
   .close-btn:hover {
     border-color: var(--s-error);
     color: var(--s-error);
-  }
-
-  .split-btn:hover {
-    border-color: var(--ac);
-    color: var(--ac);
   }
 
   .empty {
