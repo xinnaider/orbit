@@ -10,6 +10,7 @@ pub struct SessionState(pub Arc<Mutex<SessionManager>>);
 /// Create a session: returns immediately after creating the DB record (status = "initializing").
 /// The actual Claude process spawns in a background thread — non-blocking.
 /// Frontend should listen to "session:running" (ready) or "session:error" (spawn failed).
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 pub fn create_session(
     project_path: String,
@@ -17,6 +18,8 @@ pub fn create_session(
     model: Option<String>,
     permission_mode: Option<String>,
     session_name: Option<String>,
+    ssh_host: Option<String>,
+    ssh_user: Option<String>,
     state: State<SessionState>,
     app: AppHandle,
 ) -> Result<Session, String> {
@@ -29,8 +32,8 @@ pub fn create_session(
             session_name.as_deref(),
             &mode,
             model.as_deref(),
-            None,
-            None,
+            ssh_host.as_deref(),
+            ssh_user.as_deref(),
         )?
     };
 

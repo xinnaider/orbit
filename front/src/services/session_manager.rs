@@ -129,7 +129,7 @@ impl SessionManager {
         session_id: SessionId,
         prompt: String,
     ) {
-        let (db, cwd, permission_mode, model, claude_session_id) = {
+        let (db, cwd, permission_mode, model, claude_session_id, ssh_host, ssh_user) = {
             let m = manager.lock().unwrap();
             let a = match m.active.get(&session_id) {
                 Some(a) => a,
@@ -150,7 +150,14 @@ impl SessionManager {
                 a.session.permission_mode.clone(),
                 a.session.model.clone(),
                 a.claude_session_id.clone(),
+                a.session.ssh_host.clone(),
+                a.session.ssh_user.clone(),
             )
+        };
+
+        let spawn_mode = match (ssh_host, ssh_user) {
+            (Some(host), Some(user)) => SpawnMode::Ssh { host, user },
+            _ => SpawnMode::Local,
         };
 
         let prompt_text = prompt.clone(); // keep a copy for the user entry
@@ -161,7 +168,7 @@ impl SessionManager {
             model,
             prompt,
             claude_session_id,
-            spawn_mode: SpawnMode::Local,
+            spawn_mode,
         };
 
         let handle = match spawn_claude(config) {
