@@ -80,9 +80,11 @@ impl SessionManager {
             .map_err(|e| e.to_string())?;
 
         let (worktree_path_val, branch_name_val) = if use_worktree {
-            let slug = crate::services::worktree::generate_branch_slug(
+            let name_slug = crate::services::worktree::generate_branch_slug(
                 session_name.unwrap_or(&project_name),
             );
+            let project_slug = crate::services::worktree::generate_branch_slug(&project_name);
+            let slug = format!("{name_slug}-{session_id}-{project_slug}");
             let wt_path = crate::services::worktree::create_worktree(
                 std::path::Path::new(project_path),
                 &slug,
