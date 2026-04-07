@@ -4,6 +4,12 @@
 
 ## Abril 2026
 
+### 07/04 · Novo — Painéis divididos (split panes)
+O Orbit agora permite visualizar até 4 sessões do Claude Code simultaneamente.
+Arraste qualquer sessão da barra lateral para a borda de um painel para abrir
+uma divisão lado a lado. Até 4 painéis em grade 2×2. Clique em um painel para
+focá-lo — o MetaPanel acompanha o painel em foco.
+
 ### 06/04 · Melhoria — Execução de comandos sem interrupção
 Comandos do terminal agora executam automaticamente, sem pedir confirmação a cada passo. O fluxo de trabalho do agente ficou mais fluido e sem pausas desnecessárias.
 
