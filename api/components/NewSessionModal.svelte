@@ -179,8 +179,8 @@
 
     {#if sshMode}
       <p class="ssh-hint">
-        requires key-based auth (no passphrase or ssh-agent) and <code>claude</code> installed on the
-        remote host
+        requires: key-based auth (no passphrase or ssh-agent active) · <code>claude</code> installed on
+        remote · first connection auto-accepts host key
       </p>
     {/if}
 

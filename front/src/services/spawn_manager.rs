@@ -315,6 +315,17 @@ mod tests {
     }
 
     #[test]
+    fn test_posix_escape_dollar_not_expanded() {
+        // Dollar sign inside single-quotes is not interpreted by shell
+        assert_eq!(posix_escape("$HOME"), "'$HOME'");
+    }
+
+    #[test]
+    fn test_posix_escape_newline_preserved() {
+        assert_eq!(posix_escape("line1\nline2"), "'line1\nline2'");
+    }
+
+    #[test]
     fn test_spawn_bad_path_returns_error() {
         let result = spawn_claude(SpawnConfig {
             session_id: 0,
