@@ -16,7 +16,8 @@
         "width": 1200,
         "height": 750,
         "minWidth": 900,
-        "minHeight": 500
+        "minHeight": 500,
+        "dragDropEnabled": false
       }
     ],
     "security": {
