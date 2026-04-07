@@ -31,6 +31,7 @@
   import Sidebar from './components/Sidebar.svelte';
   import PaneGrid from './components/PaneGrid.svelte';
   import MetaPanel from './components/MetaPanel.svelte';
+  import { metaPanelVisible } from './lib/stores/preferences';
 
   let prevStatuses: Record<number, string> = {};
   let audioCtx: AudioContext | null = null;
@@ -211,8 +212,12 @@
   {:else}
     <PaneGrid />
   {/if}
-  {#if selected}
+  {#if selected && $metaPanelVisible}
     <MetaPanel session={selected} />
+  {:else if selected && !$metaPanelVisible}
+    <button class="meta-reopen" on:click={() => metaPanelVisible.set(true)} title="Show panel"
+      >‹</button
+    >
   {/if}
 </div>
 
@@ -255,5 +260,26 @@
     font-size: var(--xs);
     color: var(--t1);
     font-style: italic;
+  }
+  .meta-reopen {
+    flex-shrink: 0;
+    width: 20px;
+    background: var(--bg1);
+    border: none;
+    border-left: 1px solid var(--bd);
+    color: var(--t2);
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition:
+      color 0.15s,
+      background 0.15s;
+  }
+  .meta-reopen:hover {
+    color: var(--t0);
+    background: var(--bg2);
   }
 </style>

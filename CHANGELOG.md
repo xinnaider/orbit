@@ -4,6 +4,9 @@
 
 ## April 2026
 
+### 04/07 · New — Meta panel toggle
+The stats panel on the right can now be hidden or shown with a single click. Use the `›` button in the panel header to collapse it; a thin `‹` strip appears on the right edge so you can bring it back at any time. The preference is saved and restored between sessions.
+
 ### 04/07 · New — In-app changelog
 The app now shows a changelog modal on first launch after an update. You can also reopen it anytime by clicking the version badge in the sidebar.
 
