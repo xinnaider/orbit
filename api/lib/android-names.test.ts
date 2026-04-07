@@ -1,19 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { generateSessionName } from './android-names';
+import { generateAgentName } from './android-names';
 
-describe('generateSessionName', () => {
-  it('inclui o nome do projeto na saída', () => {
-    const name = generateSessionName('my-project');
-    expect(name).toContain('my-project');
-  });
-
-  it('segue o padrão "<codename> · <project>"', () => {
-    const name = generateSessionName('orbit');
-    expect(name).toMatch(/^[a-z]+ · orbit$/);
+describe('generateAgentName', () => {
+  it('retorna apenas o codename, sem projeto', () => {
+    const name = generateAgentName();
+    expect(name).not.toContain('·');
+    expect(name).toMatch(/^[a-z]+$/);
   });
 
   it('gera resultados variados (probabilístico com 20 amostras)', () => {
-    const names = new Set(Array.from({ length: 20 }, () => generateSessionName('p')));
+    const names = new Set(Array.from({ length: 20 }, () => generateAgentName()));
     expect(names.size).toBeGreaterThan(1);
   });
 });

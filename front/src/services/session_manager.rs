@@ -89,11 +89,19 @@ impl SessionManager {
             .map_err(|e| e.to_string())?;
 
         let (worktree_path_val, branch_name_val) = if use_worktree {
-            let name_slug = crate::services::worktree::generate_branch_slug(
-                session_name.unwrap_or(&project_name),
-            );
-            let project_slug = crate::services::worktree::generate_branch_slug(&project_name);
-            let slug = format!("{name_slug}-{session_id}-{project_slug}");
+            let full_name = session_name.unwrap_or(&project_name);
+            let (prefix, suffix) = full_name.split_once(" · ").unwrap_or((full_name, ""));
+            let prefix_slug = crate::services::worktree::generate_branch_slug(prefix);
+            let suffix_compact: String = suffix
+                .chars()
+                .filter(|c| c.is_alphanumeric())
+                .collect::<String>()
+                .to_lowercase();
+            let slug = if suffix_compact.is_empty() {
+                format!("{prefix_slug}-{session_id}")
+            } else {
+                format!("{prefix_slug}-{suffix_compact}-{session_id}")
+            };
             let wt_path = crate::services::worktree::create_worktree(
                 std::path::Path::new(project_path),
                 &slug,

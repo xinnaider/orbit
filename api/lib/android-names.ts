@@ -31,7 +31,6 @@ const ANDROID_CODENAMES = [
   'comet',
 ];
 
-export function generateSessionName(projectName: string): string {
-  const codename = ANDROID_CODENAMES[Math.floor(Math.random() * ANDROID_CODENAMES.length)];
-  return `${codename} · ${projectName}`;
+export function generateAgentName(): string {
+  return ANDROID_CODENAMES[Math.floor(Math.random() * ANDROID_CODENAMES.length)];
 }

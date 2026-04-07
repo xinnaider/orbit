@@ -1,6 +1,6 @@
 {
   "name": "orbit",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Orbit — multi-session Claude Code agent dashboard",
   "type": "module",
   "scripts": {

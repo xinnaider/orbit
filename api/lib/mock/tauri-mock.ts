@@ -5,7 +5,7 @@ const MOCK_SESSIONS: Session[] = [
   {
     id: 1,
     projectId: 1,
-    name: 'fix auth bug',
+    name: 'marlin',
     status: 'running' as const,
     permissionMode: 'ignore',
     model: 'claude-sonnet-4-6',

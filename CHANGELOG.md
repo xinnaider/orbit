@@ -4,6 +4,12 @@
 
 ## Abril 2026
 
+### 07/04 · Melhoria — Nome do painel truncado e branch em faixa separada
+Quando o nome da sessão é longo, o cabeçalho agora exibe `…` ao invés de expandir a altura. O nome completo aparece ao passar o mouse. O branch ativo foi movido para uma faixa fina abaixo do cabeçalho, mais legível e sem conflitar com os demais elementos.
+
+### 07/04 · Melhoria — Apelido da sessão com dois campos separados
+Ao criar uma sessão, o apelido agora é composto por dois campos: o nome do agente (gerado automaticamente como um codinome) e o sufixo do projeto (preenchido com o nome da pasta). O resultado final — como `raven · agent-dashboard-v2` — é exibido como preview antes de salvar.
+
 ### 07/04 · Melhoria — Branch ativa exibida no cabeçalho do painel
 O cabeçalho de cada painel agora mostra corretamente o branch em que o Claude está trabalhando. Para sessões com worktree isolado, exibe o branch do worktree (`orbit/<nome>`); para sessões normais, exibe o branch do repositório.
 

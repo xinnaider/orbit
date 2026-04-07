@@ -3,7 +3,7 @@
   import { open } from '@tauri-apps/plugin-dialog';
   import { createSession, diagnoseSpawn } from '../lib/tauri';
   import type { SpawnDiagnostic } from '../lib/tauri';
-  import { generateSessionName } from '../lib/android-names';
+  import { generateAgentName } from '../lib/android-names';
 
   const dispatch = createEventDispatcher();
 
@@ -14,14 +14,24 @@
   let error = '';
   let diagRunning = false;
   let diag: SpawnDiagnostic | null = null;
-  let nickname = '';
-  let generatedName = '';
+  let agentName = '';
+  let projectSuffix = '';
+  let generatedAgent = '';
+  let generatedProject = '';
   let useWorktree = false;
 
   $: if (path) {
-    const projName = path.split(/[/\\]/).filter(Boolean).pop() ?? 'sessão';
-    generatedName = generateSessionName(projName);
+    const p = path.split(/[/\\]/).filter(Boolean).pop() ?? '';
+    if (!generatedProject) generatedProject = p;
+    if (!generatedAgent) generatedAgent = generateAgentName();
   }
+
+  $: resolvedAgent = agentName.trim() || generatedAgent;
+  $: resolvedProject = projectSuffix.trim() || generatedProject;
+  $: namePreview =
+    resolvedAgent && resolvedProject
+      ? `${resolvedAgent} · ${resolvedProject}`
+      : resolvedAgent || resolvedProject;
 
   async function runDiag() {
     diagRunning = true;
@@ -51,8 +61,10 @@
       error = 'project path required';
       return;
     }
-    const projName = path.split(/[/\\]/).filter(Boolean).pop() ?? 'sessão';
-    const finalName = nickname.trim() || generatedName || generateSessionName(projName);
+    const agent = agentName.trim() || generatedAgent || generateAgentName();
+    const project =
+      projectSuffix.trim() || generatedProject || path.split(/[/\\]/).filter(Boolean).pop() || '';
+    const finalName = project ? `${agent} · ${project}` : agent;
     loading = true;
     error = '';
     try {
@@ -135,14 +147,29 @@
     </div>
 
     <div class="field">
-      <label class="label" for="ns-nickname">apelido</label>
-      <input
-        id="ns-nickname"
-        class="input"
-        bind:value={nickname}
-        placeholder={generatedName || 'selecione um projeto para sugerir nome'}
-        disabled={loading}
-      />
+      <label class="label" for="ns-agent">apelido</label>
+      <div class="nickname-row">
+        <input
+          id="ns-agent"
+          class="input"
+          bind:value={agentName}
+          placeholder={generatedAgent || '—'}
+          title="nome do agente"
+          disabled={loading}
+        />
+        <span class="nick-sep">·</span>
+        <input
+          id="ns-project"
+          class="input"
+          bind:value={projectSuffix}
+          placeholder={generatedProject || 'projeto'}
+          title="sufixo do projeto"
+          disabled={loading}
+        />
+      </div>
+      {#if namePreview}
+        <span class="name-preview">{namePreview}</span>
+      {/if}
     </div>
 
     <label class="toggle-row">
@@ -344,6 +371,25 @@
   .btn:disabled {
     opacity: 0.4;
     cursor: not-allowed;
+  }
+
+  .nickname-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .nickname-row .input {
+    flex: 1;
+  }
+  .nick-sep {
+    color: var(--t3);
+    font-size: var(--md);
+    flex-shrink: 0;
+  }
+  .name-preview {
+    font-size: var(--xs);
+    color: var(--t3);
+    letter-spacing: 0.03em;
   }
 
   .toggle-row {
