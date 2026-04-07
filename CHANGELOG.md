@@ -8,7 +8,10 @@
 The stats panel on the right can now be hidden or shown with a single click. Use the `›` button in the panel header to collapse it; a thin `‹` strip appears on the right edge so you can bring it back at any time. The preference is saved and restored between sessions.
 
 ### 04/07 · Fix — Button positioning in split panes
-The scroll-to-bottom button no longer overlaps the adjacent panel when two panes are open side by side — it now stays anchored to the left side of its own panel. The split and close buttons are now aligned in a consistent right-side column, stacking predictably without clashing, and the split button no longer shifts position based on whether the branch strip is visible.
+The scroll-to-bottom button now stays anchored to the bottom-right of its own panel and no longer overlaps the adjacent panel when two panes are open side by side. The split and close buttons moved into the panel header so they always sit in the top-right corner regardless of whether the branch strip is visible, and no longer clash with each other.
+
+### 04/07 · Improvement — Rename session modal
+Renaming a session now opens a modal with two separate fields — the agent codename and the project suffix — pre-filled from the current name. A live preview shows the final result before saving.
 
 ### 04/07 · New — In-app changelog
 The app now shows a changelog modal on first launch after an update. You can also reopen it anytime by clicking the version badge in the sidebar.
