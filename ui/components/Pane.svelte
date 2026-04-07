@@ -64,7 +64,7 @@
 
   .close-btn {
     position: absolute;
-    top: 6px;
+    top: 8px;
     right: 8px;
     z-index: 10;
     background: var(--bg3);

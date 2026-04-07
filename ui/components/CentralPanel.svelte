@@ -309,7 +309,7 @@
 
   .split-btn {
     position: absolute;
-    top: 62px;
+    top: 32px;
     right: 8px;
     z-index: 10;
     background: var(--bg3);
@@ -363,7 +363,7 @@
   .scroll-btn {
     position: absolute;
     bottom: 56px;
-    right: 16px;
+    left: 16px;
     z-index: 10;
     background: var(--bg2);
     border: 1px solid var(--bd1);

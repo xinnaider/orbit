@@ -7,6 +7,9 @@
 ### 04/07 · New — Meta panel toggle
 The stats panel on the right can now be hidden or shown with a single click. Use the `›` button in the panel header to collapse it; a thin `‹` strip appears on the right edge so you can bring it back at any time. The preference is saved and restored between sessions.
 
+### 04/07 · Fix — Button positioning in split panes
+The scroll-to-bottom button no longer overlaps the adjacent panel when two panes are open side by side — it now stays anchored to the left side of its own panel. The split and close buttons are now aligned in a consistent right-side column, stacking predictably without clashing, and the split button no longer shifts position based on whether the branch strip is visible.
+
 ### 04/07 · New — In-app changelog
 The app now shows a changelog modal on first launch after an update. You can also reopen it anytime by clicking the version badge in the sidebar.
 
