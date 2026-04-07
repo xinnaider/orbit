@@ -38,18 +38,20 @@ export function openPane(paneId: PaneId, sessionId: number): void {
   });
 }
 
-/** Close a pane. Never closes the last remaining pane. Clears its session. */
+/** Close a pane. Never closes the last remaining pane. Clears its session.
+ *  If all remaining panes are empty after closing, collapses to a single pane. */
 export function closePane(paneId: PaneId): void {
   splitLayout.update((l) => {
     const visible = l.visible.filter((p) => p !== paneId);
     if (visible.length === 0) return l; // guard: never close last
     const focused = l.focused === paneId ? visible[0] : l.focused;
-    return {
-      ...l,
-      panes: { ...l.panes, [paneId]: null },
-      visible,
-      focused,
-    };
+    const panes = { ...l.panes, [paneId]: null };
+    // If every remaining pane is empty, collapse to a single full-screen pane
+    const allEmpty = visible.every((p) => panes[p] === null);
+    if (allEmpty) {
+      return { ...l, panes, visible: [focused], focused };
+    }
+    return { ...l, panes, visible, focused };
   });
 }
 

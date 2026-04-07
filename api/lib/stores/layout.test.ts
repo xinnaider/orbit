@@ -89,6 +89,19 @@ describe('closePane', () => {
     closePane('tr');
     expect(get(splitLayout).panes.tr).toBeNull();
   });
+
+  it('collapses to single pane when all remaining panes are empty', () => {
+    // tl has session, tr is empty (as after splitPane)
+    openPane('tr', 0); // open tr empty — use 0 as placeholder then clear
+    assignSession('tl', 42);
+    // manually set tr to null to simulate the "split but not assigned" case
+    splitLayout.update((l) => ({ ...l, panes: { ...l.panes, tr: null } }));
+    // now close tl (the one with the session)
+    closePane('tl');
+    const l = get(splitLayout);
+    expect(l.visible).toHaveLength(1);
+    expect(l.visible[0]).toBe('tr');
+  });
 });
 
 // ── focusPane ─────────────────────────────────────────────────
