@@ -47,6 +47,24 @@ function createThemeStore() {
   };
 }
 
+function createMetaPanelVisibleStore() {
+  const stored =
+    typeof localStorage !== 'undefined' ? localStorage.getItem('metaPanelVisible') : null;
+  const initial = stored === null ? true : stored === 'true';
+  const { subscribe, set } = writable<boolean>(initial);
+
+  return {
+    subscribe,
+    set(value: boolean) {
+      set(value);
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('metaPanelVisible', String(value));
+      }
+    },
+  };
+}
+
 export const theme = createThemeStore();
 export const detailLevel = writable<DetailLevel>('full');
 export const rightPanelTab = writable<RightPanelTab>('agents');
+export const metaPanelVisible = createMetaPanelVisibleStore();

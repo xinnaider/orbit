@@ -3,6 +3,7 @@
   import { estimateCost, formatCost, formatTokens } from '../lib/cost';
   import { stopSession } from '../lib/tauri';
   import { isActive } from '../lib/status';
+  import { metaPanelVisible } from '../lib/stores/preferences';
   import TasksList from './TasksList.svelte';
 
   export let session: Session;
@@ -35,11 +36,15 @@
     <button class="tab" class:active={tab === 'tasks'} on:click={() => (tab = 'tasks')}
       >tasks</button
     >
+    <span class="tabs-spacer"></span>
     {#if active}
       <button class="stop-btn" on:click={stop} title="Stop session">■</button>
     {:else if stopped}
       <span class="stopped-badge" title="Session stopped — type to resume">stopped</span>
     {/if}
+    <button class="collapse-btn" on:click={() => metaPanelVisible.set(false)} title="Hide panel"
+      >›</button
+    >
   </div>
 
   <div class="content">
@@ -161,8 +166,10 @@
     color: var(--t0);
     border-bottom-color: var(--ac);
   }
+  .tabs-spacer {
+    flex: 1;
+  }
   .stop-btn {
-    margin-left: auto;
     margin-right: 4px;
     background: none;
     border: none;
@@ -173,8 +180,21 @@
   .stop-btn:hover {
     color: var(--s-error);
   }
-  .stopped-badge {
+  .collapse-btn {
     margin-left: auto;
+    background: none;
+    border: none;
+    color: var(--t2);
+    font-size: 14px;
+    padding: 4px 6px;
+    line-height: 1;
+    cursor: pointer;
+    transition: color 0.15s;
+  }
+  .collapse-btn:hover {
+    color: var(--t0);
+  }
+  .stopped-badge {
     margin-right: 6px;
     font-size: 9px;
     letter-spacing: 0.08em;
