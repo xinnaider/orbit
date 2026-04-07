@@ -28,6 +28,7 @@ export interface CreateSessionOptions {
   model?: string;
   permissionMode?: 'ignore' | 'approve';
   sessionName?: string;
+  useWorktree?: boolean;
 }
 
 export async function createSession(opts: CreateSessionOptions): Promise<Session> {
@@ -37,6 +38,7 @@ export async function createSession(opts: CreateSessionOptions): Promise<Session
     model: opts.model ?? null,
     permissionMode: opts.permissionMode ?? 'ignore',
     sessionName: opts.sessionName ?? null,
+    useWorktree: opts.useWorktree ?? false,
   });
 }
 

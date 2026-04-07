@@ -10,6 +10,11 @@ Arraste qualquer sessão da barra lateral para a borda de um painel para abrir
 uma divisão lado a lado. Até 4 painéis em grade 2×2. Clique em um painel para
 focá-lo — o MetaPanel acompanha o painel em foco.
 
+### 06/04 · Novo — Apelido e worktree ao criar sessão
+Ao criar uma nova sessão, agora é possível dar um apelido personalizado para identificá-la facilmente. Se o campo for deixado em branco, o app sugere automaticamente um nome baseado em codinomes de dispositivos Android combinados com o nome do projeto.
+
+Também foi adicionada a opção de criar a sessão dentro de um **git worktree** isolado. Quando ativada, o Claude trabalha em um branch separado (criado automaticamente como `orbit/<nome-da-sessão>`), mantendo o branch principal intacto durante o trabalho.
+
 ### 06/04 · Melhoria — Execução de comandos sem interrupção
 Comandos do terminal agora executam automaticamente, sem pedir confirmação a cada passo. O fluxo de trabalho do agente ficou mais fluido e sem pausas desnecessárias.
 

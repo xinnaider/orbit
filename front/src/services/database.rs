@@ -137,6 +137,20 @@ impl DatabaseService {
         Ok(())
     }
 
+    pub fn update_session_worktree(
+        &self,
+        id: SessionId,
+        worktree_path: &str,
+        branch_name: &str,
+    ) -> SqlResult<()> {
+        self.conn.lock().unwrap().execute(
+            "UPDATE sessions SET worktree_path = ?1, branch_name = ?2, \
+             updated_at = datetime('now') WHERE id = ?3",
+            params![worktree_path, branch_name, id],
+        )?;
+        Ok(())
+    }
+
     pub fn get_sessions(&self) -> SqlResult<Vec<Session>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(

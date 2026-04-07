@@ -65,6 +65,7 @@ impl SessionManager {
         session_name: Option<&str>,
         permission_mode: &str,
         model: Option<&str>,
+        use_worktree: bool,
     ) -> Result<Session, String> {
         let project_name = std::path::Path::new(project_path)
             .file_name()
@@ -87,6 +88,26 @@ impl SessionManager {
             )
             .map_err(|e| e.to_string())?;
 
+        let (worktree_path_val, branch_name_val) = if use_worktree {
+            let name_slug = crate::services::worktree::generate_branch_slug(
+                session_name.unwrap_or(&project_name),
+            );
+            let project_slug = crate::services::worktree::generate_branch_slug(&project_name);
+            let slug = format!("{name_slug}-{session_id}-{project_slug}");
+            let wt_path = crate::services::worktree::create_worktree(
+                std::path::Path::new(project_path),
+                &slug,
+            )?;
+            let branch = format!("orbit/{slug}");
+            let wt_str = wt_path.to_string_lossy().to_string();
+            let _ = self
+                .db
+                .update_session_worktree(session_id, &wt_str, &branch);
+            (Some(wt_str), Some(branch))
+        } else {
+            (None, None)
+        };
+
         let now = chrono::Utc::now().to_rfc3339();
         let session = Session {
             id: session_id,
@@ -95,8 +116,8 @@ impl SessionManager {
             status: crate::models::SessionStatus::Initializing
                 .as_str()
                 .to_string(),
-            worktree_path: None,
-            branch_name: None,
+            worktree_path: worktree_path_val,
+            branch_name: branch_name_val,
             permission_mode: permission_mode.to_string(),
             model: model.map(|s| s.to_string()),
             pid: None,
@@ -149,7 +170,11 @@ impl SessionManager {
             };
             (
                 m.db.clone(),
-                a.session.cwd.clone().unwrap_or_default(),
+                a.session
+                    .worktree_path
+                    .clone()
+                    .or_else(|| a.session.cwd.clone())
+                    .unwrap_or_default(),
                 a.session.permission_mode.clone(),
                 a.session.model.clone(),
                 a.claude_session_id.clone(),
@@ -583,7 +608,7 @@ mod tests {
         let s = mgr
             .lock()
             .unwrap()
-            .init_session("/tmp/proj", None, "ignore", None)
+            .init_session("/tmp/proj", None, "ignore", None, false)
             .unwrap();
         assert!(s.id > 0);
         assert_eq!(s.status, "initializing");
@@ -595,7 +620,7 @@ mod tests {
         let s = mgr
             .lock()
             .unwrap()
-            .init_session("/tmp/proj", None, "ignore", None)
+            .init_session("/tmp/proj", None, "ignore", None, false)
             .unwrap();
         assert!(mgr.lock().unwrap().journal_states.contains_key(&s.id));
     }
@@ -617,7 +642,7 @@ mod tests {
         let s = mgr
             .lock()
             .unwrap()
-            .init_session("/tmp/proj", None, "ignore", None)
+            .init_session("/tmp/proj", None, "ignore", None, false)
             .unwrap();
         assert!(mgr.lock().unwrap().is_session_active(s.id));
     }
@@ -628,7 +653,7 @@ mod tests {
         let s = mgr
             .lock()
             .unwrap()
-            .init_session("/tmp/proj", None, "ignore", None)
+            .init_session("/tmp/proj", None, "ignore", None, false)
             .unwrap();
         mgr.lock().unwrap().stop_session(s.id).unwrap();
         let sessions = mgr.lock().unwrap().get_sessions();
@@ -641,7 +666,7 @@ mod tests {
         let s = mgr
             .lock()
             .unwrap()
-            .init_session("/tmp/proj", None, "ignore", None)
+            .init_session("/tmp/proj", None, "ignore", None, false)
             .unwrap();
         mgr.lock().unwrap().delete_session(s.id).unwrap();
         assert_eq!(mgr.lock().unwrap().get_sessions().len(), 0);

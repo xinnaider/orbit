@@ -13,6 +13,8 @@ function makeSession(overrides: Partial<Session> = {}): Session {
     cwd: '/tmp/proj',
     projectName: 'proj',
     gitBranch: null,
+    worktreePath: null,
+    branchName: null,
     tokens: null,
     contextPercent: null,
     pendingApproval: null,
