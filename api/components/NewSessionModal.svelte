@@ -14,7 +14,7 @@
   let diagRunning = false;
   let diag: SpawnDiagnostic | null = null;
 
-  let isRemote = false;
+  let sshMode = false;
   let sshHost = '';
   let sshUser = 'ubuntu';
 
@@ -43,11 +43,15 @@
 
   async function submit() {
     if (!path.trim()) {
-      error = isRemote ? 'remote path required' : 'project path required';
+      error = sshMode ? 'remote path required' : 'project path required';
       return;
     }
-    if (isRemote && (!sshHost.trim() || !sshUser.trim())) {
-      error = 'ssh host and user required';
+    if (sshMode && !sshHost.trim()) {
+      error = 'ssh host required';
+      return;
+    }
+    if (sshMode && !sshUser.trim()) {
+      error = 'ssh user required';
       return;
     }
     loading = true;
@@ -58,7 +62,8 @@
         prompt: prompt.trim() || 'Hello',
         model: model === 'auto' ? undefined : model,
         permissionMode: 'ignore',
-        ...(isRemote ? { sshHost: sshHost.trim(), sshUser: sshUser.trim() } : {}),
+        sshHost: sshMode ? sshHost.trim() : undefined,
+        sshUser: sshMode ? sshUser.trim() : undefined,
       });
       dispatch('done');
     } catch (e: any) {
@@ -89,18 +94,58 @@
       <button class="close" on:click={() => dispatch('cancel')}>✕</button>
     </div>
 
+    <div class="mode-toggle">
+      <button
+        class="mode-btn"
+        class:active={!sshMode}
+        on:click={() => (sshMode = false)}
+        disabled={loading}>local</button
+      >
+      <button
+        class="mode-btn"
+        class:active={sshMode}
+        on:click={() => (sshMode = true)}
+        disabled={loading}>ssh remote</button
+      >
+    </div>
+
+    {#if sshMode}
+      <div class="row">
+        <div class="field" style="flex:2">
+          <label class="label" for="ns-ssh-host">host</label>
+          <input
+            id="ns-ssh-host"
+            class="input"
+            bind:value={sshHost}
+            placeholder="vps.example.com"
+            disabled={loading}
+          />
+        </div>
+        <div class="field" style="flex:1">
+          <label class="label" for="ns-ssh-user">user</label>
+          <input
+            id="ns-ssh-user"
+            class="input"
+            bind:value={sshUser}
+            placeholder="ubuntu"
+            disabled={loading}
+          />
+        </div>
+      </div>
+    {/if}
+
     <div class="field">
-      <label class="label" for="ns-path">{isRemote ? 'remote path' : 'path'}</label>
+      <label class="label" for="ns-path">{sshMode ? 'remote path' : 'path'}</label>
       <div class="path-row">
         <input
           id="ns-path"
           class="input"
           bind:value={path}
-          placeholder={isRemote ? '/home/ubuntu/project' : '/home/user/project'}
+          placeholder={sshMode ? '/home/ubuntu/project' : '/home/user/project'}
           disabled={loading}
           on:keydown={(e) => e.key === 'Enter' && prompt && submit()}
         />
-        {#if !isRemote}
+        {#if !sshMode}
           <button class="browse" on:click={browse} disabled={loading} title="browse">⌘</button>
         {/if}
       </div>
@@ -112,7 +157,7 @@
         id="ns-prompt"
         class="input textarea"
         bind:value={prompt}
-        placeholder="what should claude work on? (optional — leave blank to start interactively)"
+        placeholder="what should claude work on? (optional)"
         rows="3"
         disabled={loading}
         on:keydown={(e) => {
@@ -132,47 +177,18 @@
       </div>
     </div>
 
-    <div class="field">
-      <label
-        class="label"
-        for="ns-remote"
-        style="flex-direction:row;align-items:center;gap:6px;cursor:pointer"
-      >
-        <input id="ns-remote" type="checkbox" bind:checked={isRemote} disabled={loading} />
-        remote session (ssh)
-      </label>
-    </div>
-
-    {#if isRemote}
-      <div class="row">
-        <div class="field half">
-          <label class="label" for="ns-ssh-host">ssh host</label>
-          <input
-            id="ns-ssh-host"
-            class="input"
-            bind:value={sshHost}
-            placeholder="vps.example.com"
-            disabled={loading}
-          />
-        </div>
-        <div class="field half">
-          <label class="label" for="ns-ssh-user">ssh user</label>
-          <input
-            id="ns-ssh-user"
-            class="input"
-            bind:value={sshUser}
-            placeholder="ubuntu"
-            disabled={loading}
-          />
-        </div>
-      </div>
+    {#if sshMode}
+      <p class="ssh-hint">
+        requires key-based auth (no passphrase or ssh-agent) and <code>claude</code> installed on the
+        remote host
+      </p>
     {/if}
 
     {#if error}
       <p class="error">! {error}</p>
     {/if}
 
-    {#if diag}
+    {#if diag && !sshMode}
       <div class="diag">
         <div class="diag-row" class:ok={diag.claudeFound} class:fail={!diag.claudeFound}>
           claude: {diag.claudeFound ? `✓ ${diag.claudePath ?? diag.whereOutput}` : '✗ not found'}
@@ -190,7 +206,7 @@
     {/if}
 
     <div class="actions">
-      {#if !isRemote}
+      {#if !sshMode}
         <button class="btn ghost" on:click={runDiag} disabled={diagRunning || loading}>
           {diagRunning ? 'testing...' : '⚙ diagnose'}
         </button>
@@ -246,7 +262,32 @@
   .close:hover {
     color: var(--t0);
   }
-
+  .mode-toggle {
+    display: flex;
+    gap: 4px;
+    background: var(--bg2);
+    border: 1px solid var(--bd1);
+    border-radius: 3px;
+    padding: 3px;
+  }
+  .mode-btn {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--t2);
+    font-size: var(--xs);
+    padding: 4px 8px;
+    border-radius: 2px;
+    letter-spacing: 0.04em;
+    transition: all 0.15s;
+  }
+  .mode-btn.active {
+    background: var(--bg3);
+    color: var(--t0);
+  }
+  .mode-btn:hover:not(.active) {
+    color: var(--t1);
+  }
   .field {
     display: flex;
     flex-direction: column;
@@ -282,7 +323,6 @@
     appearance: none;
     cursor: pointer;
   }
-
   .path-row {
     display: flex;
     gap: 6px;
@@ -303,13 +343,24 @@
     border-color: var(--bd2);
     color: var(--t0);
   }
-
   .row {
     display: flex;
     gap: 12px;
   }
   .half {
     flex: 1;
+  }
+  .ssh-hint {
+    font-size: var(--xs);
+    color: var(--t3);
+    line-height: 1.5;
+    margin: 0;
+  }
+  .ssh-hint code {
+    color: var(--t2);
+    background: var(--bg3);
+    padding: 0 3px;
+    border-radius: 2px;
   }
   .error {
     font-size: var(--sm);
@@ -334,7 +385,6 @@
   .diag-row.fail {
     color: var(--s-error);
   }
-
   .actions {
     display: flex;
     justify-content: flex-end;
