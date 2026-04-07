@@ -1,19 +1,33 @@
-use std::path::PathBuf;
-
-pub struct SpawnConfig {
-    pub session_id: crate::models::SessionId,
-    pub cwd: PathBuf,
-    pub permission_mode: String,
-    pub model: Option<String>,
-    pub prompt: String,
-    /// For follow-up messages: the Claude session ID from the previous run
-    pub claude_session_id: Option<String>,
-}
+use std::path::Path;
 
 pub struct SpawnHandle {
     pub pid: u32,
     pub reader: Box<dyn std::io::Read + Send>,
     pub stderr: Box<dyn std::io::Read + Send>,
+}
+
+/// How to spawn Claude: locally or via SSH tunnel.
+#[derive(Debug, Clone)]
+pub enum SpawnMode {
+    Local,
+    Ssh { host: String, user: String },
+}
+
+pub struct SpawnConfig {
+    pub session_id: crate::models::SessionId,
+    pub cwd: String, // String not PathBuf — remote Linux paths can't be PathBuf on Windows
+    pub permission_mode: String,
+    pub model: Option<String>,
+    pub prompt: String,
+    /// For follow-up messages: the Claude session ID from the previous run
+    pub claude_session_id: Option<String>,
+    pub spawn_mode: SpawnMode,
+}
+
+/// Wrap a string in single quotes, escaping embedded single quotes as '\''.
+/// Safe for embedding in a POSIX shell command string (bash -lc '...').
+fn posix_escape(s: &str) -> String {
+    format!("'{}'", s.replace('\'', "'\\''"))
 }
 
 /// Build a PATH string that includes common Claude/Node installation directories.
@@ -139,12 +153,16 @@ pub fn find_claude() -> Option<String> {
     None
 }
 
-/// Spawn Claude Code using `-p "prompt"` (non-interactive mode).
-/// Uses `--output-format stream-json` so stdout is pure JSON lines.
-/// For follow-ups, passes `--resume <claude_session_id>`.
-///
-/// Uses piped stdout instead of PTY — avoids ConPTY issues on Windows.
+/// Dispatch to local or SSH spawn based on SpawnMode.
 pub fn spawn_claude(config: SpawnConfig) -> Result<SpawnHandle, String> {
+    match config.spawn_mode.clone() {
+        SpawnMode::Local => spawn_local(config),
+        SpawnMode::Ssh { host, user } => spawn_ssh(config, &host, &user),
+    }
+}
+
+/// Spawn Claude Code locally.
+fn spawn_local(config: SpawnConfig) -> Result<SpawnHandle, String> {
     let claude = find_claude().ok_or_else(|| {
         "claude not found — install with: npm i -g @anthropic-ai/claude-code".to_string()
     })?;
@@ -170,7 +188,7 @@ pub fn spawn_claude(config: SpawnConfig) -> Result<SpawnHandle, String> {
     // Pass prompt as flag — non-interactive, no stdin needed
     cmd.args(["-p", &config.prompt]);
 
-    cmd.current_dir(&config.cwd);
+    cmd.current_dir(Path::new(&config.cwd));
     cmd.env("PATH", extended_path());
 
     // Piped stdout and stderr — no PTY needed
@@ -201,6 +219,70 @@ pub fn spawn_claude(config: SpawnConfig) -> Result<SpawnHandle, String> {
     })
 }
 
+/// Spawn Claude Code on a remote server via SSH.
+/// Uses `bash -lc` so the remote user's login profile loads (PATH includes ~/.local/bin, npm globals).
+fn spawn_ssh(config: SpawnConfig, host: &str, user: &str) -> Result<SpawnHandle, String> {
+    let mut parts = vec![
+        "claude".to_string(),
+        "--output-format".to_string(),
+        "stream-json".to_string(),
+        "--verbose".to_string(),
+        "--dangerously-skip-permissions".to_string(),
+    ];
+
+    if let Some(ref model) = config.model {
+        if model != "auto" {
+            parts.push("--model".to_string());
+            parts.push(model.clone());
+        }
+    }
+
+    if let Some(ref resume_id) = config.claude_session_id {
+        parts.push("--resume".to_string());
+        parts.push(resume_id.clone());
+    }
+
+    parts.push("-p".to_string());
+    parts.push(posix_escape(&config.prompt));
+
+    let remote_script = format!("cd {} && {}", posix_escape(&config.cwd), parts.join(" "));
+
+    let mut cmd = std::process::Command::new("ssh");
+    cmd.args([
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ConnectTimeout=10",
+        "-o",
+        "StrictHostKeyChecking=accept-new",
+        &format!("{}@{}", user, host),
+        "bash",
+        "-lc",
+        &remote_script,
+    ]);
+    cmd.stdout(std::process::Stdio::piped());
+    cmd.stderr(std::process::Stdio::piped());
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    let mut child = cmd.spawn().map_err(|e| format!("ssh spawn failed: {e}"))?;
+    let pid = child.id();
+    let stdout = child.stdout.take().ok_or_else(|| "no stdout".to_string())?;
+    let stderr = child.stderr.take().ok_or_else(|| "no stderr".to_string())?;
+    std::mem::forget(child);
+
+    Ok(SpawnHandle {
+        pid,
+        reader: Box::new(stdout),
+        stderr: Box::new(stderr),
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -220,14 +302,30 @@ mod tests {
     }
 
     #[test]
-    fn test_spawn_bad_path_returns_error() {
+    fn test_posix_escape_simple() {
+        assert_eq!(posix_escape("hello world"), "'hello world'");
+    }
+
+    #[test]
+    fn test_posix_escape_single_quote() {
+        assert_eq!(posix_escape("it's"), "'it'\\''s'");
+    }
+
+    #[test]
+    fn test_posix_escape_empty() {
+        assert_eq!(posix_escape(""), "''");
+    }
+
+    #[test]
+    fn test_spawn_local_bad_path_returns_error_or_ok() {
         let result = spawn_claude(SpawnConfig {
             session_id: 0,
-            cwd: std::env::temp_dir(),
+            cwd: std::env::temp_dir().to_string_lossy().into_owned(),
             permission_mode: "ignore".to_string(),
             model: None,
             prompt: "test".to_string(),
             claude_session_id: None,
+            spawn_mode: SpawnMode::Local,
         });
         // Either succeeds (claude installed) or returns descriptive error
         if let Err(e) = result {
