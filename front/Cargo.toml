@@ -1,6 +1,6 @@
 [package]
 name = "orbit"
-version = "0.2.2"
+version = "0.2.4"
 description = "Orbit — Claude agent dashboard"
 authors = ["you"]
 edition = "2021"
