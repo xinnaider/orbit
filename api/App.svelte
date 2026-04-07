@@ -7,6 +7,7 @@
     updateSessionState,
     getSelectedSession,
   } from './lib/stores/sessions';
+  import { assignSession } from './lib/stores/layout';
   import { journal } from './lib/stores/journal';
   import {
     listSessions,
@@ -60,11 +61,11 @@
     const [existing, check] = await Promise.all([listSessions(), checkClaude()]);
     claudeCheck = check;
     sessions.set(existing);
-    if (existing.length > 0 && !$selectedSessionId) selectedSessionId.set(existing[0].id);
+    if (existing.length > 0 && !$selectedSessionId) assignSession('tl', existing[0].id);
 
     const u1 = onSessionCreated((s) => {
       sessions.update((l) => upsertSession(l, s));
-      if (!$selectedSessionId) selectedSessionId.set(s.id);
+      if (!$selectedSessionId) assignSession('tl', s.id);
     });
 
     const u2 = onSessionOutput(({ sessionId, entry }) => {

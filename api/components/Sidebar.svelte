@@ -1,5 +1,6 @@
 <script lang="ts">
   import { sessions, selectedSessionId, updateSessionState } from '../lib/stores/sessions';
+  import { assignSession, clearSession } from '../lib/stores/layout';
   import { statusColor, statusLabel, isPulsing } from '../lib/status';
   import NewSessionModal from './NewSessionModal.svelte';
   import ContextMenu from './ContextMenu.svelte';
@@ -101,7 +102,7 @@
             confirmDelete = null;
             await deleteSession(id);
             sessions.update((l) => l.filter((s) => s.id !== id));
-            if ($selectedSessionId === id) selectedSessionId.set(null);
+            if ($selectedSessionId === id) clearSession(id);
           }}>delete</button
         >
       </div>
@@ -147,7 +148,7 @@
         <button
           class="item"
           class:active
-          on:click={() => selectedSessionId.set(s.id)}
+          on:click={() => assignSession('tl', s.id)}
           on:contextmenu={(e) => onContextMenu(e, s)}
         >
           <div class="item-top">
