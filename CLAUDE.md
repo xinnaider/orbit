@@ -28,7 +28,7 @@ Orbit é um **dashboard desktop para gerenciar múltiplas sessões do Claude Cod
 | Lint TS/Svelte | ESLint 9 + eslint-plugin-svelte |
 | Lint Rust | cargo clippy (-D warnings) |
 | Format TS/Svelte | Prettier 3.8 + prettier-plugin-svelte |
-| Format Rust | rustfmt (front/rustfmt.toml) |
+| Format Rust | rustfmt (tauri/rustfmt.toml) |
 
 ---
 
@@ -36,7 +36,7 @@ Orbit é um **dashboard desktop para gerenciar múltiplas sessões do Claude Cod
 
 ```
 agent-dashboard-v2/
-├── front/                      # Backend Rust / Tauri
+├── tauri/                      # Backend Rust / Tauri
 │   ├── src/
 │   │   ├── main.rs             # Entry point mínimo
 │   │   ├── lib.rs              # Inicialização do app Tauri, plugins, IPC handlers
@@ -57,7 +57,7 @@ agent-dashboard-v2/
 │   ├── rustfmt.toml            # max_width=100, tab_spaces=4
 │   └── .clippy.toml            # cognitive-complexity=30, too-many-lines=100
 │
-├── api/                        # Frontend SvelteKit
+├── ui/                         # Frontend SvelteKit
 │   ├── App.svelte              # Raiz: listeners de eventos Tauri, banners globais
 │   ├── app.css                 # Estilos globais (variáveis CSS, temas)
 │   ├── routes/                 # Rotas SvelteKit (+page.svelte, +layout.svelte)
@@ -176,7 +176,7 @@ Mensagem de follow-up
 npm run dev:mock
 ```
 
-`api/lib/mock/tauri-mock.ts` simula todos os comandos e eventos Tauri. Use `VITE_MOCK=true` para ativar.
+`ui/lib/mock/tauri-mock.ts` simula todos os comandos e eventos Tauri. Use `VITE_MOCK=true` para ativar.
 
 ---
 
@@ -214,10 +214,11 @@ npm run dev:mock
 ### Git
 - Commits in English, conventional prefix: `feat:`, `fix:`, `refactor:`, `chore:`, `docs:`
 - Never commit with `--no-verify`
+- Issues follow the same conventional prefix format: `feat:`, `fix:`, `refactor:`, `chore:`, `docs:`
 
 #### Git hook: `pre-commit`
 Roda automaticamente antes de todo commit:
-1. **Prettier** auto-formata `api/**/*.{ts,svelte,css}` e re-adiciona ao stage
+1. **Prettier** auto-formata `ui/**/*.{ts,svelte,css}` e re-adiciona ao stage
 2. **rustfmt** auto-formata o código Rust e re-adiciona ao stage
 3. **ESLint** com `--max-warnings 0` — bloqueia o commit se falhar
 4. **svelte-check** com `--fail-on-warnings` — bloqueia o commit se falhar
@@ -250,7 +251,7 @@ on screen instead of silently stopping.
 **Bad example:**
 ```
 - fix: detect rate_limit_error in session_manager reader_loop stderr thread
-- updated api/App.svelte to listen for session:rate-limit event
+- updated ui/App.svelte to listen for session:rate-limit event
 ```
 
 ---

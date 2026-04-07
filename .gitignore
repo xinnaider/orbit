@@ -35,7 +35,7 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
 # Rust / Tauri backend
-front/target/
+tauri/target/
 
 # Superpowers
 .superpowers/
