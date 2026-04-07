@@ -30,6 +30,8 @@ export interface Session {
   pendingApproval: string | null;
   miniLog: MiniLogEntry[] | null;
   costUsd: number | null;
+  sshHost: string | null;
+  sshUser: string | null;
   createdAt: string;
   updatedAt: string;
 }

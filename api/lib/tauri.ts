@@ -28,6 +28,8 @@ export interface CreateSessionOptions {
   model?: string;
   permissionMode?: 'ignore' | 'approve';
   sessionName?: string;
+  sshHost?: string;
+  sshUser?: string;
 }
 
 export async function createSession(opts: CreateSessionOptions): Promise<Session> {
@@ -37,6 +39,8 @@ export async function createSession(opts: CreateSessionOptions): Promise<Session
     model: opts.model ?? null,
     permissionMode: opts.permissionMode ?? 'ignore',
     sessionName: opts.sessionName ?? null,
+    sshHost: opts.sshHost ?? null,
+    sshUser: opts.sshUser ?? null,
   });
 }
 
