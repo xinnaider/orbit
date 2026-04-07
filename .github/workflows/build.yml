@@ -95,9 +95,9 @@ jobs:
         shell: pwsh
         run: |
           if ($env:TAURI_SIGNING_PRIVATE_KEY) {
-            Write-Host "TAURI_SIGNING_PRIVATE_KEY está definida (length=$($env:TAURI_SIGNING_PRIVATE_KEY.Length))"
+            Write-Host "TAURI_SIGNING_PRIVATE_KEY is set (length=$($env:TAURI_SIGNING_PRIVATE_KEY.Length))"
           } else {
-            Write-Host "::error::TAURI_SIGNING_PRIVATE_KEY está VAZIA ou ausente"
+            Write-Host "::error::TAURI_SIGNING_PRIVATE_KEY is EMPTY or missing"
             exit 1
           }
         env:
@@ -130,7 +130,7 @@ jobs:
           if (Test-Path tauri/target/release/bundle) {
             Get-ChildItem tauri/target/release/bundle -Recurse | Select-Object FullName, Length
           } else {
-            Write-Host "Diretório não encontrado"
+            Write-Host "Directory not found"
           }
 
       - name: Generate latest.json for updater
@@ -143,13 +143,13 @@ jobs:
           # Tauri 2 signs the .exe directly — look for .exe.sig
           $exe = Get-ChildItem tauri/target/release/bundle/nsis -Filter "*-setup.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
           if ($null -eq $exe) {
-            Write-Host "::error::Nenhum *-setup.exe encontrado em tauri/target/release/bundle/nsis"
+            Write-Host "::error::No *-setup.exe found in tauri/target/release/bundle/nsis"
             exit 1
           }
 
           $sigFile = "$($exe.FullName).sig"
           if (-not (Test-Path $sigFile)) {
-            Write-Host "::error::Arquivo .sig não encontrado: $sigFile"
+            Write-Host "::error::.sig file not found: $sigFile"
             exit 1
           }
 
@@ -159,7 +159,7 @@ jobs:
 
           $latestJson = @{
             version  = $version
-            notes    = "Veja o changelog completo em https://github.com/xinnaider/orbit/releases/tag/v$version"
+            notes    = "See the full changelog at https://github.com/xinnaider/orbit/releases/tag/v$version"
             pub_date = $pubDate
             platforms = @{
               "windows-x86_64" = @{
@@ -170,7 +170,7 @@ jobs:
           } | ConvertTo-Json -Depth 5
 
           $latestJson | Out-File -FilePath latest.json -Encoding utf8NoBOM
-          Write-Host "latest.json gerado:"
+          Write-Host "latest.json generated:"
           Get-Content latest.json
 
       - name: Upload build artifacts
