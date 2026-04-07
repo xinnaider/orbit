@@ -1,35 +1,46 @@
 import { writable } from 'svelte/store';
 import type { DetailLevel, RightPanelTab } from '../types';
 
-export type Theme = 'dark' | 'light';
+export const THEME_OPTIONS = ['dark', 'light', 'nord', 'dracula', 'catppuccin'] as const;
+export type Theme = (typeof THEME_OPTIONS)[number];
+
+export const THEME_LABELS: Record<Theme, string> = {
+  dark: 'Dark',
+  light: 'Light (you are a monster?)',
+  nord: 'Nord',
+  dracula: 'Dracula',
+  catppuccin: 'Catppuccin',
+};
+
+function applyTheme(value: Theme) {
+  if (typeof document !== 'undefined') {
+    document.documentElement.setAttribute('data-theme', value);
+    localStorage.setItem('theme', value);
+  }
+}
+
+function isValidTheme(value: string | null): value is Theme {
+  return value !== null && (THEME_OPTIONS as readonly string[]).includes(value);
+}
 
 function createThemeStore() {
-  const stored =
-    typeof localStorage !== 'undefined' ? (localStorage.getItem('theme') as Theme) : null;
-  const initial: Theme = stored === 'light' ? 'light' : 'dark';
-  const { subscribe, set, update } = writable<Theme>(initial);
+  const stored = typeof localStorage !== 'undefined' ? localStorage.getItem('theme') : null;
+  const initial: Theme = isValidTheme(stored) ? stored : 'dark';
+  const { subscribe, set: _set, update } = writable<Theme>(initial);
 
-  // Apply on init
-  if (typeof document !== 'undefined') {
-    document.documentElement.setAttribute('data-theme', initial);
-  }
+  applyTheme(initial);
 
   return {
     subscribe,
     set(value: Theme) {
-      set(value);
-      if (typeof document !== 'undefined') {
-        document.documentElement.setAttribute('data-theme', value);
-        localStorage.setItem('theme', value);
-      }
+      _set(value);
+      applyTheme(value);
     },
-    toggle() {
+    cycle() {
       update((current) => {
-        const next: Theme = current === 'dark' ? 'light' : 'dark';
-        if (typeof document !== 'undefined') {
-          document.documentElement.setAttribute('data-theme', next);
-          localStorage.setItem('theme', next);
-        }
+        const idx = THEME_OPTIONS.indexOf(current);
+        const next = THEME_OPTIONS[(idx + 1) % THEME_OPTIONS.length];
+        applyTheme(next);
         return next;
       });
     },
