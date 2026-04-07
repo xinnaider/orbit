@@ -34,3 +34,15 @@ const ANDROID_CODENAMES = [
 export function generateAgentName(): string {
   return ANDROID_CODENAMES[Math.floor(Math.random() * ANDROID_CODENAMES.length)];
 }
+
+export interface ParsedSessionName {
+  prefix: string;
+  suffix: string;
+}
+
+export function parseSessionName(name: string | null | undefined): ParsedSessionName {
+  if (!name) return { prefix: '', suffix: '' };
+  const idx = name.indexOf(' · ');
+  if (idx === -1) return { prefix: name.trim(), suffix: '' };
+  return { prefix: name.slice(0, idx).trim(), suffix: name.slice(idx + 3).trim() };
+}

@@ -23,14 +23,12 @@
   on:click={() => focusPane(paneId)}
   on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && focusPane(paneId)}
 >
-  {#if canClose}
-    <button class="close-btn" title="Close panel" on:click|stopPropagation={() => closePane(paneId)}
-      >×</button
-    >
-  {/if}
-
   {#if session}
-    <CentralPanel {session} onSplit={atMaxPanes ? null : () => splitPane(paneId)} />
+    <CentralPanel
+      {session}
+      onSplit={atMaxPanes ? null : () => splitPane(paneId)}
+      onClose={canClose ? () => closePane(paneId) : null}
+    />
   {:else}
     <div class="empty">
       <span class="plus">+</span>
@@ -60,36 +58,6 @@
     background: var(--ac);
     z-index: 5;
     pointer-events: none;
-  }
-
-  .close-btn {
-    position: absolute;
-    top: 6px;
-    right: 8px;
-    z-index: 10;
-    background: var(--bg3);
-    border: 1px solid var(--bd1);
-    color: var(--t1);
-    width: 18px;
-    height: 18px;
-    border-radius: 3px;
-    font-size: 13px;
-    line-height: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    opacity: 0;
-    transition: opacity 0.15s;
-  }
-
-  .pane:hover .close-btn {
-    opacity: 1;
-  }
-
-  .close-btn:hover {
-    border-color: var(--s-error);
-    color: var(--s-error);
   }
 
   .empty {

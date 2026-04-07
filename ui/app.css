@@ -1,47 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap');
+@import './themes.css';
 
 :root {
-  /* Backgrounds */
-  --bg: #080808;
-  --bg1: #0d0d0d;
-  --bg2: #121212;
-  --bg3: #181818;
-  --bg4: #1e1e1e;
-
-  /* Borders */
-  --bd: #1a1a1a;
-  --bd1: #242424;
-  --bd2: #2e2e2e;
-
-  /* Text */
-  --t0: #e0e0e0;
-  --t1: #888888;
-  --t2: #505050;
-  --t3: #303030;
-
-  /* Accent */
-  --ac: #00d47e;
-  --ac-d: rgba(0, 212, 126, 0.1);
-  --ac-d2: rgba(0, 212, 126, 0.05);
-
-  /* Status */
-  --s-working: #00d47e;
-  --s-input: #e8a030;
-  --s-idle: #404040;
-  --s-error: #e04848;
-  --s-init: #4888e0;
-  --s-done: #383838;
-
-  /* Semantic */
-  --user-fg: #7eb8f7;
-  --user-bg: rgba(126, 184, 247, 0.05);
-  --think-fg: #9980d4;
-  --think-bg: rgba(153, 128, 212, 0.06);
-  --tool-fg: #e8a030;
-  --tool-bg: rgba(232, 160, 48, 0.05);
-  --result-fg: #606060;
-  --result-bg: rgba(255, 255, 255, 0.02);
-
   /* Font */
   --mono: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
 
@@ -66,6 +26,9 @@ body {
   height: 100%;
   overflow: hidden;
   background: var(--bg);
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
 }
 
 body {

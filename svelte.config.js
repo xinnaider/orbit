@@ -11,14 +11,14 @@ const config = {
   kit: {
     adapter: adapter({ fallback: "index.html" }),
     files: {
-      lib: 'api/lib',
-      routes: 'api/routes',
-      appTemplate: 'api/app.html',
+      lib: 'ui/lib',
+      routes: 'ui/routes',
+      appTemplate: 'ui/app.html',
       assets: 'static',
       hooks: {
-        client: 'api/hooks.client',
-        server: 'api/hooks.server',
-        universal: 'api/hooks',
+        client: 'ui/hooks.client',
+        server: 'ui/hooks.server',
+        universal: 'ui/hooks',
       },
     },
   },

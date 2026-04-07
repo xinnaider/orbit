@@ -10,6 +10,7 @@
 
   export let session: Session;
   export let onSplit: (() => void) | null = null;
+  export let onClose: (() => void) | null = null;
 
   let feedEl: HTMLDivElement;
   let atBottom = true;
@@ -112,6 +113,17 @@
         {/if}
       {/if}
       <span class="model">{fmtModel(session.model)}</span>
+      {#if onSplit || onClose}
+        <div class="header-actions">
+          {#if onSplit}
+            <button class="action-btn" title="Split panel" on:click={onSplit}>⊞</button>
+          {/if}
+          {#if onClose}
+            <button class="action-btn close-action" title="Close panel" on:click={onClose}>×</button
+            >
+          {/if}
+        </div>
+      {/if}
     </div>
   </div>
 
@@ -130,10 +142,6 @@
       <span class="approval-icon">⚑</span>
       <span class="approval-text">{session.pendingApproval}</span>
     </div>
-  {/if}
-
-  {#if onSplit}
-    <button class="split-btn" title="Split panel" on:click={onSplit}>⊞</button>
   {/if}
 
   <!-- Feed -->
@@ -307,33 +315,39 @@
     padding: 0;
   }
 
-  .split-btn {
-    position: absolute;
-    top: 62px;
-    right: 8px;
-    z-index: 10;
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    margin-left: 4px;
+  }
+
+  .action-btn {
     background: var(--bg3);
     border: 1px solid var(--bd1);
     color: var(--t2);
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
     border-radius: 3px;
     font-size: 11px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    opacity: 0;
-    transition: opacity 0.15s;
+    flex-shrink: 0;
+    transition:
+      border-color 0.15s,
+      color 0.15s;
   }
 
-  .panel:hover .split-btn {
-    opacity: 1;
-  }
-
-  .split-btn:hover {
+  .action-btn:hover {
     border-color: var(--ac);
     color: var(--ac);
+  }
+
+  .action-btn.close-action:hover {
+    border-color: var(--s-error);
+    color: var(--s-error);
   }
   .feed-empty {
     display: flex;
