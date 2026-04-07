@@ -22,9 +22,9 @@
   }
 </script>
 
-<Banner variant="success" position="bottom" icon="↑" zIndex={200} {onDismiss}>
+<Banner variant="success" position="top" icon="↑" zIndex={200} {onDismiss}>
   <div class="title">
-    nova versão disponível — <span class="version">{update.version}</span>
+    new version available — <span class="version">{update.version}</span>
   </div>
   {#if update.body}
     <div class="notes">{update.body}</div>
@@ -35,7 +35,7 @@
 
   <svelte:fragment slot="actions">
     <button class="update-btn" on:click={install} disabled={installing}>
-      {installing ? 'instalando...' : 'atualizar agora'}
+      {installing ? 'installing...' : 'update now'}
     </button>
   </svelte:fragment>
 </Banner>

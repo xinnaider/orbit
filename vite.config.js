@@ -24,11 +24,11 @@ export default defineConfig(async () => ({
         }
       : undefined,
     watch: {
-      ignored: ["**/front/**"],
+      ignored: ["**/tauri/**"],
     },
     fs: {
-      // Allow serving files from the api/ root (App.svelte, app.css, etc.)
-      allow: ["api", "static", "node_modules", ".svelte-kit"],
+      // Allow serving files from the ui/ root (App.svelte, app.css, etc.)
+      allow: ["ui", "static", "node_modules", ".svelte-kit"],
     },
   },
 }));

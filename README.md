@@ -7,7 +7,7 @@
 **Desktop app for running multiple [Claude Code](https://github.com/anthropics/claude-code) agents simultaneously.**
 
 [![Build](https://img.shields.io/github/actions/workflow/status/xinnaider/orbit/build.yml?branch=master)](https://github.com/xinnaider/orbit/actions)
-[![License: CC BY-NC 4.0](https://img.shields.io/badge/license-CC%20BY--NC%204.0-lightgrey.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 [![Platform: Windows](https://img.shields.io/badge/platform-Windows-blue.svg)](#installation)
 
 [orbit.jfernando.dev](https://orbit.jfernando.dev)
@@ -77,4 +77,4 @@ npm run format     # Prettier + rustfmt
 
 ## License
 
-CC BY-NC 4.0 © josefernando
+MIT © josefernando

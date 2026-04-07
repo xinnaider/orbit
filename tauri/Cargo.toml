@@ -1,8 +1,9 @@
 [package]
 name = "orbit"
-version = "0.2.2"
+version = "0.2.4"
 description = "Orbit — Claude agent dashboard"
 authors = ["you"]
+license = "MIT"
 edition = "2021"
 default-run = "orbit"
 rust-version = "1.85"

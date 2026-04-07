@@ -109,6 +109,7 @@ export interface SessionStatePayload {
   pendingApproval: string | null;
   miniLog: MiniLogEntry[];
   costUsd: number | null;
+  gitBranch: string | null;
 }
 
 export function onSessionCreated(cb: (session: Session) => void) {
@@ -186,4 +187,8 @@ export async function checkUpdate(): Promise<UpdateInfo | null> {
 
 export async function installUpdate(): Promise<void> {
   await invoke('install_update');
+}
+
+export async function getChangelog(): Promise<string> {
+  return await invoke<string>('get_changelog');
 }

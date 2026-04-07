@@ -2,43 +2,45 @@
 
 ---
 
-## Abril 2026
+## April 2026
 
-### 07/04 · Melhoria — Nome do painel truncado e branch em faixa separada
-Quando o nome da sessão é longo, o cabeçalho agora exibe `…` ao invés de expandir a altura. O nome completo aparece ao passar o mouse. O branch ativo foi movido para uma faixa fina abaixo do cabeçalho, mais legível e sem conflitar com os demais elementos.
+### 04/07 · New — In-app changelog
+The app now shows a changelog modal on first launch after an update. You can also reopen it anytime by clicking the version badge in the sidebar.
 
-### 07/04 · Melhoria — Apelido da sessão com dois campos separados
-Ao criar uma sessão, o apelido agora é composto por dois campos: o nome do agente (gerado automaticamente como um codinome) e o sufixo do projeto (preenchido com o nome da pasta). O resultado final — como `raven · agent-dashboard-v2` — é exibido como preview antes de salvar.
+### 04/07 · Fix — Branch badge not updating
+The active branch shown in each panel now stays in sync as you switch branches, instead of being frozen at the value from when the session was created.
 
-### 07/04 · Melhoria — Branch ativa exibida no cabeçalho do painel
-O cabeçalho de cada painel agora mostra corretamente o branch em que o Claude está trabalhando. Para sessões com worktree isolado, exibe o branch do worktree (`orbit/<nome>`); para sessões normais, exibe o branch do repositório.
+### 04/07 · Improvement — Truncated panel name and branch in separate strip
+When a session name is long, the panel header now shows `…` instead of growing in height. The full name appears on hover. The active branch was moved to a thin strip below the header, easier to read and no longer conflicting with other elements.
 
-### 07/04 · Novo — Painéis divididos (split panes)
-O Orbit agora permite visualizar até 4 sessões do Claude Code simultaneamente.
-Arraste qualquer sessão da barra lateral para a borda de um painel para abrir
-uma divisão lado a lado. Até 4 painéis em grade 2×2. Clique em um painel para
-focá-lo — o MetaPanel acompanha o painel em foco.
+### 04/07 · Improvement — Session nickname with two separate fields
+When creating a session, the nickname is now composed of two fields: the agent name (auto-generated as a codename) and the project suffix (filled with the folder name). The final result — like `raven · agent-dashboard-v2` — is shown as a preview before saving.
 
-### 06/04 · Novo — Apelido e worktree ao criar sessão
-Ao criar uma nova sessão, agora é possível dar um apelido personalizado para identificá-la facilmente. Se o campo for deixado em branco, o app sugere automaticamente um nome baseado em codinomes de dispositivos Android combinados com o nome do projeto.
+### 04/07 · Improvement — Active branch shown in panel header
+Each panel header now correctly shows the branch Claude is working on. For sessions with an isolated worktree, it shows the worktree branch (`orbit/<name>`); for normal sessions, it shows the repository branch.
 
-Também foi adicionada a opção de criar a sessão dentro de um **git worktree** isolado. Quando ativada, o Claude trabalha em um branch separado (criado automaticamente como `orbit/<nome-da-sessão>`), mantendo o branch principal intacto durante o trabalho.
+### 04/07 · New — Split panes
+Orbit now lets you view up to 4 Claude Code sessions simultaneously.
+Drag any session from the sidebar to the edge of a panel to open a side-by-side split. Up to 4 panels in a 2×2 grid. Click a panel to focus it — the MetaPanel follows the focused panel.
 
-### 06/04 · Melhoria — Execução de comandos sem interrupção
-Comandos do terminal agora executam automaticamente, sem pedir confirmação a cada passo. O fluxo de trabalho do agente ficou mais fluido e sem pausas desnecessárias.
+### 04/06 · New — Session nickname and worktree on creation
+When creating a new session, you can now give it a custom nickname for easy identification. If left blank, the app automatically suggests a name based on Android device codenames combined with the project name.
 
-### 06/04 · Melhoria — Output em tempo real
-Durante a execução de comandos longos, o resultado aparece progressivamente na tela — sem precisar esperar o comando terminar para ver o que está acontecendo.
+There is also a new option to create the session inside an isolated **git worktree**. When enabled, Claude works on a separate branch (automatically created as `orbit/<session-name>`), keeping the main branch intact during the work.
 
-### 06/04 · Novo — Aviso de limite de uso da API
-Quando o limite de uso da API do Claude é atingido, o app exibe uma mensagem clara na tela em vez de simplesmente parar de responder. O aviso some automaticamente após 30 segundos.
+### 04/06 · Improvement — Uninterrupted command execution
+Terminal commands now run automatically without asking for confirmation at each step. The agent workflow is smoother and free of unnecessary pauses.
 
-### 06/04 · Novo — Atualização automática
-O app verifica automaticamente se há uma versão nova disponível logo ao abrir.
-Quando houver, um aviso aparece na parte inferior da tela com um botão para instalar
-e reiniciar — sem precisar baixar nada manualmente.
+### 04/06 · Improvement — Real-time output
+During long-running commands, results appear progressively on screen — no need to wait for the command to finish before seeing what's happening.
 
-### 06/04 · Ajuste — Indicador de sessão parada
-Sessões encerradas agora exibem uma etiqueta "stopped" no painel lateral, tornando mais fácil identificar o estado de cada sessão.
+### 04/06 · New — API rate limit warning
+When the Claude API rate limit is reached, the app shows a clear message on screen instead of silently stopping. The warning automatically dismisses after 30 seconds.
+
+### 04/06 · New — Automatic updates
+The app automatically checks for a new version on launch. When one is available, a banner appears with a button to install and restart — no manual download needed.
+
+### 04/06 · Adjustment — Stopped session indicator
+Stopped sessions now show a "stopped" label in the sidebar, making it easier to identify the state of each session.
 
 ---

@@ -492,3 +492,8 @@ fn days_to_date(days: u64) -> String {
 fn is_leap(year: u64) -> bool {
     (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)
 }
+
+#[tauri::command]
+pub fn get_changelog() -> String {
+    include_str!("../../CHANGELOG.md").to_string()
+}

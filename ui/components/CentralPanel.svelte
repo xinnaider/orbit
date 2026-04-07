@@ -133,7 +133,7 @@
   {/if}
 
   {#if onSplit}
-    <button class="split-btn" title="Dividir painel" on:click={onSplit}>⊞</button>
+    <button class="split-btn" title="Split panel" on:click={onSplit}>⊞</button>
   {/if}
 
   <!-- Feed -->
@@ -309,7 +309,7 @@
 
   .split-btn {
     position: absolute;
-    top: 38px;
+    top: 62px;
     right: 8px;
     z-index: 10;
     background: var(--bg3);

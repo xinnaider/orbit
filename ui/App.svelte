@@ -19,10 +19,13 @@
     onSessionRunning,
     onSessionError,
     onSessionRateLimit,
+    getAppVersion,
+    getChangelog,
   } from './lib/tauri';
   import type { ClaudeCheck } from './lib/tauri';
   import Banner from './components/Banner.svelte';
   import UpdateBanner from './components/UpdateBanner.svelte';
+  import ChangelogModal from './components/ChangelogModal.svelte';
   import { checkUpdate } from './lib/tauri';
   import type { UpdateInfo } from './lib/types';
   import Sidebar from './components/Sidebar.svelte';
@@ -38,6 +41,20 @@
   let rateLimitDismissTimer: ReturnType<typeof setTimeout> | null = null;
   let availableUpdate: UpdateInfo | null = null;
   let updateInterval: ReturnType<typeof setInterval> | null = null;
+  let showChangelog = false;
+  let changelogContent = '';
+  let appVersion = '';
+
+  const CHANGELOG_VERSION_KEY = 'orbit:lastSeenChangelogVersion';
+
+  function openChangelog() {
+    showChangelog = true;
+  }
+
+  function closeChangelog() {
+    showChangelog = false;
+    localStorage.setItem(CHANGELOG_VERSION_KEY, appVersion);
+  }
 
   function beep() {
     try {
@@ -58,7 +75,19 @@
   }
 
   onMount(async () => {
-    const [existing, check] = await Promise.all([listSessions(), checkClaude()]);
+    const [existing, check, version, changelog] = await Promise.all([
+      listSessions(),
+      checkClaude(),
+      getAppVersion(),
+      getChangelog(),
+    ]);
+    appVersion = version;
+    changelogContent = changelog;
+    const lastSeen = localStorage.getItem(CHANGELOG_VERSION_KEY);
+    if (lastSeen !== version) {
+      showChangelog = true;
+    }
+
     claudeCheck = check;
     sessions.set(existing);
     if (existing.length > 0 && !$selectedSessionId) assignSession('tl', existing[0].id);
@@ -84,6 +113,7 @@
           pendingApproval: p.pendingApproval,
           miniLog: p.miniLog,
           costUsd: p.costUsd ?? null,
+          gitBranch: p.gitBranch ?? null,
         })
       );
     });
@@ -139,8 +169,8 @@
   <Banner
     variant="warning"
     icon="⏳"
-    title="rate limit atingido"
-    message="Aguarde alguns instantes e tente novamente."
+    title="rate limit reached"
+    message="Please wait a moment and try again."
     onDismiss={() => (rateLimitError = null)}
   />
 {/if}
@@ -160,8 +190,12 @@
   <UpdateBanner update={availableUpdate} onDismiss={() => (availableUpdate = null)} />
 {/if}
 
+{#if showChangelog}
+  <ChangelogModal {changelogContent} currentVersion={appVersion} onClose={closeChangelog} />
+{/if}
+
 <div class="layout">
-  <Sidebar />
+  <Sidebar onOpenChangelog={openChangelog} />
   {#if claudeCheck && !claudeCheck.found}
     <div class="empty">
       <div class="claude-warn">
