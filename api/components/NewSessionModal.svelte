@@ -14,6 +14,10 @@
   let diagRunning = false;
   let diag: SpawnDiagnostic | null = null;
 
+  let isRemote = false;
+  let sshHost = '';
+  let sshUser = 'ubuntu';
+
   async function runDiag() {
     diagRunning = true;
     try {
@@ -39,7 +43,11 @@
 
   async function submit() {
     if (!path.trim()) {
-      error = 'project path required';
+      error = isRemote ? 'remote path required' : 'project path required';
+      return;
+    }
+    if (isRemote && (!sshHost.trim() || !sshUser.trim())) {
+      error = 'ssh host and user required';
       return;
     }
     loading = true;
@@ -50,6 +58,7 @@
         prompt: prompt.trim() || 'Hello',
         model: model === 'auto' ? undefined : model,
         permissionMode: 'ignore',
+        ...(isRemote ? { sshHost: sshHost.trim(), sshUser: sshUser.trim() } : {}),
       });
       dispatch('done');
     } catch (e: any) {
@@ -81,17 +90,19 @@
     </div>
 
     <div class="field">
-      <label class="label" for="ns-path">path</label>
+      <label class="label" for="ns-path">{isRemote ? 'remote path' : 'path'}</label>
       <div class="path-row">
         <input
           id="ns-path"
           class="input"
           bind:value={path}
-          placeholder="/home/user/project"
+          placeholder={isRemote ? '/home/ubuntu/project' : '/home/user/project'}
           disabled={loading}
           on:keydown={(e) => e.key === 'Enter' && prompt && submit()}
         />
-        <button class="browse" on:click={browse} disabled={loading} title="browse">⌘</button>
+        {#if !isRemote}
+          <button class="browse" on:click={browse} disabled={loading} title="browse">⌘</button>
+        {/if}
       </div>
     </div>
 
@@ -121,6 +132,42 @@
       </div>
     </div>
 
+    <div class="field">
+      <label
+        class="label"
+        for="ns-remote"
+        style="flex-direction:row;align-items:center;gap:6px;cursor:pointer"
+      >
+        <input id="ns-remote" type="checkbox" bind:checked={isRemote} disabled={loading} />
+        remote session (ssh)
+      </label>
+    </div>
+
+    {#if isRemote}
+      <div class="row">
+        <div class="field half">
+          <label class="label" for="ns-ssh-host">ssh host</label>
+          <input
+            id="ns-ssh-host"
+            class="input"
+            bind:value={sshHost}
+            placeholder="vps.example.com"
+            disabled={loading}
+          />
+        </div>
+        <div class="field half">
+          <label class="label" for="ns-ssh-user">ssh user</label>
+          <input
+            id="ns-ssh-user"
+            class="input"
+            bind:value={sshUser}
+            placeholder="ubuntu"
+            disabled={loading}
+          />
+        </div>
+      </div>
+    {/if}
+
     {#if error}
       <p class="error">! {error}</p>
     {/if}
@@ -143,9 +190,11 @@
     {/if}
 
     <div class="actions">
-      <button class="btn ghost" on:click={runDiag} disabled={diagRunning || loading}>
-        {diagRunning ? 'testing...' : '⚙ diagnose'}
-      </button>
+      {#if !isRemote}
+        <button class="btn ghost" on:click={runDiag} disabled={diagRunning || loading}>
+          {diagRunning ? 'testing...' : '⚙ diagnose'}
+        </button>
+      {/if}
       <button class="btn ghost" on:click={() => dispatch('cancel')} disabled={loading}
         >cancel</button
       >

@@ -4,6 +4,9 @@
 
 ## Abril 2026
 
+### 06/04 · Novo — Sessões remotas via SSH
+Agora é possível criar sessões em servidores remotos. Ao marcar a opção "remote session (ssh)" no formulário de nova sessão, aparecem campos para informar o endereço do servidor e o usuário SSH — permitindo rodar o Claude diretamente em máquinas remotas.
+
 ### 06/04 · Melhoria — Execução de comandos sem interrupção
 Comandos do terminal agora executam automaticamente, sem pedir confirmação a cada passo. O fluxo de trabalho do agente ficou mais fluido e sem pausas desnecessárias.
 
