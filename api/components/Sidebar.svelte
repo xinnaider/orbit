@@ -148,8 +148,15 @@
         <button
           class="item"
           class:active
+          draggable="true"
           on:click={() => assignSession($splitLayout.focused, s.id)}
           on:contextmenu={(e) => onContextMenu(e, s)}
+          on:dragstart={(e) => {
+            if (e.dataTransfer) {
+              e.dataTransfer.setData('text/plain', String(s.id));
+              e.dataTransfer.effectAllowed = 'move';
+            }
+          }}
         >
           <div class="item-top">
             <span class="dot" style="color:{color}" class:pulse={pulsing}>●</span>
