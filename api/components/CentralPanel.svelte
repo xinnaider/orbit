@@ -120,11 +120,12 @@
     </div>
   {/if}
 
+  {#if onSplit}
+    <button class="split-btn" title="Dividir painel" on:click={onSplit}>⊞</button>
+  {/if}
+
   <!-- Feed -->
   <div class="feed-wrap" bind:this={feedEl} on:scroll={onScroll}>
-    {#if onSplit}
-      <button class="split-btn" title="Dividir painel" on:click={onSplit}>⊞</button>
-    {/if}
     {#if entries.length === 0 && $pendingMessages.length === 0}
       <div class="feed-empty">
         <span>session #{session.id} · {statusStr}</span>
@@ -150,6 +151,7 @@
 
 <style>
   .panel {
+    position: relative;
     flex: 1;
     min-width: 0;
     min-height: 0;
@@ -266,12 +268,11 @@
     overflow-y: auto;
     min-height: 0;
     padding: 0;
-    position: relative;
   }
 
   .split-btn {
     position: absolute;
-    top: 6px;
+    top: 38px;
     right: 8px;
     z-index: 10;
     background: var(--bg3);
@@ -289,7 +290,7 @@
     transition: opacity 0.15s;
   }
 
-  .feed-wrap:hover .split-btn {
+  .panel:hover .split-btn {
     opacity: 1;
   }
 
