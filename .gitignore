@@ -46,3 +46,4 @@ tauri.key.pub
 
 # Generated demo GIF — regenerate with: npm run demo:gif
 # media/demo.gif is committed intentionally
+.worktrees/
