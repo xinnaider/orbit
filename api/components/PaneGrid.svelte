@@ -34,5 +34,7 @@
     min-width: 0;
     min-height: 0;
     overflow: hidden;
+    gap: 1px;
+    background: var(--bd);
   }
 </style>

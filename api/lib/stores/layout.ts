@@ -1,5 +1,15 @@
 import { writable } from 'svelte/store';
 
+// WebView2 workaround: dataTransfer.getData() returns empty string in drop events.
+// Store the dragged session ID in a plain module variable as fallback.
+let _draggingSessionId: number | null = null;
+export function setDraggingSession(id: number | null): void {
+  _draggingSessionId = id;
+}
+export function getDraggingSession(): number | null {
+  return _draggingSessionId;
+}
+
 export type PaneId = 'tl' | 'tr' | 'bl' | 'br';
 
 export interface SplitLayout {

@@ -1,6 +1,11 @@
 <script lang="ts">
   import { sessions, updateSessionState } from '../lib/stores/sessions';
-  import { splitLayout, assignSession, clearSession } from '../lib/stores/layout';
+  import {
+    splitLayout,
+    assignSession,
+    clearSession,
+    setDraggingSession,
+  } from '../lib/stores/layout';
   import { statusColor, statusLabel, isPulsing } from '../lib/status';
   import NewSessionModal from './NewSessionModal.svelte';
   import ContextMenu from './ContextMenu.svelte';
@@ -152,11 +157,13 @@
           on:click={() => assignSession($splitLayout.focused, s.id)}
           on:contextmenu={(e) => onContextMenu(e, s)}
           on:dragstart={(e) => {
+            setDraggingSession(s.id);
             if (e.dataTransfer) {
               e.dataTransfer.setData('text/plain', String(s.id));
               e.dataTransfer.effectAllowed = 'move';
             }
           }}
+          on:dragend={() => setDraggingSession(null)}
         >
           <div class="item-top">
             <span class="dot" style="color:{color}" class:pulse={pulsing}>●</span>

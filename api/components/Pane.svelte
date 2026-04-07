@@ -1,5 +1,12 @@
 <script lang="ts">
-  import { splitLayout, openPane, closePane, focusPane, assignSession } from '../lib/stores/layout';
+  import {
+    splitLayout,
+    openPane,
+    closePane,
+    focusPane,
+    assignSession,
+    getDraggingSession,
+  } from '../lib/stores/layout';
   import type { PaneId } from '../lib/stores/layout';
   import type { Session } from '../lib/stores/sessions';
   import CentralPanel from './CentralPanel.svelte';
@@ -58,7 +65,12 @@
   function onDrop(e: DragEvent) {
     e.preventDefault();
     const raw = e.dataTransfer?.getData('text/plain') ?? '';
-    const sessionId = parseInt(raw, 10);
+    let sessionId = parseInt(raw, 10);
+    // WebView2 fallback: getData() returns empty string in drop events
+    if (isNaN(sessionId)) {
+      const fallback = getDraggingSession();
+      if (fallback !== null) sessionId = fallback;
+    }
     if (isNaN(sessionId)) {
       activeZone = null;
       return;
@@ -90,17 +102,17 @@
     br: '2 / 2 / 3 / 3',
   };
 
-  $: borderStyle = (() => {
+  $: dropShadow = (() => {
     if (!activeZone || activeZone === 'center') return '';
-    const color = 'var(--ac)';
-    const sides: Record<Zone, string> = {
+    const c = 'var(--ac)';
+    const shadows: Record<Zone, string> = {
       center: '',
-      top: `border-top-color:${color};`,
-      bottom: `border-bottom-color:${color};`,
-      left: `border-left-color:${color};`,
-      right: `border-right-color:${color};`,
+      top: `box-shadow:inset 0 2px 0 ${c};`,
+      bottom: `box-shadow:inset 0 -2px 0 ${c};`,
+      left: `box-shadow:inset 2px 0 0 ${c};`,
+      right: `box-shadow:inset -2px 0 0 ${c};`,
     };
-    return sides[activeZone];
+    return shadows[activeZone];
   })();
 </script>
 
@@ -109,7 +121,7 @@
   class="pane"
   class:focused
   tabindex="0"
-  style="grid-area:{gridArea[paneId]};{borderStyle}"
+  style="grid-area:{gridArea[paneId]};{dropShadow}"
   role="region"
   aria-label="pane {paneId}"
   on:click={onClick}
@@ -142,12 +154,12 @@
     min-width: 0;
     min-height: 0;
     overflow: hidden;
-    border: 2px solid transparent;
-    box-sizing: border-box;
+    background: var(--bg);
   }
 
   .pane.focused {
-    border-color: var(--bd2);
+    outline: 1px solid var(--bd2);
+    outline-offset: -1px;
   }
 
   .close-btn {
