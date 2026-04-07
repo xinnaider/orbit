@@ -6,7 +6,7 @@ use tauri::{AppHandle, Emitter};
 use crate::journal_reader::{process_line, JournalState};
 use crate::models::{AgentStatus, Session, SessionId, TokenUsage};
 use crate::services::database::DatabaseService;
-use crate::services::spawn_manager::{spawn_claude, SpawnConfig};
+use crate::services::spawn_manager::{spawn_claude, SpawnConfig, SpawnMode};
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -156,11 +156,12 @@ impl SessionManager {
         let prompt_text = prompt.clone(); // keep a copy for the user entry
         let config = SpawnConfig {
             session_id,
-            cwd: std::path::PathBuf::from(&cwd),
+            cwd,
             permission_mode,
             model,
             prompt,
             claude_session_id,
+            spawn_mode: SpawnMode::Local,
         };
 
         let handle = match spawn_claude(config) {

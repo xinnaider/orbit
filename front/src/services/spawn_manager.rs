@@ -307,8 +307,8 @@ mod tests {
     }
 
     #[test]
-    fn test_posix_escape_single_quote() {
-        assert_eq!(posix_escape("it's"), "'it'\\''s'");
+    fn test_posix_escape_with_single_quote() {
+        assert_eq!(posix_escape("it's a test"), "'it'\\''s a test'");
     }
 
     #[test]
@@ -317,7 +317,7 @@ mod tests {
     }
 
     #[test]
-    fn test_spawn_local_bad_path_returns_error_or_ok() {
+    fn test_spawn_bad_path_returns_error() {
         let result = spawn_claude(SpawnConfig {
             session_id: 0,
             cwd: std::env::temp_dir().to_string_lossy().into_owned(),
@@ -331,5 +331,19 @@ mod tests {
         if let Err(e) = result {
             assert!(!e.is_empty());
         }
+    }
+
+    #[test]
+    fn test_spawn_local_config_compiles() {
+        let config = SpawnConfig {
+            session_id: 0,
+            cwd: std::env::temp_dir().to_string_lossy().into_owned(),
+            permission_mode: "ignore".to_string(),
+            model: None,
+            prompt: "test".to_string(),
+            claude_session_id: None,
+            spawn_mode: SpawnMode::Local,
+        };
+        let _ = spawn_claude(config);
     }
 }
