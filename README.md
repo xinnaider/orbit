@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="front/icons/orbit-source.svg" width="96" height="96" alt="Orbit logo"/>
+<img src="tauri/icons/orbit-source.svg" width="96" height="96" alt="Orbit logo"/>
 
 # Orbit
 
