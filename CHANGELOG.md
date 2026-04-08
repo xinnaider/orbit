@@ -4,6 +4,9 @@
 
 ## April 2026
 
+### 04/08 · New — Linux/Ubuntu support
+Orbit now runs on Ubuntu 22.04+ and other Linux distributions with a desktop environment (GNOME, KDE Plasma, and others). Install with a single command that downloads the app, adds it to your application launcher, and sets up automatic updates — no manual steps required. Once installed, Orbit updates itself in the background just like on Windows.
+
 ### 04/07 · New — Meta panel toggle
 The stats panel on the right can now be hidden or shown with a single click. Use the `›` button in the panel header to collapse it; a thin `‹` strip appears on the right edge so you can bring it back at any time. The preference is saved and restored between sessions.
 
