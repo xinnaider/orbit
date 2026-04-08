@@ -41,10 +41,13 @@
 
 ### Windows (10 1903+)
 
-1. Go to [Releases](https://github.com/xinnaider/orbit/releases/latest)
-2. Download the `.exe` installer
-3. Run the installer
-4. Open Orbit, click **+** to create your first session
+**One-line installer** — open PowerShell and run:
+
+```powershell
+irm https://raw.githubusercontent.com/xinnaider/orbit/master/scripts/install-windows.ps1 | iex
+```
+
+This downloads the latest release, shows a progress bar, and launches the installer automatically. Open Orbit from the Start Menu when done.
 
 Orbit updates itself automatically when a new version is available.
 
@@ -58,13 +61,13 @@ Orbit updates itself automatically when a new version is available.
 curl -fsSL https://raw.githubusercontent.com/xinnaider/orbit/master/scripts/install-linux.sh | bash
 ```
 
-Then open Orbit from your application menu or run:
+Open Orbit from your application menu or run:
 
 ```bash
 ~/.local/share/orbit/orbit.AppImage
 ```
 
-Orbit will update itself automatically when a new version is available.
+Orbit updates itself automatically when a new version is available.
 
 > **Requirements:** `curl`, `fuse2` (pre-installed on most desktop distros).
 > On Ubuntu: `sudo apt install fuse libfuse2` if not present.
