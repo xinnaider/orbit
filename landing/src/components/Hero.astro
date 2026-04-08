@@ -90,6 +90,19 @@
         <span class="btn-tag">AppImage</span>
       </a>
     </div>
+    <div class="install-cmd" id="install-cmd">
+      <span class="install-prompt">$</span>
+      <span class="install-text">curl -fsSL https://raw.githubusercontent.com/xinnaider/orbit/master/scripts/install-linux.sh | bash</span>
+      <button class="copy-btn" id="copy-btn" aria-label="Copy install command">
+        <svg id="copy-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+          <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+        </svg>
+        <svg id="check-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+      </button>
+    </div>
     <span class="meta">Windows 10+ · Ubuntu 22.04+ · MIT</span>
   </div>
 
@@ -192,6 +205,37 @@
     padding: 1px 5px;
     letter-spacing: 0.04em;
   }
+  .install-cmd {
+    display: flex; align-items: center; gap: 10px;
+    width: 100%;
+    background: rgba(0,0,0,0.35);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 4px;
+    padding: 9px 14px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 11px;
+    overflow: hidden;
+  }
+  .install-prompt {
+    color: var(--ac);
+    flex-shrink: 0;
+    user-select: none;
+  }
+  .install-text {
+    color: var(--t2);
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .copy-btn {
+    flex-shrink: 0;
+    background: none; border: none; cursor: pointer;
+    color: var(--t3); padding: 2px;
+    display: flex; align-items: center;
+    transition: color 0.15s;
+  }
+  .copy-btn:hover { color: var(--ac); }
   .meta {
     margin-top: 4px;
     font-size: 10px; color: var(--t3); letter-spacing: 0.1em;
@@ -313,4 +357,21 @@
       })
       .catch(() => { /* silently ignore if API fails */ });
   }
+
+  // ── Copy install command ─────────────────────────────────
+  const copyBtn = document.getElementById('copy-btn');
+  const copyIcon = document.getElementById('copy-icon');
+  const checkIcon = document.getElementById('check-icon');
+  const CMD = 'curl -fsSL https://raw.githubusercontent.com/xinnaider/orbit/master/scripts/install-linux.sh | bash';
+
+  copyBtn?.addEventListener('click', () => {
+    navigator.clipboard.writeText(CMD).then(() => {
+      if (copyIcon) copyIcon.style.display = 'none';
+      if (checkIcon) checkIcon.style.display = 'block';
+      setTimeout(() => {
+        if (copyIcon) copyIcon.style.display = 'block';
+        if (checkIcon) checkIcon.style.display = 'none';
+      }, 2000);
+    }).catch(() => {});
+  });
 </script>
