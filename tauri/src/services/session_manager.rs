@@ -122,9 +122,7 @@ impl SessionManager {
             id: session_id,
             project_id: Some(project.id),
             name: session_name.map(|s| s.to_string()),
-            status: crate::models::SessionStatus::Initializing
-                .as_str()
-                .to_string(),
+            status: crate::models::SessionStatus::Initializing,
             worktree_path: worktree_path_val,
             branch_name: branch_name_val,
             permission_mode: permission_mode.to_string(),
@@ -250,7 +248,7 @@ impl SessionManager {
         {
             let mut m = manager.lock().unwrap_or_else(|e| e.into_inner());
             if let Some(a) = m.active.get_mut(&session_id) {
-                a.session.status = crate::models::SessionStatus::Running.as_str().to_string();
+                a.session.status = crate::models::SessionStatus::Running;
                 a.session.pid = Some(pid);
             }
         }
@@ -419,7 +417,7 @@ impl SessionManager {
         {
             let mut m = manager.lock().unwrap_or_else(|e| e.into_inner());
             if let Some(a) = m.active.get_mut(&session_id) {
-                a.session.status = crate::models::SessionStatus::Completed.as_str().to_string();
+                a.session.status = crate::models::SessionStatus::Completed;
             }
             if let Some(state) = m.journal_states.get_mut(&session_id) {
                 state.status = AgentStatus::Idle;

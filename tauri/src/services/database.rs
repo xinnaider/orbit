@@ -583,4 +583,23 @@ mod tests {
         t.none("session row removed", &db.get_session(id).expect("get"));
         t.empty("outputs removed", &db.get_outputs(id).expect("outputs"));
     }
+
+    #[test]
+    fn should_round_trip_session_status_as_enum() {
+        let mut t = TestCase::new("should_round_trip_session_status_as_enum");
+        t.phase("Seed");
+        let db = make_db();
+        let sid = db
+            .create_session(None, None, "/tmp", "ignore", None)
+            .expect("session");
+        db.update_session_status(sid, "stopped").expect("update");
+        t.phase("Act");
+        let sessions = db.get_sessions().expect("get");
+        t.phase("Assert");
+        t.eq(
+            "status is SessionStatus::Stopped",
+            &sessions[0].status,
+            &crate::models::SessionStatus::Stopped,
+        );
+    }
 }
