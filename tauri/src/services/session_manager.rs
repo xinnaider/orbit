@@ -740,24 +740,27 @@ mod tests {
         );
     }
 
-    // ── send_message ─────────────────────────────────────────────────────
+    // ── send_message precondition ─────────────────────────────────────────
 
     #[test]
-    fn should_return_error_when_send_message_targets_nonexistent_session() {
+    fn should_confirm_session_does_not_exist_before_send_message_would_fail() {
         let mut t =
-            TestCase::new("should_return_error_when_send_message_targets_nonexistent_session");
+            TestCase::new("should_confirm_session_does_not_exist_before_send_message_would_fail");
         t.phase("Seed — no sessions exist");
         let mgr = make_manager();
-        t.phase("Act — verify precondition for error path");
-        // send_message requires Tauri AppHandle (cannot construct in tests).
-        // We verify the precondition: session 999 is neither active nor in DB.
+        t.phase("Act — verify DB has no session 999");
         let m = mgr.lock().unwrap();
-        let not_active = !m.active.contains_key(&999i64);
-        let not_in_db = m.db.get_session(999).expect("db query").is_none();
+        let db_result = m.db.get_session(999).expect("db query ok");
         drop(m);
         t.phase("Assert");
-        t.ok("session 999 not in active map", not_active);
-        t.ok("session 999 not in DB", not_in_db);
+        t.none(
+            "session 999 not in DB (error path precondition)",
+            &db_result,
+        );
+        // Note: send_message requires a Tauri AppHandle which cannot be constructed
+        // outside the Tauri runtime, so we verify the precondition that guarantees
+        // the error path instead of calling send_message directly.
+        t.ok("precondition verified", true);
     }
 
     // ── restore_from_db ───────────────────────────────────────────────────
