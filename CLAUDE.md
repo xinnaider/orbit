@@ -257,6 +257,22 @@ on screen instead of silently stopping.
 
 ---
 
+## Self-Improvement Loop
+
+**No início de cada sessão:** leia `docs/lessons.md` se existir e aplique as lições registradas.
+
+**Após qualquer correção do usuário:**
+1. Identifique o padrão do erro (não apenas o caso específico)
+2. Adicione uma entrada em `docs/lessons.md` com:
+   - **Regra**: o que fazer (ou não fazer)
+   - **Por quê**: motivação / o que deu errado
+   - **Quando aplicar**: contexto em que a regra vale
+3. Itere nas lições existentes se o mesmo erro se repetir — refine a regra, não apenas acumule entradas
+
+O arquivo `docs/lessons.md` é versionado no repositório para que todos os colaboradores e agentes se beneficiem das lições aprendidas.
+
+---
+
 ## CI (GitHub Actions)
 
 **Lint job** (todo PR/push):
