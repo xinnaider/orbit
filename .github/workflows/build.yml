@@ -257,6 +257,7 @@ jobs:
             curl \
             wget \
             file \
+            jq \
             libssl-dev \
             libgtk-3-dev \
             libayatana-appindicator3-dev \
@@ -344,6 +345,6 @@ jobs:
             tauri/target/release/bundle/appimage/*.AppImage.sig
             tauri/target/release/bundle/deb/*.deb
             latest-linux-x86_64.json
-          generate_release_notes: false
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
