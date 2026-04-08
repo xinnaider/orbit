@@ -1,6 +1,7 @@
 use std::sync::{Arc, RwLock};
 use tauri::{AppHandle, State};
 
+use crate::ipc::IpcError;
 use crate::models::{JournalEntry, Session, SessionId};
 use crate::services::session_manager::SessionManager;
 use crate::services::spawn_manager::find_claude;
@@ -33,7 +34,7 @@ pub fn create_session(
     use_worktree: Option<bool>,
     state: State<SessionState>,
     app: AppHandle,
-) -> Result<Session, String> {
+) -> Result<Session, IpcError> {
     let mode = permission_mode.unwrap_or_else(|| "ignore".to_string());
 
     let session = {
@@ -70,7 +71,7 @@ pub fn stop_session(
     session_id: SessionId,
     state: State<SessionState>,
     app: AppHandle,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     state.write().stop_session(session_id)?;
     use tauri::Emitter;
     let _ = app.emit(
@@ -86,8 +87,9 @@ pub fn send_session_message(
     message: String,
     state: State<SessionState>,
     app: AppHandle,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     SessionManager::send_message(Arc::clone(&state.0), app, session_id, message)
+        .map_err(IpcError::from)
 }
 
 #[tauri::command]
@@ -189,12 +191,18 @@ pub fn rename_session(
     session_id: SessionId,
     name: String,
     state: State<SessionState>,
-) -> Result<(), String> {
-    state.write().rename_session(session_id, &name)
+) -> Result<(), IpcError> {
+    state
+        .write()
+        .rename_session(session_id, &name)
+        .map_err(IpcError::from)
 }
 
 /// Delete a session (removes from DB, stops if running).
 #[tauri::command]
-pub fn delete_session(session_id: SessionId, state: State<SessionState>) -> Result<(), String> {
-    state.write().delete_session(session_id)
+pub fn delete_session(session_id: SessionId, state: State<SessionState>) -> Result<(), IpcError> {
+    state
+        .write()
+        .delete_session(session_id)
+        .map_err(IpcError::from)
 }

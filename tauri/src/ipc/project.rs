@@ -1,6 +1,7 @@
 use tauri::State;
 
 use crate::ipc::session::SessionState;
+use crate::ipc::IpcError;
 use crate::models::Project;
 
 #[tauri::command]
@@ -8,12 +9,12 @@ pub fn create_project(
     name: String,
     path: String,
     state: State<SessionState>,
-) -> Result<Project, String> {
+) -> Result<Project, IpcError> {
     state
         .read()
         .db
         .create_project(&name, &path)
-        .map_err(|e| e.to_string())
+        .map_err(IpcError::Database)
 }
 
 #[tauri::command]
