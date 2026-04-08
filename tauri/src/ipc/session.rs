@@ -88,8 +88,12 @@ pub fn send_session_message(
     state: State<SessionState>,
     app: AppHandle,
 ) -> Result<(), IpcError> {
-    SessionManager::send_message(Arc::clone(&state.0), app, session_id, message)
-        .map_err(IpcError::from)
+    Ok(SessionManager::send_message(
+        Arc::clone(&state.0),
+        app,
+        session_id,
+        message,
+    )?)
 }
 
 #[tauri::command]
@@ -192,17 +196,13 @@ pub fn rename_session(
     name: String,
     state: State<SessionState>,
 ) -> Result<(), IpcError> {
-    state
-        .write()
-        .rename_session(session_id, &name)
-        .map_err(IpcError::from)
+    state.write().rename_session(session_id, &name)?;
+    Ok(())
 }
 
 /// Delete a session (removes from DB, stops if running).
 #[tauri::command]
 pub fn delete_session(session_id: SessionId, state: State<SessionState>) -> Result<(), IpcError> {
-    state
-        .write()
-        .delete_session(session_id)
-        .map_err(IpcError::from)
+    state.write().delete_session(session_id)?;
+    Ok(())
 }

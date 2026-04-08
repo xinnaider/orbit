@@ -1,12 +1,6 @@
 /// Typed error returned by all Tauri IPC commands.
 #[derive(Debug, thiserror::Error)]
 pub enum IpcError {
-    #[error("Session {0} not found")]
-    SessionNotFound(crate::models::SessionId),
-
-    #[error("Project not found")]
-    ProjectNotFound,
-
     #[error("Database error: {0}")]
     Database(#[from] rusqlite::Error),
 

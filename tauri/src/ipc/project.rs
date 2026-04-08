@@ -14,7 +14,7 @@ pub fn create_project(
         .read()
         .db
         .create_project(&name, &path)
-        .map_err(IpcError::Database)
+        .map_err(Into::into)
 }
 
 #[tauri::command]
