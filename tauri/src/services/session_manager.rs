@@ -543,6 +543,11 @@ impl SessionManager {
             Ok(r) => r,
             Err(_) => return,
         };
+        // Don't cache an empty state for inactive sessions with no data.
+        // Keeps "not in map" semantically distinct from "loaded and empty".
+        if rows.is_empty() && !self.active.contains_key(&session_id) {
+            return;
+        }
         let mut state = JournalState::default();
         for line in &rows {
             process_line(&mut state, line);
@@ -568,6 +573,9 @@ impl SessionManager {
             .map_err(|e| e.to_string())
     }
 
+    /// Eagerly load journal state for all sessions from DB.
+    /// Not called at startup (journals load lazily on first access).
+    /// Available as a utility for warming the cache or in tests.
     pub fn restore_from_db(&mut self) {
         let session_ids: Vec<SessionId> = self
             .db
@@ -940,6 +948,34 @@ mod tests {
         t.ok(
             "journal_states empty before first access",
             !sm.journal_states.contains_key(&sid),
+        );
+    }
+
+    #[test]
+    fn should_lazy_load_tokens_on_get_sessions() {
+        let mut t = TestCase::new("should_lazy_load_tokens_on_get_sessions");
+        t.phase("Seed — session with token output exists");
+        let db = make_db();
+        let sid = db
+            .create_session(None, None, "/tmp", "ignore", None)
+            .expect("session");
+        seed_outputs(
+            &db,
+            sid,
+            &[&crate::test_utils::assistant_with_tokens("Hi", 10, 5, 2, 1)],
+        );
+        t.phase("Act — fresh manager, no restore, call get_sessions");
+        let mut sm = SessionManager::new(Arc::clone(&db));
+        let sessions = sm.get_sessions();
+        t.phase("Assert — tokens populated via lazy load");
+        let tokens = sessions[0]
+            .tokens
+            .as_ref()
+            .expect("tokens should be loaded");
+        t.eq("output_tokens loaded", tokens.output, 5u64);
+        t.ok(
+            "journal_state was populated",
+            sm.journal_states.contains_key(&sid),
         );
     }
 
