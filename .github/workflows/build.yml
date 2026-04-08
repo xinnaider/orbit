@@ -171,6 +171,11 @@ jobs:
           Write-Host "latest-windows-x86_64.json generated:"
           Get-Content latest-windows-x86_64.json
 
+          # Also generate latest.json for backward compat with v0.2.x clients
+          # (endpoint changed from latest.json to latest-{target}.json in v0.3.0)
+          Copy-Item latest-windows-x86_64.json latest.json
+          Write-Host "latest.json (compat) generated."
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -182,6 +187,7 @@ jobs:
             tauri/target/release/bundle/nsis/*.exe.sig
             tauri/target/release/orbit.exe
             latest-windows-x86_64.json
+            latest.json
             sha256sum.txt
           if-no-files-found: warn
           retention-days: 30
@@ -214,6 +220,7 @@ jobs:
             tauri/target/release/bundle/nsis/*.exe
             tauri/target/release/bundle/nsis/*.exe.sig
             latest-windows-x86_64.json
+            latest.json
             sha256sum.txt
           generate_release_notes: true
         env:
