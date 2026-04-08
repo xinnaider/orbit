@@ -73,8 +73,7 @@
     </a>
 
     <div class="download-group">
-      <!-- Windows -->
-      <a href="https://github.com/xinnaider/orbit/releases/latest" class="btn-secondary">
+      <button class="btn-secondary btn-os" id="btn-win" aria-label="Select Windows">
         <svg width="13" height="13" viewBox="0 0 88 88" fill="currentColor" aria-hidden="true" style="flex-shrink:0">
           <path d="M0 0h42v42H0V0z" opacity="0.9"/>
           <path d="M46 0h42v42H46V0z" opacity="0.9"/>
@@ -82,30 +81,27 @@
           <path d="M46 46h42v42H46V46z" opacity="0.9"/>
         </svg>
         Windows <span class="btn-tag">10+</span>
-      </a>
+      </button>
+      <button class="btn-secondary btn-os" id="btn-linux" aria-label="Select Linux">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="flex-shrink:0">
+          <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
+        </svg>
+        Linux <span class="btn-tag">AppImage</span>
+      </button>
+    </div>
 
-      <!-- Linux -->
-      <div class="linux-group">
-        <a href="https://github.com/xinnaider/orbit/releases/latest" class="btn-secondary btn-linux">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="flex-shrink:0">
-            <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
-          </svg>
-          Linux <span class="btn-tag">AppImage</span>
-        </a>
-        <div class="install-cmd" id="install-cmd">
-          <span class="install-prompt">$</span>
-          <span class="install-text">curl -fsSL https://raw.githubusercontent.com/xinnaider/orbit/master/scripts/install-linux.sh | bash</span>
-          <button class="copy-btn" id="copy-btn" aria-label="Copy install command">
-            <svg id="copy-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-              <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
-            </svg>
-            <svg id="check-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:none">
-              <polyline points="20 6 9 17 4 12"/>
-            </svg>
-          </button>
-        </div>
-      </div>
+    <div class="install-cmd" id="install-cmd">
+      <span class="install-prompt" id="install-prompt">$</span>
+      <span class="install-text" id="install-text"></span>
+      <button class="copy-btn" id="copy-btn" aria-label="Copy install command">
+        <svg id="copy-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+          <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+        </svg>
+        <svg id="check-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+      </button>
     </div>
 
     <span class="meta">Windows 10+ · Ubuntu 22.04+ · MIT</span>
@@ -182,9 +178,9 @@
     letter-spacing: 0.04em;
     margin-left: 2px;
   }
-  /* Download row: Windows button + Linux block side by side */
+  /* Download toggles */
   .download-group {
-    display: flex; align-items: flex-start; gap: 8px; width: 100%;
+    display: flex; gap: 6px; width: 100%;
   }
   .btn-secondary {
     display: inline-flex; align-items: center; justify-content: center; gap: 7px;
@@ -192,13 +188,18 @@
     cursor: pointer; transition: all 0.2s;
     background: rgba(255,255,255,0.03);
     border: 1px solid rgba(255,255,255,0.08);
-    color: #888; padding: 11px 20px; font-size: 12px;
-    letter-spacing: 0.06em; white-space: nowrap;
+    color: #666; padding: 10px 18px; font-size: 12px;
+    letter-spacing: 0.06em; white-space: nowrap; flex: 1;
   }
   .btn-secondary:hover {
-    background: rgba(255,255,255,0.06);
-    border-color: rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.05);
+    border-color: rgba(255,255,255,0.14);
     color: var(--t1);
+  }
+  .btn-secondary.active {
+    background: rgba(255,255,255,0.06);
+    border-color: rgba(255,255,255,0.2);
+    color: var(--t0);
   }
   .btn-tag {
     font-size: 10px; color: var(--t3);
@@ -206,18 +207,15 @@
     border-radius: 3px; padding: 1px 5px;
     letter-spacing: 0.04em;
   }
-  /* Linux: button + curl stacked, same width */
-  .linux-group {
-    display: flex; flex-direction: column; gap: 4px; flex: 1;
-  }
-  .btn-linux { width: 100%; }
+  .btn-secondary.active .btn-tag { color: var(--t2); border-color: rgba(255,255,255,0.18); }
+  /* Install command bar */
   .install-cmd {
     display: flex; align-items: center; gap: 8px;
     width: 100%;
-    background: rgba(0,0,0,0.3);
+    background: rgba(0,0,0,0.35);
     border: 1px solid rgba(255,255,255,0.06);
     border-radius: 4px;
-    padding: 7px 10px;
+    padding: 8px 12px;
     font-family: 'Courier New', Courier, monospace;
     font-size: 10.5px;
     overflow: hidden;
@@ -226,7 +224,7 @@
     color: var(--ac); flex-shrink: 0; user-select: none;
   }
   .install-text {
-    color: var(--t3); flex: 1;
+    color: var(--t2); flex: 1;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .copy-btn {
@@ -357,14 +355,37 @@
       .catch(() => { /* silently ignore if API fails */ });
   }
 
-  // ── Copy install command ─────────────────────────────────
-  const copyBtn = document.getElementById('copy-btn');
-  const copyIcon = document.getElementById('copy-icon');
-  const checkIcon = document.getElementById('check-icon');
-  const CMD = 'curl -fsSL https://raw.githubusercontent.com/xinnaider/orbit/master/scripts/install-linux.sh | bash';
+  // ── OS detection + install command toggle ────────────────
+  const CMDS = {
+    win:   'irm https://raw.githubusercontent.com/xinnaider/orbit/master/scripts/install-windows.ps1 | iex',
+    linux: 'curl -fsSL https://raw.githubusercontent.com/xinnaider/orbit/master/scripts/install-linux.sh | bash',
+  };
+  const PROMPTS = { win: 'PS>', linux: '$' };
+
+  const btnWin     = document.getElementById('btn-win');
+  const btnLinux   = document.getElementById('btn-linux');
+  const installPrompt = document.getElementById('install-prompt');
+  const installText   = document.getElementById('install-text');
+  const copyBtn    = document.getElementById('copy-btn');
+  const copyIcon   = document.getElementById('copy-icon');
+  const checkIcon  = document.getElementById('check-icon');
+
+  let currentOS: 'win' | 'linux' = navigator.userAgent.includes('Win') ? 'win' : 'linux';
+
+  function setOS(os: 'win' | 'linux') {
+    currentOS = os;
+    if (installPrompt) installPrompt.textContent = PROMPTS[os];
+    if (installText)   installText.textContent   = CMDS[os];
+    btnWin?.classList.toggle('active',   os === 'win');
+    btnLinux?.classList.toggle('active', os === 'linux');
+  }
+
+  btnWin?.addEventListener('click',   () => setOS('win'));
+  btnLinux?.addEventListener('click', () => setOS('linux'));
+  setOS(currentOS); // init on load
 
   copyBtn?.addEventListener('click', () => {
-    navigator.clipboard.writeText(CMD).then(() => {
+    navigator.clipboard.writeText(CMDS[currentOS]).then(() => {
       if (copyIcon) copyIcon.style.display = 'none';
       if (checkIcon) checkIcon.style.display = 'block';
       setTimeout(() => {
