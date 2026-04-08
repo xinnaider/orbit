@@ -6,6 +6,9 @@ pub mod journal_reader;
 pub mod models;
 pub mod services;
 
+#[cfg(test)]
+pub mod test_utils;
+
 use ipc::session::SessionState;
 use services::database::DatabaseService;
 use services::session_manager::SessionManager;
