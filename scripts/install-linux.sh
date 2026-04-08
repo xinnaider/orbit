@@ -34,6 +34,13 @@ success() { printf "  ${BG}✓${N} %s\n" "$1"; }
 fail()    { printf "  ${R}✗ ERROR:${N} %s\n" "$1" >&2; exit 1; }
 sep()     { printf "  ${D}───────────────────────────────────${N}\n"; }
 
+make_bar() {
+    local filled=$1 empty=$2 bar='' i
+    for ((i = 0; i < filled; i++)); do bar+='█'; done
+    for ((i = 0; i < empty;  i++)); do bar+='░'; done
+    printf '%s' "$bar"
+}
+
 download_with_progress() {
     local url="$1" dest="$2"
 
@@ -55,13 +62,11 @@ download_with_progress() {
             local filled=$(( pct / 5 ))
             [ "$filled" -gt 20 ] && filled=20
             local empty=$(( 20 - filled ))
-            local bar
-            bar=$(printf '%*s' "$filled" '' | tr ' ' '█')$(printf '%*s' "$empty" '' | tr ' ' '░')
             local dl_mb total_mb
             dl_mb=$(( cur / 1048576 ))
             total_mb=$(( total_bytes / 1048576 ))
             printf "\r    ${G}[%s] %d%%  %d MB / %d MB  ${N}" \
-                "$bar" "$pct" "$dl_mb" "$total_mb"
+                "$(make_bar "$filled" "$empty")" "$pct" "$dl_mb" "$total_mb"
         fi
         sleep 0.2
     done
@@ -70,7 +75,7 @@ download_with_progress() {
     local final_mb
     final_mb=$(( $(stat -c%s "$dest") / 1048576 ))
     printf "\r    ${G}[%s] 100%%  %d MB / %d MB  ${N}\n" \
-        "$(printf '%*s' 20 '' | tr ' ' '█')" "$final_mb" "$final_mb"
+        "$(make_bar 20 0)" "$final_mb" "$final_mb"
 }
 
 # ── Header ────────────────────────────────────────────────────────────────────
