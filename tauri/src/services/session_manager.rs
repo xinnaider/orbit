@@ -122,9 +122,7 @@ impl SessionManager {
             id: session_id,
             project_id: Some(project.id),
             name: session_name.map(|s| s.to_string()),
-            status: crate::models::SessionStatus::Initializing
-                .as_str()
-                .to_string(),
+            status: crate::models::SessionStatus::Initializing,
             worktree_path: worktree_path_val,
             branch_name: branch_name_val,
             permission_mode: permission_mode.to_string(),
@@ -250,7 +248,7 @@ impl SessionManager {
         {
             let mut m = manager.lock().unwrap();
             if let Some(a) = m.active.get_mut(&session_id) {
-                a.session.status = crate::models::SessionStatus::Running.as_str().to_string();
+                a.session.status = crate::models::SessionStatus::Running;
                 a.session.pid = Some(pid);
             }
         }
@@ -425,7 +423,7 @@ impl SessionManager {
         {
             let mut m = manager.lock().unwrap();
             if let Some(a) = m.active.get_mut(&session_id) {
-                a.session.status = crate::models::SessionStatus::Completed.as_str().to_string();
+                a.session.status = crate::models::SessionStatus::Completed;
             }
             if let Some(state) = m.journal_states.get_mut(&session_id) {
                 state.status = AgentStatus::Idle;
@@ -642,7 +640,11 @@ mod tests {
             .expect("init failed");
         t.phase("Assert");
         t.ok("id is positive", s.id > 0);
-        t.eq("status is initializing", s.status.as_str(), "initializing");
+        t.eq(
+            "status is initializing",
+            &s.status,
+            &crate::models::SessionStatus::Initializing,
+        );
     }
 
     #[test]
@@ -695,7 +697,11 @@ mod tests {
         mgr.lock().unwrap().stop_session(s.id).expect("stop failed");
         t.phase("Assert");
         let sessions = mgr.lock().unwrap().get_sessions();
-        t.eq("status is stopped", sessions[0].status.as_str(), "stopped");
+        t.eq(
+            "status is stopped",
+            &sessions[0].status,
+            &crate::models::SessionStatus::Stopped,
+        );
     }
 
     // ── delete_session ────────────────────────────────────────────────────

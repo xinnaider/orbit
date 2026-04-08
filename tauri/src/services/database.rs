@@ -379,8 +379,8 @@ mod tests {
         t.len("one session", &sessions, 1);
         t.eq(
             "status is initializing",
-            sessions[0].status.as_str(),
-            "initializing",
+            &sessions[0].status,
+            &crate::models::SessionStatus::Initializing,
         );
     }
 
@@ -413,8 +413,8 @@ mod tests {
         let sessions = db.get_sessions().expect("get_sessions failed");
         t.eq(
             "status updated to running",
-            sessions[0].status.as_str(),
-            "running",
+            &sessions[0].status,
+            &crate::models::SessionStatus::Running,
         );
     }
 
@@ -428,7 +428,11 @@ mod tests {
         db.update_session_pid(id, 12345).expect("update_pid failed");
         t.phase("Assert");
         let s = db.get_session(id).expect("get failed").expect("missing");
-        t.eq("status is running", s.status.as_str(), "running");
+        t.eq(
+            "status is running",
+            &s.status,
+            &crate::models::SessionStatus::Running,
+        );
         t.eq("pid stored", s.pid, Some(12345));
     }
 
@@ -559,6 +563,25 @@ mod tests {
         t.phase("Assert");
         t.len("session 1 has 1 output", &db.get_outputs(id1).unwrap(), 1);
         t.len("session 2 has 1 output", &db.get_outputs(id2).unwrap(), 1);
+    }
+
+    #[test]
+    fn should_round_trip_session_status_as_enum() {
+        let mut t = TestCase::new("should_round_trip_session_status_as_enum");
+        t.phase("Seed");
+        let db = make_db();
+        let sid = db
+            .create_session(None, None, "/tmp", "ignore", None)
+            .expect("session");
+        db.update_session_status(sid, "stopped").expect("update");
+        t.phase("Act");
+        let sessions = db.get_sessions().expect("get");
+        t.phase("Assert");
+        t.eq(
+            "status is SessionStatus::Stopped",
+            sessions[0].status.clone(),
+            crate::models::SessionStatus::Stopped,
+        );
     }
 
     // ── Delete (atomicity) ────────────────────────────────────────────────

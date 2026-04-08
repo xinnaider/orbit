@@ -209,6 +209,26 @@ impl std::fmt::Display for SessionStatus {
     }
 }
 
+impl rusqlite::types::FromSql for SessionStatus {
+    fn column_result(value: rusqlite::types::ValueRef) -> rusqlite::types::FromSqlResult<Self> {
+        let s = String::column_result(value)?;
+        Ok(match s.as_str() {
+            "initializing" => SessionStatus::Initializing,
+            "running" => SessionStatus::Running,
+            "waiting" => SessionStatus::Waiting,
+            "completed" => SessionStatus::Completed,
+            "error" => SessionStatus::Error,
+            _ => SessionStatus::Stopped, // covers "stopped" + unknown/legacy values
+        })
+    }
+}
+
+impl rusqlite::types::ToSql for SessionStatus {
+    fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
+        Ok(rusqlite::types::ToSqlOutput::from(self.as_str()))
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Project {
@@ -224,7 +244,7 @@ pub struct Session {
     pub id: SessionId,
     pub project_id: Option<i64>,
     pub name: Option<String>,
-    pub status: String,
+    pub status: SessionStatus,
     pub worktree_path: Option<String>,
     pub branch_name: Option<String>,
     pub permission_mode: String,
