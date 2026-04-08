@@ -275,9 +275,9 @@ O arquivo `docs/lessons.md` é versionado no repositório para que todos os cola
 
 ## Specs de features
 
-Toda feature nova deve ter uma spec em `specs/` antes de ser implementada.
+Toda feature nova deve ter uma spec em `docs/specs/` antes de ser implementada.
 
-- Nome do arquivo: `specs/<nome-da-feature>.md` (kebab-case)
+- Nome do arquivo: `docs/specs/<nome-da-feature>.md` (kebab-case)
 - Conteúdo mínimo: objetivo, comportamento esperado, casos de borda, critérios de aceitação
 - A spec deve ser criada ou atualizada **antes** de escrever código
 - Ao iniciar uma sessão em uma branch de feature, leia a spec correspondente se existir
