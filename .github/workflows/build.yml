@@ -268,7 +268,7 @@ jobs:
         run: npm ci
 
       - name: Build Tauri app
-        run: npm run tauri:build
+        run: npm run tauri:build -- --bundles appimage
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
@@ -316,7 +316,6 @@ jobs:
           path: |
             tauri/target/release/bundle/appimage/*.AppImage
             tauri/target/release/bundle/appimage/*.AppImage.sig
-            tauri/target/release/bundle/deb/*.deb
             latest-linux-x86_64.json
           if-no-files-found: warn
           retention-days: 30
@@ -343,7 +342,6 @@ jobs:
           files: |
             tauri/target/release/bundle/appimage/*.AppImage
             tauri/target/release/bundle/appimage/*.AppImage.sig
-            tauri/target/release/bundle/deb/*.deb
             latest-linux-x86_64.json
           generate_release_notes: true
         env:
