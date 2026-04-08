@@ -95,6 +95,8 @@ pub struct JournalEntry {
 }
 
 impl Default for JournalEntry {
+    /// Provides a zero-valued base for struct-update syntax (`..JournalEntry::default()`).
+    /// Callers MUST override `entry_type`; `Assistant` here is a placeholder, not a semantic default.
     fn default() -> Self {
         JournalEntry {
             session_id: String::new(),
