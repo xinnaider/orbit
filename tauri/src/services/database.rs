@@ -1,28 +1,79 @@
 use rusqlite::{params, Connection, OptionalExtension, Result as SqlResult};
 use std::path::Path;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use crate::models::{Project, Session, SessionId};
 
+enum WorkerMsg {
+    Row(SessionId, String),
+    Flush(std::sync::mpsc::SyncSender<()>),
+}
+
 pub struct DatabaseService {
-    conn: Mutex<Connection>,
+    conn: Arc<Mutex<Connection>>,
+    output_tx: std::sync::mpsc::SyncSender<WorkerMsg>,
+}
+
+fn flush_batch(conn: &Mutex<Connection>, buf: &mut Vec<(SessionId, String)>) {
+    if buf.is_empty() {
+        return;
+    }
+    let conn = conn.lock().unwrap_or_else(|e| e.into_inner());
+    let _ = conn.execute_batch("BEGIN");
+    for (session_id, data) in buf.drain(..) {
+        let _ = conn.execute(
+            "INSERT INTO session_outputs (session_id, data) VALUES (?1, ?2)",
+            rusqlite::params![session_id, data],
+        );
+    }
+    let _ = conn.execute_batch("COMMIT");
+}
+
+fn start_output_worker(conn: Arc<Mutex<Connection>>) -> std::sync::mpsc::SyncSender<WorkerMsg> {
+    let (tx, rx) = std::sync::mpsc::sync_channel::<WorkerMsg>(1024);
+    std::thread::spawn(move || {
+        let mut buf: Vec<(SessionId, String)> = Vec::with_capacity(64);
+        loop {
+            let deadline = std::time::Instant::now() + std::time::Duration::from_millis(100);
+            loop {
+                let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+                if remaining.is_zero() {
+                    break;
+                }
+                match rx.recv_timeout(remaining) {
+                    Ok(WorkerMsg::Row(sid, data)) => buf.push((sid, data)),
+                    Ok(WorkerMsg::Flush(reply)) => {
+                        flush_batch(&conn, &mut buf);
+                        let _ = reply.send(());
+                    }
+                    Err(std::sync::mpsc::RecvTimeoutError::Timeout) => break,
+                    Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                        flush_batch(&conn, &mut buf);
+                        return;
+                    }
+                }
+            }
+            if !buf.is_empty() {
+                flush_batch(&conn, &mut buf);
+            }
+        }
+    });
+    tx
 }
 
 impl DatabaseService {
     pub fn open(path: &Path) -> SqlResult<Self> {
-        let conn = Connection::open(path)?;
-        let db = DatabaseService {
-            conn: Mutex::new(conn),
-        };
+        let conn = Arc::new(Mutex::new(Connection::open(path)?));
+        let output_tx = start_output_worker(Arc::clone(&conn));
+        let db = DatabaseService { conn, output_tx };
         db.migrate()?;
         Ok(db)
     }
 
     pub fn open_in_memory() -> SqlResult<Self> {
-        let conn = Connection::open_in_memory()?;
-        let db = DatabaseService {
-            conn: Mutex::new(conn),
-        };
+        let conn = Arc::new(Mutex::new(Connection::open_in_memory()?));
+        let output_tx = start_output_worker(Arc::clone(&conn));
+        let db = DatabaseService { conn, output_tx };
         db.migrate()?;
         Ok(db)
     }
@@ -245,12 +296,17 @@ impl DatabaseService {
     }
 
     pub fn insert_output(&self, session_id: SessionId, data: &str) -> SqlResult<()> {
-        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
-        conn.execute(
-            "INSERT INTO session_outputs (session_id, data) VALUES (?1, ?2)",
-            params![session_id, data],
-        )?;
+        let _ = self
+            .output_tx
+            .send(WorkerMsg::Row(session_id, data.to_string()));
         Ok(())
+    }
+
+    /// Block until all pending output rows are written. Required before calling get_outputs in tests.
+    pub fn flush_outputs(&self) {
+        let (reply_tx, reply_rx) = std::sync::mpsc::sync_channel(0);
+        let _ = self.output_tx.send(WorkerMsg::Flush(reply_tx));
+        let _ = reply_rx.recv();
     }
 
     pub fn update_claude_session_id(&self, id: SessionId, claude_id: &str) -> SqlResult<()> {
@@ -546,6 +602,7 @@ mod tests {
         let line2 = user_text("second message");
         db.insert_output(id, &line1).expect("insert 1");
         db.insert_output(id, &line2).expect("insert 2");
+        db.flush_outputs();
         t.phase("Act");
         let rows = db.get_outputs(id).expect("get_outputs failed");
         t.phase("Assert");
@@ -568,6 +625,7 @@ mod tests {
             .expect("o1");
         db.insert_output(id2, &assistant_text("session 2 msg"))
             .expect("o2");
+        db.flush_outputs();
         t.phase("Assert");
         t.len("session 1 has 1 output", &db.get_outputs(id1).unwrap(), 1);
         t.len("session 2 has 1 output", &db.get_outputs(id2).unwrap(), 1);
@@ -585,6 +643,7 @@ mod tests {
             .expect("insert");
         db.insert_output(id, &user_text("second"))
             .expect("insert 2");
+        db.flush_outputs();
         t.phase("Act");
         db.delete_session(id).expect("delete failed");
         t.phase("Assert");

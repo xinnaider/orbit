@@ -378,7 +378,9 @@ pub fn seed_session(db: &crate::services::database::DatabaseService) -> crate::m
         .expect("test setup: seed_session failed")
 }
 
-/// Inserts multiple JSONL output lines into a session.
+/// Inserts multiple JSONL output lines into a session and flushes the background worker.
+/// Always call this instead of inserting + reading manually — flush_outputs() ensures
+/// the background batch writer has committed rows before get_outputs() is called.
 pub fn seed_outputs(
     db: &crate::services::database::DatabaseService,
     session_id: crate::models::SessionId,
@@ -388,6 +390,7 @@ pub fn seed_outputs(
         db.insert_output(session_id, line)
             .expect("test setup: seed_outputs failed");
     }
+    db.flush_outputs();
 }
 
 // ─── File Fixtures ────────────────────────────────────────────────────────────
