@@ -69,69 +69,121 @@ pub fn create_worktree(project_path: &Path, slug: &str) -> Result<PathBuf, Strin
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_utils::TestCase;
+
+    // ── generate_branch_slug ─────────────────────────────────────────────
 
     #[test]
-    fn test_slug_lowercase() {
-        assert_eq!(generate_branch_slug("My Session"), "my-session");
+    fn should_lowercase_slug() {
+        let mut t = TestCase::new("should_lowercase_slug");
+        t.phase("Act");
+        let result = generate_branch_slug("My Session");
+        t.phase("Assert");
+        t.eq("lowercased with hyphen", result.as_str(), "my-session");
     }
 
     #[test]
-    fn test_slug_special_chars() {
-        // The · character from Android names becomes a hyphen
-        assert_eq!(
-            generate_branch_slug("hammerhead · orbit"),
-            "hammerhead-orbit"
+    fn should_replace_middle_dot_with_hyphen() {
+        let mut t = TestCase::new("should_replace_middle_dot_with_hyphen");
+        t.phase("Act");
+        let result = generate_branch_slug("hammerhead · orbit");
+        t.phase("Assert");
+        t.eq(
+            "middle dot becomes hyphen",
+            result.as_str(),
+            "hammerhead-orbit",
         );
     }
 
     #[test]
-    fn test_slug_collapses_dashes() {
-        assert_eq!(generate_branch_slug("  spaces  "), "spaces");
+    fn should_collapse_consecutive_separators_to_single_hyphen() {
+        let mut t = TestCase::new("should_collapse_consecutive_separators_to_single_hyphen");
+        t.phase("Act");
+        let result = generate_branch_slug("  spaces  ");
+        t.phase("Assert");
+        t.eq(
+            "leading/trailing spaces stripped",
+            result.as_str(),
+            "spaces",
+        );
     }
 
     #[test]
-    fn test_slug_preserves_hyphens() {
-        assert_eq!(generate_branch_slug("abc-def"), "abc-def");
+    fn should_preserve_existing_hyphens() {
+        let mut t = TestCase::new("should_preserve_existing_hyphens");
+        t.phase("Act");
+        let result = generate_branch_slug("abc-def");
+        t.phase("Assert");
+        t.eq("hyphen preserved", result.as_str(), "abc-def");
     }
 
-    /// Integration test: creates a real git worktree in a temporary git repo.
-    /// Requires the `git` binary (available in CI/Windows).
     #[test]
-    fn test_create_worktree_in_real_git_repo() {
+    fn should_return_empty_string_for_empty_input() {
+        let mut t = TestCase::new("should_return_empty_string_for_empty_input");
+        t.phase("Act");
+        let result = generate_branch_slug("");
+        t.phase("Assert");
+        t.eq("empty input gives empty slug", result.as_str(), "");
+    }
+
+    #[test]
+    fn should_handle_unicode_by_replacing_non_alphanumeric() {
+        let mut t = TestCase::new("should_handle_unicode_by_replacing_non_alphanumeric");
+        t.phase("Act");
+        // Accented chars are not alphanumeric per is_alphanumeric ASCII check
+        let result = generate_branch_slug("café résumé");
+        t.phase("Assert");
+        // 'é', 'é' etc. are alphanumeric in Rust's Unicode sense — they pass through
+        // This test documents the actual behaviour: non-ASCII alphanumerics are kept
+        t.ok("result is non-empty", !result.is_empty());
+        t.ok("result has no spaces", !result.contains(' '));
+    }
+
+    #[test]
+    fn should_truncate_or_handle_very_long_names_without_panic() {
+        let mut t = TestCase::new("should_truncate_or_handle_very_long_names_without_panic");
+        t.phase("Act");
+        let long = "a".repeat(300);
+        let result = generate_branch_slug(&long);
+        t.phase("Assert");
+        t.ok("no panic and non-empty", !result.is_empty());
+    }
+
+    // ── create_worktree (integration) ────────────────────────────────────
+
+    #[test]
+    fn should_create_real_worktree_in_temp_git_repo() {
+        let mut t = TestCase::new("should_create_real_worktree_in_temp_git_repo");
+        t.phase("Seed — init git repo");
         let dir = tempfile::TempDir::new().expect("tempdir");
         let repo = dir.path();
 
-        // Initialize a clean git repo
-        let init = Command::new("git")
-            .args(["init"])
-            .current_dir(repo)
-            .output()
-            .unwrap();
-        assert!(init.status.success(), "git init failed");
-
-        // Empty commit (required for worktree)
-        for cmd in [
+        for args in [
+            vec!["init"],
             vec!["config", "user.email", "test@test.com"],
             vec!["config", "user.name", "Test"],
             vec!["commit", "--allow-empty", "-m", "init"],
         ] {
-            let out = Command::new("git")
-                .args(&cmd)
+            let out = std::process::Command::new("git")
+                .args(&args)
                 .current_dir(repo)
                 .output()
-                .unwrap();
-            assert!(out.status.success(), "git {:?} failed: {:?}", cmd, out);
+                .expect("git command failed to run");
+            assert!(
+                out.status.success(),
+                "git {:?} failed: {}",
+                args,
+                String::from_utf8_lossy(&out.stderr)
+            );
         }
 
-        let result = create_worktree(repo, "minha-sessao");
-        assert!(result.is_ok(), "create_worktree failed: {:?}", result.err());
+        t.phase("Act");
+        let result = create_worktree(repo, "test-branch");
 
+        t.phase("Assert");
+        t.is_ok("worktree created successfully", &result);
         let wt_path = result.unwrap();
-        assert!(
-            wt_path.exists(),
-            "worktree path does not exist: {:?}",
-            wt_path
-        );
-        assert!(wt_path.join(".git").exists(), "worktree missing .git");
+        t.ok("worktree directory exists", wt_path.exists());
+        t.ok("worktree has .git file", wt_path.join(".git").exists());
     }
 }

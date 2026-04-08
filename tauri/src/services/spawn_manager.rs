@@ -230,54 +230,97 @@ pub fn spawn_claude(config: SpawnConfig) -> Result<SpawnHandle, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_utils::TestCase;
 
     #[test]
-    fn test_extended_path_includes_current() {
+    fn should_include_current_path_in_extended_path() {
+        let mut t = TestCase::new("should_include_current_path_in_extended_path");
+        t.phase("Act");
         let path = extended_path();
         let current = std::env::var("PATH").unwrap_or_default();
+        t.phase("Assert");
         if !current.is_empty() {
-            assert!(path.contains(&current));
+            t.ok(
+                "current PATH is contained in extended PATH",
+                path.contains(&current),
+            );
+        } else {
+            t.ok(
+                "extended PATH is non-empty even without current PATH",
+                !path.is_empty(),
+            );
         }
     }
 
     #[test]
-    fn test_extended_path_includes_local_bin() {
+    fn should_include_local_bin_in_extended_path() {
+        let mut t = TestCase::new("should_include_local_bin_in_extended_path");
+        t.phase("Act");
         let path = extended_path();
-        // On all platforms, ~/.local/bin must be included
+        t.phase("Assert");
         if let Some(home) = dirs::home_dir() {
             let local_bin = home
                 .join(".local")
                 .join("bin")
                 .to_string_lossy()
                 .into_owned();
-            assert!(
+            t.ok(
+                "~/.local/bin is in extended PATH",
                 path.contains(&local_bin),
-                "PATH missing ~/.local/bin: {path}"
+            );
+        } else {
+            t.ok("no home dir — skip", true);
+        }
+    }
+
+    #[test]
+    fn should_not_panic_when_find_claude_is_called() {
+        let mut t = TestCase::new("should_not_panic_when_find_claude_is_called");
+        t.phase("Act");
+        let _result = find_claude(); // may return None if not installed — that's fine
+        t.phase("Assert");
+        t.ok("find_claude completes without panic", true);
+    }
+
+    #[test]
+    fn should_return_err_with_descriptive_message_when_claude_not_found() {
+        let mut t =
+            TestCase::new("should_return_err_with_descriptive_message_when_claude_not_found");
+        t.phase("Act");
+        // Use a cwd that doesn't exist to guarantee spawn failure regardless of claude install
+        let result = spawn_claude(SpawnConfig {
+            session_id: 0,
+            cwd: std::path::PathBuf::from("/nonexistent/path/xyz"),
+            permission_mode: "ignore".to_string(),
+            model: None,
+            prompt: "test".to_string(),
+            claude_session_id: None,
+        });
+        t.phase("Assert");
+        // Either claude is installed and spawn fails on bad cwd (Err), or claude is not installed
+        // (Err). Either way, we must get an Err with a non-empty message.
+        if let Err(ref msg) = result {
+            t.ok("error message is non-empty", !msg.is_empty());
+        } else {
+            // Claude installed AND somehow accepted /nonexistent path — log and skip
+            t.ok(
+                "spawn succeeded (claude installed, cwd error deferred)",
+                true,
             );
         }
     }
 
     #[test]
     #[cfg(not(windows))]
-    fn test_extended_path_includes_nvm_if_present() {
-        // Scaffolding for a future HOME-overridable version of extended_path().
-        // extended_path() reads the real HOME, not tmp, so these lines don't
-        // participate in the assertion below — they're left as a starting point
-        // for parameterized testing once HOME injection is supported.
-        let tmp = tempfile::TempDir::new().unwrap();
-        let fake_nvm_bin = tmp.path().join(".nvm/versions/node/v20.0.0/bin");
-        std::fs::create_dir_all(&fake_nvm_bin).unwrap();
-
-        // Temporarily override HOME — not possible without unsafe env manipulation,
-        // so this test just checks that extended_path() runs without panic and
-        // that if the user has nvm, the path is non-empty.
+    fn should_include_nvm_bin_dirs_in_extended_path_when_present() {
+        let mut t = TestCase::new("should_include_nvm_bin_dirs_in_extended_path_when_present");
+        t.phase("Act");
         let path = extended_path();
-        assert!(!path.is_empty());
-        // If the real user has nvm installed, verify at least one nvm bin appears
+        t.phase("Assert");
         if let Some(home) = dirs::home_dir() {
             let nvm_root = home.join(".nvm").join("versions").join("node");
             if nvm_root.exists() {
-                let has_nvm_in_path = std::fs::read_dir(&nvm_root)
+                let has_nvm = std::fs::read_dir(&nvm_root)
                     .map(|entries| {
                         entries.flatten().any(|e| {
                             let bin = e.path().join("bin").to_string_lossy().into_owned();
@@ -285,29 +328,12 @@ mod tests {
                         })
                     })
                     .unwrap_or(false);
-                assert!(has_nvm_in_path, "nvm bin dirs not found in PATH: {path}");
+                t.ok("nvm bin dirs present in extended PATH", has_nvm);
+            } else {
+                t.ok("nvm not installed — skip", true);
             }
-        }
-    }
-
-    #[test]
-    fn test_find_claude_no_panic() {
-        let _ = find_claude();
-    }
-
-    #[test]
-    fn test_spawn_bad_path_returns_error() {
-        let result = spawn_claude(SpawnConfig {
-            session_id: 0,
-            cwd: std::env::temp_dir(),
-            permission_mode: "ignore".to_string(),
-            model: None,
-            prompt: "test".to_string(),
-            claude_session_id: None,
-        });
-        // Either succeeds (claude installed) or returns descriptive error
-        if let Err(e) = result {
-            assert!(!e.is_empty());
+        } else {
+            t.ok("no home dir — skip", true);
         }
     }
 }

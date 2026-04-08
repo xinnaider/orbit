@@ -874,6 +874,357 @@ pub fn process_line(state: &mut JournalState, line: &str) {
 #[cfg(test)]
 mod process_line_tests {
     use super::*;
+    use crate::test_utils::{
+        assistant_end_turn, assistant_text, assistant_thinking, assistant_tool_use,
+        assistant_with_tokens, progress_line, system_stop_hook, tool_result, user_text, TestCase,
+    };
+
+    // ── Noop / guard cases ───────────────────────────────────────────────
+
+    #[test]
+    fn should_be_noop_for_empty_line() {
+        let mut t = TestCase::new("should_be_noop_for_empty_line");
+        t.phase("Act");
+        let mut state = JournalState::default();
+        process_line(&mut state, "");
+        t.phase("Assert");
+        t.empty("no entries", &state.entries);
+    }
+
+    #[test]
+    fn should_be_noop_for_invalid_json() {
+        let mut t = TestCase::new("should_be_noop_for_invalid_json");
+        t.phase("Act");
+        let mut state = JournalState::default();
+        process_line(&mut state, "not json {{}}");
+        t.phase("Assert");
+        t.empty("no entries", &state.entries);
+    }
+
+    #[test]
+    fn should_skip_synthetic_message() {
+        let mut t = TestCase::new("should_skip_synthetic_message");
+        t.phase("Act");
+        let mut state = JournalState::default();
+        process_line(
+            &mut state,
+            r#"{"type":"assistant","message":{"content":"<synthetic>"}}"#,
+        );
+        t.phase("Assert");
+        t.empty("no entries", &state.entries);
+    }
+
+    // ── Assistant text ───────────────────────────────────────────────────
+
+    #[test]
+    fn should_create_assistant_entry_for_text_block() {
+        let mut t = TestCase::new("should_create_assistant_entry_for_text_block");
+        t.phase("Seed");
+        let mut state = JournalState::default();
+        t.phase("Act");
+        process_line(&mut state, &assistant_text("Hello!"));
+        t.phase("Assert");
+        t.len("one entry", &state.entries, 1);
+        t.eq(
+            "entry type is Assistant",
+            state.entries[0].entry_type.clone(),
+            JournalEntryType::Assistant,
+        );
+        t.eq(
+            "text matches",
+            state.entries[0].text.as_deref(),
+            Some("Hello!"),
+        );
+    }
+
+    #[test]
+    fn should_extract_model_from_assistant_message() {
+        let mut t = TestCase::new("should_extract_model_from_assistant_message");
+        t.phase("Act");
+        let mut state = JournalState::default();
+        process_line(&mut state, &assistant_text("Hi"));
+        t.phase("Assert");
+        t.eq(
+            "model extracted",
+            state.model.as_deref(),
+            Some("claude-sonnet-4-6"),
+        );
+    }
+
+    #[test]
+    fn should_extract_token_counts_from_assistant_message() {
+        let mut t = TestCase::new("should_extract_token_counts_from_assistant_message");
+        t.phase("Act");
+        let mut state = JournalState::default();
+        // input=100, output=50, cache_write=20, cache_read=30 → total input = 150
+        process_line(&mut state, &assistant_with_tokens("hi", 100, 50, 20, 30));
+        t.phase("Assert");
+        t.eq(
+            "input_tokens (input + cache_write + cache_read)",
+            state.input_tokens,
+            150u64,
+        );
+        t.eq("output_tokens", state.output_tokens, 50u64);
+        t.eq("cache_write", state.cache_write, 20u64);
+        t.eq("cache_read", state.cache_read, 30u64);
+    }
+
+    #[test]
+    fn should_set_idle_status_on_end_turn() {
+        let mut t = TestCase::new("should_set_idle_status_on_end_turn");
+        t.phase("Act");
+        let mut state = JournalState::default();
+        process_line(&mut state, &assistant_end_turn("Done."));
+        t.phase("Assert");
+        t.eq("status is Idle", state.status, AgentStatus::Idle);
+    }
+
+    // ── Thinking ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn should_create_thinking_entry_for_thinking_block() {
+        let mut t = TestCase::new("should_create_thinking_entry_for_thinking_block");
+        t.phase("Act");
+        let mut state = JournalState::default();
+        process_line(&mut state, &assistant_thinking("Let me reason..."));
+        t.phase("Assert");
+        t.len("one entry", &state.entries, 1);
+        t.eq(
+            "entry type is Thinking",
+            state.entries[0].entry_type.clone(),
+            JournalEntryType::Thinking,
+        );
+        t.eq(
+            "thinking text",
+            state.entries[0].thinking.as_deref(),
+            Some("Let me reason..."),
+        );
+    }
+
+    // ── Tool use ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn should_create_tool_call_entry_for_bash() {
+        let mut t = TestCase::new("should_create_tool_call_entry_for_bash");
+        t.phase("Act");
+        let mut state = JournalState::default();
+        process_line(
+            &mut state,
+            &assistant_tool_use("Bash", serde_json::json!({"command": "ls"})),
+        );
+        t.phase("Assert");
+        t.len("one entry", &state.entries, 1);
+        t.eq(
+            "entry type is ToolCall",
+            state.entries[0].entry_type.clone(),
+            JournalEntryType::ToolCall,
+        );
+        t.eq(
+            "tool name is Bash",
+            state.entries[0].tool.as_deref(),
+            Some("Bash"),
+        );
+    }
+
+    #[test]
+    fn should_keep_working_status_after_bash_tool_use() {
+        let mut t = TestCase::new("should_keep_working_status_after_bash_tool_use");
+        t.phase("Act");
+        let mut state = JournalState::default();
+        process_line(
+            &mut state,
+            &assistant_tool_use("Bash", serde_json::json!({"command": "ls"})),
+        );
+        t.phase("Assert");
+        // Bash auto-runs — no approval needed, stays Working
+        t.eq("status stays Working", state.status, AgentStatus::Working);
+    }
+
+    #[test]
+    fn should_not_set_pending_approval_for_bash() {
+        let mut t = TestCase::new("should_not_set_pending_approval_for_bash");
+        t.phase("Act");
+        let mut state = JournalState::default();
+        process_line(
+            &mut state,
+            &assistant_tool_use("Bash", serde_json::json!({"command": "rm -rf /"})),
+        );
+        t.phase("Assert");
+        t.none("no pending approval for Bash", &state.pending_approval);
+    }
+
+    #[test]
+    fn should_set_pending_approval_for_non_bash_tool() {
+        let mut t = TestCase::new("should_set_pending_approval_for_non_bash_tool");
+        t.phase("Act");
+        let mut state = JournalState::default();
+        process_line(
+            &mut state,
+            &assistant_tool_use(
+                "CustomTool",
+                serde_json::json!({"file_path": "/etc/passwd"}),
+            ),
+        );
+        t.phase("Assert");
+        t.some("pending_approval set", &state.pending_approval);
+    }
+
+    #[test]
+    fn should_clear_pending_approval_after_tool_result() {
+        let mut t = TestCase::new("should_clear_pending_approval_after_tool_result");
+        t.phase("Seed — tool_use sets pending");
+        let mut state = JournalState::default();
+        process_line(
+            &mut state,
+            &assistant_tool_use(
+                "CustomTool",
+                serde_json::json!({"file_path": "/etc/passwd"}),
+            ),
+        );
+        t.phase("Act — tool_result clears pending");
+        process_line(&mut state, &tool_result("done"));
+        t.phase("Assert");
+        t.none("pending_approval cleared", &state.pending_approval);
+    }
+
+    // ── mini_log ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn should_cap_mini_log_at_4_entries() {
+        let mut t = TestCase::new("should_cap_mini_log_at_4_entries");
+        t.phase("Seed — push 5 tool uses");
+        let mut state = JournalState::default();
+        for name in ["Bash", "Read", "Write", "Grep", "Edit"] {
+            process_line(
+                &mut state,
+                &assistant_tool_use(name, serde_json::json!({"command": "x"})),
+            );
+        }
+        t.phase("Assert");
+        t.len("mini_log capped at 4", &state.mini_log, 4);
+        t.ne(
+            "oldest entry evicted",
+            state.mini_log[0].tool.as_str(),
+            "Bash",
+        );
+    }
+
+    #[test]
+    fn should_mark_mini_log_entry_success_on_tool_result() {
+        let mut t = TestCase::new("should_mark_mini_log_entry_success_on_tool_result");
+        t.phase("Seed");
+        let mut state = JournalState::default();
+        process_line(
+            &mut state,
+            &assistant_tool_use("Bash", serde_json::json!({"command": "ls"})),
+        );
+        t.phase("Act");
+        process_line(&mut state, &tool_result("file1.rs"));
+        t.phase("Assert");
+        t.eq(
+            "mini_log entry marked success",
+            state.mini_log[0].success,
+            Some(true),
+        );
+    }
+
+    // ── User ─────────────────────────────────────────────────────────────
+
+    #[test]
+    fn should_create_user_entry_for_plain_text() {
+        let mut t = TestCase::new("should_create_user_entry_for_plain_text");
+        t.phase("Act");
+        let mut state = JournalState::default();
+        process_line(&mut state, &user_text("Fix the bug"));
+        t.phase("Assert");
+        t.len("one entry", &state.entries, 1);
+        t.eq(
+            "entry type is User",
+            state.entries[0].entry_type.clone(),
+            JournalEntryType::User,
+        );
+        t.eq(
+            "text matches",
+            state.entries[0].text.as_deref(),
+            Some("Fix the bug"),
+        );
+    }
+
+    #[test]
+    fn should_set_working_status_after_user_message() {
+        let mut t = TestCase::new("should_set_working_status_after_user_message");
+        t.phase("Act");
+        let mut state = JournalState::default();
+        process_line(&mut state, &user_text("do something"));
+        t.phase("Assert");
+        t.eq("status is Working", state.status, AgentStatus::Working);
+    }
+
+    #[test]
+    fn should_create_tool_result_entry_from_user_block() {
+        let mut t = TestCase::new("should_create_tool_result_entry_from_user_block");
+        t.phase("Seed");
+        let mut state = JournalState::default();
+        process_line(
+            &mut state,
+            &assistant_tool_use("Bash", serde_json::json!({"command": "ls"})),
+        );
+        t.phase("Act");
+        process_line(&mut state, &tool_result("file1.rs\nfile2.rs"));
+        t.phase("Assert");
+        let tr = state
+            .entries
+            .iter()
+            .find(|e| e.entry_type == JournalEntryType::ToolResult)
+            .expect("no ToolResult entry found");
+        t.ok(
+            "output contains file1.rs",
+            tr.output.as_deref().unwrap_or("").contains("file1.rs"),
+        );
+    }
+
+    // ── System ───────────────────────────────────────────────────────────
+
+    #[test]
+    fn should_set_idle_on_stop_hook_summary() {
+        let mut t = TestCase::new("should_set_idle_on_stop_hook_summary");
+        t.phase("Seed");
+        let mut state = JournalState::default();
+        state.status = AgentStatus::Working;
+        t.phase("Act");
+        process_line(&mut state, system_stop_hook());
+        t.phase("Assert");
+        t.eq("status is Idle", state.status, AgentStatus::Idle);
+    }
+
+    // ── Progress ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn should_create_progress_entry_for_non_empty_content() {
+        let mut t = TestCase::new("should_create_progress_entry_for_non_empty_content");
+        t.phase("Act");
+        let mut state = JournalState::default();
+        process_line(&mut state, &progress_line("stdout output line"));
+        t.phase("Assert");
+        t.len("one entry", &state.entries, 1);
+        t.eq(
+            "entry type is Progress",
+            state.entries[0].entry_type.clone(),
+            JournalEntryType::Progress,
+        );
+    }
+
+    #[test]
+    fn should_be_noop_for_empty_progress_content() {
+        let mut t = TestCase::new("should_be_noop_for_empty_progress_content");
+        t.phase("Act");
+        let mut state = JournalState::default();
+        process_line(&mut state, &progress_line("   "));
+        t.phase("Assert");
+        t.empty("no entries for whitespace content", &state.entries);
+    }
+
+    // ── Legacy tests kept for regression coverage ────────────────────────
 
     #[test]
     fn test_process_empty_line_is_noop() {
@@ -1038,5 +1389,297 @@ mod process_line_tests {
         let line = r#"{"type":"assistant","message":{"content":"<synthetic>"}}"#;
         process_line(&mut state, line);
         assert!(state.entries.is_empty());
+    }
+}
+
+#[cfg(test)]
+mod parse_journal_tests {
+    use super::*;
+    use crate::test_utils::{
+        append_jsonl, assistant_end_turn, assistant_text, assistant_thinking, assistant_tool_use,
+        tool_result, write_jsonl, TestCase,
+    };
+
+    #[test]
+    fn should_return_default_state_when_file_does_not_exist() {
+        let mut t = TestCase::new("should_return_default_state_when_file_does_not_exist");
+        t.phase("Act");
+        let state = parse_journal(std::path::Path::new("/nonexistent/path.jsonl"), 0, None);
+        t.phase("Assert");
+        t.empty("no entries", &state.entries);
+        t.eq("input_tokens is 0", state.input_tokens, 0u64);
+    }
+
+    #[test]
+    fn should_parse_assistant_text_entry_from_file() {
+        let mut t = TestCase::new("should_parse_assistant_text_entry_from_file");
+        t.phase("Seed");
+        let dir = tempfile::TempDir::new().expect("tempdir");
+        let path = write_jsonl(&dir, "s.jsonl", &[&assistant_text("Hello from file!")]);
+        t.phase("Act");
+        let state = parse_journal(&path, 0, None);
+        t.phase("Assert");
+        t.len("one entry", &state.entries, 1);
+        t.eq(
+            "entry type is Assistant",
+            state.entries[0].entry_type.clone(),
+            JournalEntryType::Assistant,
+        );
+        t.eq(
+            "text matches",
+            state.entries[0].text.as_deref(),
+            Some("Hello from file!"),
+        );
+    }
+
+    #[test]
+    fn should_parse_thinking_entry_from_file() {
+        let mut t = TestCase::new("should_parse_thinking_entry_from_file");
+        t.phase("Seed");
+        let dir = tempfile::TempDir::new().expect("tempdir");
+        let path = write_jsonl(&dir, "s.jsonl", &[&assistant_thinking("deep thoughts")]);
+        t.phase("Act");
+        let state = parse_journal(&path, 0, None);
+        t.phase("Assert");
+        t.len("one entry", &state.entries, 1);
+        t.eq(
+            "entry type is Thinking",
+            state.entries[0].entry_type.clone(),
+            JournalEntryType::Thinking,
+        );
+        t.eq(
+            "thinking text",
+            state.entries[0].thinking.as_deref(),
+            Some("deep thoughts"),
+        );
+    }
+
+    #[test]
+    fn should_parse_tool_use_and_result_sequence() {
+        let mut t = TestCase::new("should_parse_tool_use_and_result_sequence");
+        t.phase("Seed");
+        let dir = tempfile::TempDir::new().expect("tempdir");
+        let path = write_jsonl(
+            &dir,
+            "s.jsonl",
+            &[
+                &assistant_tool_use("Read", serde_json::json!({"file_path": "/src/main.rs"})),
+                &tool_result("pub fn main() {}"),
+            ],
+        );
+        t.phase("Act");
+        let state = parse_journal(&path, 0, None);
+        t.phase("Assert");
+        t.len("two entries", &state.entries, 2);
+        t.eq(
+            "first is ToolCall",
+            state.entries[0].entry_type.clone(),
+            JournalEntryType::ToolCall,
+        );
+        t.eq(
+            "second is ToolResult",
+            state.entries[1].entry_type.clone(),
+            JournalEntryType::ToolResult,
+        );
+    }
+
+    #[test]
+    fn should_resume_from_file_offset_without_reprocessing_old_lines() {
+        let mut t = TestCase::new("should_resume_from_file_offset_without_reprocessing_old_lines");
+        t.phase("Seed — write first line");
+        let dir = tempfile::TempDir::new().expect("tempdir");
+        let path = write_jsonl(&dir, "s.jsonl", &[&assistant_text("First")]);
+        let first_state = parse_journal(&path, 0, None);
+        let first_size = first_state.file_size;
+
+        t.phase("Seed — append second line");
+        append_jsonl(&path, &[&assistant_text("Second")]);
+
+        t.phase("Act — resume from offset");
+        let resumed = parse_journal(&path, first_size, Some(&first_state));
+
+        t.phase("Assert");
+        t.len("two total entries (no duplication)", &resumed.entries, 2);
+        t.eq(
+            "first entry unchanged",
+            resumed.entries[0].text.as_deref(),
+            Some("First"),
+        );
+        t.eq(
+            "second entry added",
+            resumed.entries[1].text.as_deref(),
+            Some("Second"),
+        );
+    }
+
+    #[test]
+    fn should_return_same_entry_count_as_process_line_for_identical_input() {
+        let mut t =
+            TestCase::new("should_return_same_entry_count_as_process_line_for_identical_input");
+        t.phase("Seed");
+        let lines = [
+            assistant_text("Hello"),
+            assistant_tool_use("Read", serde_json::json!({"file_path": "/x"})),
+            tool_result("contents"),
+        ];
+        let dir = tempfile::TempDir::new().expect("tempdir");
+        let line_refs: Vec<&str> = lines.iter().map(|s| s.as_str()).collect();
+        let path = write_jsonl(&dir, "s.jsonl", &line_refs);
+
+        t.phase("Act — parse_journal path");
+        let file_state = parse_journal(&path, 0, None);
+
+        t.phase("Act — process_line path");
+        let mut live_state = JournalState::default();
+        for line in &lines {
+            process_line(&mut live_state, line);
+        }
+
+        t.phase("Assert — both paths produce same count");
+        t.eq(
+            "parse_journal and process_line agree on entry count",
+            file_state.entries.len(),
+            live_state.entries.len(),
+        );
+    }
+
+    #[test]
+    fn should_set_idle_status_after_end_turn_in_file() {
+        let mut t = TestCase::new("should_set_idle_status_after_end_turn_in_file");
+        t.phase("Seed");
+        let dir = tempfile::TempDir::new().expect("tempdir");
+        let path = write_jsonl(&dir, "s.jsonl", &[&assistant_end_turn("Done.")]);
+        t.phase("Act");
+        let state = parse_journal(&path, 0, None);
+        t.phase("Assert");
+        t.eq(
+            "status is Idle after end_turn",
+            state.status,
+            AgentStatus::Idle,
+        );
+    }
+}
+
+#[cfg(test)]
+mod helper_tests {
+    use super::*;
+    use crate::test_utils::TestCase;
+
+    #[test]
+    fn should_extract_bash_command_as_tool_target() {
+        let mut t = TestCase::new("should_extract_bash_command_as_tool_target");
+        t.phase("Act");
+        let input = serde_json::json!({"command": "cargo test"});
+        let result = extract_tool_target("Bash", &Some(input));
+        t.phase("Assert");
+        t.eq("target is the command", result.as_str(), "cargo test");
+    }
+
+    #[test]
+    fn should_extract_filename_as_target_for_read_tool() {
+        let mut t = TestCase::new("should_extract_filename_as_target_for_read_tool");
+        t.phase("Act");
+        let input = serde_json::json!({"file_path": "/src/lib.rs"});
+        let result = extract_tool_target("Read", &Some(input));
+        t.phase("Assert");
+        t.eq("target is the filename only", result.as_str(), "lib.rs");
+    }
+
+    #[test]
+    fn should_truncate_bash_command_at_60_chars() {
+        let mut t = TestCase::new("should_truncate_bash_command_at_60_chars");
+        t.phase("Seed");
+        let long_cmd = "a".repeat(80);
+        let input = serde_json::json!({"command": long_cmd});
+        t.phase("Act");
+        let result = extract_tool_target("Bash", &Some(input));
+        t.phase("Assert");
+        t.ok(
+            "truncated to at most 63 chars (60 + ...)",
+            result.len() <= 63,
+        );
+        t.ok("ends with ...", result.ends_with("..."));
+    }
+
+    #[test]
+    fn should_truncate_output_at_max_chars() {
+        let mut t = TestCase::new("should_truncate_output_at_max_chars");
+        t.phase("Seed");
+        let long_text = "x".repeat(3000);
+        t.phase("Act");
+        let result = truncate_output(&long_text, 2000);
+        t.phase("Assert");
+        t.ok("result length <= 2003 (2000 + ...)", result.len() <= 2003);
+        t.ok("ends with ...", result.ends_with("..."));
+    }
+
+    #[test]
+    fn should_not_truncate_output_within_limit() {
+        let mut t = TestCase::new("should_not_truncate_output_within_limit");
+        t.phase("Act");
+        let result = truncate_output("short text", 2000);
+        t.phase("Assert");
+        t.eq("unchanged", result.as_str(), "short text");
+    }
+
+    #[test]
+    fn should_detect_pending_approval_for_last_unanswered_tool_call() {
+        let mut t = TestCase::new("should_detect_pending_approval_for_last_unanswered_tool_call");
+        t.phase("Seed");
+        let entries = vec![crate::models::JournalEntry {
+            session_id: String::new(),
+            timestamp: String::new(),
+            entry_type: crate::models::JournalEntryType::ToolCall,
+            text: None,
+            thinking: None,
+            thinking_duration: None,
+            tool: Some("CustomTool".to_string()),
+            tool_input: Some(serde_json::json!({"file_path": "/secret"})),
+            output: None,
+            exit_code: None,
+            lines_changed: None,
+        }];
+        t.phase("Act");
+        let result = detect_pending_approval(&entries);
+        t.phase("Assert");
+        t.some("pending approval detected", &result);
+    }
+
+    #[test]
+    fn should_not_detect_pending_when_tool_result_follows() {
+        let mut t = TestCase::new("should_not_detect_pending_when_tool_result_follows");
+        t.phase("Seed");
+        let entries = vec![
+            crate::models::JournalEntry {
+                session_id: String::new(),
+                timestamp: String::new(),
+                entry_type: crate::models::JournalEntryType::ToolCall,
+                text: None,
+                thinking: None,
+                thinking_duration: None,
+                tool: Some("CustomTool".to_string()),
+                tool_input: None,
+                output: None,
+                exit_code: None,
+                lines_changed: None,
+            },
+            crate::models::JournalEntry {
+                session_id: String::new(),
+                timestamp: String::new(),
+                entry_type: crate::models::JournalEntryType::ToolResult,
+                text: None,
+                thinking: None,
+                thinking_duration: None,
+                tool: None,
+                tool_input: None,
+                output: Some("result".to_string()),
+                exit_code: None,
+                lines_changed: None,
+            },
+        ];
+        t.phase("Act");
+        let result = detect_pending_approval(&entries);
+        t.phase("Assert");
+        t.none("no pending approval when tool_result exists", &result);
     }
 }

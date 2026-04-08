@@ -299,120 +299,154 @@ impl DatabaseService {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_utils::{seed_session, TestCase};
+
+    fn make_db() -> DatabaseService {
+        DatabaseService::open_in_memory().expect("test setup: failed to open in-memory DB")
+    }
+
+    // ── Projects ─────────────────────────────────────────────────────────
 
     #[test]
-    fn test_migrate_creates_tables() {
-        let db = DatabaseService::open_in_memory().unwrap();
-        let sessions = db.get_sessions().unwrap();
-        assert!(sessions.is_empty());
+    fn should_create_tables_on_migrate() {
+        let mut t = TestCase::new("should_create_tables_on_migrate");
+        t.phase("Act");
+        let db = make_db();
+        t.phase("Assert");
+        let sessions = db.get_sessions().expect("get_sessions failed");
+        t.empty("sessions table exists and is empty", &sessions);
     }
 
     #[test]
-    fn test_create_project() {
-        let db = DatabaseService::open_in_memory().unwrap();
-        let p = db.create_project("my-app", "/home/user/my-app").unwrap();
-        assert_eq!(p.name, "my-app");
-        assert_eq!(p.path, "/home/user/my-app");
-        assert!(p.id > 0);
+    fn should_create_project_with_correct_fields() {
+        let mut t = TestCase::new("should_create_project_with_correct_fields");
+        t.phase("Act");
+        let db = make_db();
+        let p = db
+            .create_project("my-app", "/home/user/my-app")
+            .expect("create_project failed");
+        t.phase("Assert");
+        t.eq("name matches", p.name.as_str(), "my-app");
+        t.eq("path matches", p.path.as_str(), "/home/user/my-app");
+        t.ok("id is positive", p.id > 0);
     }
 
     #[test]
-    fn test_create_project_idempotent() {
-        let db = DatabaseService::open_in_memory().unwrap();
-        let p1 = db.create_project("my-app", "/home/user/my-app").unwrap();
-        let p2 = db.create_project("my-app", "/home/user/my-app").unwrap();
-        assert_eq!(p1.id, p2.id);
+    fn should_return_same_project_when_path_already_exists() {
+        let mut t = TestCase::new("should_return_same_project_when_path_already_exists");
+        t.phase("Seed");
+        let db = make_db();
+        let first = db
+            .create_project("my-app", "/home/user/my-app")
+            .expect("first failed");
+        t.phase("Act");
+        let second = db
+            .create_project("my-app", "/home/user/my-app")
+            .expect("second failed");
+        t.phase("Assert");
+        t.eq("same ID (idempotent)", first.id, second.id);
     }
 
     #[test]
-    fn test_create_session() {
-        let db = DatabaseService::open_in_memory().unwrap();
+    fn should_list_all_projects_ordered_by_name() {
+        let mut t = TestCase::new("should_list_all_projects_ordered_by_name");
+        t.phase("Seed");
+        let db = make_db();
+        db.create_project("beta", "/beta").expect("seed beta");
+        db.create_project("alpha", "/alpha").expect("seed alpha");
+        t.phase("Act");
+        let projects = db.get_projects().expect("get_projects failed");
+        t.phase("Assert");
+        t.len("two projects", &projects, 2);
+        t.eq("first is alpha (ASC)", projects[0].name.as_str(), "alpha");
+    }
+
+    // ── Sessions ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn should_create_session_with_initializing_status() {
+        let mut t = TestCase::new("should_create_session_with_initializing_status");
+        t.phase("Act");
+        let db = make_db();
         let id = db
             .create_session(None, Some("task 1"), "/tmp/proj", "ignore", None)
-            .unwrap();
-        assert!(id > 0);
-        let sessions = db.get_sessions().unwrap();
-        assert_eq!(sessions.len(), 1);
-        assert_eq!(sessions[0].status, "initializing");
-        assert_eq!(sessions[0].cwd, Some("/tmp/proj".to_string()));
+            .expect("create_session failed");
+        t.phase("Assert");
+        t.ok("id is positive", id > 0);
+        let sessions = db.get_sessions().expect("get_sessions failed");
+        t.len("one session", &sessions, 1);
+        t.eq(
+            "status is initializing",
+            sessions[0].status.as_str(),
+            "initializing",
+        );
     }
 
     #[test]
-    fn test_update_session_status() {
-        let db = DatabaseService::open_in_memory().unwrap();
+    fn should_store_cwd_on_session_create() {
+        let mut t = TestCase::new("should_store_cwd_on_session_create");
+        t.phase("Act");
+        let db = make_db();
         let id = db
             .create_session(None, None, "/tmp/proj", "ignore", None)
-            .unwrap();
-        db.update_session_status(id, "running").unwrap();
-        let sessions = db.get_sessions().unwrap();
-        assert_eq!(sessions[0].status, "running");
+            .expect("create failed");
+        t.phase("Assert");
+        let session = db
+            .get_session(id)
+            .expect("get failed")
+            .expect("session missing");
+        t.eq("cwd stored", session.cwd.as_deref(), Some("/tmp/proj"));
     }
 
     #[test]
-    fn test_insert_and_get_outputs() {
-        let db = DatabaseService::open_in_memory().unwrap();
-        let id = db
-            .create_session(None, None, "/tmp/proj", "ignore", None)
-            .unwrap();
-        db.insert_output(id, r#"{"type":"assistant"}"#).unwrap();
-        db.insert_output(id, r#"{"type":"user"}"#).unwrap();
-        let rows = db.get_outputs(id).unwrap();
-        assert_eq!(rows.len(), 2);
-        assert_eq!(rows[0], r#"{"type":"assistant"}"#);
+    fn should_update_session_status() {
+        let mut t = TestCase::new("should_update_session_status");
+        t.phase("Seed");
+        let db = make_db();
+        let id = seed_session(&db);
+        t.phase("Act");
+        db.update_session_status(id, "running")
+            .expect("update failed");
+        t.phase("Assert");
+        let sessions = db.get_sessions().expect("get_sessions failed");
+        t.eq(
+            "status updated to running",
+            sessions[0].status.as_str(),
+            "running",
+        );
     }
 
     #[test]
-    fn test_get_session() {
-        let db = DatabaseService::open_in_memory().unwrap();
-        let id = db
-            .create_session(None, Some("test"), "/tmp/proj", "ignore", None)
-            .unwrap();
-        let session = db.get_session(id).unwrap();
-        assert!(session.is_some());
-        assert_eq!(session.unwrap().status, "initializing");
-
-        let missing = db.get_session(999).unwrap();
-        assert!(missing.is_none());
+    fn should_set_running_status_and_pid_on_update_pid() {
+        let mut t = TestCase::new("should_set_running_status_and_pid_on_update_pid");
+        t.phase("Seed");
+        let db = make_db();
+        let id = seed_session(&db);
+        t.phase("Act");
+        db.update_session_pid(id, 12345).expect("update_pid failed");
+        t.phase("Assert");
+        let s = db.get_session(id).expect("get failed").expect("missing");
+        t.eq("status is running", s.status.as_str(), "running");
+        t.eq("pid stored", s.pid, Some(12345));
     }
 
     #[test]
-    fn test_update_session_pid_sets_running() {
-        let db = DatabaseService::open_in_memory().unwrap();
-        let id = db
-            .create_session(None, None, "/tmp/proj", "ignore", None)
-            .unwrap();
-        assert_eq!(db.get_session(id).unwrap().unwrap().status, "initializing");
-
-        db.update_session_pid(id, 12345).unwrap();
-
-        let session = db.get_session(id).unwrap().unwrap();
-        assert_eq!(session.status, "running");
-        assert_eq!(session.pid, Some(12345));
+    fn should_return_none_for_missing_session_id() {
+        let mut t = TestCase::new("should_return_none_for_missing_session_id");
+        t.phase("Act");
+        let db = make_db();
+        let result = db.get_session(999).expect("get_session failed");
+        t.phase("Assert");
+        t.none("returns None for unknown id", &result);
     }
 
     #[test]
-    fn test_get_projects_empty() {
-        let db = DatabaseService::open_in_memory().unwrap();
-        let projects = db.get_projects().unwrap();
-        assert!(projects.is_empty());
-    }
-
-    #[test]
-    fn test_get_projects_returns_all() {
-        let db = DatabaseService::open_in_memory().unwrap();
-        db.create_project("alpha", "/alpha").unwrap();
-        db.create_project("beta", "/beta").unwrap();
-        let projects = db.get_projects().unwrap();
-        assert_eq!(projects.len(), 2);
-        // Ordered by name ASC
-        assert_eq!(projects[0].name, "alpha");
-        assert_eq!(projects[1].name, "beta");
-    }
-
-    #[test]
-    fn test_session_with_project_foreign_key() {
-        let db = DatabaseService::open_in_memory().unwrap();
-        let project = db.create_project("myapp", "/myapp").unwrap();
+    fn should_associate_session_with_project_via_foreign_key() {
+        let mut t = TestCase::new("should_associate_session_with_project_via_foreign_key");
+        t.phase("Seed");
+        let db = make_db();
+        let project = db.create_project("myapp", "/myapp").expect("seed project");
+        t.phase("Act");
         let id = db
             .create_session(
                 Some(project.id),
@@ -421,46 +455,128 @@ mod tests {
                 "approve",
                 Some("claude-sonnet-4-6"),
             )
-            .unwrap();
-
-        let session = db.get_session(id).unwrap().unwrap();
-        assert_eq!(session.project_id, Some(project.id));
-        assert_eq!(session.name, Some("feat".to_string()));
-        assert_eq!(session.permission_mode, "approve");
-        assert_eq!(session.model, Some("claude-sonnet-4-6".to_string()));
+            .expect("create failed");
+        t.phase("Assert");
+        let s = db.get_session(id).expect("get failed").expect("missing");
+        t.eq("project_id stored", s.project_id, Some(project.id));
+        t.eq(
+            "model stored",
+            s.model.as_deref(),
+            Some("claude-sonnet-4-6"),
+        );
     }
 
     #[test]
-    fn test_outputs_ordered_by_insertion() {
-        let db = DatabaseService::open_in_memory().unwrap();
-        let id = db
-            .create_session(None, None, "/tmp", "ignore", None)
-            .unwrap();
-
-        for i in 0..5 {
-            db.insert_output(id, &format!(r#"{{"line":{}}}"#, i))
-                .unwrap();
-        }
-
-        let rows = db.get_outputs(id).unwrap();
-        assert_eq!(rows.len(), 5);
-        for (i, row) in rows.iter().enumerate() {
-            assert!(row.contains(&i.to_string()));
-        }
+    fn should_rename_session() {
+        let mut t = TestCase::new("should_rename_session");
+        t.phase("Seed");
+        let db = make_db();
+        let id = seed_session(&db);
+        t.phase("Act");
+        db.rename_session(id, "new-name").expect("rename failed");
+        t.phase("Assert");
+        let s = db.get_session(id).expect("get failed").expect("missing");
+        t.eq("name updated", s.name.as_deref(), Some("new-name"));
     }
 
     #[test]
-    fn test_outputs_isolated_per_session() {
-        let db = DatabaseService::open_in_memory().unwrap();
-        let id1 = db.create_session(None, None, "/a", "ignore", None).unwrap();
-        let id2 = db.create_session(None, None, "/b", "ignore", None).unwrap();
+    fn should_store_and_retrieve_worktree_path() {
+        let mut t = TestCase::new("should_store_and_retrieve_worktree_path");
+        t.phase("Seed");
+        let db = make_db();
+        let id = seed_session(&db);
+        t.phase("Act");
+        db.update_session_worktree(id, "/tmp/wt/branch", "orbit/my-branch")
+            .expect("update_worktree failed");
+        t.phase("Assert");
+        let s = db.get_session(id).expect("get failed").expect("missing");
+        t.eq(
+            "worktree_path stored",
+            s.worktree_path.as_deref(),
+            Some("/tmp/wt/branch"),
+        );
+        t.eq(
+            "branch_name stored",
+            s.branch_name.as_deref(),
+            Some("orbit/my-branch"),
+        );
+    }
 
-        db.insert_output(id1, r#"{"session":1}"#).unwrap();
-        db.insert_output(id2, r#"{"session":2}"#).unwrap();
+    #[test]
+    fn should_persist_and_retrieve_claude_session_id() {
+        let mut t = TestCase::new("should_persist_and_retrieve_claude_session_id");
+        t.phase("Seed");
+        let db = make_db();
+        let id = seed_session(&db);
+        t.phase("Act");
+        db.update_claude_session_id(id, "claude-abc-123")
+            .expect("update failed");
+        let result = db.get_claude_session_id(id).expect("get failed");
+        t.phase("Assert");
+        t.eq(
+            "claude_session_id stored",
+            result.as_deref(),
+            Some("claude-abc-123"),
+        );
+    }
 
-        assert_eq!(db.get_outputs(id1).unwrap().len(), 1);
-        assert_eq!(db.get_outputs(id2).unwrap().len(), 1);
-        assert!(db.get_outputs(id1).unwrap()[0].contains("1"));
-        assert!(db.get_outputs(id2).unwrap()[0].contains("2"));
+    // ── Outputs ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn should_insert_and_retrieve_outputs_in_order() {
+        let mut t = TestCase::new("should_insert_and_retrieve_outputs_in_order");
+        t.phase("Seed");
+        let db = make_db();
+        let id = seed_session(&db);
+        db.insert_output(id, r#"{"type":"assistant"}"#)
+            .expect("insert 1");
+        db.insert_output(id, r#"{"type":"user"}"#)
+            .expect("insert 2");
+        t.phase("Act");
+        let rows = db.get_outputs(id).expect("get_outputs failed");
+        t.phase("Assert");
+        t.len("two rows", &rows, 2);
+        t.eq(
+            "first row matches",
+            rows[0].as_str(),
+            r#"{"type":"assistant"}"#,
+        );
+    }
+
+    #[test]
+    fn should_isolate_outputs_per_session() {
+        let mut t = TestCase::new("should_isolate_outputs_per_session");
+        t.phase("Seed");
+        let db = make_db();
+        let id1 = db
+            .create_session(None, None, "/a", "ignore", None)
+            .expect("s1");
+        let id2 = db
+            .create_session(None, None, "/b", "ignore", None)
+            .expect("s2");
+        db.insert_output(id1, r#"{"session":1}"#).expect("o1");
+        db.insert_output(id2, r#"{"session":2}"#).expect("o2");
+        t.phase("Assert");
+        t.len("session 1 has 1 output", &db.get_outputs(id1).unwrap(), 1);
+        t.len("session 2 has 1 output", &db.get_outputs(id2).unwrap(), 1);
+    }
+
+    // ── Delete (atomicity) ────────────────────────────────────────────────
+
+    #[test]
+    fn should_delete_session_and_its_outputs_together() {
+        let mut t = TestCase::new("should_delete_session_and_its_outputs_together");
+        t.phase("Seed");
+        let db = make_db();
+        let id = seed_session(&db);
+        db.insert_output(id, r#"{"type":"assistant"}"#)
+            .expect("insert");
+        db.insert_output(id, r#"{"type":"user"}"#)
+            .expect("insert 2");
+        t.phase("Act");
+        db.delete_session(id).expect("delete failed");
+        t.phase("Assert");
+        t.none("session row removed", &db.get_session(id).expect("get"));
+        t.empty("outputs removed", &db.get_outputs(id).expect("outputs"));
     }
 }

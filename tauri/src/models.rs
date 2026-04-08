@@ -66,7 +66,7 @@ pub struct AgentState {
     pub started_at: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub enum JournalEntryType {
     User,

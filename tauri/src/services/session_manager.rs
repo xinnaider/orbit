@@ -611,95 +611,257 @@ fn is_rate_limit_line(line: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::services::database::DatabaseService;
+    use crate::test_utils::{assistant_with_tokens, make_db, seed_outputs, TestCase};
 
     fn make_manager() -> Arc<Mutex<SessionManager>> {
-        let db = Arc::new(DatabaseService::open_in_memory().unwrap());
-        Arc::new(Mutex::new(SessionManager::new(db)))
+        Arc::new(Mutex::new(SessionManager::new(make_db())))
     }
 
+    // ── init_session ─────────────────────────────────────────────────────
+
     #[test]
-    fn test_init_session_creates_db_record() {
+    fn should_create_db_record_on_init() {
+        let mut t = TestCase::new("should_create_db_record_on_init");
+        t.phase("Act");
         let mgr = make_manager();
         let s = mgr
             .lock()
             .unwrap()
             .init_session("/tmp/proj", None, "ignore", None, false)
-            .unwrap();
-        assert!(s.id > 0);
-        assert_eq!(s.status, "initializing");
+            .expect("init failed");
+        t.phase("Assert");
+        t.ok("id is positive", s.id > 0);
+        t.eq("status is initializing", s.status.as_str(), "initializing");
     }
 
     #[test]
-    fn test_init_session_populates_journal_state() {
+    fn should_register_journal_state_on_init() {
+        let mut t = TestCase::new("should_register_journal_state_on_init");
+        t.phase("Act");
         let mgr = make_manager();
         let s = mgr
             .lock()
             .unwrap()
             .init_session("/tmp/proj", None, "ignore", None, false)
-            .unwrap();
-        assert!(mgr.lock().unwrap().journal_states.contains_key(&s.id));
+            .expect("init failed");
+        t.phase("Assert");
+        t.ok(
+            "journal_state entry created",
+            mgr.lock().unwrap().journal_states.contains_key(&s.id),
+        );
     }
 
     #[test]
-    fn test_send_message_fails_when_not_active() {
-        let mgr = make_manager();
-        // Session 999 was never init'd
-        let result = {
-            let m = mgr.lock().unwrap();
-            m.active.contains_key(&999)
-        };
-        assert!(!result);
-    }
-
-    #[test]
-    fn test_init_populates_active() {
+    fn should_register_session_as_active_on_init() {
+        let mut t = TestCase::new("should_register_session_as_active_on_init");
+        t.phase("Act");
         let mgr = make_manager();
         let s = mgr
             .lock()
             .unwrap()
             .init_session("/tmp/proj", None, "ignore", None, false)
-            .unwrap();
-        assert!(mgr.lock().unwrap().is_session_active(s.id));
+            .expect("init failed");
+        t.phase("Assert");
+        t.ok(
+            "session is active",
+            mgr.lock().unwrap().is_session_active(s.id),
+        );
     }
 
+    // ── stop_session ─────────────────────────────────────────────────────
+
     #[test]
-    fn test_stop_session_updates_db() {
+    fn should_set_stopped_status_in_db_after_stop() {
+        let mut t = TestCase::new("should_set_stopped_status_in_db_after_stop");
+        t.phase("Seed");
         let mgr = make_manager();
         let s = mgr
             .lock()
             .unwrap()
             .init_session("/tmp/proj", None, "ignore", None, false)
-            .unwrap();
-        mgr.lock().unwrap().stop_session(s.id).unwrap();
+            .expect("init failed");
+        t.phase("Act");
+        mgr.lock().unwrap().stop_session(s.id).expect("stop failed");
+        t.phase("Assert");
         let sessions = mgr.lock().unwrap().get_sessions();
-        assert_eq!(sessions[0].status, "stopped");
+        t.eq("status is stopped", sessions[0].status.as_str(), "stopped");
     }
 
+    // ── delete_session ────────────────────────────────────────────────────
+
     #[test]
-    fn test_delete_removes_from_active_and_state() {
+    fn should_remove_session_from_active_and_journal_after_delete() {
+        let mut t = TestCase::new("should_remove_session_from_active_and_journal_after_delete");
+        t.phase("Seed");
         let mgr = make_manager();
         let s = mgr
             .lock()
             .unwrap()
             .init_session("/tmp/proj", None, "ignore", None, false)
-            .unwrap();
-        mgr.lock().unwrap().delete_session(s.id).unwrap();
-        assert_eq!(mgr.lock().unwrap().get_sessions().len(), 0);
-        assert!(!mgr.lock().unwrap().journal_states.contains_key(&s.id));
+            .expect("init failed");
+        t.phase("Act");
+        mgr.lock()
+            .unwrap()
+            .delete_session(s.id)
+            .expect("delete failed");
+        t.phase("Assert");
+        let m = mgr.lock().unwrap();
+        t.ok("not in active map", !m.is_session_active(s.id));
+        t.ok(
+            "journal_state removed",
+            !m.journal_states.contains_key(&s.id),
+        );
+        t.empty("no sessions in DB", &m.get_sessions());
     }
 
+    // ── rename_session ────────────────────────────────────────────────────
+
     #[test]
-    fn test_restore_from_db_rebuilds_journal() {
-        let db = Arc::new(DatabaseService::open_in_memory().unwrap());
+    fn should_persist_renamed_session_name() {
+        let mut t = TestCase::new("should_persist_renamed_session_name");
+        t.phase("Seed");
+        let mgr = make_manager();
+        let s = mgr
+            .lock()
+            .unwrap()
+            .init_session("/tmp/proj", Some("old-name"), "ignore", None, false)
+            .expect("init failed");
+        t.phase("Act");
+        mgr.lock()
+            .unwrap()
+            .rename_session(s.id, "new-name")
+            .expect("rename failed");
+        t.phase("Assert");
+        let sessions = mgr.lock().unwrap().get_sessions();
+        t.eq(
+            "name updated",
+            sessions[0].name.as_deref(),
+            Some("new-name"),
+        );
+    }
+
+    // ── send_message ─────────────────────────────────────────────────────
+
+    #[test]
+    fn should_return_error_when_send_message_targets_nonexistent_session() {
+        let mut t =
+            TestCase::new("should_return_error_when_send_message_targets_nonexistent_session");
+        t.phase("Seed — no sessions exist");
+        let mgr = make_manager();
+        t.phase("Act — verify precondition for error path");
+        // send_message requires Tauri AppHandle (cannot construct in tests).
+        // We verify the precondition: session 999 is neither active nor in DB.
+        let m = mgr.lock().unwrap();
+        let not_active = !m.active.contains_key(&999i64);
+        let not_in_db = m.db.get_session(999).expect("db query").is_none();
+        drop(m);
+        t.phase("Assert");
+        t.ok("session 999 not in active map", not_active);
+        t.ok("session 999 not in DB", not_in_db);
+    }
+
+    // ── restore_from_db ───────────────────────────────────────────────────
+
+    #[test]
+    fn should_rebuild_journal_state_from_stored_outputs() {
+        let mut t = TestCase::new("should_rebuild_journal_state_from_stored_outputs");
+        t.phase("Seed");
+        let db = make_db();
         let sid = db
             .create_session(None, None, "/tmp", "ignore", None)
-            .unwrap();
-        let line = r#"{"type":"assistant","message":{"model":"claude-sonnet-4-6","content":[{"type":"text","text":"Hi!"}],"usage":{"input_tokens":5,"output_tokens":3,"cache_creation_input_tokens":0,"cache_read_input_tokens":0}}}"#;
-        db.insert_output(sid, line).unwrap();
+            .expect("session");
+        seed_outputs(
+            &db,
+            sid,
+            &[&crate::test_utils::assistant_text("Restored entry")],
+        );
+        t.phase("Act");
         let mut sm = SessionManager::new(db);
         sm.restore_from_db();
+        t.phase("Assert");
         let journal = sm.get_journal(sid);
-        assert_eq!(journal.len(), 1);
+        t.len("one entry restored", &journal, 1);
+        t.eq(
+            "entry text matches",
+            journal[0].text.as_deref(),
+            Some("Restored entry"),
+        );
+    }
+
+    #[test]
+    fn should_not_duplicate_entries_on_double_restore() {
+        let mut t = TestCase::new("should_not_duplicate_entries_on_double_restore");
+        t.phase("Seed");
+        let db = make_db();
+        let sid = db
+            .create_session(None, None, "/tmp", "ignore", None)
+            .expect("session");
+        seed_outputs(&db, sid, &[&crate::test_utils::assistant_text("Hello")]);
+        t.phase("Act");
+        let mut sm = SessionManager::new(Arc::clone(&db));
+        sm.restore_from_db();
+        sm.restore_from_db(); // second call must be idempotent
+        t.phase("Assert");
+        let journal = sm.get_journal(sid);
+        t.len("still exactly one entry (no duplication)", &journal, 1);
+    }
+
+    #[test]
+    fn should_restore_token_counts_from_stored_outputs() {
+        let mut t = TestCase::new("should_restore_token_counts_from_stored_outputs");
+        t.phase("Seed");
+        let db = make_db();
+        let sid = db
+            .create_session(None, None, "/tmp", "ignore", None)
+            .expect("session");
+        // input=10, output=5, cache_write=2, cache_read=1 → input_tokens = 13
+        seed_outputs(&db, sid, &[&assistant_with_tokens("Hi", 10, 5, 2, 1)]);
+        t.phase("Act");
+        let mut sm = SessionManager::new(Arc::clone(&db));
+        sm.restore_from_db();
+        t.phase("Assert");
+        let sessions = sm.get_sessions();
+        let tokens = sessions[0]
+            .tokens
+            .as_ref()
+            .expect("tokens missing after restore");
+        t.eq("output_tokens restored", tokens.output, 5u64);
+    }
+
+    // ── get_journal ───────────────────────────────────────────────────────
+
+    #[test]
+    fn should_fill_session_id_on_all_journal_entries() {
+        let mut t = TestCase::new("should_fill_session_id_on_all_journal_entries");
+        t.phase("Seed");
+        let db = make_db();
+        let sid = db
+            .create_session(None, None, "/tmp", "ignore", None)
+            .expect("session");
+        seed_outputs(
+            &db,
+            sid,
+            &[
+                &crate::test_utils::assistant_text("First"),
+                &crate::test_utils::assistant_text("Second"),
+            ],
+        );
+        let mut sm = SessionManager::new(db);
+        sm.restore_from_db();
+        t.phase("Act");
+        let journal = sm.get_journal(sid);
+        t.phase("Assert");
+        t.len("two entries", &journal, 2);
+        let expected_id = sid.to_string();
+        t.eq(
+            "first entry has session_id",
+            journal[0].session_id.as_str(),
+            expected_id.as_str(),
+        );
+        t.eq(
+            "second entry has session_id",
+            journal[1].session_id.as_str(),
+            expected_id.as_str(),
+        );
     }
 }
