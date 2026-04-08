@@ -512,24 +512,33 @@ mod tests {
     }
 
     #[test]
-    fn make_db_returns_usable_database() {
+    fn should_return_usable_database_from_make_db() {
+        let mut t = TestCase::new("should_return_usable_database_from_make_db");
+        t.phase("Act");
         let db = make_db();
+        t.phase("Assert");
         let sessions = db.get_sessions().expect("get_sessions failed");
-        assert!(sessions.is_empty());
+        t.empty("empty sessions table", &sessions);
     }
 
     #[test]
-    fn seed_session_returns_positive_id() {
+    fn should_return_positive_id_from_seed_session() {
+        let mut t = TestCase::new("should_return_positive_id_from_seed_session");
+        t.phase("Act");
         let db = make_db();
         let id = seed_session(&db);
-        assert!(id > 0);
+        t.phase("Assert");
+        t.ok("id is positive", id > 0);
     }
 
     #[test]
-    fn write_jsonl_creates_readable_file_with_correct_lines() {
+    fn should_create_readable_file_with_correct_lines() {
+        let mut t = TestCase::new("should_create_readable_file_with_correct_lines");
+        t.phase("Act");
         let dir = tempfile::TempDir::new().unwrap();
         let path = write_jsonl(&dir, "test.jsonl", &["line1", "line2"]);
+        t.phase("Assert");
         let content = std::fs::read_to_string(&path).unwrap();
-        assert_eq!(content, "line1\nline2\n");
+        t.eq("file contents match", content.as_str(), "line1\nline2\n");
     }
 }

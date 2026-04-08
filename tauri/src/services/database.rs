@@ -299,7 +299,7 @@ impl DatabaseService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::{seed_session, TestCase};
+    use crate::test_utils::{assistant_text, seed_session, user_text, TestCase};
 
     fn make_db() -> DatabaseService {
         DatabaseService::open_in_memory().expect("test setup: failed to open in-memory DB")
@@ -528,19 +528,15 @@ mod tests {
         t.phase("Seed");
         let db = make_db();
         let id = seed_session(&db);
-        db.insert_output(id, r#"{"type":"assistant"}"#)
-            .expect("insert 1");
-        db.insert_output(id, r#"{"type":"user"}"#)
-            .expect("insert 2");
+        let line1 = assistant_text("first message");
+        let line2 = user_text("second message");
+        db.insert_output(id, &line1).expect("insert 1");
+        db.insert_output(id, &line2).expect("insert 2");
         t.phase("Act");
         let rows = db.get_outputs(id).expect("get_outputs failed");
         t.phase("Assert");
         t.len("two rows", &rows, 2);
-        t.eq(
-            "first row matches",
-            rows[0].as_str(),
-            r#"{"type":"assistant"}"#,
-        );
+        t.eq("first row matches", rows[0].as_str(), line1.as_str());
     }
 
     #[test]
@@ -554,8 +550,10 @@ mod tests {
         let id2 = db
             .create_session(None, None, "/b", "ignore", None)
             .expect("s2");
-        db.insert_output(id1, r#"{"session":1}"#).expect("o1");
-        db.insert_output(id2, r#"{"session":2}"#).expect("o2");
+        db.insert_output(id1, &assistant_text("session 1 msg"))
+            .expect("o1");
+        db.insert_output(id2, &assistant_text("session 2 msg"))
+            .expect("o2");
         t.phase("Assert");
         t.len("session 1 has 1 output", &db.get_outputs(id1).unwrap(), 1);
         t.len("session 2 has 1 output", &db.get_outputs(id2).unwrap(), 1);
@@ -569,9 +567,9 @@ mod tests {
         t.phase("Seed");
         let db = make_db();
         let id = seed_session(&db);
-        db.insert_output(id, r#"{"type":"assistant"}"#)
+        db.insert_output(id, &assistant_text("first"))
             .expect("insert");
-        db.insert_output(id, r#"{"type":"user"}"#)
+        db.insert_output(id, &user_text("second"))
             .expect("insert 2");
         t.phase("Act");
         db.delete_session(id).expect("delete failed");
