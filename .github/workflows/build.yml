@@ -160,15 +160,11 @@ jobs:
           $downloadUrl = "https://github.com/xinnaider/orbit/releases/download/v$version/$($exe.Name)"
 
           $latestJson = @{
-            version  = $version
-            notes    = "See the full changelog at https://github.com/xinnaider/orbit/releases/tag/v$version"
-            pub_date = $pubDate
-            platforms = @{
-              "windows-x86_64" = @{
-                signature = $signature.Trim()
-                url       = $downloadUrl
-              }
-            }
+            version   = $version
+            notes     = "See the full changelog at https://github.com/xinnaider/orbit/releases/tag/v$version"
+            pub_date  = $pubDate
+            signature = $signature.Trim()
+            url       = $downloadUrl
           } | ConvertTo-Json -Depth 5
 
           $latestJson | Out-File -FilePath latest-windows-x86_64.json -Encoding utf8NoBOM
@@ -305,7 +301,7 @@ jobs:
             --arg pub_date "$pub_date" \
             --arg sig      "$signature" \
             --arg url      "$download_url" \
-            '{version: $version, notes: $notes, pub_date: $pub_date, platforms: {"linux-x86_64": {signature: $sig, url: $url}}}' \
+            '{version: $version, notes: $notes, pub_date: $pub_date, signature: $sig, url: $url}' \
             > latest-linux-x86_64.json
 
           echo "latest-linux-x86_64.json generated:"
