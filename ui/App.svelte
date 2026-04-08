@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
+  import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
   import {
     sessions,
     selectedSessionId,
@@ -168,7 +169,17 @@
   });
 
   $: selected = getSelectedSession($sessions, $selectedSessionId);
+
+  function handleKeydown(e: KeyboardEvent) {
+    if (e.key === 'F12') {
+      // openDevtools() exists at runtime when the devtools Tauri feature is enabled
+      // but is not included in the published TypeScript types
+      (getCurrentWebviewWindow() as unknown as { openDevtools(): void }).openDevtools();
+    }
+  }
 </script>
+
+<svelte:window on:keydown={handleKeydown} />
 
 {#if updateError}
   <Banner

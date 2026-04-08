@@ -4,6 +4,9 @@
 
 ## April 2026
 
+### 04/08 · Fix — Auto-updater now works on Windows and Linux
+The "check for updates" feature was silently failing on all platforms because the update server URL was missing the architecture suffix. Users on v0.3.0 will now correctly receive an update prompt when opening the app.
+
 ### 04/08 · Fix — Message display delay and working indicator
 Sending a message now shows it in the chat immediately and without flickering. The "working" indicator (animated dots) now appears as soon as Claude starts processing a request and stays visible throughout — previously it could disappear briefly or not show at all right after sending. The fix also reduces unnecessary background work that was slowing down the feed during active sessions.
 
