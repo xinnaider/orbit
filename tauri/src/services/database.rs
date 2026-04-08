@@ -19,14 +19,22 @@ fn flush_batch(conn: &Mutex<Connection>, buf: &mut Vec<(SessionId, String)>) {
         return;
     }
     let conn = conn.lock().unwrap_or_else(|e| e.into_inner());
-    let _ = conn.execute_batch("BEGIN");
+    if let Err(e) = conn.execute_batch("BEGIN") {
+        eprintln!("[orbit] flush_batch: BEGIN failed: {e}");
+        buf.clear();
+        return;
+    }
     for (session_id, data) in buf.drain(..) {
-        let _ = conn.execute(
+        if let Err(e) = conn.execute(
             "INSERT INTO session_outputs (session_id, data) VALUES (?1, ?2)",
             rusqlite::params![session_id, data],
-        );
+        ) {
+            eprintln!("[orbit] flush_batch: INSERT failed for session {session_id}: {e}");
+        }
     }
-    let _ = conn.execute_batch("COMMIT");
+    if let Err(e) = conn.execute_batch("COMMIT") {
+        eprintln!("[orbit] flush_batch: COMMIT failed: {e}");
+    }
 }
 
 fn start_output_worker(conn: Arc<Mutex<Connection>>) -> std::sync::mpsc::SyncSender<WorkerMsg> {
