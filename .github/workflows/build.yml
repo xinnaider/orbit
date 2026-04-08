@@ -322,7 +322,7 @@ jobs:
           retention-days: 30
 
       - name: Resolve release metadata
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         id: meta
         shell: bash
         run: |
@@ -335,7 +335,7 @@ jobs:
           fi
 
       - name: Create/update Release with Linux assets
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.meta.outputs.tag }}
