@@ -163,7 +163,7 @@ impl SessionManager {
         prompt: String,
     ) {
         let (db, cwd, permission_mode, model, claude_session_id) = {
-            let m = manager.lock().unwrap();
+            let m = manager.lock().unwrap_or_else(|e| e.into_inner());
             let a = match m.active.get(&session_id) {
                 Some(a) => a,
                 None => {
@@ -248,7 +248,7 @@ impl SessionManager {
         });
 
         {
-            let mut m = manager.lock().unwrap();
+            let mut m = manager.lock().unwrap_or_else(|e| e.into_inner());
             if let Some(a) = m.active.get_mut(&session_id) {
                 a.session.status = crate::models::SessionStatus::Running.as_str().to_string();
                 a.session.pid = Some(pid);
@@ -268,13 +268,7 @@ impl SessionManager {
             timestamp: chrono::Utc::now().to_rfc3339(),
             entry_type: crate::models::JournalEntryType::User,
             text: Some(prompt_text.clone()),
-            thinking: None,
-            thinking_duration: None,
-            tool: None,
-            tool_input: None,
-            output: None,
-            exit_code: None,
-            lines_changed: None,
+            ..crate::models::JournalEntry::default()
         };
         let user_line = serde_json::json!({
             "type": "user",
@@ -285,7 +279,7 @@ impl SessionManager {
         let _ = db.insert_output(session_id, &user_line);
 
         {
-            let mut m = manager.lock().unwrap();
+            let mut m = manager.lock().unwrap_or_else(|e| e.into_inner());
             let state = m.journal_states.entry(session_id).or_default();
             state.entries.push(user_entry.clone());
         }
@@ -334,7 +328,7 @@ impl SessionManager {
                     // Extract and persist Claude session ID from system/init message
                     if let Ok(val) = serde_json::from_str::<serde_json::Value>(&trimmed) {
                         if let Some(claude_id) = val.get("session_id").and_then(|v| v.as_str()) {
-                            let mut m = manager.lock().unwrap();
+                            let mut m = manager.lock().unwrap_or_else(|e| e.into_inner());
                             if let Some(a) = m.active.get_mut(&session_id) {
                                 if a.claude_session_id.is_none() {
                                     a.claude_session_id = Some(claude_id.to_string());
@@ -356,7 +350,7 @@ impl SessionManager {
                     let _ = db.insert_output(session_id, &trimmed);
 
                     let (new_entries, state_event) = {
-                        let mut m = manager.lock().unwrap();
+                        let mut m = manager.lock().unwrap_or_else(|e| e.into_inner());
                         let cwd = m
                             .active
                             .get(&session_id)
@@ -423,7 +417,7 @@ impl SessionManager {
         }
 
         {
-            let mut m = manager.lock().unwrap();
+            let mut m = manager.lock().unwrap_or_else(|e| e.into_inner());
             if let Some(a) = m.active.get_mut(&session_id) {
                 a.session.status = crate::models::SessionStatus::Completed.as_str().to_string();
             }
@@ -455,7 +449,7 @@ impl SessionManager {
     ) -> Result<(), String> {
         // Re-add to active map if missing (e.g. after app restart)
         {
-            let mut m = manager.lock().unwrap();
+            let mut m = manager.lock().unwrap_or_else(|e| e.into_inner());
             if !m.active.contains_key(&session_id) {
                 // Load from DB
                 let session =

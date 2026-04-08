@@ -7,6 +7,13 @@ use crate::services::spawn_manager::find_claude;
 
 pub struct SessionState(pub Arc<Mutex<SessionManager>>);
 
+impl SessionState {
+    /// Acquire the session manager, recovering from a poisoned Mutex.
+    pub fn lock(&self) -> std::sync::MutexGuard<'_, SessionManager> {
+        self.0.lock().unwrap_or_else(|e| e.into_inner())
+    }
+}
+
 /// Create a session: returns immediately after creating the DB record (status = "initializing").
 /// The actual Claude process spawns in a background thread — non-blocking.
 /// Frontend should listen to "session:running" (ready) or "session:error" (spawn failed).
@@ -25,7 +32,7 @@ pub fn create_session(
     let mode = permission_mode.unwrap_or_else(|| "ignore".to_string());
 
     let session = {
-        let mut m = state.0.lock().unwrap();
+        let mut m = state.lock();
         m.init_session(
             &project_path,
             session_name.as_deref(),
@@ -50,7 +57,7 @@ pub fn create_session(
 
 #[tauri::command]
 pub fn list_sessions(state: State<SessionState>) -> Vec<Session> {
-    state.0.lock().unwrap().get_sessions()
+    state.lock().get_sessions()
 }
 
 #[tauri::command]
@@ -59,7 +66,7 @@ pub fn stop_session(
     state: State<SessionState>,
     app: AppHandle,
 ) -> Result<(), String> {
-    state.0.lock().unwrap().stop_session(session_id)?;
+    state.lock().stop_session(session_id)?;
     use tauri::Emitter;
     let _ = app.emit(
         "session:stopped",
@@ -80,7 +87,7 @@ pub fn send_session_message(
 
 #[tauri::command]
 pub fn get_session_journal(session_id: SessionId, state: State<SessionState>) -> Vec<JournalEntry> {
-    state.0.lock().unwrap().get_journal(session_id)
+    state.lock().get_journal(session_id)
 }
 
 /// Diagnostic: check if claude CLI is available and return its path or an error message.
@@ -178,11 +185,11 @@ pub fn rename_session(
     name: String,
     state: State<SessionState>,
 ) -> Result<(), String> {
-    state.0.lock().unwrap().rename_session(session_id, &name)
+    state.lock().rename_session(session_id, &name)
 }
 
 /// Delete a session (removes from DB, stops if running).
 #[tauri::command]
 pub fn delete_session(session_id: SessionId, state: State<SessionState>) -> Result<(), String> {
-    state.0.lock().unwrap().delete_session(session_id)
+    state.lock().delete_session(session_id)
 }

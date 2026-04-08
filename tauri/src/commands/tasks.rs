@@ -13,7 +13,7 @@ pub fn get_tasks(
     };
 
     let outputs = {
-        let m = state.0.lock().unwrap();
+        let m = state.lock();
         match m.db.get_outputs(id) {
             Ok(o) => o,
             Err(_) => return vec![],

@@ -28,7 +28,7 @@ impl DatabaseService {
     }
 
     fn migrate(&self) -> SqlResult<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         conn.execute_batch("PRAGMA journal_mode=WAL;")?;
         // Run schema migrations (errors ignored — column may already exist)
         let _ = conn.execute_batch("ALTER TABLE sessions ADD COLUMN claude_session_id TEXT");
@@ -76,7 +76,7 @@ impl DatabaseService {
     }
 
     pub fn create_project(&self, name: &str, path: &str) -> SqlResult<Project> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         conn.execute(
             "INSERT OR IGNORE INTO projects (name, path) VALUES (?1, ?2)",
             params![name, path],
@@ -104,7 +104,7 @@ impl DatabaseService {
         permission_mode: &str,
         model: Option<&str>,
     ) -> SqlResult<SessionId> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         conn.execute(
             "INSERT INTO sessions (project_id, name, cwd, status, permission_mode, model)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
@@ -121,7 +121,7 @@ impl DatabaseService {
     }
 
     pub fn update_session_status(&self, id: SessionId, status: &str) -> SqlResult<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         conn.execute(
             "UPDATE sessions SET status = ?1, updated_at = datetime('now') WHERE id = ?2",
             params![status, id],
@@ -130,7 +130,7 @@ impl DatabaseService {
     }
 
     pub fn update_session_pid(&self, id: SessionId, pid: i32) -> SqlResult<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         conn.execute(
             "UPDATE sessions SET pid = ?1, status = ?2, updated_at = datetime('now') WHERE id = ?3",
             params![pid, crate::models::SessionStatus::Running.as_str(), id],
@@ -144,16 +144,19 @@ impl DatabaseService {
         worktree_path: &str,
         branch_name: &str,
     ) -> SqlResult<()> {
-        self.conn.lock().unwrap().execute(
-            "UPDATE sessions SET worktree_path = ?1, branch_name = ?2, \
+        self.conn
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .execute(
+                "UPDATE sessions SET worktree_path = ?1, branch_name = ?2, \
              updated_at = datetime('now') WHERE id = ?3",
-            params![worktree_path, branch_name, id],
-        )?;
+                params![worktree_path, branch_name, id],
+            )?;
         Ok(())
     }
 
     pub fn get_sessions(&self) -> SqlResult<Vec<Session>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         let mut stmt = conn.prepare(
             "SELECT id, project_id, name, status, worktree_path, branch_name,
                     permission_mode, model, pid, cwd, created_at, updated_at
@@ -187,7 +190,7 @@ impl DatabaseService {
     }
 
     pub fn get_session(&self, id: SessionId) -> SqlResult<Option<Session>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         let mut stmt = conn.prepare(
             "SELECT id, project_id, name, status, worktree_path, branch_name,
                     permission_mode, model, pid, cwd, created_at, updated_at
@@ -221,7 +224,7 @@ impl DatabaseService {
     }
 
     pub fn get_projects(&self) -> SqlResult<Vec<Project>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         let mut stmt =
             conn.prepare("SELECT id, name, path, created_at FROM projects ORDER BY name ASC")?;
         let projects = stmt
@@ -238,7 +241,7 @@ impl DatabaseService {
     }
 
     pub fn insert_output(&self, session_id: SessionId, data: &str) -> SqlResult<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         conn.execute(
             "INSERT INTO session_outputs (session_id, data) VALUES (?1, ?2)",
             params![session_id, data],
@@ -247,7 +250,7 @@ impl DatabaseService {
     }
 
     pub fn update_claude_session_id(&self, id: SessionId, claude_id: &str) -> SqlResult<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         conn.execute(
             "UPDATE sessions SET claude_session_id = ?1, updated_at = datetime('now') WHERE id = ?2",
             params![claude_id, id],
@@ -256,7 +259,7 @@ impl DatabaseService {
     }
 
     pub fn get_claude_session_id(&self, id: SessionId) -> SqlResult<Option<String>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         let result = conn
             .query_row(
                 "SELECT claude_session_id FROM sessions WHERE id = ?1",
@@ -268,7 +271,7 @@ impl DatabaseService {
     }
 
     pub fn rename_session(&self, id: SessionId, name: &str) -> SqlResult<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         conn.execute(
             "UPDATE sessions SET name = ?1, updated_at = datetime('now') WHERE id = ?2",
             params![name, id],
@@ -277,7 +280,7 @@ impl DatabaseService {
     }
 
     pub fn delete_session(&self, id: SessionId) -> SqlResult<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         conn.execute_batch("BEGIN")?;
         conn.execute(
             "DELETE FROM session_outputs WHERE session_id = ?1",
@@ -289,7 +292,7 @@ impl DatabaseService {
     }
 
     pub fn get_outputs(&self, session_id: SessionId) -> SqlResult<Vec<String>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         let mut stmt =
             conn.prepare("SELECT data FROM session_outputs WHERE session_id = ?1 ORDER BY id ASC")?;
         let rows = stmt

@@ -94,6 +94,24 @@ pub struct JournalEntry {
     pub lines_changed: Option<LinesChanged>,
 }
 
+impl Default for JournalEntry {
+    fn default() -> Self {
+        JournalEntry {
+            session_id: String::new(),
+            timestamp: String::new(),
+            entry_type: JournalEntryType::Assistant,
+            text: None,
+            thinking: None,
+            thinking_duration: None,
+            tool: None,
+            tool_input: None,
+            output: None,
+            exit_code: None,
+            lines_changed: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LinesChanged {
@@ -178,6 +196,25 @@ pub fn context_window(model_id: &str) -> u64 {
 
 // Session ID type — SQLite AUTOINCREMENT rowid
 pub type SessionId = i64;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn should_construct_journal_entry_with_default() {
+        let entry = JournalEntry {
+            session_id: "123".to_string(),
+            timestamp: "2026-01-01T00:00:00Z".to_string(),
+            entry_type: JournalEntryType::User,
+            text: Some("hello".to_string()),
+            ..JournalEntry::default()
+        };
+        assert_eq!(entry.thinking, None);
+        assert_eq!(entry.tool, None);
+        assert_eq!(entry.exit_code, None);
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]

@@ -125,17 +125,10 @@ pub fn parse_journal(
                                     if !thinking_text.is_empty() {
                                         last_thinking_ts = Some(ts.clone());
                                         state.entries.push(JournalEntry {
-                                            session_id: String::new(), // filled by caller
                                             timestamp: ts.clone(),
                                             entry_type: JournalEntryType::Thinking,
-                                            text: None,
                                             thinking: Some(thinking_text),
-                                            thinking_duration: None,
-                                            tool: None,
-                                            tool_input: None,
-                                            output: None,
-                                            exit_code: None,
-                                            lines_changed: None,
+                                            ..JournalEntry::default()
                                         });
                                     }
                                 }
@@ -166,17 +159,10 @@ pub fn parse_journal(
                                         }
 
                                         state.entries.push(JournalEntry {
-                                            session_id: String::new(),
                                             timestamp: ts.clone(),
                                             entry_type: JournalEntryType::Assistant,
                                             text: Some(text),
-                                            thinking: None,
-                                            thinking_duration: None,
-                                            tool: None,
-                                            tool_input: None,
-                                            output: None,
-                                            exit_code: None,
-                                            lines_changed: None,
+                                            ..JournalEntry::default()
                                         });
                                     }
                                 }
@@ -200,17 +186,11 @@ pub fn parse_journal(
                                     }
 
                                     state.entries.push(JournalEntry {
-                                        session_id: String::new(),
                                         timestamp: ts.clone(),
                                         entry_type: JournalEntryType::ToolCall,
-                                        text: None,
-                                        thinking: None,
-                                        thinking_duration: None,
                                         tool: Some(tool_name),
                                         tool_input: input,
-                                        output: None,
-                                        exit_code: None,
-                                        lines_changed: None,
+                                        ..JournalEntry::default()
                                     });
                                 }
                                 _ => {}
@@ -244,34 +224,20 @@ pub fn parse_journal(
                                     }
 
                                     state.entries.push(JournalEntry {
-                                        session_id: String::new(),
                                         timestamp: ts.clone(),
                                         entry_type: JournalEntryType::ToolResult,
-                                        text: None,
-                                        thinking: None,
-                                        thinking_duration: None,
-                                        tool: None,
-                                        tool_input: None,
                                         output: Some(truncate_output(&output_text, 2000)),
-                                        exit_code: None,
-                                        lines_changed: None,
+                                        ..JournalEntry::default()
                                     });
                                 }
                             }
                         } else if let Some(text) = content.as_str() {
                             if !text.is_empty() {
                                 state.entries.push(JournalEntry {
-                                    session_id: String::new(),
                                     timestamp: ts.clone(),
                                     entry_type: JournalEntryType::User,
                                     text: Some(text.to_string()),
-                                    thinking: None,
-                                    thinking_duration: None,
-                                    tool: None,
-                                    tool_input: None,
-                                    output: None,
-                                    exit_code: None,
-                                    lines_changed: None,
+                                    ..JournalEntry::default()
                                 });
                             }
                         }

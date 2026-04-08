@@ -10,9 +10,7 @@ pub fn create_project(
     state: State<SessionState>,
 ) -> Result<Project, String> {
     state
-        .0
         .lock()
-        .unwrap()
         .db
         .create_project(&name, &path)
         .map_err(|e| e.to_string())
@@ -20,11 +18,5 @@ pub fn create_project(
 
 #[tauri::command]
 pub fn list_projects(state: State<SessionState>) -> Vec<Project> {
-    state
-        .0
-        .lock()
-        .unwrap()
-        .db
-        .get_projects()
-        .unwrap_or_default()
+    state.lock().db.get_projects().unwrap_or_default()
 }
