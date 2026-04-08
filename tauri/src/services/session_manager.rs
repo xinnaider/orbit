@@ -647,7 +647,11 @@ mod tests {
             .expect("init failed");
         t.phase("Assert");
         t.ok("id is positive", s.id > 0);
-        t.eq("status is initializing", s.status.as_str(), "initializing");
+        t.eq(
+            "status is initializing",
+            &s.status,
+            &crate::models::SessionStatus::Initializing,
+        );
     }
 
     #[test]
@@ -700,7 +704,11 @@ mod tests {
         mgr.lock().unwrap().stop_session(s.id).expect("stop failed");
         t.phase("Assert");
         let sessions = mgr.lock().unwrap().get_sessions();
-        t.eq("status is stopped", sessions[0].status.as_str(), "stopped");
+        t.eq(
+            "status is stopped",
+            &sessions[0].status,
+            &crate::models::SessionStatus::Stopped,
+        );
     }
 
     // ── delete_session ────────────────────────────────────────────────────
