@@ -879,7 +879,7 @@ mod process_line_tests {
         assistant_with_tokens, progress_line, system_stop_hook, tool_result, user_text, TestCase,
     };
 
-    // ── Noop / guard cases ───────────────────────────────────────────────
+    // -- Noop / guard cases
 
     #[test]
     fn should_be_noop_for_empty_line() {
@@ -914,7 +914,7 @@ mod process_line_tests {
         t.empty("no entries", &state.entries);
     }
 
-    // ── Assistant text ───────────────────────────────────────────────────
+    // -- Assistant text
 
     #[test]
     fn should_create_assistant_entry_for_text_block() {
@@ -927,7 +927,7 @@ mod process_line_tests {
         t.len("one entry", &state.entries, 1);
         t.eq(
             "entry type is Assistant",
-            state.entries[0].entry_type.clone(),
+            state.entries[0].entry_type,
             JournalEntryType::Assistant,
         );
         t.eq(
@@ -956,7 +956,7 @@ mod process_line_tests {
         let mut t = TestCase::new("should_extract_token_counts_from_assistant_message");
         t.phase("Act");
         let mut state = JournalState::default();
-        // input=100, output=50, cache_write=20, cache_read=30 → total input = 150
+        // input=100, output=50, cache_write=20, cache_read=30 -> total input = 150
         process_line(&mut state, &assistant_with_tokens("hi", 100, 50, 20, 30));
         t.phase("Assert");
         t.eq(
@@ -979,7 +979,7 @@ mod process_line_tests {
         t.eq("status is Idle", state.status, AgentStatus::Idle);
     }
 
-    // ── Thinking ─────────────────────────────────────────────────────────
+    // -- Thinking
 
     #[test]
     fn should_create_thinking_entry_for_thinking_block() {
@@ -991,7 +991,7 @@ mod process_line_tests {
         t.len("one entry", &state.entries, 1);
         t.eq(
             "entry type is Thinking",
-            state.entries[0].entry_type.clone(),
+            state.entries[0].entry_type,
             JournalEntryType::Thinking,
         );
         t.eq(
@@ -1001,7 +1001,7 @@ mod process_line_tests {
         );
     }
 
-    // ── Tool use ─────────────────────────────────────────────────────────
+    // -- Tool use
 
     #[test]
     fn should_create_tool_call_entry_for_bash() {
@@ -1016,7 +1016,7 @@ mod process_line_tests {
         t.len("one entry", &state.entries, 1);
         t.eq(
             "entry type is ToolCall",
-            state.entries[0].entry_type.clone(),
+            state.entries[0].entry_type,
             JournalEntryType::ToolCall,
         );
         t.eq(
@@ -1036,7 +1036,7 @@ mod process_line_tests {
             &assistant_tool_use("Bash", serde_json::json!({"command": "ls"})),
         );
         t.phase("Assert");
-        // Bash auto-runs — no approval needed, stays Working
+        // Bash auto-runs -- no approval needed, stays Working
         t.eq("status stays Working", state.status, AgentStatus::Working);
     }
 
@@ -1072,7 +1072,7 @@ mod process_line_tests {
     #[test]
     fn should_clear_pending_approval_after_tool_result() {
         let mut t = TestCase::new("should_clear_pending_approval_after_tool_result");
-        t.phase("Seed — tool_use sets pending");
+        t.phase("Seed -- tool_use sets pending");
         let mut state = JournalState::default();
         process_line(
             &mut state,
@@ -1081,18 +1081,18 @@ mod process_line_tests {
                 serde_json::json!({"file_path": "/etc/passwd"}),
             ),
         );
-        t.phase("Act — tool_result clears pending");
+        t.phase("Act -- tool_result clears pending");
         process_line(&mut state, &tool_result("done"));
         t.phase("Assert");
         t.none("pending_approval cleared", &state.pending_approval);
     }
 
-    // ── mini_log ─────────────────────────────────────────────────────────
+    // -- mini_log
 
     #[test]
     fn should_cap_mini_log_at_4_entries() {
         let mut t = TestCase::new("should_cap_mini_log_at_4_entries");
-        t.phase("Seed — push 5 tool uses");
+        t.phase("Seed -- push 5 tool uses");
         let mut state = JournalState::default();
         for name in ["Bash", "Read", "Write", "Grep", "Edit"] {
             process_line(
@@ -1128,7 +1128,7 @@ mod process_line_tests {
         );
     }
 
-    // ── User ─────────────────────────────────────────────────────────────
+    // -- User
 
     #[test]
     fn should_create_user_entry_for_plain_text() {
@@ -1140,7 +1140,7 @@ mod process_line_tests {
         t.len("one entry", &state.entries, 1);
         t.eq(
             "entry type is User",
-            state.entries[0].entry_type.clone(),
+            state.entries[0].entry_type,
             JournalEntryType::User,
         );
         t.eq(
@@ -1183,7 +1183,7 @@ mod process_line_tests {
         );
     }
 
-    // ── System ───────────────────────────────────────────────────────────
+    // -- System
 
     #[test]
     fn should_set_idle_on_stop_hook_summary() {
@@ -1197,7 +1197,7 @@ mod process_line_tests {
         t.eq("status is Idle", state.status, AgentStatus::Idle);
     }
 
-    // ── Progress ─────────────────────────────────────────────────────────
+    // -- Progress
 
     #[test]
     fn should_create_progress_entry_for_non_empty_content() {
@@ -1209,7 +1209,7 @@ mod process_line_tests {
         t.len("one entry", &state.entries, 1);
         t.eq(
             "entry type is Progress",
-            state.entries[0].entry_type.clone(),
+            state.entries[0].entry_type,
             JournalEntryType::Progress,
         );
     }
@@ -1223,174 +1223,9 @@ mod process_line_tests {
         t.phase("Assert");
         t.empty("no entries for whitespace content", &state.entries);
     }
-
-    // ── Legacy tests kept for regression coverage ────────────────────────
-
-    #[test]
-    fn test_process_empty_line_is_noop() {
-        let mut state = JournalState::default();
-        process_line(&mut state, "");
-        assert!(state.entries.is_empty());
-    }
-
-    #[test]
-    fn test_process_invalid_json_is_noop() {
-        let mut state = JournalState::default();
-        process_line(&mut state, "not json");
-        assert!(state.entries.is_empty());
-    }
-
-    #[test]
-    fn test_process_assistant_text_creates_entry() {
-        let mut state = JournalState::default();
-        let line = r#"{"type":"assistant","message":{"model":"claude-sonnet-4-6","content":[{"type":"text","text":"Hello!"}],"usage":{"input_tokens":10,"output_tokens":5,"cache_creation_input_tokens":0,"cache_read_input_tokens":0}}}"#;
-        process_line(&mut state, line);
-        assert_eq!(state.entries.len(), 1);
-        assert_eq!(state.entries[0].entry_type, JournalEntryType::Assistant);
-        assert_eq!(state.entries[0].text.as_deref(), Some("Hello!"));
-        assert_eq!(state.model.as_deref(), Some("claude-sonnet-4-6"));
-        assert_eq!(state.output_tokens, 5);
-    }
-
-    #[test]
-    fn test_process_bash_tool_use_stays_working() {
-        // Bash auto-runs — status stays Working, not Input
-        let mut state = JournalState::default();
-        let line = r#"{"type":"assistant","message":{"model":"claude-sonnet-4-6","content":[{"type":"tool_use","name":"Bash","input":{"command":"ls"}}],"usage":{"input_tokens":10,"output_tokens":5,"cache_creation_input_tokens":0,"cache_read_input_tokens":0}}}"#;
-        process_line(&mut state, line);
-        assert_eq!(state.status, AgentStatus::Working);
-        assert_eq!(state.entries[0].entry_type, JournalEntryType::ToolCall);
-    }
-
-    #[test]
-    fn test_process_end_turn_sets_idle_status() {
-        let mut state = JournalState::default();
-        let line = r#"{"type":"assistant","message":{"model":"claude-sonnet-4-6","stop_reason":"end_turn","content":[{"type":"text","text":"Done."}],"usage":{"input_tokens":10,"output_tokens":5,"cache_creation_input_tokens":0,"cache_read_input_tokens":0}}}"#;
-        process_line(&mut state, line);
-        assert_eq!(state.status, AgentStatus::Idle);
-    }
-
-    #[test]
-    fn test_process_thinking_block_creates_thinking_entry() {
-        let mut state = JournalState::default();
-        let line = r#"{"type":"assistant","message":{"model":"claude-sonnet-4-6","content":[{"type":"thinking","thinking":"Let me reason..."}],"usage":{"input_tokens":5,"output_tokens":2,"cache_creation_input_tokens":0,"cache_read_input_tokens":0}}}"#;
-        process_line(&mut state, line);
-        assert_eq!(state.entries.len(), 1);
-        assert_eq!(state.entries[0].entry_type, JournalEntryType::Thinking);
-        assert_eq!(
-            state.entries[0].thinking.as_deref(),
-            Some("Let me reason...")
-        );
-    }
-
-    #[test]
-    fn test_process_user_plain_text_creates_user_entry() {
-        let mut state = JournalState::default();
-        let line = r#"{"type":"user","message":{"content":"Fix the bug"}}"#;
-        process_line(&mut state, line);
-        assert_eq!(state.entries.len(), 1);
-        assert_eq!(state.entries[0].entry_type, JournalEntryType::User);
-        assert_eq!(state.entries[0].text.as_deref(), Some("Fix the bug"));
-        assert_eq!(state.status, AgentStatus::Working);
-    }
-
-    #[test]
-    fn test_process_tool_result_creates_tool_result_entry() {
-        let mut state = JournalState::default();
-        // First send a tool_use so mini_log has an entry to update
-        let tool_line = r#"{"type":"assistant","message":{"model":"m","content":[{"type":"tool_use","name":"Bash","input":{"command":"ls"}}],"usage":{"input_tokens":1,"output_tokens":1,"cache_creation_input_tokens":0,"cache_read_input_tokens":0}}}"#;
-        process_line(&mut state, tool_line);
-
-        let result_line = r#"{"type":"user","message":{"content":[{"type":"tool_result","content":"file1.rs\nfile2.rs"}]}}"#;
-        process_line(&mut state, result_line);
-
-        let tool_result = state
-            .entries
-            .iter()
-            .find(|e| e.entry_type == JournalEntryType::ToolResult);
-        assert!(tool_result.is_some());
-        assert!(tool_result
-            .unwrap()
-            .output
-            .as_ref()
-            .unwrap()
-            .contains("file1.rs"));
-        assert_eq!(state.status, AgentStatus::Working);
-    }
-
-    #[test]
-    fn test_process_system_stop_hook_sets_idle() {
-        let mut state = JournalState::default();
-        state.status = AgentStatus::Working;
-        let line = r#"{"type":"system","message":{"subtype":"stop_hook_summary"}}"#;
-        process_line(&mut state, line);
-        assert_eq!(state.status, AgentStatus::Idle);
-    }
-
-    #[test]
-    fn test_process_mini_log_capped_at_4() {
-        let mut state = JournalState::default();
-        let tool_line = |name: &str| {
-            format!(
-                r#"{{"type":"assistant","message":{{"model":"m","content":[{{"type":"tool_use","name":"{}","input":{{"command":"x"}}}}],"usage":{{"input_tokens":1,"output_tokens":1,"cache_creation_input_tokens":0,"cache_read_input_tokens":0}}}}}}"#,
-                name
-            )
-        };
-
-        for name in ["Bash", "Read", "Write", "Grep", "Edit"] {
-            process_line(&mut state, &tool_line(name));
-        }
-
-        assert_eq!(state.mini_log.len(), 4);
-        // First entry (Bash) was evicted
-        assert_ne!(state.mini_log[0].tool, "Bash");
-    }
-
-    #[test]
-    fn test_process_token_accumulation() {
-        let mut state = JournalState::default();
-        let line = r#"{"type":"assistant","message":{"model":"m","content":[{"type":"text","text":"hi"}],"usage":{"input_tokens":100,"output_tokens":50,"cache_creation_input_tokens":20,"cache_read_input_tokens":30}}}"#;
-        process_line(&mut state, line);
-        // input_tokens + cache_creation + cache_read = 100 + 20 + 30 = 150
-        assert_eq!(state.input_tokens, 150);
-        assert_eq!(state.output_tokens, 50);
-        assert_eq!(state.cache_write, 20);
-        assert_eq!(state.cache_read, 30);
-    }
-
-    #[test]
-    fn test_process_bash_does_not_set_pending_approval() {
-        let mut state = JournalState::default();
-        // Bash auto-runs with --dangerously-skip-permissions — no approval needed
-        let tool_line = r#"{"type":"assistant","message":{"model":"m","content":[{"type":"tool_use","name":"Bash","input":{"command":"rm -rf /"}}],"usage":{"input_tokens":1,"output_tokens":1,"cache_creation_input_tokens":0,"cache_read_input_tokens":0}}}"#;
-        process_line(&mut state, tool_line);
-        assert!(state.pending_approval.is_none());
-        assert_eq!(state.status, AgentStatus::Working);
-    }
-
-    #[test]
-    fn test_process_non_bash_tool_sets_pending_approval() {
-        let mut state = JournalState::default();
-        // Non-Bash tools (e.g. a custom tool) may need approval
-        let tool_line = r#"{"type":"assistant","message":{"model":"m","content":[{"type":"tool_use","name":"CustomTool","input":{"file_path":"/etc/passwd"}}],"usage":{"input_tokens":1,"output_tokens":1,"cache_creation_input_tokens":0,"cache_read_input_tokens":0}}}"#;
-        process_line(&mut state, tool_line);
-        assert!(state.pending_approval.is_some());
-
-        // Tool result → pending_approval cleared
-        let result_line =
-            r#"{"type":"user","message":{"content":[{"type":"tool_result","content":"done"}]}}"#;
-        process_line(&mut state, result_line);
-        assert!(state.pending_approval.is_none());
-    }
-
-    #[test]
-    fn test_process_synthetic_message_is_skipped() {
-        let mut state = JournalState::default();
-        let line = r#"{"type":"assistant","message":{"content":"<synthetic>"}}"#;
-        process_line(&mut state, line);
-        assert!(state.entries.is_empty());
-    }
 }
+
+// -- parse_journal tests
 
 #[cfg(test)]
 mod parse_journal_tests {
@@ -1422,7 +1257,7 @@ mod parse_journal_tests {
         t.len("one entry", &state.entries, 1);
         t.eq(
             "entry type is Assistant",
-            state.entries[0].entry_type.clone(),
+            state.entries[0].entry_type,
             JournalEntryType::Assistant,
         );
         t.eq(
@@ -1444,7 +1279,7 @@ mod parse_journal_tests {
         t.len("one entry", &state.entries, 1);
         t.eq(
             "entry type is Thinking",
-            state.entries[0].entry_type.clone(),
+            state.entries[0].entry_type,
             JournalEntryType::Thinking,
         );
         t.eq(
@@ -1473,12 +1308,12 @@ mod parse_journal_tests {
         t.len("two entries", &state.entries, 2);
         t.eq(
             "first is ToolCall",
-            state.entries[0].entry_type.clone(),
+            state.entries[0].entry_type,
             JournalEntryType::ToolCall,
         );
         t.eq(
             "second is ToolResult",
-            state.entries[1].entry_type.clone(),
+            state.entries[1].entry_type,
             JournalEntryType::ToolResult,
         );
     }
@@ -1486,16 +1321,16 @@ mod parse_journal_tests {
     #[test]
     fn should_resume_from_file_offset_without_reprocessing_old_lines() {
         let mut t = TestCase::new("should_resume_from_file_offset_without_reprocessing_old_lines");
-        t.phase("Seed — write first line");
+        t.phase("Seed -- write first line");
         let dir = tempfile::TempDir::new().expect("tempdir");
         let path = write_jsonl(&dir, "s.jsonl", &[&assistant_text("First")]);
         let first_state = parse_journal(&path, 0, None);
         let first_size = first_state.file_size;
 
-        t.phase("Seed — append second line");
+        t.phase("Seed -- append second line");
         append_jsonl(&path, &[&assistant_text("Second")]);
 
-        t.phase("Act — resume from offset");
+        t.phase("Act -- resume from offset");
         let resumed = parse_journal(&path, first_size, Some(&first_state));
 
         t.phase("Assert");
@@ -1526,16 +1361,16 @@ mod parse_journal_tests {
         let line_refs: Vec<&str> = lines.iter().map(|s| s.as_str()).collect();
         let path = write_jsonl(&dir, "s.jsonl", &line_refs);
 
-        t.phase("Act — parse_journal path");
+        t.phase("Act -- parse_journal path");
         let file_state = parse_journal(&path, 0, None);
 
-        t.phase("Act — process_line path");
+        t.phase("Act -- process_line path");
         let mut live_state = JournalState::default();
         for line in &lines {
             process_line(&mut live_state, line);
         }
 
-        t.phase("Assert — both paths produce same count");
+        t.phase("Assert -- both paths produce same count");
         t.eq(
             "parse_journal and process_line agree on entry count",
             file_state.entries.len(),
@@ -1559,6 +1394,8 @@ mod parse_journal_tests {
         );
     }
 }
+
+// -- Helper function tests
 
 #[cfg(test)]
 mod helper_tests {
