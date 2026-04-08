@@ -14,33 +14,11 @@ pub fn parse_journal(
 ) -> JournalState {
     let mut state = match prev_state {
         Some(prev) => JournalState {
-            entries: prev.entries.clone(),
-            input_tokens: prev.input_tokens,
-            output_tokens: prev.output_tokens,
-            cache_read: prev.cache_read,
-            cache_write: prev.cache_write,
-            model: prev.model.clone(),
-            last_activity: prev.last_activity.clone(),
             status: AgentStatus::Idle,
             pending_approval: None,
-            mini_log: prev.mini_log.clone(),
-            file_size: prev.file_size,
-            cost_usd: prev.cost_usd,
+            ..prev.clone()
         },
-        None => JournalState {
-            entries: Vec::new(),
-            input_tokens: 0,
-            output_tokens: 0,
-            cache_read: 0,
-            cache_write: 0,
-            model: None,
-            last_activity: None,
-            status: AgentStatus::New,
-            pending_approval: None,
-            mini_log: Vec::new(),
-            file_size: 0,
-            cost_usd: None,
-        },
+        None => JournalState::default(),
     };
 
     let file = match fs::File::open(path) {
