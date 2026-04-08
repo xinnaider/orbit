@@ -2,7 +2,7 @@ pub mod agent_tree;
 pub mod commands;
 pub mod diff_builder;
 pub mod ipc;
-pub mod journal_reader;
+pub mod journal;
 pub mod models;
 pub mod services;
 

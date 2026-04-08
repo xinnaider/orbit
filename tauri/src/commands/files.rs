@@ -1,4 +1,4 @@
-use crate::journal_reader;
+use crate::journal;
 use crate::models::*;
 
 #[tauri::command]
@@ -21,7 +21,7 @@ pub fn get_subagent_journal(session_id: String, subagent_id: String) -> Vec<Jour
             .join(format!("{}.jsonl", &subagent_id));
 
         if jsonl_path.exists() {
-            let state = journal_reader::parse_journal(&jsonl_path, 0, None);
+            let state = journal::parse_journal(&jsonl_path, 0, None);
             let mut result = state.entries;
             for entry in &mut result {
                 entry.session_id = subagent_id.clone();

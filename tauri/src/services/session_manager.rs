@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 
 use tauri::{AppHandle, Emitter};
 
-use crate::journal_reader::{process_line, JournalState};
+use crate::journal::{process_line, JournalState};
 use crate::models::{AgentStatus, Session, SessionId, TokenUsage};
 use crate::services::database::DatabaseService;
 use crate::services::spawn_manager::{spawn_claude, SpawnConfig};
