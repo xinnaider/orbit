@@ -18,5 +18,5 @@ pub fn create_project(
 
 #[tauri::command]
 pub fn list_projects(state: State<SessionState>) -> Vec<Project> {
-    state.write().db.get_projects().unwrap_or_default()
+    state.read().db.get_projects().unwrap_or_default()
 }
