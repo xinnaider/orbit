@@ -6,6 +6,7 @@
   import ContextMenu from './ContextMenu.svelte';
   import RenameSessionModal from './RenameSessionModal.svelte';
   import { deleteSession, stopSession, getAppVersion } from '../lib/tauri';
+  import { mutedSessions } from '../lib/stores/ui';
   import { onMount } from 'svelte';
 
   let appVersion = '';
@@ -160,6 +161,24 @@
           <div class="item-top">
             <span class="dot" style="color:{color}" class:pulse={pulsing}>●</span>
             <span class="name">{displayName(s)}</span>
+            {#if mutedSessions.isMuted($mutedSessions, String(s.id))}
+              <span class="muted-icon" title="Muted">
+                <svg
+                  width="9"
+                  height="9"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                  <line x1="23" y1="9" x2="17" y2="15"></line>
+                  <line x1="17" y1="9" x2="23" y2="15"></line>
+                </svg>
+              </span>
+            {/if}
             <span class="status" style="color:{color}">{statusLabel(s.status)}</span>
           </div>
           <div class="item-meta">
@@ -410,6 +429,13 @@
   .approval-dot {
     color: var(--s-input);
     margin-left: 4px;
+  }
+
+  .muted-icon {
+    display: flex;
+    align-items: center;
+    color: var(--t3);
+    flex-shrink: 0;
   }
 
   .footer {

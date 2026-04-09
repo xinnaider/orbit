@@ -33,6 +33,7 @@
   import PaneGrid from './components/PaneGrid.svelte';
   import MetaPanel from './components/MetaPanel.svelte';
   import { metaPanelVisible } from './lib/stores/preferences';
+  import { mutedSessions } from './lib/stores/ui';
 
   let prevStatuses: Record<number, string> = {};
   let audioCtx: AudioContext | null = null;
@@ -106,7 +107,9 @@
 
     const u3 = onSessionState((p) => {
       const prev = prevStatuses[p.sessionId];
-      if (p.status === 'input' && prev && prev !== 'input') beep();
+      if (p.status === 'input' && prev && prev !== 'input') {
+        if (!mutedSessions.isMuted($mutedSessions, String(p.sessionId))) beep();
+      }
       prevStatuses[p.sessionId] = p.status;
       // 'idle' and 'new' are agent-level pauses emitted while the process is still running.
       // Map them to 'running' so the working indicator stays visible until session:stopped fires.

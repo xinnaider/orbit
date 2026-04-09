@@ -4,6 +4,9 @@
 
 ## April 2026
 
+### 04/08 · New — Per-session mute button
+Each session panel now has a speaker icon button in the header. Click it to silence the notification sound for that session only — useful when you want to monitor one session quietly while staying alerted by others. A small muted indicator also appears next to the session name in the sidebar. The preference is saved across app restarts.
+
 ### 04/08 · Fix — Auto-updater now works on Windows and Linux
 The "check for updates" feature was silently failing on all platforms because the update server URL was missing the architecture suffix. Users on v0.3.0 will now correctly receive an update prompt when opening the app.
 
