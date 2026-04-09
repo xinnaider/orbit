@@ -321,8 +321,6 @@
     align-items: center;
     gap: 6px;
     margin-bottom: 3px;
-    width: 100%;
-    overflow: hidden;
   }
   .dot {
     font-size: 8px;
