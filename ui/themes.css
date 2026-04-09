@@ -32,37 +32,39 @@
   --result-bg: rgba(255, 255, 255, 0.02);
 }
 
-/* ===== Light ===== */
+/* ===== Light — Paper & Ink ===== */
+/* Warm off-white surfaces, deep slate text, rich emerald accent.
+   Feels like a high-end technical notebook, not a productivity SaaS. */
 [data-theme='light'] {
-  --bg: #ffffff;
-  --bg1: #f7f7f7;
-  --bg2: #efefef;
-  --bg3: #e6e6e6;
-  --bg4: #dedede;
-  --bd: #d4d4d4;
-  --bd1: #c0c0c0;
-  --bd2: #a8a8a8;
-  --t0: #1a1a1a;
-  --t1: #555;
-  --t2: #888;
-  --t3: #bbb;
-  --ac: #00a663;
-  --ac-d: rgba(0, 166, 99, 0.1);
-  --ac-d2: rgba(0, 166, 99, 0.05);
-  --s-working: #00a663;
-  --s-input: #c58a20;
-  --s-idle: #aaa;
-  --s-error: #d03030;
-  --s-init: #3070d0;
-  --s-done: #ccc;
-  --user-fg: #2060c0;
-  --user-bg: rgba(32, 96, 192, 0.06);
-  --think-fg: #7050b0;
-  --think-bg: rgba(112, 80, 176, 0.06);
-  --tool-fg: #b07018;
-  --tool-bg: rgba(176, 112, 24, 0.06);
-  --result-fg: #888;
-  --result-bg: rgba(0, 0, 0, 0.02);
+  --bg: #f6f2ed;
+  --bg1: #f0ebe4;
+  --bg2: #e8e2da;
+  --bg3: #dfd8ce;
+  --bg4: #d4ccc0;
+  --bd: #d6cfc5;
+  --bd1: #c4bcb0;
+  --bd2: #afa69a;
+  --t0: #1c1917;
+  --t1: #504a44;
+  --t2: #9c9289;
+  --t3: #c8c0b8;
+  --ac: #0d7a55;
+  --ac-d: rgba(13, 122, 85, 0.1);
+  --ac-d2: rgba(13, 122, 85, 0.05);
+  --s-working: #0d7a55;
+  --s-input: #b45309;
+  --s-idle: #b0a89e;
+  --s-error: #c0392b;
+  --s-init: #1d4ed8;
+  --s-done: #d0c8be;
+  --user-fg: #1d4ed8;
+  --user-bg: rgba(29, 78, 216, 0.05);
+  --think-fg: #6d28d9;
+  --think-bg: rgba(109, 40, 217, 0.05);
+  --tool-fg: #92400e;
+  --tool-bg: rgba(146, 64, 14, 0.05);
+  --result-fg: #9c9289;
+  --result-bg: rgba(28, 25, 23, 0.02);
 }
 
 /* ===== Nord ===== */
