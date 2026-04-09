@@ -62,7 +62,7 @@
   }
 
   // ── Virtual scrolling ──────────────────────────────────────────────────────
-  const ESTIMATED_HEIGHT = 120;
+  const ESTIMATED_HEIGHT = 80;
   const OVERSCAN = 5;
 
   let scrollerEl: HTMLDivElement;
@@ -80,17 +80,29 @@
     if (heights[index] === h) return;
     heights[index] = h;
     if (rafId === null) {
-      // Snapshot isAtBottom before the async flush — the layout change may briefly
-      // report "not at bottom" even though the user never scrolled away.
       const wasAtBottom = isAtBottom;
+      // Scroll anchor: capture the pixel offset of the first visible item BEFORE
+      // the flush. After heights change, restore scrollTop so the anchor item
+      // stays in the same visual position — prevents content from jumping.
+      const anchorIndex = startIndex;
+      const oldAnchorOffset = offsets[anchorIndex];
+
       rafId = requestAnimationFrame(() => {
         rafId = null;
         heights = heights.slice(); // single reactive flush for the whole frame
-        if (wasAtBottom) {
-          tick().then(() => {
-            if (scrollerEl) scrollerEl.scrollTop = scrollerEl.scrollHeight;
-          });
-        }
+        tick().then(() => {
+          if (!scrollerEl) return;
+          if (wasAtBottom) {
+            scrollerEl.scrollTop = scrollerEl.scrollHeight;
+          } else {
+            // offsets is now recomputed — compensate for the shift
+            const delta = offsets[anchorIndex] - oldAnchorOffset;
+            if (delta !== 0) {
+              scrollerEl.scrollTop += delta;
+              scrollTop = scrollerEl.scrollTop;
+            }
+          }
+        });
       });
     }
   }
