@@ -244,9 +244,33 @@ fn spawn_local(config: SpawnConfig) -> Result<SpawnHandle, String> {
     })
 }
 
+/// Validate that an SSH host string contains only safe characters.
+/// Prevents injection of SSH options via crafted host values (e.g. `-oProxyCommand=...`).
+fn validate_ssh_host(host: &str) -> bool {
+    !host.is_empty()
+        && host
+            .chars()
+            .all(|c| c.is_alphanumeric() || matches!(c, '.' | '-' | ':' | '[' | ']'))
+}
+
+/// Validate that an SSH user string contains only safe characters.
+fn validate_ssh_user(user: &str) -> bool {
+    !user.is_empty()
+        && user
+            .chars()
+            .all(|c| c.is_alphanumeric() || matches!(c, '-' | '_' | '.'))
+}
+
 /// Spawn Claude Code on a remote server via SSH.
 /// Uses `bash -lc` so the remote user's login profile loads (PATH includes ~/.local/bin, npm globals).
 fn spawn_ssh(config: SpawnConfig, host: &str, user: &str) -> Result<SpawnHandle, String> {
+    if !validate_ssh_host(host) {
+        return Err(format!("invalid ssh host: {host:?}"));
+    }
+    if !validate_ssh_user(user) {
+        return Err(format!("invalid ssh user: {user:?}"));
+    }
+
     let mut parts = vec![
         "claude".to_string(),
         "--output-format".to_string(),
@@ -258,13 +282,13 @@ fn spawn_ssh(config: SpawnConfig, host: &str, user: &str) -> Result<SpawnHandle,
     if let Some(ref model) = config.model {
         if model != "auto" {
             parts.push("--model".to_string());
-            parts.push(model.clone());
+            parts.push(posix_escape(model));
         }
     }
 
     if let Some(ref resume_id) = config.claude_session_id {
         parts.push("--resume".to_string());
-        parts.push(resume_id.clone());
+        parts.push(posix_escape(resume_id));
     }
 
     parts.push("-p".to_string());
@@ -280,7 +304,7 @@ fn spawn_ssh(config: SpawnConfig, host: &str, user: &str) -> Result<SpawnHandle,
         "ConnectTimeout=10",
         "-o",
         "StrictHostKeyChecking=accept-new",
-        &format!("{}@{}", user, host),
+        &format!("{user}@{host}"),
     ]);
     cmd.arg(format!("bash -lc {}", posix_escape(&remote_script)));
     cmd.stdout(std::process::Stdio::piped());
@@ -376,6 +400,77 @@ mod tests {
     #[test]
     fn test_posix_escape_newline_preserved() {
         assert_eq!(posix_escape("line1\nline2"), "'line1\nline2'");
+    }
+
+    #[test]
+    fn test_validate_ssh_host_accepts_valid_values() {
+        assert!(validate_ssh_host("vps.example.com"));
+        assert!(validate_ssh_host("192.168.1.1"));
+        assert!(validate_ssh_host("[::1]"));
+        assert!(validate_ssh_host("my-server"));
+    }
+
+    #[test]
+    fn test_validate_ssh_host_rejects_injection() {
+        assert!(!validate_ssh_host(""));
+        assert!(!validate_ssh_host("-oProxyCommand=evil"));
+        assert!(!validate_ssh_host("host;rm -rf /"));
+        assert!(!validate_ssh_host("host$(whoami)"));
+        assert!(!validate_ssh_host("host`cmd`"));
+    }
+
+    #[test]
+    fn test_validate_ssh_user_accepts_valid_values() {
+        assert!(validate_ssh_user("ubuntu"));
+        assert!(validate_ssh_user("deploy_user"));
+        assert!(validate_ssh_user("user.name"));
+        assert!(validate_ssh_user("user-1"));
+    }
+
+    #[test]
+    fn test_validate_ssh_user_rejects_injection() {
+        assert!(!validate_ssh_user(""));
+        assert!(!validate_ssh_user("user name"));
+        assert!(!validate_ssh_user("user;id"));
+        assert!(!validate_ssh_user("user$(id)"));
+    }
+
+    #[test]
+    fn test_spawn_ssh_rejects_invalid_host() {
+        let result = spawn_ssh(
+            SpawnConfig {
+                session_id: 0,
+                cwd: "/tmp".to_string(),
+                permission_mode: "ignore".to_string(),
+                model: None,
+                prompt: "hello".to_string(),
+                claude_session_id: None,
+                spawn_mode: SpawnMode::Local,
+            },
+            "-oProxyCommand=evil",
+            "ubuntu",
+        );
+        let err = result.err().expect("expected Err for invalid host");
+        assert!(err.contains("invalid ssh host"), "got: {err}");
+    }
+
+    #[test]
+    fn test_spawn_ssh_rejects_invalid_user() {
+        let result = spawn_ssh(
+            SpawnConfig {
+                session_id: 0,
+                cwd: "/tmp".to_string(),
+                permission_mode: "ignore".to_string(),
+                model: None,
+                prompt: "hello".to_string(),
+                claude_session_id: None,
+                spawn_mode: SpawnMode::Local,
+            },
+            "vps.example.com",
+            "user name",
+        );
+        let err = result.err().expect("expected Err for invalid user");
+        assert!(err.contains("invalid ssh user"), "got: {err}");
     }
 
     #[test]

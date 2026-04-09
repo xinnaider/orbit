@@ -3,7 +3,7 @@ use tauri::{AppHandle, State};
 
 use crate::ipc::IpcError;
 use crate::models::{JournalEntry, Session, SessionId};
-use crate::services::session_manager::SessionManager;
+use crate::services::session_manager::{InitSessionParams, SessionManager};
 use crate::services::spawn_manager::find_claude;
 
 pub struct SessionState(pub Arc<RwLock<SessionManager>>);
@@ -41,15 +41,15 @@ pub fn create_session(
 
     let session = {
         let mut m = state.write();
-        m.init_session(
-            &project_path,
-            session_name.as_deref(),
-            &mode,
-            model.as_deref(),
-            ssh_host.as_deref(),
-            ssh_user.as_deref(),
-            use_worktree.unwrap_or(false),
-        )?
+        m.init_session(InitSessionParams {
+            project_path: &project_path,
+            session_name: session_name.as_deref(),
+            permission_mode: &mode,
+            model: model.as_deref(),
+            ssh_host: ssh_host.as_deref(),
+            ssh_user: ssh_user.as_deref(),
+            use_worktree: use_worktree.unwrap_or(false),
+        })?
     };
 
     // Emit session:created immediately so frontend shows the session

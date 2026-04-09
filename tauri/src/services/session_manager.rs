@@ -44,6 +44,17 @@ struct ActiveSession {
     pub claude_session_id: Option<String>,
 }
 
+/// Parameters for creating a new session (passed to `init_session`).
+pub struct InitSessionParams<'a> {
+    pub project_path: &'a str,
+    pub session_name: Option<&'a str>,
+    pub permission_mode: &'a str,
+    pub model: Option<&'a str>,
+    pub ssh_host: Option<&'a str>,
+    pub ssh_user: Option<&'a str>,
+    pub use_worktree: bool,
+}
+
 pub struct SessionManager {
     pub db: Arc<DatabaseService>,
     active: HashMap<SessionId, ActiveSession>,
@@ -60,17 +71,16 @@ impl SessionManager {
     }
 
     /// Phase 1 (fast): create DB record, return Session immediately.
-    #[allow(clippy::too_many_arguments)]
-    pub fn init_session(
-        &mut self,
-        project_path: &str,
-        session_name: Option<&str>,
-        permission_mode: &str,
-        model: Option<&str>,
-        ssh_host: Option<&str>,
-        ssh_user: Option<&str>,
-        use_worktree: bool,
-    ) -> Result<Session, String> {
+    pub fn init_session(&mut self, p: InitSessionParams<'_>) -> Result<Session, String> {
+        let InitSessionParams {
+            project_path,
+            session_name,
+            permission_mode,
+            model,
+            ssh_host,
+            ssh_user,
+            use_worktree,
+        } = p;
         let project_name = std::path::Path::new(project_path)
             .file_name()
             .map(|n| n.to_string_lossy().to_string())
@@ -94,6 +104,8 @@ impl SessionManager {
             )
             .map_err(|e| e.to_string())?;
 
+        // Worktree creation only applies to local sessions — never attempt it for SSH sessions.
+        let use_worktree = use_worktree && ssh_host.is_none();
         let (worktree_path_val, branch_name_val) = if use_worktree {
             let full_name = session_name.unwrap_or(&project_name);
             let (prefix, suffix) = full_name.split_once(" · ").unwrap_or((full_name, ""));
@@ -184,6 +196,13 @@ impl SessionManager {
             };
             let spawn_mode = match (a.session.ssh_host.clone(), a.session.ssh_user.clone()) {
                 (Some(host), Some(user)) => SpawnMode::Ssh { host, user },
+                (Some(host), None) => {
+                    eprintln!(
+                        "[orbit] session {session_id}: ssh_host={host:?} set but ssh_user is missing — \
+                         falling back to local spawn. This is a bug; both must be set together."
+                    );
+                    SpawnMode::Local
+                }
                 _ => SpawnMode::Local,
             };
             (
@@ -693,7 +712,15 @@ mod tests {
         let s = mgr
             .write()
             .unwrap()
-            .init_session("/tmp/proj", None, "ignore", None, None, None, false)
+            .init_session(InitSessionParams {
+                project_path: "/tmp/proj",
+                session_name: None,
+                permission_mode: "ignore",
+                model: None,
+                ssh_host: None,
+                ssh_user: None,
+                use_worktree: false,
+            })
             .expect("init failed");
         t.phase("Assert");
         t.ok("id is positive", s.id > 0);
@@ -712,7 +739,15 @@ mod tests {
         let s = mgr
             .write()
             .unwrap()
-            .init_session("/tmp/proj", None, "ignore", None, None, None, false)
+            .init_session(InitSessionParams {
+                project_path: "/tmp/proj",
+                session_name: None,
+                permission_mode: "ignore",
+                model: None,
+                ssh_host: None,
+                ssh_user: None,
+                use_worktree: false,
+            })
             .expect("init failed");
         t.phase("Assert");
         t.ok(
@@ -729,7 +764,15 @@ mod tests {
         let s = mgr
             .write()
             .unwrap()
-            .init_session("/tmp/proj", None, "ignore", None, None, None, false)
+            .init_session(InitSessionParams {
+                project_path: "/tmp/proj",
+                session_name: None,
+                permission_mode: "ignore",
+                model: None,
+                ssh_host: None,
+                ssh_user: None,
+                use_worktree: false,
+            })
             .expect("init failed");
         t.phase("Assert");
         t.ok(
@@ -748,7 +791,15 @@ mod tests {
         let s = mgr
             .write()
             .unwrap()
-            .init_session("/tmp/proj", None, "ignore", None, None, None, false)
+            .init_session(InitSessionParams {
+                project_path: "/tmp/proj",
+                session_name: None,
+                permission_mode: "ignore",
+                model: None,
+                ssh_host: None,
+                ssh_user: None,
+                use_worktree: false,
+            })
             .expect("init failed");
         t.phase("Act");
         mgr.write()
@@ -774,7 +825,15 @@ mod tests {
         let s = mgr
             .write()
             .unwrap()
-            .init_session("/tmp/proj", None, "ignore", None, None, None, false)
+            .init_session(InitSessionParams {
+                project_path: "/tmp/proj",
+                session_name: None,
+                permission_mode: "ignore",
+                model: None,
+                ssh_host: None,
+                ssh_user: None,
+                use_worktree: false,
+            })
             .expect("init failed");
         t.phase("Act");
         mgr.write()
@@ -801,15 +860,15 @@ mod tests {
         let s = mgr
             .write()
             .unwrap()
-            .init_session(
-                "/tmp/proj",
-                Some("old-name"),
-                "ignore",
-                None,
-                None,
-                None,
-                false,
-            )
+            .init_session(InitSessionParams {
+                project_path: "/tmp/proj",
+                session_name: Some("old-name"),
+                permission_mode: "ignore",
+                model: None,
+                ssh_host: None,
+                ssh_user: None,
+                use_worktree: false,
+            })
             .expect("init failed");
         t.phase("Act");
         mgr.write()

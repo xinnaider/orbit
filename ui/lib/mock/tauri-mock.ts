@@ -327,8 +327,8 @@ export async function mockInvoke(cmd: string, args?: Record<string, unknown>): P
         contextPercent: null,
         pendingApproval: null,
         miniLog: null,
-        sshHost: null,
-        sshUser: null,
+        sshHost: (args?.sshHost as string | null) ?? null,
+        sshUser: (args?.sshUser as string | null) ?? null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };

@@ -4,6 +4,10 @@
 
 ## April 2026
 
+### 04/09 · New — SSH remote sessions
+
+You can now run Claude Code on a remote machine directly from Orbit. When creating a new session, switch to "ssh remote" mode and enter the host, user, and remote path. Orbit connects via SSH and streams all output back — the session feed, tool calls, token counts, and follow-up messages work exactly like a local session. Requires key-based SSH authentication and `claude` installed on the remote machine.
+
 ### 04/09 · New — Sub-agents monitor tab
 
 When a session spawns sub-agents, they now appear in the "Sub-agents" tab on the right panel, grouped by Running and Completed. Click any agent to inspect its full conversation log in a modal. The list updates automatically as the session progresses, and a refresh button fetches the latest state on demand.
