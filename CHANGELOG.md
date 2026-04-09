@@ -4,6 +4,9 @@
 
 ## April 2026
 
+### 04/08 · Improvement — Smoother performance with long sessions
+The session feed now renders only the entries currently visible on screen instead of mounting everything at once. Sessions with hundreds of messages open faster, scroll smoothly, and use less memory — without any change to how messages look or behave.
+
 ### 04/08 · Fix — Auto-updater now works on Windows and Linux
 The "check for updates" feature was silently failing on all platforms because the update server URL was missing the architecture suffix. Users on v0.3.0 will now correctly receive an update prompt when opening the app.
 

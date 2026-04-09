@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount, tick } from 'svelte';
   import type { Session } from '../lib/stores/sessions';
   import { journal, pendingMessages } from '../lib/stores/journal';
   import { getSessionJournal } from '../lib/tauri';
@@ -12,7 +11,7 @@
   export let onSplit: (() => void) | null = null;
   export let onClose: (() => void) | null = null;
 
-  let feedEl: HTMLDivElement;
+  let feedComponent: Feed;
   let atBottom = true;
 
   async function loadHistory(id: number) {
@@ -38,29 +37,15 @@
     if (e && e.some((entry) => entry.entryType === 'assistant' || entry.entryType === 'toolCall')) {
       pendingMessages.clear();
     }
-    scrollIfNeeded();
   }
 
-  // Scroll when a pending message is added so the user sees it immediately
-  $: if ($pendingMessages) scrollIfNeeded();
-
-  async function scrollIfNeeded() {
-    if (!atBottom) return;
-    await tick();
-    if (feedEl) feedEl.scrollTop = feedEl.scrollHeight;
-  }
-
-  function onScroll() {
-    if (!feedEl) return;
-    const { scrollTop, scrollHeight, clientHeight } = feedEl;
-    atBottom = scrollHeight - scrollTop - clientHeight < 80;
+  function onFeedBottomChange(event: CustomEvent<{ atBottom: boolean }>) {
+    atBottom = event.detail.atBottom;
   }
 
   function scrollToBottom() {
-    if (feedEl) {
-      feedEl.scrollTop = feedEl.scrollHeight;
-      atBottom = true;
-    }
+    feedComponent?.scrollToBottom();
+    atBottom = true;
   }
 
   $: entries = $journal.get(session?.id) ?? [];
@@ -152,13 +137,18 @@
   {/if}
 
   <!-- Feed -->
-  <div class="feed-wrap" bind:this={feedEl} on:scroll={onScroll}>
+  <div class="feed-wrap">
     {#if entries.length === 0 && $pendingMessages.length === 0}
       <div class="feed-empty">
         <span>session #{session.id} · {statusStr}</span>
       </div>
     {:else}
-      <Feed {entries} status={session.status} />
+      <Feed
+        bind:this={feedComponent}
+        {entries}
+        status={session.status}
+        on:bottomchange={onFeedBottomChange}
+      />
       {#each $pendingMessages as msg (msg.id)}
         <div class="pending-msg">
           <span class="pending-arrow">›</span>
@@ -317,10 +307,10 @@
 
   .feed-wrap {
     flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
+    overflow: hidden;
     min-height: 0;
-    padding: 0;
+    display: flex;
+    flex-direction: column;
   }
 
   .header-actions {
