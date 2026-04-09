@@ -94,6 +94,26 @@ pub struct JournalEntry {
     pub lines_changed: Option<LinesChanged>,
 }
 
+impl Default for JournalEntry {
+    /// Provides a zero-valued base for struct-update syntax (`..JournalEntry::default()`).
+    /// Callers MUST override `entry_type`; `Assistant` here is a placeholder, not a semantic default.
+    fn default() -> Self {
+        JournalEntry {
+            session_id: String::new(),
+            timestamp: String::new(),
+            entry_type: JournalEntryType::Assistant,
+            text: None,
+            thinking: None,
+            thinking_duration: None,
+            tool: None,
+            tool_input: None,
+            output: None,
+            exit_code: None,
+            lines_changed: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LinesChanged {
@@ -179,6 +199,25 @@ pub fn context_window(model_id: &str) -> u64 {
 // Session ID type — SQLite AUTOINCREMENT rowid
 pub type SessionId = i64;
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn should_construct_journal_entry_with_default() {
+        let entry = JournalEntry {
+            session_id: "123".to_string(),
+            timestamp: "2026-01-01T00:00:00Z".to_string(),
+            entry_type: JournalEntryType::User,
+            text: Some("hello".to_string()),
+            ..JournalEntry::default()
+        };
+        assert_eq!(entry.thinking, None);
+        assert_eq!(entry.tool, None);
+        assert_eq!(entry.exit_code, None);
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub enum SessionStatus {
@@ -210,15 +249,20 @@ impl std::fmt::Display for SessionStatus {
 }
 
 impl rusqlite::types::FromSql for SessionStatus {
-    fn column_result(value: rusqlite::types::ValueRef) -> rusqlite::types::FromSqlResult<Self> {
+    fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
         let s = String::column_result(value)?;
         Ok(match s.as_str() {
             "initializing" => SessionStatus::Initializing,
             "running" => SessionStatus::Running,
             "waiting" => SessionStatus::Waiting,
             "completed" => SessionStatus::Completed,
+            "stopped" => SessionStatus::Stopped,
             "error" => SessionStatus::Error,
-            _ => SessionStatus::Stopped, // covers "stopped" + unknown/legacy values
+            _ => {
+                return Err(rusqlite::types::FromSqlError::Other(
+                    format!("unknown SessionStatus: {s}").into(),
+                ))
+            }
         })
     }
 }

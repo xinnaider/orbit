@@ -2,8 +2,8 @@ use std::fs;
 use std::io::{BufRead, BufReader, Seek, SeekFrom};
 use std::path::Path;
 
-use super::processor::{extract_tool_target, truncate_output};
-use super::state::{detect_pending_approval, JournalState, RawEntry};
+use super::processor::process_line;
+use super::state::{detect_pending_approval, JournalState};
 use crate::models::*;
 
 /// Parse a JSONL file incrementally from `prev_file_size`, returning full journal state.
@@ -46,8 +46,8 @@ pub fn parse_journal(
         state.mini_log.clear();
     }
 
+    let prev_entry_count = state.entries.len();
     let mut line = String::new();
-    let mut last_thinking_ts: Option<String> = None;
 
     loop {
         line.clear();
@@ -62,232 +62,35 @@ pub fn parse_journal(
             continue;
         }
 
-        let raw: RawEntry = match serde_json::from_str(trimmed) {
-            Ok(r) => r,
-            Err(_) => continue,
-        };
-
-        let ts = raw.timestamp.clone().unwrap_or_default();
-
-        match raw.r#type.as_str() {
-            "assistant" => {
-                if trimmed.contains("\"<synthetic>\"") {
-                    continue;
-                }
-                state.last_activity = raw.timestamp.clone();
-
-                if let Some(msg) = &raw.message {
-                    // Extract model
-                    if let Some(m) = msg.get("model").and_then(|v| v.as_str()) {
-                        state.model = Some(m.to_string());
-                    }
-
-                    // Extract token usage (cumulative)
-                    if let Some(usage) = msg.get("usage") {
-                        state.input_tokens = usage
-                            .get("input_tokens")
-                            .and_then(|v| v.as_u64())
-                            .unwrap_or(0)
-                            + usage
-                                .get("cache_creation_input_tokens")
-                                .and_then(|v| v.as_u64())
-                                .unwrap_or(0)
-                            + usage
-                                .get("cache_read_input_tokens")
-                                .and_then(|v| v.as_u64())
-                                .unwrap_or(0);
-                        state.output_tokens = usage
-                            .get("output_tokens")
-                            .and_then(|v| v.as_u64())
-                            .unwrap_or(0);
-                        state.cache_read = usage
-                            .get("cache_read_input_tokens")
-                            .and_then(|v| v.as_u64())
-                            .unwrap_or(0);
-                        state.cache_write = usage
-                            .get("cache_creation_input_tokens")
-                            .and_then(|v| v.as_u64())
-                            .unwrap_or(0);
-                    }
-
-                    // Extract content blocks (thinking, text, tool_use)
-                    if let Some(content) = msg.get("content").and_then(|v| v.as_array()) {
-                        for block in content {
-                            let block_type =
-                                block.get("type").and_then(|v| v.as_str()).unwrap_or("");
-                            match block_type {
-                                "thinking" => {
-                                    let thinking_text = block
-                                        .get("thinking")
-                                        .and_then(|v| v.as_str())
-                                        .unwrap_or("")
-                                        .to_string();
-                                    if !thinking_text.is_empty() {
-                                        last_thinking_ts = Some(ts.clone());
-                                        state.entries.push(JournalEntry {
-                                            session_id: String::new(), // filled by caller
-                                            timestamp: ts.clone(),
-                                            entry_type: JournalEntryType::Thinking,
-                                            text: None,
-                                            thinking: Some(thinking_text),
-                                            thinking_duration: None,
-                                            tool: None,
-                                            tool_input: None,
-                                            output: None,
-                                            exit_code: None,
-                                            lines_changed: None,
-                                        });
-                                    }
-                                }
-                                "text" => {
-                                    let text = block
-                                        .get("text")
-                                        .and_then(|v| v.as_str())
-                                        .unwrap_or("")
-                                        .to_string();
-                                    if !text.is_empty() {
-                                        let duration =
-                                            last_thinking_ts.take().and_then(|think_ts| {
-                                                let t1 = think_ts
-                                                    .parse::<chrono::DateTime<chrono::Utc>>()
-                                                    .ok()?;
-                                                let t2 = ts
-                                                    .parse::<chrono::DateTime<chrono::Utc>>()
-                                                    .ok()?;
-                                                Some((t2 - t1).num_milliseconds() as f64 / 1000.0)
-                                            });
-
-                                        if let Some(d) = duration {
-                                            if let Some(last) = state.entries.last_mut() {
-                                                if last.entry_type == JournalEntryType::Thinking {
-                                                    last.thinking_duration = Some(d);
-                                                }
-                                            }
-                                        }
-
-                                        state.entries.push(JournalEntry {
-                                            session_id: String::new(),
-                                            timestamp: ts.clone(),
-                                            entry_type: JournalEntryType::Assistant,
-                                            text: Some(text),
-                                            thinking: None,
-                                            thinking_duration: None,
-                                            tool: None,
-                                            tool_input: None,
-                                            output: None,
-                                            exit_code: None,
-                                            lines_changed: None,
-                                        });
-                                    }
-                                }
-                                "tool_use" => {
-                                    let tool_name = block
-                                        .get("name")
-                                        .and_then(|v| v.as_str())
-                                        .unwrap_or("unknown")
-                                        .to_string();
-                                    let input = block.get("input").cloned();
-
-                                    let target = extract_tool_target(&tool_name, &input);
-                                    state.mini_log.push(MiniLogEntry {
-                                        tool: tool_name.clone(),
-                                        target: target.clone(),
-                                        result: None,
-                                        success: None,
-                                    });
-                                    if state.mini_log.len() > 4 {
-                                        state.mini_log.remove(0);
-                                    }
-
-                                    state.entries.push(JournalEntry {
-                                        session_id: String::new(),
-                                        timestamp: ts.clone(),
-                                        entry_type: JournalEntryType::ToolCall,
-                                        text: None,
-                                        thinking: None,
-                                        thinking_duration: None,
-                                        tool: Some(tool_name),
-                                        tool_input: input,
-                                        output: None,
-                                        exit_code: None,
-                                        lines_changed: None,
-                                    });
-                                }
-                                _ => {}
-                            }
-                        }
-                    }
-                }
-            }
-            "user" => {
-                state.last_activity = raw.timestamp.clone();
-
-                if let Some(msg) = &raw.message {
-                    if let Some(content) = msg.get("content") {
-                        // Tool result (array with tool_result type)
-                        if let Some(arr) = content.as_array() {
-                            for block in arr {
-                                if block.get("type").and_then(|v| v.as_str()) == Some("tool_result")
-                                {
-                                    let output_text = block
-                                        .get("content")
-                                        .and_then(|v| v.as_str())
-                                        .or_else(|| block.get("text").and_then(|v| v.as_str()))
-                                        .unwrap_or("")
-                                        .to_string();
-
-                                    if let Some(last) = state.mini_log.last_mut() {
-                                        last.success = Some(
-                                            !output_text.contains("error")
-                                                && !output_text.contains("Error"),
-                                        );
-                                    }
-
-                                    state.entries.push(JournalEntry {
-                                        session_id: String::new(),
-                                        timestamp: ts.clone(),
-                                        entry_type: JournalEntryType::ToolResult,
-                                        text: None,
-                                        thinking: None,
-                                        thinking_duration: None,
-                                        tool: None,
-                                        tool_input: None,
-                                        output: Some(truncate_output(&output_text, 2000)),
-                                        exit_code: None,
-                                        lines_changed: None,
-                                    });
-                                }
-                            }
-                        } else if let Some(text) = content.as_str() {
-                            if !text.is_empty() {
-                                state.entries.push(JournalEntry {
-                                    session_id: String::new(),
-                                    timestamp: ts.clone(),
-                                    entry_type: JournalEntryType::User,
-                                    text: Some(text.to_string()),
-                                    thinking: None,
-                                    thinking_duration: None,
-                                    tool: None,
-                                    tool_input: None,
-                                    output: None,
-                                    exit_code: None,
-                                    lines_changed: None,
-                                });
-                            }
-                        }
-                    }
-                }
-            }
-            _ => {}
-        }
+        process_line(&mut state, trimmed);
     }
 
+    // Post-process: fill thinking_duration for newly-added entries.
+    // process_line doesn't compute this; parse_journal derives it from timestamps.
+    patch_thinking_duration(&mut state.entries[prev_entry_count..]);
+
+    // Override final status with tail-derived value (more accurate for completed replays)
     state.status = derive_status_from_tail(path, state.input_tokens, state.output_tokens);
 
     state.pending_approval = detect_pending_approval(&state.entries);
 
     state.file_size = file_size;
     state
+}
+
+/// Fill in thinking_duration for thinking entries by measuring the gap to the next entry's
+/// timestamp. process_line doesn't compute this; parse_journal can derive it post-hoc.
+fn patch_thinking_duration(entries: &mut [JournalEntry]) {
+    for i in 0..entries.len().saturating_sub(1) {
+        if entries[i].thinking.is_some() && entries[i].thinking_duration.is_none() {
+            let t0 = chrono::DateTime::parse_from_rfc3339(&entries[i].timestamp).ok();
+            let t1 = chrono::DateTime::parse_from_rfc3339(&entries[i + 1].timestamp).ok();
+            if let (Some(t0), Some(t1)) = (t0, t1) {
+                let ms = (t1 - t0).num_milliseconds();
+                entries[i].thinking_duration = Some((ms.max(0) as f64) / 1000.0);
+            }
+        }
+    }
 }
 
 /// Flexible contains check that handles optional spaces around colons in JSON.
