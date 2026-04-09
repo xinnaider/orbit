@@ -69,12 +69,33 @@
   let scrollTop = 0;
   let clientHeight = 0;
 
-  // Per-item measured heights; -1 means "not yet measured, use estimate"
+  // Per-item measured heights; unset means "use estimate"
   let heights: number[] = [];
 
+  // Batch height updates into a single reactive flush per animation frame.
+  // Without batching, each ResizeObserver callback would trigger a full
+  // Svelte reactive cycle → new visibleItems → items remount → more callbacks → freeze.
+  let rafId: ReturnType<typeof requestAnimationFrame> | null = null;
   function setHeight(index: number, h: number) {
+    if (heights[index] === h) return;
     heights[index] = h;
-    heights = [...heights];
+    if (rafId === null) {
+      // Capture anchor before the flush: distance from scrollTop to the top of startIndex.
+      // After heights change, restore that distance to prevent the content from jumping.
+      const anchorOffset = scrollerEl ? scrollTop - offsets[startIndex] : 0;
+      const anchorIndex = startIndex;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        heights = heights.slice(); // single reactive flush for the whole frame
+        // After Svelte updates the DOM, restore scroll position relative to anchor item.
+        tick().then(() => {
+          if (scrollerEl && !isAtBottom) {
+            scrollerEl.scrollTop = offsets[anchorIndex] + anchorOffset;
+            scrollTop = scrollerEl.scrollTop;
+          }
+        });
+      });
+    }
   }
 
   // Keep heights array in sync with display array length
