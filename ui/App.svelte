@@ -10,6 +10,7 @@
   } from './lib/stores/sessions';
   import { assignSession } from './lib/stores/layout';
   import { journal } from './lib/stores/journal';
+  import { addToast } from './lib/stores/toasts';
   import {
     listSessions,
     checkClaude,
@@ -24,10 +25,10 @@
     getChangelog,
   } from './lib/tauri';
   import type { ClaudeCheck } from './lib/tauri';
-  import Banner from './components/Banner.svelte';
-  import UpdateBanner from './components/UpdateBanner.svelte';
   import ChangelogModal from './components/ChangelogModal.svelte';
+  import ToastContainer from './components/ToastContainer.svelte';
   import { checkUpdate } from './lib/tauri';
+  import { installUpdate } from './lib/tauri';
   import type { UpdateInfo } from './lib/types';
   import Sidebar from './components/Sidebar.svelte';
   import PaneGrid from './components/PaneGrid.svelte';
@@ -38,15 +39,12 @@
   let audioCtx: AudioContext | null = null;
   let claudeCheck: ClaudeCheck | null = null;
   let unlisteners: Array<() => void> = [];
-  let spawnError: { sessionId: number; error: string } | null = null;
-  let rateLimitError: { sessionId: number } | null = null;
-  let rateLimitDismissTimer: ReturnType<typeof setTimeout> | null = null;
-  let availableUpdate: UpdateInfo | null = null;
-  let updateError: string | null = null;
   let updateInterval: ReturnType<typeof setInterval> | null = null;
   let showChangelog = false;
   let changelogContent = '';
   let appVersion = '';
+  let pendingUpdate: UpdateInfo | null = null;
+  let updateToastId: string | null = null;
 
   const CHANGELOG_VERSION_KEY = 'orbit:lastSeenChangelogVersion';
 
@@ -134,15 +132,19 @@
 
     const u6 = onSessionError((id, error) => {
       sessions.update((l) => updateSessionState(l, id, { status: 'error' }));
-      spawnError = { sessionId: id, error };
-      // Auto-dismiss after 15s
-      setTimeout(() => (spawnError = null), 15000);
+      addToast({
+        type: 'error',
+        message: `session #${id} failed to spawn: ${error}`,
+        autoDismiss: false,
+      });
     });
 
-    const u7 = onSessionRateLimit((id) => {
-      rateLimitError = { sessionId: id };
-      if (rateLimitDismissTimer) clearTimeout(rateLimitDismissTimer);
-      rateLimitDismissTimer = setTimeout(() => (rateLimitError = null), 30000);
+    const u7 = onSessionRateLimit((_id) => {
+      addToast({
+        type: 'warning',
+        message: 'Rate limit reached. Please wait a moment and try again.',
+        autoDismiss: false,
+      });
     });
 
     // Resolve all unlisten functions and store for cleanup
@@ -153,9 +155,17 @@
     async function tryCheckUpdate() {
       try {
         const info = await checkUpdate();
-        if (info) availableUpdate = info;
+        if (info && !updateToastId) {
+          pendingUpdate = info;
+          updateToastId = addToast({
+            type: 'info',
+            message: `new version available — ${info.version}`,
+            autoDismiss: false,
+          });
+        }
       } catch (e) {
-        updateError = e instanceof Error ? e.message : String(e);
+        const msg = e instanceof Error ? e.message : String(e);
+        addToast({ type: 'error', message: `update check failed: ${msg}`, autoDismiss: false });
       }
     }
 
@@ -177,44 +187,13 @@
       (getCurrentWebviewWindow() as unknown as { openDevtools(): void }).openDevtools();
     }
   }
+
+  // Keep installUpdate in scope so it can be used via the update toast action
+  const _installUpdate = installUpdate;
+  void _installUpdate;
 </script>
 
 <svelte:window on:keydown={handleKeydown} />
-
-{#if updateError}
-  <Banner
-    variant="error"
-    icon="⚠"
-    title="update check failed"
-    message={updateError}
-    onDismiss={() => (updateError = null)}
-  />
-{/if}
-
-{#if rateLimitError}
-  <Banner
-    variant="warning"
-    icon="⏳"
-    title="rate limit reached"
-    message="Please wait a moment and try again."
-    onDismiss={() => (rateLimitError = null)}
-  />
-{/if}
-
-{#if spawnError}
-  <Banner
-    variant="error"
-    icon="⚠"
-    title={`session #${spawnError.sessionId} failed to spawn`}
-    message={spawnError.error}
-    zIndex={499}
-    onDismiss={() => (spawnError = null)}
-  />
-{/if}
-
-{#if availableUpdate}
-  <UpdateBanner update={availableUpdate} onDismiss={() => (availableUpdate = null)} />
-{/if}
 
 {#if showChangelog}
   <ChangelogModal {changelogContent} currentVersion={appVersion} onClose={closeChangelog} />
@@ -245,6 +224,8 @@
     >
   {/if}
 </div>
+
+<ToastContainer />
 
 <style>
   .layout {

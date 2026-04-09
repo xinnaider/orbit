@@ -4,6 +4,9 @@
 
 ## April 2026
 
+### 04/08 · Improvement — Compact toast notifications replace banners
+Error, warning, and info messages now appear as small stacked toasts in the bottom-right corner instead of full-width banners that blocked the top of the screen. Toasts with a required action (rate limit, update available, session error) stay visible until manually dismissed; informational notices disappear automatically after five seconds.
+
 ### 04/08 · Fix — Auto-updater now works on Windows and Linux
 The "check for updates" feature was silently failing on all platforms because the update server URL was missing the architecture suffix. Users on v0.3.0 will now correctly receive an update prompt when opening the app.
 
