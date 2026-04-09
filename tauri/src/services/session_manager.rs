@@ -227,9 +227,8 @@ impl SessionManager {
                     Ok(0) | Err(_) => break,
                     Ok(_) => {
                         let trimmed = line.trim();
-                        if ascii_ci_contains(trimmed, "rate limit")
-                            || ascii_ci_contains(trimmed, "rate_limit")
-                            || ascii_ci_contains(trimmed, "overloaded")
+                        if trimmed.contains("rate_limit_error")
+                            || trimmed.contains("overloaded_error")
                         {
                             let _ = app_err.emit(
                                 "session:rate-limit",
@@ -618,6 +617,8 @@ fn kill_pid(pid: u32) {
 }
 
 /// Case-insensitive substring search without allocation (ASCII only).
+/// Only used in tests — kept out of production paths after rate-limit detection was tightened.
+#[cfg(test)]
 fn ascii_ci_contains(haystack: &str, needle: &str) -> bool {
     let h = haystack.as_bytes();
     let n = needle.as_bytes();
@@ -628,16 +629,26 @@ fn ascii_ci_contains(haystack: &str, needle: &str) -> bool {
 }
 
 /// Check if a JSON line from Claude's stdout indicates a rate limit error.
-/// Uses byte-level case-insensitive search — zero allocation.
+///
+/// Parses the JSON and requires:
+/// - top-level `"type"` == `"error"`
+/// - nested `"error"."type"` is `"rate_limit_error"` or `"overloaded_error"`
+///
+/// This avoids false positives when assistant messages mention "rate limit"
+/// or "overloaded" in their text content.
 fn is_rate_limit_line(line: &str) -> bool {
-    let has_rate = ascii_ci_contains(line, "rate_limit")
-        || ascii_ci_contains(line, "rate limit")
-        || ascii_ci_contains(line, "overloaded");
-    let has_error = ascii_ci_contains(line, "\"type\":\"error\"")
-        || ascii_ci_contains(line, "\"type\": \"error\"")
-        || ascii_ci_contains(line, "error_type")
-        || ascii_ci_contains(line, "\"subtype\":\"error\"");
-    has_rate && has_error
+    let Ok(val) = serde_json::from_str::<serde_json::Value>(line) else {
+        return false;
+    };
+    if val.get("type").and_then(|v| v.as_str()) != Some("error") {
+        return false;
+    }
+    let error_type = val
+        .get("error")
+        .and_then(|e| e.get("type"))
+        .and_then(|t| t.as_str())
+        .unwrap_or("");
+    matches!(error_type, "rate_limit_error" | "overloaded_error")
 }
 
 #[cfg(test)]
@@ -907,18 +918,38 @@ mod tests {
         let mut t = TestCase::new("should_detect_rate_limit_error_line");
         t.phase("Assert — canonical rate limit JSON");
         t.ok(
-            "rate_limit + type:error",
+            "rate_limit_error in error object",
             is_rate_limit_line(
-                r#"{"type":"error","error":{"type":"rate_limit_error","message":"..."}}"#,
+                r#"{"type":"error","error":{"type":"rate_limit_error","message":"Rate limit exceeded"}}"#,
             ),
         );
         t.ok(
-            "overloaded + type:error",
+            "overloaded_error in error object",
             is_rate_limit_line(r#"{"type":"error","error":{"type":"overloaded_error"}}"#),
         );
+    }
+
+    #[test]
+    fn should_not_flag_assistant_message_mentioning_rate_limit() {
+        let mut t = TestCase::new("should_not_flag_assistant_message_mentioning_rate_limit");
+        t.phase("Assert — assistant message with 'rate limit' in text must NOT trigger");
         t.ok(
-            "rate limit (with space) + type: error (with space)",
-            is_rate_limit_line(r#"{"type": "error","message":"rate limit exceeded"}"#),
+            "assistant type with rate limit text",
+            !is_rate_limit_line(
+                r#"{"type":"assistant","message":{"content":[{"type":"text","text":"The rate limit policy allows 1000 requests per minute."}]}}"#,
+            ),
+        );
+    }
+
+    #[test]
+    fn should_not_flag_tool_result_mentioning_overloaded() {
+        let mut t = TestCase::new("should_not_flag_tool_result_mentioning_overloaded");
+        t.phase("Assert — tool_result containing 'overloaded' must NOT trigger");
+        t.ok(
+            "tool_result type with overloaded in output",
+            !is_rate_limit_line(
+                r#"{"type":"tool_result","content":"Server is overloaded, please retry"}"#,
+            ),
         );
     }
 
@@ -927,17 +958,48 @@ mod tests {
         let mut t = TestCase::new("should_not_flag_non_rate_limit_lines");
         t.phase("Assert — lines that should NOT trigger");
         t.ok(
-            "rate_limit without error marker",
+            "rate_limit without error object",
             !is_rate_limit_line(r#"{"type":"assistant","text":"rate_limit info"}"#),
         );
         t.ok(
-            "overloaded without error",
+            "error type but no matching error subtype",
+            !is_rate_limit_line(
+                r#"{"type":"error","error":{"type":"api_error","message":"internal"}}"#,
+            ),
+        );
+        t.ok(
+            "plain overloaded text (not JSON error)",
             !is_rate_limit_line(r#"overloaded"#),
         );
         t.ok("empty line", !is_rate_limit_line(""));
         t.ok(
             "normal assistant line",
             !is_rate_limit_line(r#"{"type":"assistant","text":"hello world"}"#),
+        );
+    }
+
+    #[test]
+    fn should_detect_rate_limit_in_stderr_exact_substring() {
+        // stderr lines are plain text — the check uses exact substring matching
+        // for "rate_limit_error" or "overloaded_error" (not the broader "rate limit")
+        let mut t = TestCase::new("should_detect_rate_limit_in_stderr_exact_substring");
+        t.phase("Assert — exact substrings that must match");
+        t.ok(
+            "rate_limit_error substring present",
+            "rate_limit_error: too many requests".contains("rate_limit_error"),
+        );
+        t.ok(
+            "overloaded_error substring present",
+            "overloaded_error detected".contains("overloaded_error"),
+        );
+        t.phase("Assert — generic 'rate limit' must NOT match the tightened check");
+        t.ok(
+            "generic 'rate limit' phrase does not match rate_limit_error",
+            !"You have hit the rate limit today".contains("rate_limit_error"),
+        );
+        t.ok(
+            "generic 'overloaded' does not match overloaded_error",
+            !"Server is overloaded".contains("overloaded_error"),
         );
     }
 

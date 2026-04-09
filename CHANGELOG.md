@@ -4,6 +4,12 @@
 
 ## April 2026
 
+### 04/08 · Fix — Rate limit warning no longer triggers incorrectly
+The "rate limit reached" banner was sometimes shown when Claude's response simply
+mentioned rate limits or server load in its text — without an actual API error occurring.
+The detection is now precise: it only fires when the API returns a real rate limit or
+overloaded error, so the banner appears only when it matters.
+
 ### 04/08 · Fix — Auto-updater now works on Windows and Linux
 The "check for updates" feature was silently failing on all platforms because the update server URL was missing the architecture suffix. Users on v0.3.0 will now correctly receive an update prompt when opening the app.
 
