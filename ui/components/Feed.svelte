@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy, tick, createEventDispatcher } from 'svelte';
+  import { onMount, tick, createEventDispatcher } from 'svelte';
   import type { JournalEntry } from '../lib/types';
   import Markdown from './Markdown.svelte';
   import ToolCallEntry from './ToolCallEntry.svelte';
@@ -11,7 +11,7 @@
 
   $: isWorking = ['working', 'running'].includes(status);
 
-  // ── Display item grouping (unchanged) ──────────────────────────────────────
+  // ── Display item grouping ──────────────────────────────────────────────────
   interface DisplayItem {
     entry: JournalEntry;
     result: JournalEntry | null;
@@ -61,126 +61,84 @@
     expandedThinking = next;
   }
 
-  // ── Virtual scrolling ──────────────────────────────────────────────────────
-  const ESTIMATED_HEIGHT = 80;
-  const OVERSCAN = 5;
+  // ── Chunk-based loading ────────────────────────────────────────────────────
+  // Render the last PAGE_SIZE items. When the user scrolls to the top,
+  // prepend another chunk. Normal browser scroll — no spacers, no height cache.
+  const PAGE_SIZE = 50;
 
-  let scrollerEl: HTMLDivElement;
-  let scrollTop = 0;
-  let clientHeight = 0;
-
-  // Per-item measured heights; unset means "use estimate"
-  let heights: number[] = [];
-
-  // Batch height updates into a single reactive flush per animation frame.
-  // Without batching, each ResizeObserver callback would trigger a full
-  // Svelte reactive cycle → new visibleItems → items remount → more callbacks → freeze.
-  let rafId: ReturnType<typeof requestAnimationFrame> | null = null;
-  function setHeight(index: number, h: number) {
-    if (heights[index] === h) return;
-    heights[index] = h;
-    if (rafId === null) {
-      const wasAtBottom = isAtBottom;
-      // Scroll anchor: capture the pixel offset of the first visible item BEFORE
-      // the flush. After heights change, restore scrollTop so the anchor item
-      // stays in the same visual position — prevents content from jumping.
-      const anchorIndex = startIndex;
-      const oldAnchorOffset = offsets[anchorIndex];
-
-      rafId = requestAnimationFrame(() => {
-        rafId = null;
-        heights = heights.slice(); // single reactive flush for the whole frame
-        tick().then(() => {
-          if (!scrollerEl) return;
-          if (wasAtBottom) {
-            scrollerEl.scrollTop = scrollerEl.scrollHeight;
-          } else {
-            // offsets is now recomputed — compensate for the shift
-            const delta = offsets[anchorIndex] - oldAnchorOffset;
-            if (delta !== 0) {
-              scrollerEl.scrollTop += delta;
-              scrollTop = scrollerEl.scrollTop;
-            }
-          }
-        });
-      });
-    }
-  }
-
-  // Keep heights array in sync with display array length
-  $: {
-    const len = display.length;
-    if (heights.length !== len) {
-      heights = new Array(len).fill(0).map((_, i) => heights[i] ?? ESTIMATED_HEIGHT);
-    }
-  }
-
-  // Cumulative top offsets (prefix sums); length === display.length + 1
-  $: offsets = (() => {
-    const arr = new Array(display.length + 1).fill(0);
-    for (let i = 0; i < display.length; i++) {
-      arr[i + 1] = arr[i] + (heights[i] || ESTIMATED_HEIGHT);
-    }
-    return arr;
-  })();
-
-  $: totalHeight = offsets[display.length] + (isWorking ? 44 : 0);
-
-  // Visible window
-  $: startIndex = (() => {
-    let lo = 0;
-    let hi = display.length;
-    while (lo < hi) {
-      const mid = (lo + hi) >> 1;
-      if (offsets[mid + 1] <= scrollTop) lo = mid + 1;
-      else hi = mid;
-    }
-    return Math.max(0, lo - OVERSCAN);
-  })();
-
-  $: endIndex = (() => {
-    const bottom = scrollTop + clientHeight;
-    let lo = startIndex;
-    let hi = display.length;
-    while (lo < hi) {
-      const mid = (lo + hi) >> 1;
-      if (offsets[mid] < bottom) lo = mid + 1;
-      else hi = mid;
-    }
-    return Math.min(display.length, lo + OVERSCAN);
-  })();
-
-  $: topSpacerHeight = offsets[startIndex];
-  $: bottomSpacerHeight = totalHeight - offsets[endIndex] - (isWorking ? 44 : 0);
-
-  $: visibleItems = display.slice(startIndex, endIndex);
-
-  // ── Auto-scroll & isAtBottom ───────────────────────────────────────────────
+  let visibleFrom = 0; // index into display[] from which we render
   let isAtBottom = true;
+  let scrollerEl: HTMLDivElement;
 
+  // When display grows, reset visibleFrom to show the tail if at bottom.
+  // When display shrinks (session switch via {#key}), always reset.
+  let prevTotal = 0;
+  $: {
+    const total = display.length;
+    if (total < prevTotal) {
+      // session remount or reset — start at tail
+      visibleFrom = Math.max(0, total - PAGE_SIZE);
+    } else if (total > prevTotal && isAtBottom) {
+      // new entries arrived while at bottom — keep showing tail
+      visibleFrom = Math.max(0, total - PAGE_SIZE);
+    }
+    prevTotal = total;
+  }
+
+  $: visibleItems = display.slice(visibleFrom);
+
+  $: hasMore = visibleFrom > 0;
+
+  // ── Scroll handling ────────────────────────────────────────────────────────
   function onScroll() {
     if (!scrollerEl) return;
-    scrollTop = scrollerEl.scrollTop;
-    clientHeight = scrollerEl.clientHeight;
-    const newAtBottom = scrollerEl.scrollHeight - scrollTop - clientHeight < 50;
+    const { scrollTop, scrollHeight, clientHeight } = scrollerEl;
+
+    const newAtBottom = scrollHeight - scrollTop - clientHeight < 50;
     if (newAtBottom !== isAtBottom) {
       isAtBottom = newAtBottom;
       dispatch('bottomchange', { atBottom: isAtBottom });
     }
+
+    // Near the top — load previous chunk
+    if (scrollTop < 80 && visibleFrom > 0) {
+      loadMore();
+    }
   }
 
+  async function loadMore() {
+    if (visibleFrom === 0) return;
+    // Capture anchor element before prepending items
+    const anchor = scrollerEl.firstElementChild as HTMLElement | null;
+    const anchorTop = anchor ? anchor.getBoundingClientRect().top : 0;
+
+    visibleFrom = Math.max(0, visibleFrom - PAGE_SIZE);
+
+    await tick();
+
+    // Restore scroll so the old first item stays in the same visual position
+    const newAnchor = scrollerEl.children[visibleFrom === 0 ? 0 : PAGE_SIZE] as HTMLElement | null;
+    if (newAnchor) {
+      const newAnchorTop = newAnchor.getBoundingClientRect().top;
+      scrollerEl.scrollTop += newAnchorTop - anchorTop;
+    }
+  }
+
+  // ── Auto-scroll to bottom ──────────────────────────────────────────────────
   export function scrollToBottom() {
     if (!scrollerEl) return;
-    scrollerEl.scrollTop = scrollerEl.scrollHeight;
+    visibleFrom = Math.max(0, display.length - PAGE_SIZE);
+    tick().then(() => {
+      if (scrollerEl) scrollerEl.scrollTop = scrollerEl.scrollHeight;
+    });
     isAtBottom = true;
   }
 
-  // Scroll to bottom when new entries arrive and user was already at bottom
-  let prevDisplayLength = 0;
-  $: if (display.length !== prevDisplayLength) {
-    const wasAtBottom = isAtBottom;
-    prevDisplayLength = display.length;
-    if (wasAtBottom) {
+  // Auto-scroll when new entries arrive and user is at bottom
+  let prevVisibleLen = 0;
+  $: if (visibleItems.length !== prevVisibleLen) {
+    prevVisibleLen = visibleItems.length;
+    if (isAtBottom) {
       tick().then(() => {
         if (scrollerEl) scrollerEl.scrollTop = scrollerEl.scrollHeight;
       });
@@ -188,103 +146,69 @@
   }
 
   onMount(() => {
-    if (scrollerEl) {
-      clientHeight = scrollerEl.clientHeight;
-      scrollerEl.scrollTop = scrollerEl.scrollHeight;
-    }
+    if (scrollerEl) scrollerEl.scrollTop = scrollerEl.scrollHeight;
   });
-
-  onDestroy(() => {
-    if (rafId !== null) {
-      cancelAnimationFrame(rafId);
-      rafId = null;
-    }
-  });
-
-  // Svelte action: observe an item's height and update the cache
-  function trackHeight(node: HTMLElement, index: number) {
-    function update() {
-      const h = node.offsetHeight;
-      if (h > 0 && heights[index] !== h) {
-        setHeight(index, h);
-      }
-    }
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(node);
-    return {
-      update(newIndex: number) {
-        index = newIndex;
-        update();
-      },
-      destroy() {
-        ro.disconnect();
-      },
-    };
-  }
 </script>
 
-<div class="feed-scroller" bind:this={scrollerEl} bind:clientHeight on:scroll={onScroll}>
-  <!-- top spacer -->
-  <div style="height:{topSpacerHeight}px; flex-shrink:0;" aria-hidden="true"></div>
-
-  {#each visibleItems as { entry: e, result: r, streaming: s }, localIdx}
-    {@const absIdx = startIndex + localIdx}
-    <div class="vrow" use:trackHeight={absIdx}>
-      {#if e.entryType === 'user'}
-        <div class="row user">
-          <div class="row-meta">
-            <span class="row-who user-who">you</span>
-            <span class="row-ts">{ts(e)}</span>
-          </div>
-          <div class="row-body">
-            <Markdown content={e.text ?? ''} />
-          </div>
-        </div>
-      {:else if e.entryType === 'thinking'}
-        {@const expanded = expandedThinking.has(absIdx)}
-        <div class="row thinking">
-          <div class="row-meta">
-            <span class="row-who think-who">···</span>
-            {#if e.thinkingDuration}
-              <span class="row-ts">{e.thinkingDuration.toFixed(1)}s</span>
-            {/if}
-            <button class="expand-btn" on:click={() => toggleThinking(absIdx)}>
-              {expanded ? '▼ collapse' : '▶ expand'}
-            </button>
-          </div>
-          {#if expanded}
-            <div class="row-body think-body">{e.thinking}</div>
-          {:else}
-            <div class="row-body think-preview">
-              {(e.thinking ?? '').split('\n')[0].slice(0, 100)}…
-            </div>
-          {/if}
-        </div>
-      {:else if e.entryType === 'assistant'}
-        <div class="row assistant">
-          <div class="row-meta">
-            <span class="row-who ai-who">claude</span>
-            <span class="row-ts">{ts(e)}</span>
-          </div>
-          <div class="row-body">
-            <Markdown content={e.text ?? ''} />
-          </div>
-        </div>
-      {:else if e.entryType === 'toolCall'}
-        <div class="row tool">
-          <ToolCallEntry entry={e} resultEntry={r} streamingEntries={s} />
-        </div>
-      {:else if e.entryType === 'system'}
-        <div class="row system">
-          <span class="system-text">{e.text}</span>
-        </div>
-      {/if}
+<div class="feed-scroller" bind:this={scrollerEl} on:scroll={onScroll}>
+  {#if hasMore}
+    <div class="load-more">
+      <button on:click={loadMore}>↑ load earlier messages</button>
     </div>
-  {/each}
+  {/if}
 
-  <!-- bottom spacer -->
-  <div style="height:{bottomSpacerHeight}px; flex-shrink:0;" aria-hidden="true"></div>
+  {#each visibleItems as { entry: e, result: r, streaming: s }, i}
+    {@const absIdx = visibleFrom + i}
+    {#if e.entryType === 'user'}
+      <div class="row user">
+        <div class="row-meta">
+          <span class="row-who user-who">you</span>
+          <span class="row-ts">{ts(e)}</span>
+        </div>
+        <div class="row-body">
+          <Markdown content={e.text ?? ''} />
+        </div>
+      </div>
+    {:else if e.entryType === 'thinking'}
+      {@const expanded = expandedThinking.has(absIdx)}
+      <div class="row thinking">
+        <div class="row-meta">
+          <span class="row-who think-who">···</span>
+          {#if e.thinkingDuration}
+            <span class="row-ts">{e.thinkingDuration.toFixed(1)}s</span>
+          {/if}
+          <button class="expand-btn" on:click={() => toggleThinking(absIdx)}>
+            {expanded ? '▼ collapse' : '▶ expand'}
+          </button>
+        </div>
+        {#if expanded}
+          <div class="row-body think-body">{e.thinking}</div>
+        {:else}
+          <div class="row-body think-preview">
+            {(e.thinking ?? '').split('\n')[0].slice(0, 100)}…
+          </div>
+        {/if}
+      </div>
+    {:else if e.entryType === 'assistant'}
+      <div class="row assistant">
+        <div class="row-meta">
+          <span class="row-who ai-who">claude</span>
+          <span class="row-ts">{ts(e)}</span>
+        </div>
+        <div class="row-body">
+          <Markdown content={e.text ?? ''} />
+        </div>
+      </div>
+    {:else if e.entryType === 'toolCall'}
+      <div class="row tool">
+        <ToolCallEntry entry={e} resultEntry={r} streamingEntries={s} />
+      </div>
+    {:else if e.entryType === 'system'}
+      <div class="row system">
+        <span class="system-text">{e.text}</span>
+      </div>
+    {/if}
+  {/each}
 
   {#if isWorking}
     <div class="typing-row">
@@ -307,12 +231,31 @@
     box-sizing: border-box;
   }
 
-  .vrow {
+  .load-more {
+    display: flex;
+    justify-content: center;
+    padding: 8px 0 4px;
     flex-shrink: 0;
+  }
+
+  .load-more button {
+    background: none;
+    border: 1px solid var(--bd1);
+    border-radius: 3px;
+    color: var(--t3);
+    font-size: var(--xs);
+    padding: 3px 10px;
+    cursor: pointer;
+  }
+
+  .load-more button:hover {
+    border-color: var(--ac);
+    color: var(--ac);
   }
 
   .row {
     padding: 8px 14px;
+    flex-shrink: 0;
   }
   .row:hover {
     background: rgba(255, 255, 255, 0.015);
