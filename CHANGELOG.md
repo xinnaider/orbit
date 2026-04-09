@@ -4,6 +4,10 @@
 
 ## April 2026
 
+### 04/09 · New — Sub-agents monitor tab
+
+When a session spawns sub-agents, they now appear in the "Sub-agents" tab on the right panel, grouped by Running and Completed. Click any agent to inspect its full conversation log in a modal. The list updates automatically as the session progresses, and a refresh button fetches the latest state on demand.
+
 ### 04/08 · Fix — Rate limit warning no longer triggers incorrectly
 The "rate limit reached" banner was sometimes shown when Claude's response simply
 mentioned rate limits or server load in its text — without an actual API error occurring.
