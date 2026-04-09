@@ -161,9 +161,16 @@
         if (info && !updateToastId) {
           pendingUpdate = info;
           updateToastId = addToast({
-            type: 'info',
+            type: 'update',
             message: `new version available — ${info.version}`,
             autoDismiss: false,
+            action: {
+              label: 'update now',
+              onClick: () => {
+                installUpdate();
+                updateToastId = null;
+              },
+            },
           });
         }
       } catch (e) {
@@ -190,10 +197,6 @@
       (getCurrentWebviewWindow() as unknown as { openDevtools(): void }).openDevtools();
     }
   }
-
-  // Keep installUpdate in scope so it can be used via the update toast action
-  const _installUpdate = installUpdate;
-  void _installUpdate;
 </script>
 
 <svelte:window on:keydown={handleKeydown} />

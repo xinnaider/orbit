@@ -9,12 +9,26 @@
     warning: '⏳',
     info: 'ℹ',
     success: '✓',
+    update: '↑',
   };
 </script>
 
 <div class="toast toast--{toast.type}" role="alert">
   <span class="toast-icon">{ICONS[toast.type]}</span>
-  <span class="toast-message">{toast.message}</span>
+  <div class="toast-body">
+    <span class="toast-message">{toast.message}</span>
+    {#if toast.action}
+      <button
+        class="toast-action"
+        on:click={() => {
+          toast.action?.onClick();
+          removeToast(toast.id);
+        }}
+      >
+        {toast.action.label}
+      </button>
+    {/if}
+  </div>
   <button class="toast-close" on:click={() => removeToast(toast.id)} aria-label="Dismiss">✕</button>
 </div>
 
@@ -24,10 +38,10 @@
     align-items: flex-start;
     gap: 8px;
     padding: 10px 12px;
-    border-radius: 4px;
+    border-radius: 6px;
     border: 1px solid transparent;
-    min-width: 260px;
-    max-width: 380px;
+    min-width: 280px;
+    max-width: 400px;
     pointer-events: all;
     animation: slideIn 0.18s ease;
   }
@@ -63,35 +77,70 @@
     border-color: rgba(0, 212, 126, 0.3);
   }
 
+  .toast--update {
+    background: rgba(0, 30, 18, 0.98);
+    border-color: var(--ac);
+    box-shadow: 0 0 12px rgba(0, 212, 126, 0.2);
+  }
+
   .toast-icon {
     font-size: 13px;
     flex-shrink: 0;
-    margin-top: 1px;
+    margin-top: 2px;
   }
 
   .toast--error .toast-icon {
     color: var(--s-error);
   }
-
   .toast--warning .toast-icon {
     color: #e0a030;
   }
-
   .toast--info .toast-icon {
     color: var(--s-init);
   }
-
   .toast--success .toast-icon {
     color: var(--ac);
   }
+  .toast--update .toast-icon {
+    color: var(--ac);
+    font-weight: 700;
+  }
 
-  .toast-message {
+  .toast-body {
     flex: 1;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .toast-message {
     font-size: var(--sm);
     color: var(--t1);
     line-height: 1.45;
     word-break: break-word;
+  }
+
+  .toast--update .toast-message {
+    color: var(--t0);
+  }
+
+  .toast-action {
+    align-self: flex-start;
+    background: var(--ac);
+    color: #000;
+    border: none;
+    border-radius: 4px;
+    padding: 4px 12px;
+    font-size: var(--xs);
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    transition: opacity 0.12s;
+  }
+
+  .toast-action:hover {
+    opacity: 0.85;
   }
 
   .toast-close {
