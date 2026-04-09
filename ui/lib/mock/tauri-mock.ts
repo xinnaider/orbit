@@ -20,7 +20,7 @@ const MOCK_SESSIONS: Session[] = [
       { tool: 'Read', target: 'auth.ts', result: null, success: true },
       { tool: 'Bash', target: 'git status', result: null, success: true },
     ],
-    costUsd: null,
+
     worktreePath: null,
     branchName: null,
     createdAt: new Date().toISOString(),
@@ -41,7 +41,7 @@ const MOCK_SESSIONS: Session[] = [
     contextPercent: 51.3,
     pendingApproval: null,
     miniLog: null,
-    costUsd: null,
+
     worktreePath: null,
     branchName: null,
     createdAt: new Date(Date.now() - 60000).toISOString(),
@@ -62,7 +62,7 @@ const MOCK_SESSIONS: Session[] = [
     contextPercent: 3.1,
     pendingApproval: null,
     miniLog: null,
-    costUsd: null,
+
     worktreePath: null,
     branchName: null,
     createdAt: new Date(Date.now() - 300000).toISOString(),
@@ -324,7 +324,7 @@ export async function mockInvoke(cmd: string, args?: Record<string, unknown>): P
         contextPercent: null,
         pendingApproval: null,
         miniLog: null,
-        costUsd: null,
+
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };

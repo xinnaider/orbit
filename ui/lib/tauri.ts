@@ -108,7 +108,6 @@ export interface SessionStatePayload {
   contextPercent: number;
   pendingApproval: string | null;
   miniLog: MiniLogEntry[];
-  costUsd: number | null;
   gitBranch: string | null;
 }
 

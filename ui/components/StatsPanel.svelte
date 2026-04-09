@@ -1,16 +1,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { Session } from '../lib/stores/sessions';
-  import { estimateCost, formatCost } from '../lib/cost';
-  import { getClaudeUsageStats, type ClaudeUsageStats } from '../lib/tauri';
   import { formatTokens } from '../lib/cost';
+  import { getClaudeUsageStats, type ClaudeUsageStats } from '../lib/tauri';
 
   export let session: Session;
 
   $: tokens = session.tokens;
   $: totalTokens = (tokens?.input ?? 0) + (tokens?.output ?? 0);
   $: ctx = session.contextPercent ?? 0;
-  $: cost = tokens ? estimateCost(tokens, session.model) : 0;
 
   let usage: ClaudeUsageStats | null = null;
 
@@ -43,10 +41,6 @@
   <div class="stat-row total">
     <span class="label">Total</span>
     <span class="value">{totalTokens.toLocaleString()}</span>
-  </div>
-  <div class="stat-row cost">
-    <span class="label">Estimated cost</span>
-    <span class="value cost-value">{formatCost(cost)}</span>
   </div>
   <div class="context-section">
     <div class="context-label">
@@ -102,13 +96,6 @@
     font-weight: 600;
     border-bottom: 1px solid var(--border-subtle);
     margin-top: 4px;
-  }
-  .stat-row.cost {
-    border-bottom: none;
-  }
-  .cost-value {
-    color: var(--ac);
-    font-weight: 600;
   }
   .label {
     color: var(--text-muted);

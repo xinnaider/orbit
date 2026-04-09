@@ -118,7 +118,6 @@
           contextPercent: p.contextPercent,
           pendingApproval: p.pendingApproval,
           miniLog: p.miniLog,
-          costUsd: p.costUsd ?? null,
           gitBranch: p.gitBranch ?? null,
         })
       );

@@ -17,8 +17,6 @@ pub struct JournalState {
     pub pending_approval: Option<String>,
     pub mini_log: Vec<MiniLogEntry>,
     pub file_size: u64,
-    /// Real cost from the Claude `result` message (more accurate than token estimate).
-    pub cost_usd: Option<f64>,
 }
 
 impl Default for JournalState {
@@ -35,7 +33,6 @@ impl Default for JournalState {
             pending_approval: None,
             mini_log: Vec::new(),
             file_size: 0,
-            cost_usd: None,
         }
     }
 }

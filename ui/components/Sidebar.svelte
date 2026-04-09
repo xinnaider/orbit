@@ -9,7 +9,7 @@
   import { onMount } from 'svelte';
 
   let appVersion = '';
-  import { estimateCost, formatCost, formatTokens } from '../lib/cost';
+  import { formatTokens } from '../lib/cost';
   import OrbitLogo from '../lib/assets/orbit.svg?raw';
   import ThemePicker from './ThemePicker.svelte';
 
@@ -177,15 +177,6 @@
 
   <footer class="footer">
     <span>{$sessions.length} session{$sessions.length !== 1 ? 's' : ''}</span>
-    <span class="sep">·</span>
-    <span>
-      {formatCost(
-        $sessions.reduce((sum, s) => {
-          if (!s.tokens) return sum;
-          return sum + estimateCost(s.tokens, s.model);
-        }, 0)
-      )} total
-    </span>
   </footer>
 </aside>
 
@@ -353,9 +344,6 @@
     font-size: var(--xs);
     color: var(--t2);
     padding-left: 14px;
-  }
-  .sep {
-    color: var(--t3);
   }
   .confirm-overlay {
     position: fixed;

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Session } from '../lib/stores/sessions';
-  import { estimateCost, formatCost, formatTokens } from '../lib/cost';
+  import { formatTokens } from '../lib/cost';
   import { stopSession } from '../lib/tauri';
   import { isActive } from '../lib/status';
   import { metaPanelVisible } from '../lib/stores/preferences';
@@ -21,8 +21,6 @@
 
   $: tokens = session.tokens;
   $: total = (tokens?.input ?? 0) + (tokens?.output ?? 0);
-  $: cost = session.costUsd ?? (tokens ? estimateCost(tokens, session.model) : 0);
-  $: isRealCost = session.costUsd != null;
   $: ctx = session.contextPercent ?? 0;
   $: active = isActive(session.status);
   $: stopped = session.status === 'stopped';
@@ -65,11 +63,6 @@
               <span>cache·w</span><span>{formatTokens(tokens.cacheWrite)}</span>
             </div>
           {/if}
-        </div>
-
-        <div class="stat-group">
-          <div class="stat-label">cost{isRealCost ? '' : ' (est.)'}</div>
-          <div class="stat-value big">{formatCost(cost)}</div>
         </div>
 
         {#if ctx > 0}

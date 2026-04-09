@@ -302,15 +302,6 @@ pub fn process_line(state: &mut JournalState, line: &str) {
         }
 
         "result" => {
-            // Final message from Claude with actual cost_usd
-            if let Ok(val) = serde_json::from_str::<serde_json::Value>(trimmed) {
-                if let Some(cost) = val.get("cost_usd").and_then(|v| v.as_f64()) {
-                    if cost > 0.0 {
-                        state.cost_usd =
-                            Some(state.cost_usd.map(|prev| prev + cost).unwrap_or(cost));
-                    }
-                }
-            }
             state.status = AgentStatus::Idle;
         }
 
