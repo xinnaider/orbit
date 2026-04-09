@@ -2,26 +2,85 @@
 
 ---
 
-## Abril 2026
+## April 2026
 
-### 06/04 · Novo — Sessões remotas via SSH
-Agora é possível criar sessões em servidores remotos. Ao marcar a opção "remote session (ssh)" no formulário de nova sessão, aparecem campos para informar o endereço do servidor e o usuário SSH — permitindo rodar o Claude diretamente em máquinas remotas.
+### 04/09 · New — Sub-agents monitor tab
 
-### 06/04 · Melhoria — Execução de comandos sem interrupção
-Comandos do terminal agora executam automaticamente, sem pedir confirmação a cada passo. O fluxo de trabalho do agente ficou mais fluido e sem pausas desnecessárias.
+When a session spawns sub-agents, they now appear in the "Sub-agents" tab on the right panel, grouped by Running and Completed. Click any agent to inspect its full conversation log in a modal. The list updates automatically as the session progresses, and a refresh button fetches the latest state on demand.
 
-### 06/04 · Melhoria — Output em tempo real
-Durante a execução de comandos longos, o resultado aparece progressivamente na tela — sem precisar esperar o comando terminar para ver o que está acontecendo.
+### 04/08 · Fix — Rate limit warning no longer triggers incorrectly
+The "rate limit reached" banner was sometimes shown when Claude's response simply
+mentioned rate limits or server load in its text — without an actual API error occurring.
+The detection is now precise: it only fires when the API returns a real rate limit or
+overloaded error, so the banner appears only when it matters.
 
-### 06/04 · Novo — Aviso de limite de uso da API
-Quando o limite de uso da API do Claude é atingido, o app exibe uma mensagem clara na tela em vez de simplesmente parar de responder. O aviso some automaticamente após 30 segundos.
+### 04/08 · Improvement — Smoother performance with long sessions
+The session feed now renders only the entries currently visible on screen instead of mounting everything at once. Sessions with hundreds of messages open faster, scroll smoothly, and use less memory — without any change to how messages look or behave.
 
-### 06/04 · Novo — Atualização automática
-O app verifica automaticamente se há uma versão nova disponível logo ao abrir.
-Quando houver, um aviso aparece na parte inferior da tela com um botão para instalar
-e reiniciar — sem precisar baixar nada manualmente.
+### 04/08 · New — Per-session mute button
+Each session panel now has a speaker icon button in the header. Click it to silence the notification sound for that session only — useful when you want to monitor one session quietly while staying alerted by others. A small muted indicator also appears next to the session name in the sidebar. The preference is saved across app restarts.
 
-### 06/04 · Ajuste — Indicador de sessão parada
-Sessões encerradas agora exibem uma etiqueta "stopped" no painel lateral, tornando mais fácil identificar o estado de cada sessão.
+### 04/08 · Improvement — Compact toast notifications replace banners
+Error, warning, and info messages now appear as small stacked toasts in the bottom-right corner instead of full-width banners that blocked the top of the screen. Toasts with a required action (rate limit, update available, session error) stay visible until manually dismissed; informational notices disappear automatically after five seconds.
+
+### 04/08 · Fix — Auto-updater now works on Windows and Linux
+The "check for updates" feature was silently failing on all platforms because the update server URL was missing the architecture suffix. Users on v0.3.0 will now correctly receive an update prompt when opening the app.
+
+### 04/08 · Fix — Message display delay and working indicator
+Sending a message now shows it in the chat immediately and without flickering. The "working" indicator (animated dots) now appears as soon as Claude starts processing a request and stays visible throughout — previously it could disappear briefly or not show at all right after sending. The fix also reduces unnecessary background work that was slowing down the feed during active sessions.
+
+### 04/08 · New — Linux/Ubuntu support
+Orbit now runs on Ubuntu 22.04+ and other Linux distributions with a desktop environment (GNOME, KDE Plasma, and others). Install with a single command that downloads the app, adds it to your application launcher, and sets up automatic updates — no manual steps required. Once installed, Orbit updates itself in the background just like on Windows.
+
+### 04/07 · New — Meta panel toggle
+The stats panel on the right can now be hidden or shown with a single click. Use the `›` button in the panel header to collapse it; a thin `‹` strip appears on the right edge so you can bring it back at any time. The preference is saved and restored between sessions.
+
+### 04/07 · Fix — Button positioning in split panes
+The scroll-to-bottom button now stays anchored to the bottom-right of its own panel and no longer overlaps the adjacent panel when two panes are open side by side. The split and close buttons moved into the panel header so they always sit in the top-right corner regardless of whether the branch strip is visible, and no longer clash with each other.
+
+### 04/07 · Improvement — Rename session modal
+Renaming a session now opens a modal with two separate fields — the agent codename and the project suffix — pre-filled from the current name. A live preview shows the final result before saving.
+
+### 04/07 · New — In-app changelog
+The app now shows a changelog modal on first launch after an update. You can also reopen it anytime by clicking the version badge in the sidebar.
+
+### 04/07 · Fix — Branch badge not updating
+The active branch shown in each panel now stays in sync as you switch branches, instead of being frozen at the value from when the session was created.
+
+### 04/07 · Improvement — Truncated panel name and branch in separate strip
+When a session name is long, the panel header now shows `…` instead of growing in height. The full name appears on hover. The active branch was moved to a thin strip below the header, easier to read and no longer conflicting with other elements.
+
+### 04/07 · Improvement — Session nickname with two separate fields
+When creating a session, the nickname is now composed of two fields: the agent name (auto-generated as a codename) and the project suffix (filled with the folder name). The final result — like `raven · agent-dashboard-v2` — is shown as a preview before saving.
+
+### 04/07 · Improvement — Active branch shown in panel header
+Each panel header now correctly shows the branch Claude is working on. For sessions with an isolated worktree, it shows the worktree branch (`orbit/<name>`); for normal sessions, it shows the repository branch.
+
+### 04/07 · New — Split panes
+Orbit now lets you view up to 4 Claude Code sessions simultaneously.
+Drag any session from the sidebar to the edge of a panel to open a side-by-side split. Up to 4 panels in a 2×2 grid. Click a panel to focus it — the MetaPanel follows the focused panel.
+
+### 04/06 · New — Remote sessions via SSH
+Sessions can now be created on remote servers. When the "ssh remote" option is selected in the new session form, fields for the server address and SSH user appear — allowing Claude to run directly on remote machines via SSH.
+
+### 04/06 · New — Session nickname and worktree on creation
+When creating a new session, you can now give it a custom nickname for easy identification. If left blank, the app automatically suggests a name based on Android device codenames combined with the project name.
+
+There is also a new option to create the session inside an isolated **git worktree**. When enabled, Claude works on a separate branch (automatically created as `orbit/<session-name>`), keeping the main branch intact during the work.
+
+### 04/06 · Improvement — Uninterrupted command execution
+Terminal commands now run automatically without asking for confirmation at each step. The agent workflow is smoother and free of unnecessary pauses.
+
+### 04/06 · Improvement — Real-time output
+During long-running commands, results appear progressively on screen — no need to wait for the command to finish before seeing what's happening.
+
+### 04/06 · New — API rate limit warning
+When the Claude API rate limit is reached, the app shows a clear message on screen instead of silently stopping. The warning automatically dismisses after 30 seconds.
+
+### 04/06 · New — Automatic updates
+The app automatically checks for a new version on launch. When one is available, a banner appears with a button to install and restart — no manual download needed.
+
+### 04/06 · Adjustment — Stopped session indicator
+Stopped sessions now show a "stopped" label in the sidebar, making it easier to identify the state of each session.
 
 ---

@@ -11,8 +11,8 @@ export default [
 
   // TypeScript source files (not declarations)
   {
-    files: ['api/**/*.ts'],
-    ignores: ['api/**/*.d.ts'],
+    files: ['ui/**/*.ts'],
+    ignores: ['ui/**/*.d.ts'],
     languageOptions: {
       parser: tsParser,
       globals: { ...globals.browser, ...globals.node },
@@ -31,7 +31,7 @@ export default [
 
   // Svelte files — type checking is handled by svelte-check, not ESLint
   {
-    files: ['api/**/*.svelte'],
+    files: ['ui/**/*.svelte'],
     languageOptions: {
       parser: svelteParser,
       parserOptions: {
@@ -56,8 +56,8 @@ export default [
       'node_modules/**',
       'build/**',
       '.svelte-kit/**',
-      'front/target/**',
-      'api/**/*.d.ts',
+      'tauri/target/**',
+      'ui/**/*.d.ts',
       '*.config.js',
     ],
   },

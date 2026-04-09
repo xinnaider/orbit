@@ -7,6 +7,15 @@ const host = process.env.TAURI_DEV_HOST;
 export default defineConfig(async () => ({
   plugins: [sveltekit()],
 
+  test: {
+    exclude: [
+      '**/node_modules/**',
+      '**/.worktrees/**',
+      '**/.claude/worktrees/**',
+      '**/tauri/**',
+    ],
+  },
+
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
   // 1. prevent Vite from obscuring rust errors
@@ -24,11 +33,12 @@ export default defineConfig(async () => ({
         }
       : undefined,
     watch: {
-      ignored: ["**/front/**"],
+      ignored: ["**/tauri/**"],
     },
     fs: {
-      // Allow serving files from the api/ root (App.svelte, app.css, etc.)
-      allow: ["api", "static", "node_modules", ".svelte-kit"],
+      // Allow serving files from the ui/ root (App.svelte, app.css, etc.)
+      // Also allow the root project's node_modules (worktrees share the parent's node_modules)
+      allow: ["ui", "static", "node_modules", ".svelte-kit", "../../node_modules"],
     },
   },
 }));

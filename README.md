@@ -1,14 +1,15 @@
 <div align="center">
 
-<img src="front/icons/orbit-source.svg" width="96" height="96" alt="Orbit logo"/>
+<img src="tauri/icons/orbit-source.svg" width="96" height="96" alt="Orbit logo"/>
 
 # Orbit
 
 **Desktop app for running multiple [Claude Code](https://github.com/anthropics/claude-code) agents simultaneously.**
 
 [![Build](https://img.shields.io/github/actions/workflow/status/xinnaider/orbit/build.yml?branch=master)](https://github.com/xinnaider/orbit/actions)
-[![License: CC BY-NC 4.0](https://img.shields.io/badge/license-CC%20BY--NC%204.0-lightgrey.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 [![Platform: Windows](https://img.shields.io/badge/platform-Windows-blue.svg)](#installation)
+[![Platform: Linux](https://img.shields.io/badge/platform-Linux-orange.svg)](#installation)
 
 [orbit.jfernando.dev](https://orbit.jfernando.dev)
 
@@ -30,19 +31,46 @@
 
 ### Requirements
 
-- **Windows 10 1903+**
 - **[Claude Code CLI](https://github.com/anthropics/claude-code)** installed and logged in:
   ```bash
   npm install -g @anthropic-ai/claude-code
   claude login
   ```
 
-### Download
+---
 
-1. Go to [Releases](https://github.com/xinnaider/orbit/releases/latest)
-2. Download the `.exe` installer
-3. Run the installer
-4. Open Orbit, click **+** to create your first session
+### Windows (10 1903+)
+
+**One-line installer** — open PowerShell and run:
+
+```powershell
+irm https://raw.githubusercontent.com/xinnaider/orbit/master/scripts/install-windows.ps1 | iex
+```
+
+This downloads the latest release, shows a progress bar, and launches the installer automatically. Open Orbit from the Start Menu when done.
+
+Orbit updates itself automatically when a new version is available.
+
+---
+
+### Linux (Ubuntu 22.04+ · Debian · KDE · other distros)
+
+**One-line installer** — downloads the AppImage, creates a desktop entry (shows up in your app launcher), and sets up auto-updates:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/xinnaider/orbit/master/scripts/install-linux.sh | bash
+```
+
+Open Orbit from your application menu or run:
+
+```bash
+~/.local/share/orbit/orbit.AppImage
+```
+
+Orbit updates itself automatically when a new version is available.
+
+> **Requirements:** `curl`, `fuse2` (pre-installed on most desktop distros).
+> On Ubuntu: `sudo apt install fuse libfuse2` if not present.
 
 ## Contributing
 
@@ -77,4 +105,4 @@ npm run format     # Prettier + rustfmt
 
 ## License
 
-CC BY-NC 4.0 © josefernando
+MIT © josefernando

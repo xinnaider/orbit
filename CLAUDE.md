@@ -8,7 +8,7 @@ Guia de referência para o Claude Code trabalhar neste repositório.
 
 Orbit é um **dashboard desktop para gerenciar múltiplas sessões do Claude Code em paralelo**, construído com Tauri 2 (Rust + Svelte). Permite criar sessões, acompanhar output em tempo real, visualizar diffs de arquivos, tasks e tokens consumidos.
 
-- Plataforma: **Windows 10 1903+**
+- Plataformas: **Windows 10 1903+**, **Ubuntu 22.04+** (e outras distros Linux com webkit2gtk 4.1)
 - Identificador: `com.josefernando.orbit`
 - Repositório: `github.com/xinnaider/orbit`
 
@@ -28,7 +28,7 @@ Orbit é um **dashboard desktop para gerenciar múltiplas sessões do Claude Cod
 | Lint TS/Svelte | ESLint 9 + eslint-plugin-svelte |
 | Lint Rust | cargo clippy (-D warnings) |
 | Format TS/Svelte | Prettier 3.8 + prettier-plugin-svelte |
-| Format Rust | rustfmt (front/rustfmt.toml) |
+| Format Rust | rustfmt (tauri/rustfmt.toml) |
 
 ---
 
@@ -36,7 +36,7 @@ Orbit é um **dashboard desktop para gerenciar múltiplas sessões do Claude Cod
 
 ```
 agent-dashboard-v2/
-├── front/                      # Backend Rust / Tauri
+├── tauri/                      # Backend Rust / Tauri
 │   ├── src/
 │   │   ├── main.rs             # Entry point mínimo
 │   │   ├── lib.rs              # Inicialização do app Tauri, plugins, IPC handlers
@@ -57,7 +57,7 @@ agent-dashboard-v2/
 │   ├── rustfmt.toml            # max_width=100, tab_spaces=4
 │   └── .clippy.toml            # cognitive-complexity=30, too-many-lines=100
 │
-├── api/                        # Frontend SvelteKit
+├── ui/                         # Frontend SvelteKit
 │   ├── App.svelte              # Raiz: listeners de eventos Tauri, banners globais
 │   ├── app.css                 # Estilos globais (variáveis CSS, temas)
 │   ├── routes/                 # Rotas SvelteKit (+page.svelte, +layout.svelte)
@@ -176,7 +176,7 @@ Mensagem de follow-up
 npm run dev:mock
 ```
 
-`api/lib/mock/tauri-mock.ts` simula todos os comandos e eventos Tauri. Use `VITE_MOCK=true` para ativar.
+`ui/lib/mock/tauri-mock.ts` simula todos os comandos e eventos Tauri. Use `VITE_MOCK=true` para ativar.
 
 ---
 
@@ -212,46 +212,75 @@ npm run dev:mock
 - Tipos TS espelham os structs Rust (camelCase no TS, snake_case no Rust)
 
 ### Git
-- Commits em inglês, prefixo convencional: `feat:`, `fix:`, `refactor:`, `chore:`, `docs:`
-- Nunca commitar com `--no-verify`
+- Commits in English, conventional prefix: `feat:`, `fix:`, `refactor:`, `chore:`, `docs:`
+- Never commit with `--no-verify`
+- Issues follow the same conventional prefix format: `feat:`, `fix:`, `refactor:`, `chore:`, `docs:`
+- **Commit by logical context, not by step.** The pre-commit hook runs Prettier, rustfmt, ESLint, svelte-check, and Clippy on every commit — committing after each small step wastes tokens and time. Group related changes into one commit per meaningful unit of work (e.g. one commit for a new utility + its tests, one for the new component, one for the wiring). A feature with 3 tasks → 2–3 commits, not 10.
 
 #### Git hook: `pre-commit`
 Roda automaticamente antes de todo commit:
-1. **Prettier** auto-formata `api/**/*.{ts,svelte,css}` e re-adiciona ao stage
+1. **Prettier** auto-formata `ui/**/*.{ts,svelte,css}` e re-adiciona ao stage
 2. **rustfmt** auto-formata o código Rust e re-adiciona ao stage
 3. **ESLint** com `--max-warnings 0` — bloqueia o commit se falhar
 4. **svelte-check** com `--fail-on-warnings` — bloqueia o commit se falhar
 5. **Clippy** com `-D warnings` — bloqueia o commit se falhar
 
-#### Política de CHANGELOG
+#### CHANGELOG Policy
 
-**Antes de cada commit com mudanças relevantes para o usuário, atualizar `CHANGELOG.md`.**
+**Before each commit with user-facing changes, update `CHANGELOG.md`.**
 
-O CHANGELOG é voltado para **usuários e clientes** — não para desenvolvedores. Escreva como se estivesse explicando o que mudou para alguém que usa o app, não para alguém que lê o código.
+The CHANGELOG is written for **users and customers** — not developers. Write as if explaining what changed to someone who uses the app, not someone who reads the code.
 
-**Regras:**
-- Linguagem simples, em português
-- Descreva o *efeito* da mudança, não o *como* foi implementada
-- Sem nomes de arquivos, sem termos técnicos desnecessários, sem detalhes de implementação
-- Agrupe as entradas por **mês e ano** (ex: `## Abril 2026`)
-- Cada entrada tem data e categoria no título: `### DD/MM · <Categoria> — <Título>`
-- Categorias possíveis: **Novo**, **Melhoria**, **Ajuste**, **Correção**
-- Um parágrafo curto descrevendo o que o usuário percebe
-- Inclua apenas o que um usuário perceberia: nova funcionalidade, correção visível, melhoria de UX
-- Ignore refatorações internas, ajustes de lint, mudanças de config que não afetam o usuário
+**Rules:**
+- Plain English
+- Describe the *effect* of the change, not *how* it was implemented
+- No file names, no unnecessary technical terms, no implementation details
+- Group entries by **month and year** (e.g. `## April 2026`)
+- Each entry has date and category in the title: `### MM/DD · <Category> — <Title>`
+- Categories: **New**, **Improvement**, **Adjustment**, **Fix**
+- One short paragraph describing what the user perceives
+- Only include what a user would notice: new feature, visible fix, UX improvement
+- Ignore internal refactors, lint fixes, config changes that don't affect the user
 
-**Exemplo de entrada boa:**
+**Good example:**
 ```
-### 06/04 · Novo — Aviso de limite de uso da API
-Quando o limite de uso da API do Claude é atingido, o app exibe uma mensagem
-clara na tela em vez de simplesmente parar de responder.
+### 04/06 · New — API rate limit warning
+When the Claude API rate limit is reached, the app now shows a clear message
+on screen instead of silently stopping.
 ```
 
-**Exemplo de entrada ruim:**
+**Bad example:**
 ```
 - fix: detect rate_limit_error in session_manager reader_loop stderr thread
-- updated api/App.svelte to listen for session:rate-limit event
+- updated ui/App.svelte to listen for session:rate-limit event
 ```
+
+---
+
+## Self-Improvement Loop
+
+**No início de cada sessão:** leia `docs/lessons.md` se existir e aplique as lições registradas.
+
+**Após qualquer correção do usuário:**
+1. Identifique o padrão do erro (não apenas o caso específico)
+2. Adicione uma entrada em `docs/lessons.md` com:
+   - **Regra**: o que fazer (ou não fazer)
+   - **Por quê**: motivação / o que deu errado
+   - **Quando aplicar**: contexto em que a regra vale
+3. Itere nas lições existentes se o mesmo erro se repetir — refine a regra, não apenas acumule entradas
+
+O arquivo `docs/lessons.md` é versionado no repositório para que todos os colaboradores e agentes se beneficiem das lições aprendidas.
+
+---
+
+## Specs de features
+
+Toda feature nova deve ter uma spec em `docs/specs/` antes de ser implementada.
+
+- Nome do arquivo: `docs/specs/<nome-da-feature>.md` (kebab-case)
+- Conteúdo mínimo: objetivo, comportamento esperado, casos de borda, critérios de aceitação
+- A spec deve ser criada ou atualizada **antes** de escrever código
+- Ao iniciar uma sessão em uma branch de feature, leia a spec correspondente se existir
 
 ---
 
@@ -263,8 +292,9 @@ clara na tela em vez de simplesmente parar de responder.
 3. `cargo clippy -- -D warnings`
 4. `eslint + svelte-check`
 
-**Build job** (após lint passar):
-- `npm run tauri:build` → `.exe` + `.msi` no Windows
+**Build jobs** (após lint passar):
+- **Windows** (`windows-latest`): `npm run tauri:build` → `.exe` + `.msi`; gera `latest-windows-x86_64.json`
+- **Linux** (`ubuntu-latest`): `npm run tauri:build` → `.AppImage` + `.deb`; gera `latest-linux-x86_64.json`
 - Upload como artifact (30 dias)
 - Tag `v*` → GitHub Release com instaladores
 - Push em `master` → nightly release automático

@@ -1,0 +1,167 @@
+/* ===== Dark (default) ===== */
+:root,
+[data-theme='dark'] {
+  --bg: #080808;
+  --bg1: #0d0d0d;
+  --bg2: #121212;
+  --bg3: #181818;
+  --bg4: #1e1e1e;
+  --bd: #1a1a1a;
+  --bd1: #242424;
+  --bd2: #2e2e2e;
+  --t0: #e0e0e0;
+  --t1: #888;
+  --t2: #505050;
+  --t3: #303030;
+  --ac: #00d47e;
+  --ac-d: rgba(0, 212, 126, 0.1);
+  --ac-d2: rgba(0, 212, 126, 0.05);
+  --s-working: #00d47e;
+  --s-input: #e8a030;
+  --s-idle: #404040;
+  --s-error: #e04848;
+  --s-init: #4888e0;
+  --s-done: #383838;
+  --user-fg: #7eb8f7;
+  --user-bg: rgba(126, 184, 247, 0.05);
+  --think-fg: #9980d4;
+  --think-bg: rgba(153, 128, 212, 0.06);
+  --tool-fg: #e8a030;
+  --tool-bg: rgba(232, 160, 48, 0.05);
+  --result-fg: #606060;
+  --result-bg: rgba(255, 255, 255, 0.02);
+}
+
+/* ===== Light — Paper & Ink ===== */
+/* Warm off-white surfaces, deep slate text, rich emerald accent.
+   Feels like a high-end technical notebook, not a productivity SaaS. */
+[data-theme='light'] {
+  --bg: #f6f2ed;
+  --bg1: #f0ebe4;
+  --bg2: #e8e2da;
+  --bg3: #dfd8ce;
+  --bg4: #d4ccc0;
+  --bd: #d6cfc5;
+  --bd1: #c4bcb0;
+  --bd2: #afa69a;
+  --t0: #1c1917;
+  --t1: #504a44;
+  --t2: #9c9289;
+  --t3: #c8c0b8;
+  --ac: #0d7a55;
+  --ac-d: rgba(13, 122, 85, 0.1);
+  --ac-d2: rgba(13, 122, 85, 0.05);
+  --s-working: #0d7a55;
+  --s-input: #b45309;
+  --s-idle: #b0a89e;
+  --s-error: #c0392b;
+  --s-init: #1d4ed8;
+  --s-done: #d0c8be;
+  --user-fg: #1d4ed8;
+  --user-bg: rgba(29, 78, 216, 0.05);
+  --think-fg: #6d28d9;
+  --think-bg: rgba(109, 40, 217, 0.05);
+  --tool-fg: #92400e;
+  --tool-bg: rgba(146, 64, 14, 0.05);
+  --result-fg: #9c9289;
+  --result-bg: rgba(28, 25, 23, 0.02);
+}
+
+/* ===== Nord ===== */
+[data-theme='nord'] {
+  --bg: #2e3440;
+  --bg1: #2b3039;
+  --bg2: #3b4252;
+  --bg3: #434c5e;
+  --bg4: #4c566a;
+  --bd: #3b4252;
+  --bd1: #434c5e;
+  --bd2: #4c566a;
+  --t0: #eceff4;
+  --t1: #d8dee9;
+  --t2: #81a1c1;
+  --t3: #4c566a;
+  --ac: #88c0d0;
+  --ac-d: rgba(136, 192, 208, 0.12);
+  --ac-d2: rgba(136, 192, 208, 0.06);
+  --s-working: #a3be8c;
+  --s-input: #ebcb8b;
+  --s-idle: #4c566a;
+  --s-error: #bf616a;
+  --s-init: #81a1c1;
+  --s-done: #3b4252;
+  --user-fg: #88c0d0;
+  --user-bg: rgba(136, 192, 208, 0.06);
+  --think-fg: #b48ead;
+  --think-bg: rgba(180, 142, 173, 0.08);
+  --tool-fg: #ebcb8b;
+  --tool-bg: rgba(235, 203, 139, 0.06);
+  --result-fg: #81a1c1;
+  --result-bg: rgba(216, 222, 233, 0.03);
+}
+
+/* ===== Dracula ===== */
+[data-theme='dracula'] {
+  --bg: #282a36;
+  --bg1: #21222c;
+  --bg2: #2d2f3d;
+  --bg3: #343746;
+  --bg4: #44475a;
+  --bd: #343746;
+  --bd1: #44475a;
+  --bd2: #6272a4;
+  --t0: #f8f8f2;
+  --t1: #ccc;
+  --t2: #6272a4;
+  --t3: #44475a;
+  --ac: #50fa7b;
+  --ac-d: rgba(80, 250, 123, 0.1);
+  --ac-d2: rgba(80, 250, 123, 0.05);
+  --s-working: #50fa7b;
+  --s-input: #f1fa8c;
+  --s-idle: #44475a;
+  --s-error: #ff5555;
+  --s-init: #8be9fd;
+  --s-done: #343746;
+  --user-fg: #8be9fd;
+  --user-bg: rgba(139, 233, 253, 0.06);
+  --think-fg: #bd93f9;
+  --think-bg: rgba(189, 147, 249, 0.08);
+  --tool-fg: #ffb86c;
+  --tool-bg: rgba(255, 184, 108, 0.06);
+  --result-fg: #6272a4;
+  --result-bg: rgba(248, 248, 242, 0.02);
+}
+
+/* ===== Catppuccin Mocha ===== */
+[data-theme='catppuccin'] {
+  --bg: #1e1e2e;
+  --bg1: #181825;
+  --bg2: #232336;
+  --bg3: #2a2a3c;
+  --bg4: #313244;
+  --bd: #2a2a3c;
+  --bd1: #313244;
+  --bd2: #45475a;
+  --t0: #cdd6f4;
+  --t1: #a6adc8;
+  --t2: #6c7086;
+  --t3: #45475a;
+  --ac: #a6e3a1;
+  --ac-d: rgba(166, 227, 161, 0.1);
+  --ac-d2: rgba(166, 227, 161, 0.05);
+  --s-working: #a6e3a1;
+  --s-input: #f9e2af;
+  --s-idle: #45475a;
+  --s-error: #f38ba8;
+  --s-init: #89b4fa;
+  --s-done: #313244;
+  --user-fg: #89b4fa;
+  --user-bg: rgba(137, 180, 250, 0.06);
+  --think-fg: #cba6f7;
+  --think-bg: rgba(203, 166, 247, 0.08);
+  --tool-fg: #fab387;
+  --tool-bg: rgba(250, 179, 135, 0.06);
+  --result-fg: #6c7086;
+  --result-bg: rgba(205, 214, 244, 0.02);
+}

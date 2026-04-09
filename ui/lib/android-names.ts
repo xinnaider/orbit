@@ -1,0 +1,48 @@
+const ANDROID_CODENAMES = [
+  'hammerhead',
+  'shamu',
+  'bullhead',
+  'angler',
+  'marlin',
+  'sailfish',
+  'walleye',
+  'taimen',
+  'blueline',
+  'crosshatch',
+  'flame',
+  'coral',
+  'sunfish',
+  'redfin',
+  'barbet',
+  'oriole',
+  'raven',
+  'cheetah',
+  'panther',
+  'lynx',
+  'felix',
+  'akita',
+  'caiman',
+  'komodo',
+  'tokay',
+  'dolph',
+  'husky',
+  'shiba',
+  'tangor',
+  'comet',
+];
+
+export function generateAgentName(): string {
+  return ANDROID_CODENAMES[Math.floor(Math.random() * ANDROID_CODENAMES.length)];
+}
+
+export interface ParsedSessionName {
+  prefix: string;
+  suffix: string;
+}
+
+export function parseSessionName(name: string | null | undefined): ParsedSessionName {
+  if (!name) return { prefix: '', suffix: '' };
+  const idx = name.indexOf(' · ');
+  if (idx === -1) return { prefix: name.trim(), suffix: '' };
+  return { prefix: name.slice(0, idx).trim(), suffix: name.slice(idx + 3).trim() };
+}
