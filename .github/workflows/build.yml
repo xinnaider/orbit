@@ -133,6 +133,21 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
+      - name: Rename installer to fixed name (dev builds only)
+        if: github.ref == 'refs/heads/dev'
+        shell: pwsh
+        run: |
+          # Use a fixed filename so the nightly release doesn't accumulate versioned files
+          $exe = Get-ChildItem tauri/target/release/bundle/nsis -Filter "*-setup.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($null -ne $exe) {
+            $fixed = Join-Path $exe.DirectoryName "Orbit-nightly-setup.exe"
+            Rename-Item $exe.FullName $fixed
+            # Also rename .sig
+            $sig = "$($exe.FullName).sig"
+            if (Test-Path $sig) { Rename-Item $sig "$fixed.sig" }
+            Write-Host "Renamed to Orbit-nightly-setup.exe"
+          }
+
       - name: Compute SHA-256 of installer
         shell: pwsh
         run: |
@@ -176,7 +191,8 @@ jobs:
           }
 
           # Tauri 2 signs the .exe directly — look for .exe.sig
-          $exe = Get-ChildItem tauri/target/release/bundle/nsis -Filter "*-setup.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+          $exe = Get-ChildItem tauri/target/release/bundle/nsis -Filter "*-setup.exe" -ErrorAction SilentlyContinue |
+            Sort-Object Name | Select-Object -First 1
           if ($null -eq $exe) {
             Write-Host "::error::No *-setup.exe found in tauri/target/release/bundle/nsis"
             exit 1
