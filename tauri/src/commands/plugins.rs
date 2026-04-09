@@ -22,6 +22,19 @@ fn frontmatter_field(content: &str, field: &str) -> Option<String> {
     None
 }
 
+/// Truncate `s` to at most `max_bytes` bytes at a UTF-8 character boundary.
+/// Appends "..." if truncated.
+fn truncate_desc(s: &str, max_bytes: usize) -> String {
+    if s.len() <= max_bytes {
+        return s.to_string();
+    }
+    let boundary = (0..=max_bytes)
+        .rev()
+        .find(|&i| s.is_char_boundary(i))
+        .unwrap_or(0);
+    format!("{}...", &s[..boundary])
+}
+
 /// Scan a plugin directory for skills, commands and agents.
 fn scan_plugin(install_path: &Path, plugin_name: &str, out: &mut Vec<SlashCommand>) {
     let skills_dir = install_path.join("skills");
@@ -33,11 +46,7 @@ fn scan_plugin(install_path: &Path, plugin_name: &str, out: &mut Vec<SlashComman
                     let name = frontmatter_field(&content, "name")
                         .unwrap_or_else(|| entry.file_name().to_string_lossy().to_string());
                     let desc = frontmatter_field(&content, "description").unwrap_or_default();
-                    let desc_short = if desc.len() > 80 {
-                        format!("{}...", &desc[..77])
-                    } else {
-                        desc
-                    };
+                    let desc_short = truncate_desc(&desc, 77);
                     out.push(SlashCommand {
                         cmd: format!("/{}:{}", plugin_name, name),
                         desc: desc_short,
@@ -64,11 +73,7 @@ fn scan_plugin(install_path: &Path, plugin_name: &str, out: &mut Vec<SlashComman
                         .unwrap_or_default()
                         .to_string_lossy()
                         .to_string();
-                    let desc_short = if desc.len() > 80 {
-                        format!("{}...", &desc[..77])
-                    } else {
-                        desc
-                    };
+                    let desc_short = truncate_desc(&desc, 77);
                     out.push(SlashCommand {
                         cmd: format!("/{}", stem),
                         desc: desc_short,
@@ -92,11 +97,7 @@ fn scan_plugin(install_path: &Path, plugin_name: &str, out: &mut Vec<SlashComman
                             .to_string()
                     });
                     let desc = frontmatter_field(&content, "description").unwrap_or_default();
-                    let desc_short = if desc.len() > 80 {
-                        format!("{}...", &desc[..77])
-                    } else {
-                        desc
-                    };
+                    let desc_short = truncate_desc(&desc, 77);
                     out.push(SlashCommand {
                         cmd: format!("/{}:{}", plugin_name, name),
                         desc: desc_short,
@@ -176,4 +177,35 @@ pub fn get_slash_commands() -> Vec<SlashCommand> {
     result.retain(|c| seen.insert(c.cmd.clone()));
 
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::truncate_desc;
+    use crate::test_utils::TestCase;
+
+    #[test]
+    fn should_not_panic_on_multibyte_truncation() {
+        let mut t = TestCase::new("should_not_panic_on_multibyte_truncation");
+        // The string is: 76 'x' bytes + "é" (2 bytes) + 10 'y' bytes
+        // truncate_desc at 77 bytes should: find boundary at 76 (start of é), truncate there,
+        // append "..."
+        let long_desc = format!("{}é{}", "x".repeat(76), "y".repeat(10));
+        t.phase("Act");
+        let result = truncate_desc(&long_desc, 77);
+        t.phase("Assert");
+        t.ok(
+            "result is valid UTF-8",
+            std::str::from_utf8(result.as_bytes()).is_ok(),
+        );
+        t.eq(
+            "truncated at char boundary",
+            result.as_str(),
+            &format!("{}...", "x".repeat(76)),
+        );
+        t.ok(
+            "result fits in max_bytes + ellipsis",
+            result.len() <= 77 + 3,
+        );
+    }
 }

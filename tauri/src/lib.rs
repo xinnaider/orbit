@@ -12,7 +12,7 @@ pub mod test_utils;
 use ipc::session::SessionState;
 use services::database::DatabaseService;
 use services::session_manager::SessionManager;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -32,11 +32,7 @@ pub fn run() {
             let db_path = data_dir.join("agent-dashboard.db");
             let db = Arc::new(DatabaseService::open(&db_path).expect("Could not open database"));
 
-            let session_manager = {
-                let mut sm = SessionManager::new(db);
-                sm.restore_from_db();
-                Arc::new(Mutex::new(sm))
-            };
+            let session_manager = Arc::new(RwLock::new(SessionManager::new(db)));
             app.manage(SessionState(session_manager));
 
             // Set window icon programmatically — bypasses Windows icon cache in dev mode

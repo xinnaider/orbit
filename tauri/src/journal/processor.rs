@@ -99,17 +99,10 @@ pub fn process_line(state: &mut JournalState, line: &str) {
                     .unwrap_or("");
                 if !content.trim().is_empty() {
                     state.entries.push(JournalEntry {
-                        session_id: String::new(),
                         timestamp: ts.clone(),
                         entry_type: JournalEntryType::Progress,
                         text: Some(content.to_string()),
-                        thinking: None,
-                        thinking_duration: None,
-                        tool: None,
-                        tool_input: None,
-                        output: None,
-                        exit_code: None,
-                        lines_changed: None,
+                        ..JournalEntry::default()
                     });
                     state.status = AgentStatus::Working;
                 }
@@ -173,17 +166,10 @@ pub fn process_line(state: &mut JournalState, line: &str) {
                                     .to_string();
                                 if !thinking_text.is_empty() {
                                     state.entries.push(JournalEntry {
-                                        session_id: String::new(),
                                         timestamp: ts.clone(),
                                         entry_type: JournalEntryType::Thinking,
-                                        text: None,
                                         thinking: Some(thinking_text),
-                                        thinking_duration: None,
-                                        tool: None,
-                                        tool_input: None,
-                                        output: None,
-                                        exit_code: None,
-                                        lines_changed: None,
+                                        ..JournalEntry::default()
                                     });
                                 }
                             }
@@ -195,17 +181,10 @@ pub fn process_line(state: &mut JournalState, line: &str) {
                                     .to_string();
                                 if !text.is_empty() {
                                     state.entries.push(JournalEntry {
-                                        session_id: String::new(),
                                         timestamp: ts.clone(),
                                         entry_type: JournalEntryType::Assistant,
                                         text: Some(text),
-                                        thinking: None,
-                                        thinking_duration: None,
-                                        tool: None,
-                                        tool_input: None,
-                                        output: None,
-                                        exit_code: None,
-                                        lines_changed: None,
+                                        ..JournalEntry::default()
                                     });
                                 }
                             }
@@ -233,17 +212,11 @@ pub fn process_line(state: &mut JournalState, line: &str) {
                                 }
 
                                 state.entries.push(JournalEntry {
-                                    session_id: String::new(),
                                     timestamp: ts.clone(),
                                     entry_type: JournalEntryType::ToolCall,
-                                    text: None,
-                                    thinking: None,
-                                    thinking_duration: None,
                                     tool: Some(tool_name),
                                     tool_input: input,
-                                    output: None,
-                                    exit_code: None,
-                                    lines_changed: None,
+                                    ..JournalEntry::default()
                                 });
                             }
                             _ => {}
@@ -291,34 +264,20 @@ pub fn process_line(state: &mut JournalState, line: &str) {
                                 }
 
                                 state.entries.push(JournalEntry {
-                                    session_id: String::new(),
                                     timestamp: ts.clone(),
                                     entry_type: JournalEntryType::ToolResult,
-                                    text: None,
-                                    thinking: None,
-                                    thinking_duration: None,
-                                    tool: None,
-                                    tool_input: None,
                                     output: Some(truncate_output(&output_text, 2000)),
-                                    exit_code: None,
-                                    lines_changed: None,
+                                    ..JournalEntry::default()
                                 });
                             }
                         }
                     } else if let Some(text) = content.as_str() {
                         if !text.is_empty() {
                             state.entries.push(JournalEntry {
-                                session_id: String::new(),
                                 timestamp: ts.clone(),
                                 entry_type: JournalEntryType::User,
                                 text: Some(text.to_string()),
-                                thinking: None,
-                                thinking_duration: None,
-                                tool: None,
-                                tool_input: None,
-                                output: None,
-                                exit_code: None,
-                                lines_changed: None,
+                                ..JournalEntry::default()
                             });
                         }
                     }
@@ -781,17 +740,10 @@ mod helper_tests {
         let mut t = TestCase::new("should_detect_pending_approval_for_last_unanswered_tool_call");
         t.phase("Seed");
         let entries = vec![crate::models::JournalEntry {
-            session_id: String::new(),
-            timestamp: String::new(),
             entry_type: crate::models::JournalEntryType::ToolCall,
-            text: None,
-            thinking: None,
-            thinking_duration: None,
             tool: Some("CustomTool".to_string()),
             tool_input: Some(serde_json::json!({"file_path": "/secret"})),
-            output: None,
-            exit_code: None,
-            lines_changed: None,
+            ..crate::models::JournalEntry::default()
         }];
         t.phase("Act");
         let result = detect_pending_approval(&entries);
@@ -805,30 +757,14 @@ mod helper_tests {
         t.phase("Seed");
         let entries = vec![
             crate::models::JournalEntry {
-                session_id: String::new(),
-                timestamp: String::new(),
                 entry_type: crate::models::JournalEntryType::ToolCall,
-                text: None,
-                thinking: None,
-                thinking_duration: None,
                 tool: Some("CustomTool".to_string()),
-                tool_input: None,
-                output: None,
-                exit_code: None,
-                lines_changed: None,
+                ..crate::models::JournalEntry::default()
             },
             crate::models::JournalEntry {
-                session_id: String::new(),
-                timestamp: String::new(),
                 entry_type: crate::models::JournalEntryType::ToolResult,
-                text: None,
-                thinking: None,
-                thinking_duration: None,
-                tool: None,
-                tool_input: None,
                 output: Some("result".to_string()),
-                exit_code: None,
-                lines_changed: None,
+                ..crate::models::JournalEntry::default()
             },
         ];
         t.phase("Act");

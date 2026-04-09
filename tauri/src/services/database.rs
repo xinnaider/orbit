@@ -1,34 +1,94 @@
 use rusqlite::{params, Connection, OptionalExtension, Result as SqlResult};
 use std::path::Path;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use crate::models::{Project, Session, SessionId};
 
+enum WorkerMsg {
+    Row(SessionId, String),
+    Flush(std::sync::mpsc::SyncSender<()>),
+}
+
 pub struct DatabaseService {
-    conn: Mutex<Connection>,
+    conn: Arc<Mutex<Connection>>,
+    output_tx: std::sync::mpsc::SyncSender<WorkerMsg>,
+}
+
+fn flush_batch(conn: &Mutex<Connection>, buf: &mut Vec<(SessionId, String)>) {
+    if buf.is_empty() {
+        return;
+    }
+    let conn = conn.lock().unwrap_or_else(|e| e.into_inner());
+    if let Err(e) = conn.execute_batch("BEGIN") {
+        eprintln!("[orbit] flush_batch: BEGIN failed: {e}");
+        buf.clear();
+        return;
+    }
+    for (session_id, data) in buf.drain(..) {
+        if let Err(e) = conn.execute(
+            "INSERT INTO session_outputs (session_id, data) VALUES (?1, ?2)",
+            rusqlite::params![session_id, data],
+        ) {
+            eprintln!("[orbit] flush_batch: INSERT failed for session {session_id}: {e}");
+        }
+    }
+    if let Err(e) = conn.execute_batch("COMMIT") {
+        eprintln!("[orbit] flush_batch: COMMIT failed: {e}");
+    }
+}
+
+fn start_output_worker(conn: Arc<Mutex<Connection>>) -> std::sync::mpsc::SyncSender<WorkerMsg> {
+    let (tx, rx) = std::sync::mpsc::sync_channel::<WorkerMsg>(1024);
+    std::thread::spawn(move || {
+        let mut buf: Vec<(SessionId, String)> = Vec::with_capacity(64);
+        loop {
+            let deadline = std::time::Instant::now() + std::time::Duration::from_millis(100);
+            loop {
+                let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+                if remaining.is_zero() {
+                    break;
+                }
+                match rx.recv_timeout(remaining) {
+                    Ok(WorkerMsg::Row(sid, data)) => buf.push((sid, data)),
+                    Ok(WorkerMsg::Flush(reply)) => {
+                        flush_batch(&conn, &mut buf);
+                        let _ = reply.send(());
+                    }
+                    Err(std::sync::mpsc::RecvTimeoutError::Timeout) => break,
+                    Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                        flush_batch(&conn, &mut buf);
+                        return;
+                    }
+                }
+            }
+            if !buf.is_empty() {
+                flush_batch(&conn, &mut buf);
+            }
+        }
+    });
+    tx
 }
 
 impl DatabaseService {
     pub fn open(path: &Path) -> SqlResult<Self> {
-        let conn = Connection::open(path)?;
-        let db = DatabaseService {
-            conn: Mutex::new(conn),
-        };
+        let conn = Arc::new(Mutex::new(Connection::open(path)?));
+        let output_tx = start_output_worker(Arc::clone(&conn));
+        let db = DatabaseService { conn, output_tx };
         db.migrate()?;
         Ok(db)
     }
 
     pub fn open_in_memory() -> SqlResult<Self> {
-        let conn = Connection::open_in_memory()?;
-        let db = DatabaseService {
-            conn: Mutex::new(conn),
-        };
+        let conn = Arc::new(Mutex::new(Connection::open_in_memory()?));
+        let output_tx = start_output_worker(Arc::clone(&conn));
+        let db = DatabaseService { conn, output_tx };
         db.migrate()?;
         Ok(db)
     }
 
     fn migrate(&self) -> SqlResult<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+        conn.execute_batch("PRAGMA journal_mode=WAL;")?;
         // Run schema migrations (errors ignored — column may already exist)
         let _ = conn.execute_batch("ALTER TABLE sessions ADD COLUMN claude_session_id TEXT");
         let _ = conn.execute_batch("ALTER TABLE sessions ADD COLUMN cwd TEXT");
@@ -75,7 +135,7 @@ impl DatabaseService {
     }
 
     pub fn create_project(&self, name: &str, path: &str) -> SqlResult<Project> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         conn.execute(
             "INSERT OR IGNORE INTO projects (name, path) VALUES (?1, ?2)",
             params![name, path],
@@ -103,7 +163,7 @@ impl DatabaseService {
         permission_mode: &str,
         model: Option<&str>,
     ) -> SqlResult<SessionId> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         conn.execute(
             "INSERT INTO sessions (project_id, name, cwd, status, permission_mode, model)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
@@ -111,7 +171,7 @@ impl DatabaseService {
                 project_id,
                 name,
                 cwd,
-                crate::models::SessionStatus::Initializing.as_str(),
+                crate::models::SessionStatus::Initializing,
                 permission_mode,
                 model
             ],
@@ -119,8 +179,12 @@ impl DatabaseService {
         Ok(conn.last_insert_rowid())
     }
 
-    pub fn update_session_status(&self, id: SessionId, status: &str) -> SqlResult<()> {
-        let conn = self.conn.lock().unwrap();
+    pub fn update_session_status(
+        &self,
+        id: SessionId,
+        status: crate::models::SessionStatus,
+    ) -> SqlResult<()> {
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         conn.execute(
             "UPDATE sessions SET status = ?1, updated_at = datetime('now') WHERE id = ?2",
             params![status, id],
@@ -129,10 +193,10 @@ impl DatabaseService {
     }
 
     pub fn update_session_pid(&self, id: SessionId, pid: i32) -> SqlResult<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         conn.execute(
             "UPDATE sessions SET pid = ?1, status = ?2, updated_at = datetime('now') WHERE id = ?3",
-            params![pid, crate::models::SessionStatus::Running.as_str(), id],
+            params![pid, crate::models::SessionStatus::Running, id],
         )?;
         Ok(())
     }
@@ -143,16 +207,19 @@ impl DatabaseService {
         worktree_path: &str,
         branch_name: &str,
     ) -> SqlResult<()> {
-        self.conn.lock().unwrap().execute(
-            "UPDATE sessions SET worktree_path = ?1, branch_name = ?2, \
+        self.conn
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .execute(
+                "UPDATE sessions SET worktree_path = ?1, branch_name = ?2, \
              updated_at = datetime('now') WHERE id = ?3",
-            params![worktree_path, branch_name, id],
-        )?;
+                params![worktree_path, branch_name, id],
+            )?;
         Ok(())
     }
 
     pub fn get_sessions(&self) -> SqlResult<Vec<Session>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         let mut stmt = conn.prepare(
             "SELECT id, project_id, name, status, worktree_path, branch_name,
                     permission_mode, model, pid, cwd, created_at, updated_at
@@ -186,7 +253,7 @@ impl DatabaseService {
     }
 
     pub fn get_session(&self, id: SessionId) -> SqlResult<Option<Session>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         let mut stmt = conn.prepare(
             "SELECT id, project_id, name, status, worktree_path, branch_name,
                     permission_mode, model, pid, cwd, created_at, updated_at
@@ -220,7 +287,7 @@ impl DatabaseService {
     }
 
     pub fn get_projects(&self) -> SqlResult<Vec<Project>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         let mut stmt =
             conn.prepare("SELECT id, name, path, created_at FROM projects ORDER BY name ASC")?;
         let projects = stmt
@@ -237,16 +304,21 @@ impl DatabaseService {
     }
 
     pub fn insert_output(&self, session_id: SessionId, data: &str) -> SqlResult<()> {
-        let conn = self.conn.lock().unwrap();
-        conn.execute(
-            "INSERT INTO session_outputs (session_id, data) VALUES (?1, ?2)",
-            params![session_id, data],
-        )?;
+        let _ = self
+            .output_tx
+            .send(WorkerMsg::Row(session_id, data.to_string()));
         Ok(())
     }
 
+    /// Block until all pending output rows are written. Required before calling get_outputs in tests.
+    pub fn flush_outputs(&self) {
+        let (reply_tx, reply_rx) = std::sync::mpsc::sync_channel(0);
+        let _ = self.output_tx.send(WorkerMsg::Flush(reply_tx));
+        let _ = reply_rx.recv();
+    }
+
     pub fn update_claude_session_id(&self, id: SessionId, claude_id: &str) -> SqlResult<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         conn.execute(
             "UPDATE sessions SET claude_session_id = ?1, updated_at = datetime('now') WHERE id = ?2",
             params![claude_id, id],
@@ -255,7 +327,7 @@ impl DatabaseService {
     }
 
     pub fn get_claude_session_id(&self, id: SessionId) -> SqlResult<Option<String>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         let result = conn
             .query_row(
                 "SELECT claude_session_id FROM sessions WHERE id = ?1",
@@ -267,7 +339,7 @@ impl DatabaseService {
     }
 
     pub fn rename_session(&self, id: SessionId, name: &str) -> SqlResult<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         conn.execute(
             "UPDATE sessions SET name = ?1, updated_at = datetime('now') WHERE id = ?2",
             params![name, id],
@@ -276,7 +348,7 @@ impl DatabaseService {
     }
 
     pub fn delete_session(&self, id: SessionId) -> SqlResult<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         conn.execute_batch("BEGIN")?;
         conn.execute(
             "DELETE FROM session_outputs WHERE session_id = ?1",
@@ -288,7 +360,7 @@ impl DatabaseService {
     }
 
     pub fn get_outputs(&self, session_id: SessionId) -> SqlResult<Vec<String>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         let mut stmt =
             conn.prepare("SELECT data FROM session_outputs WHERE session_id = ?1 ORDER BY id ASC")?;
         let rows = stmt
@@ -379,8 +451,8 @@ mod tests {
         t.len("one session", &sessions, 1);
         t.eq(
             "status is initializing",
-            sessions[0].status.as_str(),
-            "initializing",
+            &sessions[0].status,
+            &crate::models::SessionStatus::Initializing,
         );
     }
 
@@ -407,14 +479,14 @@ mod tests {
         let db = make_db();
         let id = seed_session(&db);
         t.phase("Act");
-        db.update_session_status(id, "running")
+        db.update_session_status(id, crate::models::SessionStatus::Running)
             .expect("update failed");
         t.phase("Assert");
         let sessions = db.get_sessions().expect("get_sessions failed");
         t.eq(
             "status updated to running",
-            sessions[0].status.as_str(),
-            "running",
+            &sessions[0].status,
+            &crate::models::SessionStatus::Running,
         );
     }
 
@@ -428,7 +500,11 @@ mod tests {
         db.update_session_pid(id, 12345).expect("update_pid failed");
         t.phase("Assert");
         let s = db.get_session(id).expect("get failed").expect("missing");
-        t.eq("status is running", s.status.as_str(), "running");
+        t.eq(
+            "status is running",
+            &s.status,
+            &crate::models::SessionStatus::Running,
+        );
         t.eq("pid stored", s.pid, Some(12345));
     }
 
@@ -534,6 +610,7 @@ mod tests {
         let line2 = user_text("second message");
         db.insert_output(id, &line1).expect("insert 1");
         db.insert_output(id, &line2).expect("insert 2");
+        db.flush_outputs();
         t.phase("Act");
         let rows = db.get_outputs(id).expect("get_outputs failed");
         t.phase("Assert");
@@ -556,6 +633,7 @@ mod tests {
             .expect("o1");
         db.insert_output(id2, &assistant_text("session 2 msg"))
             .expect("o2");
+        db.flush_outputs();
         t.phase("Assert");
         t.len("session 1 has 1 output", &db.get_outputs(id1).unwrap(), 1);
         t.len("session 2 has 1 output", &db.get_outputs(id2).unwrap(), 1);
@@ -573,10 +651,31 @@ mod tests {
             .expect("insert");
         db.insert_output(id, &user_text("second"))
             .expect("insert 2");
+        db.flush_outputs();
         t.phase("Act");
         db.delete_session(id).expect("delete failed");
         t.phase("Assert");
         t.none("session row removed", &db.get_session(id).expect("get"));
         t.empty("outputs removed", &db.get_outputs(id).expect("outputs"));
+    }
+
+    #[test]
+    fn should_round_trip_session_status_as_enum() {
+        let mut t = TestCase::new("should_round_trip_session_status_as_enum");
+        t.phase("Seed");
+        let db = make_db();
+        let sid = db
+            .create_session(None, None, "/tmp", "ignore", None)
+            .expect("session");
+        db.update_session_status(sid, crate::models::SessionStatus::Stopped)
+            .expect("update");
+        t.phase("Act");
+        let sessions = db.get_sessions().expect("get");
+        t.phase("Assert");
+        t.eq(
+            "status is SessionStatus::Stopped",
+            &sessions[0].status,
+            &crate::models::SessionStatus::Stopped,
+        );
     }
 }

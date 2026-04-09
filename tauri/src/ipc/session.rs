@@ -1,11 +1,24 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 use tauri::{AppHandle, State};
 
+use crate::ipc::IpcError;
 use crate::models::{JournalEntry, Session, SessionId};
 use crate::services::session_manager::SessionManager;
 use crate::services::spawn_manager::find_claude;
 
-pub struct SessionState(pub Arc<Mutex<SessionManager>>);
+pub struct SessionState(pub Arc<RwLock<SessionManager>>);
+
+impl SessionState {
+    /// Acquire a write guard, recovering from a poisoned RwLock.
+    pub fn write(&self) -> std::sync::RwLockWriteGuard<'_, SessionManager> {
+        self.0.write().unwrap_or_else(|e| e.into_inner())
+    }
+
+    /// Acquire a read guard, recovering from a poisoned RwLock.
+    pub fn read(&self) -> std::sync::RwLockReadGuard<'_, SessionManager> {
+        self.0.read().unwrap_or_else(|e| e.into_inner())
+    }
+}
 
 /// Create a session: returns immediately after creating the DB record (status = "initializing").
 /// The actual Claude process spawns in a background thread — non-blocking.
@@ -21,11 +34,11 @@ pub fn create_session(
     use_worktree: Option<bool>,
     state: State<SessionState>,
     app: AppHandle,
-) -> Result<Session, String> {
+) -> Result<Session, IpcError> {
     let mode = permission_mode.unwrap_or_else(|| "ignore".to_string());
 
     let session = {
-        let mut m = state.0.lock().unwrap();
+        let mut m = state.write();
         m.init_session(
             &project_path,
             session_name.as_deref(),
@@ -50,7 +63,7 @@ pub fn create_session(
 
 #[tauri::command]
 pub fn list_sessions(state: State<SessionState>) -> Vec<Session> {
-    state.0.lock().unwrap().get_sessions()
+    state.write().get_sessions()
 }
 
 #[tauri::command]
@@ -58,8 +71,8 @@ pub fn stop_session(
     session_id: SessionId,
     state: State<SessionState>,
     app: AppHandle,
-) -> Result<(), String> {
-    state.0.lock().unwrap().stop_session(session_id)?;
+) -> Result<(), IpcError> {
+    state.write().stop_session(session_id)?;
     use tauri::Emitter;
     let _ = app.emit(
         "session:stopped",
@@ -74,13 +87,18 @@ pub fn send_session_message(
     message: String,
     state: State<SessionState>,
     app: AppHandle,
-) -> Result<(), String> {
-    SessionManager::send_message(Arc::clone(&state.0), app, session_id, message)
+) -> Result<(), IpcError> {
+    Ok(SessionManager::send_message(
+        Arc::clone(&state.0),
+        app,
+        session_id,
+        message,
+    )?)
 }
 
 #[tauri::command]
 pub fn get_session_journal(session_id: SessionId, state: State<SessionState>) -> Vec<JournalEntry> {
-    state.0.lock().unwrap().get_journal(session_id)
+    state.write().get_journal(session_id)
 }
 
 /// Diagnostic: check if claude CLI is available and return its path or an error message.
@@ -177,12 +195,14 @@ pub fn rename_session(
     session_id: SessionId,
     name: String,
     state: State<SessionState>,
-) -> Result<(), String> {
-    state.0.lock().unwrap().rename_session(session_id, &name)
+) -> Result<(), IpcError> {
+    state.write().rename_session(session_id, &name)?;
+    Ok(())
 }
 
 /// Delete a session (removes from DB, stops if running).
 #[tauri::command]
-pub fn delete_session(session_id: SessionId, state: State<SessionState>) -> Result<(), String> {
-    state.0.lock().unwrap().delete_session(session_id)
+pub fn delete_session(session_id: SessionId, state: State<SessionState>) -> Result<(), IpcError> {
+    state.write().delete_session(session_id)?;
+    Ok(())
 }

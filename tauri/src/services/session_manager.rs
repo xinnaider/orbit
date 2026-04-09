@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 
 use tauri::{AppHandle, Emitter};
 
@@ -122,9 +122,7 @@ impl SessionManager {
             id: session_id,
             project_id: Some(project.id),
             name: session_name.map(|s| s.to_string()),
-            status: crate::models::SessionStatus::Initializing
-                .as_str()
-                .to_string(),
+            status: crate::models::SessionStatus::Initializing,
             worktree_path: worktree_path_val,
             branch_name: branch_name_val,
             permission_mode: permission_mode.to_string(),
@@ -157,13 +155,13 @@ impl SessionManager {
     /// Phase 2 (async): spawn Claude with `-p "prompt"`.
     /// Each message spawns a new process. Uses `--resume` for follow-ups.
     pub fn do_spawn(
-        manager: Arc<Mutex<SessionManager>>,
+        manager: Arc<RwLock<SessionManager>>,
         app: AppHandle,
         session_id: SessionId,
         prompt: String,
     ) {
         let (db, cwd, permission_mode, model, claude_session_id) = {
-            let m = manager.lock().unwrap();
+            let m = manager.write().unwrap_or_else(|e| e.into_inner());
             let a = match m.active.get(&session_id) {
                 Some(a) => a,
                 None => {
@@ -203,10 +201,7 @@ impl SessionManager {
         let handle = match spawn_claude(config) {
             Ok(h) => h,
             Err(e) => {
-                let _ = db.update_session_status(
-                    session_id,
-                    crate::models::SessionStatus::Error.as_str(),
-                );
+                let _ = db.update_session_status(session_id, crate::models::SessionStatus::Error);
                 let _ = app.emit(
                     "session:error",
                     serde_json::json!({
@@ -232,10 +227,10 @@ impl SessionManager {
                 match reader.read_line(&mut line) {
                     Ok(0) | Err(_) => break,
                     Ok(_) => {
-                        let trimmed = line.trim().to_lowercase();
-                        if trimmed.contains("rate limit")
-                            || trimmed.contains("rate_limit")
-                            || trimmed.contains("overloaded")
+                        let trimmed = line.trim();
+                        if ascii_ci_contains(trimmed, "rate limit")
+                            || ascii_ci_contains(trimmed, "rate_limit")
+                            || ascii_ci_contains(trimmed, "overloaded")
                         {
                             let _ = app_err.emit(
                                 "session:rate-limit",
@@ -248,9 +243,9 @@ impl SessionManager {
         });
 
         {
-            let mut m = manager.lock().unwrap();
+            let mut m = manager.write().unwrap_or_else(|e| e.into_inner());
             if let Some(a) = m.active.get_mut(&session_id) {
-                a.session.status = crate::models::SessionStatus::Running.as_str().to_string();
+                a.session.status = crate::models::SessionStatus::Running;
                 a.session.pid = Some(pid);
             }
         }
@@ -268,13 +263,7 @@ impl SessionManager {
             timestamp: chrono::Utc::now().to_rfc3339(),
             entry_type: crate::models::JournalEntryType::User,
             text: Some(prompt_text.clone()),
-            thinking: None,
-            thinking_duration: None,
-            tool: None,
-            tool_input: None,
-            output: None,
-            exit_code: None,
-            lines_changed: None,
+            ..crate::models::JournalEntry::default()
         };
         let user_line = serde_json::json!({
             "type": "user",
@@ -285,7 +274,7 @@ impl SessionManager {
         let _ = db.insert_output(session_id, &user_line);
 
         {
-            let mut m = manager.lock().unwrap();
+            let mut m = manager.write().unwrap_or_else(|e| e.into_inner());
             let state = m.journal_states.entry(session_id).or_default();
             state.entries.push(user_entry.clone());
         }
@@ -310,7 +299,7 @@ impl SessionManager {
 
     /// Read JSON lines from Claude's stdout, parse, emit events.
     fn reader_loop(
-        manager: Arc<Mutex<SessionManager>>,
+        manager: Arc<RwLock<SessionManager>>,
         app: AppHandle,
         session_id: SessionId,
         reader: Box<dyn std::io::Read + Send>,
@@ -334,13 +323,22 @@ impl SessionManager {
                     // Extract and persist Claude session ID from system/init message
                     if let Ok(val) = serde_json::from_str::<serde_json::Value>(&trimmed) {
                         if let Some(claude_id) = val.get("session_id").and_then(|v| v.as_str()) {
-                            let mut m = manager.lock().unwrap();
-                            if let Some(a) = m.active.get_mut(&session_id) {
-                                if a.claude_session_id.is_none() {
-                                    a.claude_session_id = Some(claude_id.to_string());
-                                    // Persist to DB for restart recovery
-                                    let _ = db.update_claude_session_id(session_id, claude_id);
+                            let should_persist = {
+                                let mut m = manager.write().unwrap_or_else(|e| e.into_inner());
+                                if let Some(a) = m.active.get_mut(&session_id) {
+                                    if a.claude_session_id.is_none() {
+                                        a.claude_session_id = Some(claude_id.to_string());
+                                        true
+                                    } else {
+                                        false
+                                    }
+                                } else {
+                                    false
                                 }
+                            };
+                            // Persist to DB after releasing the write lock
+                            if should_persist {
+                                let _ = db.update_claude_session_id(session_id, claude_id);
                             }
                         }
                     }
@@ -356,7 +354,7 @@ impl SessionManager {
                     let _ = db.insert_output(session_id, &trimmed);
 
                     let (new_entries, state_event) = {
-                        let mut m = manager.lock().unwrap();
+                        let mut m = manager.write().unwrap_or_else(|e| e.into_inner());
                         let cwd = m
                             .active
                             .get(&session_id)
@@ -423,17 +421,14 @@ impl SessionManager {
         }
 
         {
-            let mut m = manager.lock().unwrap();
+            let mut m = manager.write().unwrap_or_else(|e| e.into_inner());
             if let Some(a) = m.active.get_mut(&session_id) {
-                a.session.status = crate::models::SessionStatus::Completed.as_str().to_string();
+                a.session.status = crate::models::SessionStatus::Completed;
             }
             if let Some(state) = m.journal_states.get_mut(&session_id) {
                 state.status = AgentStatus::Idle;
             }
-            let _ = db.update_session_status(
-                session_id,
-                crate::models::SessionStatus::Completed.as_str(),
-            );
+            let _ = db.update_session_status(session_id, crate::models::SessionStatus::Completed);
         }
 
         let _ = app.emit(
@@ -448,14 +443,14 @@ impl SessionManager {
     /// Send a follow-up message by spawning a new Claude process with --resume.
     /// Reads session data from DB so it works even after app restart.
     pub fn send_message(
-        manager: Arc<Mutex<SessionManager>>,
+        manager: Arc<RwLock<SessionManager>>,
         app: AppHandle,
         session_id: SessionId,
         text: String,
     ) -> Result<(), String> {
         // Re-add to active map if missing (e.g. after app restart)
         {
-            let mut m = manager.lock().unwrap();
+            let mut m = manager.write().unwrap_or_else(|e| e.into_inner());
             if !m.active.contains_key(&session_id) {
                 // Load from DB
                 let session =
@@ -493,13 +488,14 @@ impl SessionManager {
         self.active.remove(&session_id);
         let _ = self
             .db
-            .update_session_status(session_id, crate::models::SessionStatus::Stopped.as_str());
+            .update_session_status(session_id, crate::models::SessionStatus::Stopped);
         Ok(())
     }
 
-    pub fn get_sessions(&self) -> Vec<Session> {
+    pub fn get_sessions(&mut self) -> Vec<Session> {
         let mut sessions = self.db.get_sessions().unwrap_or_default();
         for s in &mut sessions {
+            self.load_session_journal(s.id);
             if let Some(state) = self.journal_states.get(&s.id) {
                 let window = state
                     .model
@@ -529,7 +525,8 @@ impl SessionManager {
         sessions
     }
 
-    pub fn get_journal(&self, session_id: SessionId) -> Vec<crate::models::JournalEntry> {
+    pub fn get_journal(&mut self, session_id: SessionId) -> Vec<crate::models::JournalEntry> {
+        self.load_session_journal(session_id);
         self.journal_states
             .get(&session_id)
             .map(|state| {
@@ -544,6 +541,27 @@ impl SessionManager {
                     .collect()
             })
             .unwrap_or_default()
+    }
+
+    /// Load journal state for `session_id` from DB into `journal_states` if not already present.
+    fn load_session_journal(&mut self, session_id: SessionId) {
+        if self.journal_states.contains_key(&session_id) {
+            return;
+        }
+        let rows = match self.db.get_outputs(session_id) {
+            Ok(r) => r,
+            Err(_) => return,
+        };
+        // Don't cache an empty state for inactive sessions with no data.
+        // Keeps "not in map" semantically distinct from "loaded and empty".
+        if rows.is_empty() && !self.active.contains_key(&session_id) {
+            return;
+        }
+        let mut state = JournalState::default();
+        for line in &rows {
+            process_line(&mut state, line);
+        }
+        self.journal_states.insert(session_id, state);
     }
 
     pub fn is_session_active(&self, session_id: SessionId) -> bool {
@@ -564,27 +582,19 @@ impl SessionManager {
             .map_err(|e| e.to_string())
     }
 
+    /// Eagerly load journal state for all sessions from DB.
+    /// Not called at startup (journals load lazily on first access).
+    /// Available as a utility for warming the cache or in tests.
     pub fn restore_from_db(&mut self) {
-        let sessions = match self.db.get_sessions() {
-            Ok(s) => s,
-            Err(_) => return,
-        };
-        for session in sessions {
-            if self.journal_states.contains_key(&session.id) {
-                continue;
-            }
-            let rows = match self.db.get_outputs(session.id) {
-                Ok(r) => r,
-                Err(_) => continue,
-            };
-            if rows.is_empty() {
-                continue;
-            }
-            let mut state = JournalState::default();
-            for line in &rows {
-                process_line(&mut state, line);
-            }
-            self.journal_states.insert(session.id, state);
+        let session_ids: Vec<SessionId> = self
+            .db
+            .get_sessions()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|s| s.id)
+            .collect();
+        for id in session_ids {
+            self.load_session_journal(id);
         }
     }
 }
@@ -609,14 +619,27 @@ fn kill_pid(pid: u32) {
     }
 }
 
+/// Case-insensitive substring search without allocation (ASCII only).
+fn ascii_ci_contains(haystack: &str, needle: &str) -> bool {
+    let h = haystack.as_bytes();
+    let n = needle.as_bytes();
+    if h.len() < n.len() {
+        return false;
+    }
+    h.windows(n.len()).any(|w| w.eq_ignore_ascii_case(n))
+}
+
 /// Check if a JSON line from Claude's stdout indicates a rate limit error.
+/// Uses byte-level case-insensitive search — zero allocation.
 fn is_rate_limit_line(line: &str) -> bool {
-    let lower = line.to_lowercase();
-    (lower.contains("rate_limit") || lower.contains("rate limit") || lower.contains("overloaded"))
-        && (lower.contains("\"type\":\"error\"")
-            || lower.contains("\"type\": \"error\"")
-            || lower.contains("error_type")
-            || lower.contains("\"subtype\":\"error\""))
+    let has_rate = ascii_ci_contains(line, "rate_limit")
+        || ascii_ci_contains(line, "rate limit")
+        || ascii_ci_contains(line, "overloaded");
+    let has_error = ascii_ci_contains(line, "\"type\":\"error\"")
+        || ascii_ci_contains(line, "\"type\": \"error\"")
+        || ascii_ci_contains(line, "error_type")
+        || ascii_ci_contains(line, "\"subtype\":\"error\"");
+    has_rate && has_error
 }
 
 #[cfg(test)]
@@ -624,8 +647,8 @@ mod tests {
     use super::*;
     use crate::test_utils::{assistant_with_tokens, make_db, seed_outputs, TestCase};
 
-    fn make_manager() -> Arc<Mutex<SessionManager>> {
-        Arc::new(Mutex::new(SessionManager::new(make_db())))
+    fn make_manager() -> Arc<RwLock<SessionManager>> {
+        Arc::new(RwLock::new(SessionManager::new(make_db())))
     }
 
     // ── init_session ─────────────────────────────────────────────────────
@@ -636,13 +659,17 @@ mod tests {
         t.phase("Act");
         let mgr = make_manager();
         let s = mgr
-            .lock()
+            .write()
             .unwrap()
             .init_session("/tmp/proj", None, "ignore", None, false)
             .expect("init failed");
         t.phase("Assert");
         t.ok("id is positive", s.id > 0);
-        t.eq("status is initializing", s.status.as_str(), "initializing");
+        t.eq(
+            "status is initializing",
+            &s.status,
+            &crate::models::SessionStatus::Initializing,
+        );
     }
 
     #[test]
@@ -651,14 +678,14 @@ mod tests {
         t.phase("Act");
         let mgr = make_manager();
         let s = mgr
-            .lock()
+            .write()
             .unwrap()
             .init_session("/tmp/proj", None, "ignore", None, false)
             .expect("init failed");
         t.phase("Assert");
         t.ok(
             "journal_state entry created",
-            mgr.lock().unwrap().journal_states.contains_key(&s.id),
+            mgr.write().unwrap().journal_states.contains_key(&s.id),
         );
     }
 
@@ -668,14 +695,14 @@ mod tests {
         t.phase("Act");
         let mgr = make_manager();
         let s = mgr
-            .lock()
+            .write()
             .unwrap()
             .init_session("/tmp/proj", None, "ignore", None, false)
             .expect("init failed");
         t.phase("Assert");
         t.ok(
             "session is active",
-            mgr.lock().unwrap().is_session_active(s.id),
+            mgr.write().unwrap().is_session_active(s.id),
         );
     }
 
@@ -687,15 +714,22 @@ mod tests {
         t.phase("Seed");
         let mgr = make_manager();
         let s = mgr
-            .lock()
+            .write()
             .unwrap()
             .init_session("/tmp/proj", None, "ignore", None, false)
             .expect("init failed");
         t.phase("Act");
-        mgr.lock().unwrap().stop_session(s.id).expect("stop failed");
+        mgr.write()
+            .unwrap()
+            .stop_session(s.id)
+            .expect("stop failed");
         t.phase("Assert");
-        let sessions = mgr.lock().unwrap().get_sessions();
-        t.eq("status is stopped", sessions[0].status.as_str(), "stopped");
+        let sessions = mgr.write().unwrap().get_sessions();
+        t.eq(
+            "status is stopped",
+            &sessions[0].status,
+            &crate::models::SessionStatus::Stopped,
+        );
     }
 
     // ── delete_session ────────────────────────────────────────────────────
@@ -706,17 +740,17 @@ mod tests {
         t.phase("Seed");
         let mgr = make_manager();
         let s = mgr
-            .lock()
+            .write()
             .unwrap()
             .init_session("/tmp/proj", None, "ignore", None, false)
             .expect("init failed");
         t.phase("Act");
-        mgr.lock()
+        mgr.write()
             .unwrap()
             .delete_session(s.id)
             .expect("delete failed");
         t.phase("Assert");
-        let m = mgr.lock().unwrap();
+        let mut m = mgr.write().unwrap();
         t.ok("not in active map", !m.is_session_active(s.id));
         t.ok(
             "journal_state removed",
@@ -733,17 +767,17 @@ mod tests {
         t.phase("Seed");
         let mgr = make_manager();
         let s = mgr
-            .lock()
+            .write()
             .unwrap()
             .init_session("/tmp/proj", Some("old-name"), "ignore", None, false)
             .expect("init failed");
         t.phase("Act");
-        mgr.lock()
+        mgr.write()
             .unwrap()
             .rename_session(s.id, "new-name")
             .expect("rename failed");
         t.phase("Assert");
-        let sessions = mgr.lock().unwrap().get_sessions();
+        let sessions = mgr.write().unwrap().get_sessions();
         t.eq(
             "name updated",
             sessions[0].name.as_deref(),
@@ -760,7 +794,7 @@ mod tests {
         t.phase("Seed — no sessions exist");
         let mgr = make_manager();
         t.phase("Act — verify DB has no session 999");
-        let m = mgr.lock().unwrap();
+        let m = mgr.write().unwrap();
         let db_result = m.db.get_session(999).expect("db query ok");
         drop(m);
         t.phase("Assert");
@@ -840,6 +874,137 @@ mod tests {
             .as_ref()
             .expect("tokens missing after restore");
         t.eq("output_tokens restored", tokens.output, 5u64);
+    }
+
+    // ── ascii_ci_contains ─────────────────────────────────────────────────────
+
+    #[test]
+    fn should_find_needle_case_insensitively() {
+        let mut t = TestCase::new("should_find_needle_case_insensitively");
+        t.phase("Assert");
+        t.ok("exact match", ascii_ci_contains("rate_limit", "rate_limit"));
+        t.ok(
+            "upper needle",
+            ascii_ci_contains("RATE_LIMIT", "rate_limit"),
+        );
+        t.ok(
+            "mixed case haystack",
+            ascii_ci_contains("Rate_Limit_Error", "rate_limit"),
+        );
+        t.ok(
+            "not found",
+            !ascii_ci_contains("something else", "rate_limit"),
+        );
+        t.ok("empty haystack", !ascii_ci_contains("", "rate_limit"));
+        t.ok(
+            "needle longer than haystack",
+            !ascii_ci_contains("rt", "rate_limit"),
+        );
+    }
+
+    // ── is_rate_limit_line ────────────────────────────────────────────────────
+
+    #[test]
+    fn should_detect_rate_limit_error_line() {
+        let mut t = TestCase::new("should_detect_rate_limit_error_line");
+        t.phase("Assert — canonical rate limit JSON");
+        t.ok(
+            "rate_limit + type:error",
+            is_rate_limit_line(
+                r#"{"type":"error","error":{"type":"rate_limit_error","message":"..."}}"#,
+            ),
+        );
+        t.ok(
+            "overloaded + type:error",
+            is_rate_limit_line(r#"{"type":"error","error":{"type":"overloaded_error"}}"#),
+        );
+        t.ok(
+            "rate limit (with space) + type: error (with space)",
+            is_rate_limit_line(r#"{"type": "error","message":"rate limit exceeded"}"#),
+        );
+    }
+
+    #[test]
+    fn should_not_flag_non_rate_limit_lines() {
+        let mut t = TestCase::new("should_not_flag_non_rate_limit_lines");
+        t.phase("Assert — lines that should NOT trigger");
+        t.ok(
+            "rate_limit without error marker",
+            !is_rate_limit_line(r#"{"type":"assistant","text":"rate_limit info"}"#),
+        );
+        t.ok(
+            "overloaded without error",
+            !is_rate_limit_line(r#"overloaded"#),
+        );
+        t.ok("empty line", !is_rate_limit_line(""));
+        t.ok(
+            "normal assistant line",
+            !is_rate_limit_line(r#"{"type":"assistant","text":"hello world"}"#),
+        );
+    }
+
+    // ── lazy journal loading ──────────────────────────────────────────────
+
+    #[test]
+    fn should_not_preload_journal_state_on_creation() {
+        let mut t = TestCase::new("should_not_preload_journal_state_on_creation");
+        t.phase("Seed — DB has session with outputs, manager is fresh (no restore)");
+        let db = make_db();
+        let sid = db
+            .create_session(None, None, "/tmp", "ignore", None)
+            .expect("session");
+        seed_outputs(&db, sid, &[&crate::test_utils::assistant_text("hello")]);
+        t.phase("Act — create manager without calling restore_from_db");
+        let sm = SessionManager::new(Arc::clone(&db));
+        t.phase("Assert — journal not loaded yet");
+        t.ok(
+            "journal_states empty before first access",
+            !sm.journal_states.contains_key(&sid),
+        );
+    }
+
+    #[test]
+    fn should_lazy_load_tokens_on_get_sessions() {
+        let mut t = TestCase::new("should_lazy_load_tokens_on_get_sessions");
+        t.phase("Seed — session with token output exists");
+        let db = make_db();
+        let sid = db
+            .create_session(None, None, "/tmp", "ignore", None)
+            .expect("session");
+        seed_outputs(
+            &db,
+            sid,
+            &[&crate::test_utils::assistant_with_tokens("Hi", 10, 5, 2, 1)],
+        );
+        t.phase("Act — fresh manager, no restore, call get_sessions");
+        let mut sm = SessionManager::new(Arc::clone(&db));
+        let sessions = sm.get_sessions();
+        t.phase("Assert — tokens populated via lazy load");
+        let tokens = sessions[0]
+            .tokens
+            .as_ref()
+            .expect("tokens should be loaded");
+        t.eq("output_tokens loaded", tokens.output, 5u64);
+        t.ok(
+            "journal_state was populated",
+            sm.journal_states.contains_key(&sid),
+        );
+    }
+
+    #[test]
+    fn should_lazy_load_journal_on_first_get_journal() {
+        let mut t = TestCase::new("should_lazy_load_journal_on_first_get_journal");
+        t.phase("Seed");
+        let db = make_db();
+        let sid = db
+            .create_session(None, None, "/tmp", "ignore", None)
+            .expect("session");
+        seed_outputs(&db, sid, &[&crate::test_utils::assistant_text("hello")]);
+        t.phase("Act — get_journal triggers lazy load");
+        let mut sm = SessionManager::new(Arc::clone(&db));
+        let journal = sm.get_journal(sid);
+        t.phase("Assert");
+        t.len("one entry loaded on demand", &journal, 1);
     }
 
     // ── get_journal ───────────────────────────────────────────────────────
