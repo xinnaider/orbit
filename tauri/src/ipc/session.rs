@@ -4,7 +4,7 @@ use tauri::{AppHandle, State};
 use crate::ipc::IpcError;
 use crate::models::{JournalEntry, Session, SessionId};
 use crate::services::session_manager::{InitSessionParams, SessionManager};
-use crate::services::spawn_manager::find_claude;
+use crate::services::spawn_manager::{find_claude, test_ssh_connection, SshTestResult};
 
 pub struct SessionState(pub Arc<RwLock<SessionManager>>);
 
@@ -33,6 +33,7 @@ pub fn create_session(
     session_name: Option<String>,
     ssh_host: Option<String>,
     ssh_user: Option<String>,
+    ssh_password: Option<String>,
     use_worktree: Option<bool>,
     state: State<SessionState>,
     app: AppHandle,
@@ -48,6 +49,7 @@ pub fn create_session(
             model: model.as_deref(),
             ssh_host: ssh_host.as_deref(),
             ssh_user: ssh_user.as_deref(),
+            ssh_password,
             use_worktree: use_worktree.unwrap_or(false),
         })?
     };
@@ -209,4 +211,11 @@ pub fn rename_session(
 pub fn delete_session(session_id: SessionId, state: State<SessionState>) -> Result<(), IpcError> {
     state.write().delete_session(session_id)?;
     Ok(())
+}
+
+/// Test SSH connectivity to a remote host without creating a session.
+/// Returns latency on success, or an error message on failure.
+#[tauri::command]
+pub fn test_ssh(host: String, user: String, password: Option<String>) -> SshTestResult {
+    test_ssh_connection(&host, &user, password.as_deref())
 }

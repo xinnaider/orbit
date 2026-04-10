@@ -42,6 +42,8 @@ struct ActiveSession {
     /// The Claude CLI session ID (from stream-json system/init message).
     /// Required for --resume on follow-up messages.
     pub claude_session_id: Option<String>,
+    /// SSH password held in memory (never in DB). Reused for follow-up messages.
+    pub ssh_password: Option<String>,
 }
 
 /// Parameters for creating a new session (passed to `init_session`).
@@ -52,6 +54,8 @@ pub struct InitSessionParams<'a> {
     pub model: Option<&'a str>,
     pub ssh_host: Option<&'a str>,
     pub ssh_user: Option<&'a str>,
+    /// SSH password. Never persisted to DB — held in memory for session lifetime.
+    pub ssh_password: Option<String>,
     pub use_worktree: bool,
 }
 
@@ -79,6 +83,7 @@ impl SessionManager {
             model,
             ssh_host,
             ssh_user,
+            ssh_password,
             use_worktree,
         } = p;
         let project_name = std::path::Path::new(project_path)
@@ -163,6 +168,7 @@ impl SessionManager {
             ActiveSession {
                 session: session.clone(),
                 claude_session_id: None,
+                ssh_password,
             },
         );
         self.journal_states
@@ -179,7 +185,7 @@ impl SessionManager {
         session_id: SessionId,
         prompt: String,
     ) {
-        let (db, cwd, permission_mode, model, claude_session_id, spawn_mode) = {
+        let (db, cwd, permission_mode, model, claude_session_id, spawn_mode, ssh_password) = {
             let m = manager.write().unwrap_or_else(|e| e.into_inner());
             let a = match m.active.get(&session_id) {
                 Some(a) => a,
@@ -216,6 +222,7 @@ impl SessionManager {
                 a.session.model.clone(),
                 a.claude_session_id.clone(),
                 spawn_mode,
+                a.ssh_password.clone(),
             )
         };
 
@@ -228,6 +235,7 @@ impl SessionManager {
             prompt,
             claude_session_id,
             spawn_mode,
+            ssh_password,
         };
 
         let handle = match spawn_claude(config) {
@@ -504,6 +512,7 @@ impl SessionManager {
                     ActiveSession {
                         session,
                         claude_session_id,
+                        ssh_password: None, // restored sessions don't have password in memory
                     },
                 );
                 m.journal_states.entry(session_id).or_default();
@@ -719,6 +728,7 @@ mod tests {
                 model: None,
                 ssh_host: None,
                 ssh_user: None,
+                ssh_password: None,
                 use_worktree: false,
             })
             .expect("init failed");
@@ -746,6 +756,7 @@ mod tests {
                 model: None,
                 ssh_host: None,
                 ssh_user: None,
+                ssh_password: None,
                 use_worktree: false,
             })
             .expect("init failed");
@@ -771,6 +782,7 @@ mod tests {
                 model: None,
                 ssh_host: None,
                 ssh_user: None,
+                ssh_password: None,
                 use_worktree: false,
             })
             .expect("init failed");
@@ -798,6 +810,7 @@ mod tests {
                 model: None,
                 ssh_host: None,
                 ssh_user: None,
+                ssh_password: None,
                 use_worktree: false,
             })
             .expect("init failed");
@@ -832,6 +845,7 @@ mod tests {
                 model: None,
                 ssh_host: None,
                 ssh_user: None,
+                ssh_password: None,
                 use_worktree: false,
             })
             .expect("init failed");
@@ -867,6 +881,7 @@ mod tests {
                 model: None,
                 ssh_host: None,
                 ssh_user: None,
+                ssh_password: None,
                 use_worktree: false,
             })
             .expect("init failed");

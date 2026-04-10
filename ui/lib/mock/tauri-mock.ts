@@ -373,6 +373,15 @@ export async function mockInvoke(cmd: string, args?: Record<string, unknown>): P
       return null;
     }
 
+    case 'test_ssh': {
+      const host = args?.host as string;
+      const user = args?.user as string;
+      if (!host || !user) return { ok: false, error: 'host and user are required' };
+      // Simulate a successful connection in mock mode
+      await new Promise((r) => setTimeout(r, 800));
+      return { ok: true, latencyMs: 42 };
+    }
+
     case 'check_claude':
       return { found: true, path: '/mock/claude', searchedPath: '' };
 

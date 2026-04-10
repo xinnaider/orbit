@@ -1,8 +1,8 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { open } from '@tauri-apps/plugin-dialog';
-  import { createSession, diagnoseSpawn } from '../lib/tauri';
-  import type { SpawnDiagnostic } from '../lib/tauri';
+  import { createSession, diagnoseSpawn, testSsh } from '../lib/tauri';
+  import type { SpawnDiagnostic, SshTestResult } from '../lib/tauri';
   import { generateAgentName } from '../lib/android-names';
 
   const dispatch = createEventDispatcher();
@@ -36,6 +36,29 @@
   let sshMode = false;
   let sshHost = '';
   let sshUser = 'ubuntu';
+  let sshPassword = '';
+  let showPassword = false;
+  let sshTesting = false;
+  let sshTestResult: SshTestResult | null = null;
+
+  async function testConnection() {
+    if (!sshHost.trim() || !sshUser.trim()) return;
+    sshTesting = true;
+    sshTestResult = null;
+    try {
+      sshTestResult = await testSsh(
+        sshHost.trim(),
+        sshUser.trim(),
+        sshPassword.trim() || undefined
+      );
+    } catch (e: any) {
+      sshTestResult = { ok: false, error: e?.message ?? String(e) };
+    } finally {
+      sshTesting = false;
+    }
+  }
+
+  $: if (sshHost || sshUser || sshPassword) sshTestResult = null;
 
   async function runDiag() {
     diagRunning = true;
@@ -89,6 +112,7 @@
         useWorktree,
         sshHost: sshMode ? sshHost.trim() : undefined,
         sshUser: sshMode ? sshUser.trim() : undefined,
+        sshPassword: sshMode && sshPassword.trim() ? sshPassword.trim() : undefined,
       });
       dispatch('done');
     } catch (e: any) {
@@ -155,6 +179,88 @@
             placeholder="ubuntu"
             disabled={loading}
           />
+        </div>
+      </div>
+
+      <div class="row" style="align-items:flex-end">
+        <div class="field" style="flex:1">
+          <label class="label" for="ns-ssh-pw"
+            >password <span class="label-opt">(optional)</span></label
+          >
+          <div class="pw-row">
+            <input
+              id="ns-ssh-pw"
+              class="input"
+              type={showPassword ? 'text' : 'password'}
+              bind:value={sshPassword}
+              placeholder="leave empty for key-based auth"
+              disabled={loading}
+              autocomplete="off"
+            />
+            <button
+              class="pw-toggle"
+              type="button"
+              on:click={() => (showPassword = !showPassword)}
+              title={showPassword ? 'hide' : 'show'}
+              tabindex="-1"
+            >
+              {#if showPassword}
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  ><path
+                    d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"
+                  /><path
+                    d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"
+                  /><line x1="1" y1="1" x2="23" y2="23" /></svg
+                >
+              {:else}
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  ><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle
+                    cx="12"
+                    cy="12"
+                    r="3"
+                  /></svg
+                >
+              {/if}
+            </button>
+          </div>
+        </div>
+
+        <div class="field test-btn-field">
+          <button
+            class="btn-test"
+            type="button"
+            on:click={testConnection}
+            disabled={loading || sshTesting || !sshHost.trim() || !sshUser.trim()}
+          >
+            {#if sshTesting}
+              <span class="spin">◌</span> testing…
+            {:else}
+              test connection
+            {/if}
+          </button>
+          {#if sshTestResult}
+            {#if sshTestResult.ok}
+              <span class="test-ok">✓ connected · {sshTestResult.latencyMs}ms</span>
+            {:else}
+              <span class="test-fail">✗ {sshTestResult.error}</span>
+            {/if}
+          {/if}
         </div>
       </div>
     {/if}
@@ -407,6 +513,80 @@
   }
   .half {
     flex: 1;
+  }
+  .pw-row {
+    display: flex;
+    gap: 4px;
+  }
+  .pw-row .input {
+    flex: 1;
+    min-width: 0;
+  }
+  .pw-toggle {
+    background: var(--bg3);
+    border: 1px solid var(--bd1);
+    border-radius: 3px;
+    color: var(--t2);
+    cursor: pointer;
+    padding: 0 6px;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .pw-toggle:hover {
+    border-color: var(--bd2);
+    color: var(--t0);
+  }
+  .label-opt {
+    color: var(--t3);
+    font-size: var(--xs);
+  }
+  .test-btn-field {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: flex-start;
+  }
+  .btn-test {
+    background: var(--bg3);
+    border: 1px solid var(--bd1);
+    border-radius: 3px;
+    color: var(--t1);
+    cursor: pointer;
+    font-size: var(--sm);
+    padding: 5px 10px;
+    white-space: nowrap;
+    transition: border-color 0.1s;
+  }
+  .btn-test:hover:not(:disabled) {
+    border-color: var(--ac);
+    color: var(--ac);
+  }
+  .btn-test:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+  .test-ok {
+    font-size: var(--xs);
+    color: var(--ac);
+  }
+  .test-fail {
+    font-size: var(--xs);
+    color: var(--s-error);
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .spin {
+    display: inline-block;
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
   }
   .ssh-hint {
     font-size: var(--xs);

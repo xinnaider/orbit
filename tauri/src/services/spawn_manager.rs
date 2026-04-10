@@ -1,10 +1,79 @@
 use std::path::Path;
 
+/// RAII guard that deletes the temporary askpass directory on drop.
+/// Keeps temp files alive for the duration of the SSH session, then cleans up.
+struct AskpassGuard {
+    dir: std::path::PathBuf,
+}
+
+impl Drop for AskpassGuard {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.dir);
+    }
+}
+
+/// Create a temporary SSH_ASKPASS helper that echoes `password`.
+/// Returns `(guard, script_path)`. The guard deletes the temp dir on drop.
+/// The script path should be set as `SSH_ASKPASS` env var.
+fn create_askpass(password: &str) -> Result<(AskpassGuard, String), String> {
+    let tmp = std::env::temp_dir().join(format!("orbit-ssh-{}", std::process::id()));
+    std::fs::create_dir_all(&tmp).map_err(|e| format!("askpass dir: {e}"))?;
+
+    // Write password to a separate file so the script never embeds it as a literal.
+    let pw_file = tmp.join("pw");
+    std::fs::write(&pw_file, password).map_err(|e| format!("askpass pw: {e}"))?;
+
+    let script_path;
+
+    #[cfg(windows)]
+    {
+        script_path = tmp.join("ask.bat");
+        let pw_str = pw_file.display().to_string().replace('"', "");
+        std::fs::write(&script_path, format!("@type \"{pw_str}\"\r\n"))
+            .map_err(|e| format!("askpass script: {e}"))?;
+    }
+
+    #[cfg(not(windows))]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        script_path = tmp.join("ask.sh");
+        let pw_str = pw_file.display().to_string().replace('\'', "'\\''");
+        std::fs::write(&script_path, format!("#!/bin/sh\ncat '{pw_str}'\n"))
+            .map_err(|e| format!("askpass script: {e}"))?;
+        std::fs::set_permissions(&script_path, std::fs::Permissions::from_mode(0o700))
+            .map_err(|e| format!("askpass chmod script: {e}"))?;
+        std::fs::set_permissions(&pw_file, std::fs::Permissions::from_mode(0o600))
+            .map_err(|e| format!("askpass chmod pw: {e}"))?;
+    }
+
+    let script_str = script_path.display().to_string();
+    Ok((AskpassGuard { dir: tmp }, script_str))
+}
+
+/// Apply SSH_ASKPASS env vars to `cmd` for password authentication.
+/// Returns an `AskpassGuard` that must be kept alive until the process exits.
+fn apply_askpass(cmd: &mut std::process::Command, password: &str) -> Result<AskpassGuard, String> {
+    let (guard, script_path) = create_askpass(password)?;
+    cmd.env("SSH_ASKPASS", &script_path);
+    cmd.env("SSH_ASKPASS_REQUIRE", "force");
+    // On Unix, SSH historically required DISPLAY to be set to trigger SSH_ASKPASS.
+    // On modern systems SSH_ASKPASS_REQUIRE=force is sufficient, but set DISPLAY as fallback.
+    #[cfg(not(windows))]
+    {
+        if std::env::var("DISPLAY").is_err() {
+            cmd.env("DISPLAY", ":0");
+        }
+    }
+    Ok(guard)
+}
+
 pub struct SpawnHandle {
     pub pid: u32,
     pub reader: Box<dyn std::io::Read + Send>,
     pub stderr: Box<dyn std::io::Read + Send>,
     pub child: std::process::Child,
+    /// Keeps the askpass temp dir alive for the duration of the SSH session.
+    _askpass: Option<AskpassGuard>,
 }
 
 /// How to spawn Claude: locally or via SSH tunnel.
@@ -23,6 +92,103 @@ pub struct SpawnConfig {
     /// For follow-up messages: the Claude session ID from the previous run
     pub claude_session_id: Option<String>,
     pub spawn_mode: SpawnMode,
+    /// Optional SSH password. If set, uses SSH_ASKPASS. Never persisted to DB.
+    pub ssh_password: Option<String>,
+}
+
+/// Result of a test SSH connection attempt.
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SshTestResult {
+    pub ok: bool,
+    pub latency_ms: Option<u64>,
+    pub error: Option<String>,
+}
+
+/// Test SSH connectivity without spawning a full Claude session.
+/// Runs `ssh ... "echo __orbit_ok__"` with a 5-second timeout.
+pub fn test_ssh_connection(host: &str, user: &str, password: Option<&str>) -> SshTestResult {
+    if !validate_ssh_host(host) {
+        return SshTestResult {
+            ok: false,
+            latency_ms: None,
+            error: Some(format!("invalid host: {host:?}")),
+        };
+    }
+    if !validate_ssh_user(user) {
+        return SshTestResult {
+            ok: false,
+            latency_ms: None,
+            error: Some(format!("invalid user: {user:?}")),
+        };
+    }
+
+    let mut cmd = std::process::Command::new("ssh");
+    cmd.args([
+        "-o",
+        "BatchMode=no",
+        "-o",
+        "ConnectTimeout=5",
+        "-o",
+        "StrictHostKeyChecking=accept-new",
+        &format!("{user}@{host}"),
+        "echo __orbit_ok__",
+    ]);
+    cmd.stdout(std::process::Stdio::piped());
+    cmd.stderr(std::process::Stdio::piped());
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    let _guard = if let Some(pw) = password {
+        match apply_askpass(&mut cmd, pw) {
+            Ok(g) => Some(g),
+            Err(e) => {
+                return SshTestResult {
+                    ok: false,
+                    latency_ms: None,
+                    error: Some(e),
+                }
+            }
+        }
+    } else {
+        None
+    };
+
+    let start = std::time::Instant::now();
+    match cmd.output() {
+        Ok(out) => {
+            let latency_ms = start.elapsed().as_millis() as u64;
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            if out.status.success() && stdout.contains("__orbit_ok__") {
+                SshTestResult {
+                    ok: true,
+                    latency_ms: Some(latency_ms),
+                    error: None,
+                }
+            } else {
+                let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+                SshTestResult {
+                    ok: false,
+                    latency_ms: None,
+                    error: Some(if stderr.is_empty() {
+                        format!("exit code {}", out.status.code().unwrap_or(-1))
+                    } else {
+                        stderr
+                    }),
+                }
+            }
+        }
+        Err(e) => SshTestResult {
+            ok: false,
+            latency_ms: None,
+            error: Some(e.to_string()),
+        },
+    }
 }
 
 /// Wrap a string in single quotes, escaping embedded single quotes as '\''.
@@ -241,6 +407,7 @@ fn spawn_local(config: SpawnConfig) -> Result<SpawnHandle, String> {
         reader: Box::new(stdout),
         stderr: Box::new(stderr),
         child,
+        _askpass: None,
     })
 }
 
@@ -296,10 +463,17 @@ fn spawn_ssh(config: SpawnConfig, host: &str, user: &str) -> Result<SpawnHandle,
 
     let remote_script = format!("cd {} && {}", posix_escape(&config.cwd), parts.join(" "));
 
+    // BatchMode=no allows password auth via SSH_ASKPASS; BatchMode=yes blocks all prompts.
+    let batch_mode = if config.ssh_password.is_some() {
+        "no"
+    } else {
+        "yes"
+    };
+
     let mut cmd = std::process::Command::new("ssh");
     cmd.args([
         "-o",
-        "BatchMode=yes",
+        &format!("BatchMode={batch_mode}"),
         "-o",
         "ConnectTimeout=10",
         "-o",
@@ -317,6 +491,12 @@ fn spawn_ssh(config: SpawnConfig, host: &str, user: &str) -> Result<SpawnHandle,
         cmd.creation_flags(CREATE_NO_WINDOW);
     }
 
+    let askpass = if let Some(ref pw) = config.ssh_password {
+        Some(apply_askpass(&mut cmd, pw)?)
+    } else {
+        None
+    };
+
     let mut child = cmd.spawn().map_err(|e| format!("ssh spawn failed: {e}"))?;
     let pid = child.id();
     let stdout = child.stdout.take().ok_or_else(|| "no stdout".to_string())?;
@@ -327,6 +507,7 @@ fn spawn_ssh(config: SpawnConfig, host: &str, user: &str) -> Result<SpawnHandle,
         reader: Box::new(stdout),
         stderr: Box::new(stderr),
         child,
+        _askpass: askpass,
     })
 }
 

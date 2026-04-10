@@ -30,7 +30,15 @@ export interface CreateSessionOptions {
   sessionName?: string;
   sshHost?: string;
   sshUser?: string;
+  /** SSH password. Never persisted — held in backend memory for session lifetime. */
+  sshPassword?: string;
   useWorktree?: boolean;
+}
+
+export interface SshTestResult {
+  ok: boolean;
+  latencyMs?: number;
+  error?: string;
 }
 
 export async function createSession(opts: CreateSessionOptions): Promise<Session> {
@@ -42,8 +50,17 @@ export async function createSession(opts: CreateSessionOptions): Promise<Session
     sessionName: opts.sessionName ?? null,
     sshHost: opts.sshHost ?? null,
     sshUser: opts.sshUser ?? null,
+    sshPassword: opts.sshPassword ?? null,
     useWorktree: opts.useWorktree ?? false,
   });
+}
+
+export async function testSsh(
+  host: string,
+  user: string,
+  password?: string
+): Promise<SshTestResult> {
+  return await invoke('test_ssh', { host, user, password: password ?? null });
 }
 
 export async function listSessions(): Promise<Session[]> {
