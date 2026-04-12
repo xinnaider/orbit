@@ -68,6 +68,7 @@ pub fn run() {
             commands::files::list_project_files,
             commands::tasks::get_tasks,
             commands::stats::get_claude_usage_stats,
+            commands::stats::get_rate_limits,
             ipc::updater::check_update,
             ipc::updater::install_update,
             commands::stats::get_changelog,

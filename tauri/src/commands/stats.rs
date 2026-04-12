@@ -128,6 +128,47 @@ fn is_leap(year: u64) -> bool {
     (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)
 }
 
+#[derive(serde::Serialize, serde::Deserialize, Default, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct RateLimits {
+    pub cost: f64,
+    pub five_hour_pct: f64,
+    pub five_hour_reset: i64,
+    pub seven_day_pct: f64,
+    pub seven_day_reset: i64,
+    pub context_pct: f64,
+}
+
+/// Read rate-limit data captured by the statusline hook for a given PID.
+/// Falls back to PID 1 (global) if the session PID file doesn't exist.
+#[tauri::command]
+pub fn get_rate_limits(pid: Option<i32>) -> RateLimits {
+    let status_dir = match dirs::home_dir() {
+        Some(h) => h.join(".orbit").join("status"),
+        None => return RateLimits::default(),
+    };
+
+    // Try session PID first, then fallback to any available file
+    let candidates: Vec<std::path::PathBuf> = if let Some(p) = pid {
+        vec![
+            status_dir.join(format!("{p}.json")),
+            status_dir.join("1.json"),
+        ]
+    } else {
+        vec![status_dir.join("1.json")]
+    };
+
+    for path in candidates {
+        if let Ok(content) = std::fs::read_to_string(&path) {
+            if let Ok(rl) = serde_json::from_str::<RateLimits>(&content) {
+                return rl;
+            }
+        }
+    }
+
+    RateLimits::default()
+}
+
 #[tauri::command]
 pub fn get_changelog() -> String {
     include_str!("../../../CHANGELOG.md").to_string()

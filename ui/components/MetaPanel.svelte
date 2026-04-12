@@ -1,7 +1,8 @@
 <script lang="ts">
+  import { onMount, onDestroy } from 'svelte';
   import type { Session } from '../lib/stores/sessions';
   import { formatTokens } from '../lib/cost';
-  import { stopSession, getSubagents } from '../lib/tauri';
+  import { stopSession, getSubagents, getRateLimits, type RateLimits } from '../lib/tauri';
   import { isActive, modelDisplayName } from '../lib/status';
   import { sessionEffort } from '../lib/stores/ui';
   import { metaPanelVisible } from '../lib/stores/preferences';
@@ -13,6 +14,40 @@
 
   type Tab = 'stats' | 'tasks' | 'agents';
   let tab: Tab = 'stats';
+
+  let rateLimits: RateLimits | null = null;
+  let rlInterval: ReturnType<typeof setInterval> | null = null;
+
+  async function fetchRateLimits() {
+    try {
+      rateLimits = await getRateLimits(session.pid ?? null);
+    } catch (_e) {
+      /* no-op */
+    }
+  }
+
+  onMount(() => {
+    fetchRateLimits();
+    rlInterval = setInterval(fetchRateLimits, 10_000);
+  });
+  onDestroy(() => {
+    if (rlInterval) clearInterval(rlInterval);
+  });
+
+  $: (session.id, fetchRateLimits());
+
+  function fmtReset(resetEpoch: number): string {
+    const now = Math.floor(Date.now() / 1000);
+    const diff = resetEpoch - now;
+    if (diff <= 0) return '--';
+    const h = Math.floor(diff / 3600);
+    const m = Math.floor((diff % 3600) / 60);
+    if (h > 24) {
+      const d = Math.floor(h / 24);
+      return `${d}d${h % 24}h`;
+    }
+    return `${h}h${m}m`;
+  }
 
   let refreshing = false;
 
@@ -117,6 +152,38 @@
                 {/if}
               </div>
             {/each}
+          </div>
+        {/if}
+
+        {#if rateLimits}
+          <div class="stat-group">
+            <div class="stat-label">rate limits</div>
+            <div class="stat-row">
+              <span>5h</span>
+              <span
+                class="mono-val"
+                class:rl-warn={rateLimits.fiveHourPct > 70}
+                class:rl-danger={rateLimits.fiveHourPct > 90}
+                >{Math.round(rateLimits.fiveHourPct)}%</span
+              >
+              <span class="rl-reset">{fmtReset(rateLimits.fiveHourReset)}</span>
+            </div>
+            <div class="stat-row">
+              <span>7d</span>
+              <span
+                class="mono-val"
+                class:rl-warn={rateLimits.sevenDayPct > 70}
+                class:rl-danger={rateLimits.sevenDayPct > 90}
+                >{Math.round(rateLimits.sevenDayPct)}%</span
+              >
+              <span class="rl-reset">{fmtReset(rateLimits.sevenDayReset)}</span>
+            </div>
+            {#if rateLimits.cost > 0}
+              <div class="stat-row">
+                <span>cost</span>
+                <span class="mono-val">${rateLimits.cost.toFixed(2)}</span>
+              </div>
+            {/if}
           </div>
         {/if}
 
@@ -307,5 +374,16 @@
 
   .meta-info .stat-row {
     color: var(--t2);
+  }
+  .rl-warn {
+    color: var(--s-input) !important;
+  }
+  .rl-danger {
+    color: var(--s-error) !important;
+  }
+  .rl-reset {
+    font-size: var(--xs);
+    color: var(--t3);
+    margin-left: auto;
   }
 </style>

@@ -108,6 +108,19 @@ export async function getClaudeUsageStats(): Promise<ClaudeUsageStats> {
   return await invoke('get_claude_usage_stats');
 }
 
+export interface RateLimits {
+  cost: number;
+  fiveHourPct: number;
+  fiveHourReset: number;
+  sevenDayPct: number;
+  sevenDayReset: number;
+  contextPct: number;
+}
+
+export async function getRateLimits(pid: number | null): Promise<RateLimits> {
+  return await invoke('get_rate_limits', { pid });
+}
+
 export interface SessionOutputPayload {
   sessionId: number;
   entry: JournalEntry;
