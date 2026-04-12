@@ -457,7 +457,10 @@ pub fn process_line_opencode(state: &mut JournalState, line: &str) {
             state.status = AgentStatus::Idle;
         }
 
-        _ => {}
+        // User messages are stored in Claude format by emit_spawn_started
+        _ => {
+            process_line(state, line);
+        }
     }
 }
 
@@ -601,7 +604,10 @@ pub fn process_line_codex(state: &mut JournalState, line: &str) {
             state.status = AgentStatus::Idle;
         }
 
-        _ => {}
+        // User messages are stored in Claude format by emit_spawn_started
+        _ => {
+            process_line(state, line);
+        }
     }
 }
 
