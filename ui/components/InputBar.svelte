@@ -45,22 +45,25 @@
         : providerModels;
   const EFFORT_LEVELS = ['low', 'medium', 'high', 'max'];
 
-  // Orbit-native commands added to suggestions
-  const ORBIT_COMMANDS: SlashCommand[] = [
-    { cmd: '/model', desc: 'Switch model (opus, opus-1m, sonnet, haiku)', category: 'orbit' },
-  ];
-
-  $: effectiveCommands =
+  // Orbit-native commands — provider-aware
+  $: modelHint =
     provider === 'claude-code'
-      ? [
-          ...ORBIT_COMMANDS,
-          {
-            cmd: '/effort',
-            desc: 'Set thinking effort (low, medium, high, max)',
-            category: 'orbit',
-          },
-        ]
-      : ORBIT_COMMANDS;
+      ? 'Switch model (opus, sonnet, haiku)'
+      : provider === 'codex'
+        ? 'Switch model (gpt-5.4, gpt-5.4-mini, ...)'
+        : 'Switch model (type model ID)';
+
+  $: effectiveCommands = (() => {
+    const cmds: SlashCommand[] = [{ cmd: '/model', desc: modelHint, category: 'orbit' }];
+    if (provider === 'claude-code') {
+      cmds.push({
+        cmd: '/effort',
+        desc: 'Set thinking effort (low, medium, high, max)',
+        category: 'orbit',
+      });
+    }
+    return cmds;
+  })();
 
   function emitSystemEntry(msg: string) {
     const entry: JournalEntry = {
@@ -110,27 +113,19 @@
   onDestroy(() => clearInterval(hintTimer));
 
   onMount(async () => {
-    try {
-      const remote = await getSlashCommands();
-      const blocked = new Set([...INTERACTIVE_CMDS, '/model']);
-      commands = [...effectiveCommands, ...remote.filter((c) => !blocked.has(c.cmd))];
-    } catch (_e) {
+    // Remote slash commands only apply to Claude Code sessions
+    if (provider === 'claude-code') {
+      try {
+        const remote = await getSlashCommands();
+        const blocked = new Set([...INTERACTIVE_CMDS, '/model']);
+        commands = [...effectiveCommands, ...remote.filter((c) => !blocked.has(c.cmd))];
+      } catch (_e) {
+        commands = [...effectiveCommands];
+      }
+    } else {
       commands = [...effectiveCommands];
     }
   });
-
-  $: {
-    const remoteBlocked = new Set([...INTERACTIVE_CMDS, '/model']);
-    if (commands.length > 0) {
-      commands = commands.filter((c) => {
-        const isOrbit = c.category === 'orbit';
-        if (isOrbit) {
-          return provider === 'claude-code' || c.cmd !== '/effort';
-        }
-        return true;
-      });
-    }
-  }
 
   let prevId = sessionId;
   $: if (sessionId !== prevId) {

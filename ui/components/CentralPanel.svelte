@@ -3,7 +3,7 @@
   import { journal, pendingMessages } from '../lib/stores/journal';
   import { getSessionJournal, getProviders } from '../lib/tauri';
   import type { CliBackend } from '../lib/tauri';
-  import { statusColor, statusLabel, isPulsing, modelDisplayName } from '../lib/status';
+  import { statusColor, statusLabel, isPulsing, modelShortName } from '../lib/status';
   import { formatTokens } from '../lib/cost';
   import { mutedSessions, toggleMute } from '../lib/stores/ui';
   import Feed from './Feed.svelte';
@@ -56,8 +56,8 @@
   $: pulsing = isPulsing(session?.status ?? '');
   $: muted = mutedSessions.isMuted($mutedSessions, String(session?.id));
 
-  function fmtModel(m: string | null) {
-    return modelDisplayName(m);
+  function fmtModel(m: string | null): string {
+    return modelShortName(m);
   }
 
   // Load provider models for /model autocomplete in InputBar
@@ -123,7 +123,7 @@
           </span>
         {/if}
       {/if}
-      <span class="model">{fmtModel(session.model)}</span>
+      <span class="model" title={session.model ?? ''}>{fmtModel(session.model)}</span>
       <div class="header-actions">
         <button
           class="action-btn mute-btn"

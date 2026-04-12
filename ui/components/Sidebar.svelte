@@ -8,7 +8,7 @@
   import { deleteSession, stopSession, getAppVersion } from '../lib/tauri';
   import { mutedSessions, sessionEffort } from '../lib/stores/ui';
   import { sidebarVisible } from '../lib/stores/preferences';
-  import { modelDisplayName } from '../lib/status';
+  import { modelShortName } from '../lib/status';
   import { onMount } from 'svelte';
 
   let appVersion = '';
@@ -92,7 +92,7 @@
 
   function fmtModel(model: string | null): string {
     if (!model || model === 'auto') return 'auto';
-    return modelDisplayName(model);
+    return modelShortName(model);
   }
 
   function displayName(s: (typeof $sessions)[0]): string {
@@ -210,9 +210,11 @@
             <span class="status" style="color:{color}">{statusLabel(s.status)}</span>
           </div>
           <div class="item-meta">
-            <span>{fmtModel(s.model)}</span>
-            <span class="sep">·</span>
-            <span>{sessionEffort.get($sessionEffort, String(s.id))}</span>
+            <span title={s.model ?? ''}>{fmtModel(s.model)}</span>
+            {#if s.provider === 'claude-code'}
+              <span class="sep">·</span>
+              <span>{sessionEffort.get($sessionEffort, String(s.id))}</span>
+            {/if}
             <span class="sep">·</span>
             <span>{fmtTokens(s)}</span>
             {#if s.pendingApproval}

@@ -2,7 +2,7 @@
   import type { Session } from '../lib/stores/sessions';
   import { formatTokens } from '../lib/cost';
   import { stopSession, getSubagents } from '../lib/tauri';
-  import { isActive, modelDisplayName } from '../lib/status';
+  import { isActive, modelShortName } from '../lib/status';
   import { sessionEffort } from '../lib/stores/ui';
   import { metaPanelVisible } from '../lib/stores/preferences';
   import { sessions, updateSessionState } from '../lib/stores/sessions';
@@ -130,13 +130,17 @@
 
         <div class="stat-group meta-info">
           <div class="stat-row">
-            <span>model</span><span class="mono-val">{modelDisplayName(session.model)}</span>
-          </div>
-          <div class="stat-row">
-            <span>effort</span><span class="mono-val"
-              >{sessionEffort.get($sessionEffort, String(session.id))}</span
+            <span>model</span><span class="mono-val" title={session.model ?? ''}
+              >{modelShortName(session.model)}</span
             >
           </div>
+          {#if session.provider === 'claude-code'}
+            <div class="stat-row">
+              <span>effort</span><span class="mono-val"
+                >{sessionEffort.get($sessionEffort, String(session.id))}</span
+              >
+            </div>
+          {/if}
           <div class="stat-row">
             <span>pid</span><span class="mono-val">{session.pid ?? '—'}</span>
           </div>
