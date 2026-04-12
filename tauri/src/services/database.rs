@@ -201,6 +201,15 @@ impl DatabaseService {
         Ok(())
     }
 
+    pub fn update_session_model(&self, id: SessionId, model: &str) -> SqlResult<()> {
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+        conn.execute(
+            "UPDATE sessions SET model = ?1, updated_at = datetime('now') WHERE id = ?2",
+            params![model, id],
+        )?;
+        Ok(())
+    }
+
     pub fn update_session_worktree(
         &self,
         id: SessionId,

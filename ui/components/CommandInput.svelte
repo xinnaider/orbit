@@ -1,6 +1,14 @@
 <script lang="ts">
   import { onMount, onDestroy, tick } from 'svelte';
-  import { sendSessionMessage, getSlashCommands, listProjectFiles } from '../lib/tauri';
+  import {
+    sendSessionMessage,
+    getSlashCommands,
+    listProjectFiles,
+    updateSessionModel,
+    updateSessionEffort,
+  } from '../lib/tauri';
+  import { sessions, updateSessionState } from '../lib/stores/sessions';
+  import { addToast } from '../lib/stores/toasts';
   import { FileText } from 'lucide-svelte';
   import { pendingMessages } from '../lib/stores/journal';
   import type { SlashCommand } from '../lib/types';
@@ -158,13 +166,53 @@
     });
   }
 
+  const MODEL_ALIASES: Record<string, string> = {
+    opus: 'claude-opus-4-6',
+    sonnet: 'claude-sonnet-4-6',
+    haiku: 'claude-haiku-4-5-20251001',
+    'opus-4': 'claude-opus-4-20250514',
+    'sonnet-4': 'claude-sonnet-4-20250514',
+    'sonnet-4.5': 'claude-sonnet-4-5-20250514',
+  };
+
+  const EFFORT_LEVELS = ['low', 'medium', 'high', 'max'];
+
   async function handleSend() {
     if (!inputText.trim()) return;
-    const text = inputText;
+    const text = inputText.trim();
     inputText = '';
     showSuggestions = false;
     showFilePicker = false;
     if (textareaEl) textareaEl.style.height = 'auto';
+
+    // Intercept /model
+    const modelMatch = text.match(/^\/model\s+(.+)$/i);
+    if (modelMatch) {
+      const arg = modelMatch[1].trim().toLowerCase();
+      const resolved = MODEL_ALIASES[arg] ?? arg;
+      await updateSessionModel(sessionId, resolved);
+      sessions.update((l) => updateSessionState(l, sessionId, { model: resolved }));
+      addToast({ type: 'info', message: `Model set to ${resolved}`, autoDismiss: true });
+      return;
+    }
+
+    // Intercept /effort
+    const effortMatch = text.match(/^\/effort\s+(.+)$/i);
+    if (effortMatch) {
+      const level = effortMatch[1].trim().toLowerCase();
+      if (!EFFORT_LEVELS.includes(level)) {
+        addToast({
+          type: 'error',
+          message: `Invalid effort: "${level}". Use: ${EFFORT_LEVELS.join(', ')}`,
+          autoDismiss: true,
+        });
+        return;
+      }
+      await updateSessionEffort(sessionId, level);
+      addToast({ type: 'info', message: `Effort set to ${level}`, autoDismiss: true });
+      return;
+    }
+
     pendingMessages.add(text);
     await sendSessionMessage(sessionId, text);
   }

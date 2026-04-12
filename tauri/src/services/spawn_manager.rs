@@ -5,6 +5,7 @@ pub struct SpawnConfig {
     pub cwd: PathBuf,
     pub permission_mode: String,
     pub model: Option<String>,
+    pub effort: Option<String>,
     pub prompt: String,
     /// For follow-up messages: the Claude session ID from the previous run
     pub claude_session_id: Option<String>,
@@ -190,6 +191,10 @@ pub fn spawn_claude(config: SpawnConfig) -> Result<SpawnHandle, String> {
         }
     }
 
+    if let Some(ref effort) = config.effort {
+        cmd.args(["--effort", effort]);
+    }
+
     if let Some(ref resume_id) = config.claude_session_id {
         cmd.args(["--resume", resume_id]);
     }
@@ -292,6 +297,7 @@ mod tests {
             cwd: std::path::PathBuf::from("/nonexistent/path/xyz"),
             permission_mode: "ignore".to_string(),
             model: None,
+            effort: None,
             prompt: "test".to_string(),
             claude_session_id: None,
         });

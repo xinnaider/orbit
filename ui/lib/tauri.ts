@@ -54,6 +54,14 @@ export async function sendSessionMessage(sessionId: number, message: string): Pr
   await invoke('send_session_message', { sessionId, message });
 }
 
+export async function updateSessionModel(sessionId: number, model: string): Promise<void> {
+  await invoke('update_session_model', { sessionId, model });
+}
+
+export async function updateSessionEffort(sessionId: number, effort: string): Promise<void> {
+  await invoke('update_session_effort', { sessionId, effort });
+}
+
 export async function getSessionJournal(sessionId: number): Promise<JournalEntry[]> {
   return await invoke('get_session_journal', { sessionId });
 }
@@ -114,6 +122,7 @@ export interface SessionStatePayload {
   miniLog: MiniLogEntry[];
   gitBranch: string | null;
   subagents: SubagentInfo[];
+  model: string | null;
 }
 
 export function onSessionCreated(cb: (session: Session) => void) {

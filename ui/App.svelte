@@ -121,6 +121,7 @@
           miniLog: p.miniLog,
           gitBranch: p.gitBranch ?? null,
           subagents: p.subagents,
+          model: p.model ?? undefined,
         })
       );
     });

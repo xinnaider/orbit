@@ -56,6 +56,8 @@ pub fn run() {
             ipc::session::diagnose_spawn,
             ipc::session::rename_session,
             ipc::session::delete_session,
+            ipc::session::update_session_model,
+            ipc::session::update_session_effort,
             ipc::project::create_project,
             ipc::project::list_projects,
             commands::agents::get_subagents,

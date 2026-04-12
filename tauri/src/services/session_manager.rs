@@ -35,6 +35,7 @@ pub struct SessionStateEvent {
     pub mini_log: Vec<crate::models::MiniLogEntry>,
     pub git_branch: Option<String>,
     pub subagents: Vec<crate::models::SubagentInfo>,
+    pub model: Option<String>,
 }
 
 struct ActiveSession {
@@ -42,6 +43,8 @@ struct ActiveSession {
     /// The Claude CLI session ID (from stream-json system/init message).
     /// Required for --resume on follow-up messages.
     pub claude_session_id: Option<String>,
+    /// Effort level for thinking (low, medium, high, max).
+    pub effort: Option<String>,
 }
 
 pub struct SessionManager {
@@ -144,6 +147,7 @@ impl SessionManager {
             ActiveSession {
                 session: session.clone(),
                 claude_session_id: None,
+                effort: None,
             },
         );
         self.journal_states
@@ -160,7 +164,7 @@ impl SessionManager {
         session_id: SessionId,
         prompt: String,
     ) {
-        let (db, cwd, permission_mode, model, claude_session_id) = {
+        let (db, cwd, permission_mode, model, effort, claude_session_id) = {
             let m = manager.write().unwrap_or_else(|e| e.into_inner());
             let a = match m.active.get(&session_id) {
                 Some(a) => a,
@@ -184,6 +188,7 @@ impl SessionManager {
                     .unwrap_or_default(),
                 a.session.permission_mode.clone(),
                 a.session.model.clone(),
+                a.effort.clone(),
                 a.claude_session_id.clone(),
             )
         };
@@ -194,6 +199,7 @@ impl SessionManager {
             cwd: std::path::PathBuf::from(&cwd),
             permission_mode,
             model,
+            effort,
             prompt,
             claude_session_id,
         };
@@ -407,6 +413,7 @@ impl SessionManager {
                             mini_log: state.mini_log.clone(),
                             git_branch,
                             subagents,
+                            model: state.model.clone(),
                         };
                         (new_entries, event)
                     };
@@ -472,6 +479,7 @@ impl SessionManager {
                     ActiveSession {
                         session,
                         claude_session_id,
+                        effort: None,
                     },
                 );
                 m.journal_states.entry(session_id).or_default();
@@ -579,6 +587,30 @@ impl SessionManager {
         self.db
             .rename_session(session_id, name)
             .map_err(|e| e.to_string())
+    }
+
+    pub fn update_session_model(
+        &mut self,
+        session_id: SessionId,
+        model: &str,
+    ) -> Result<(), String> {
+        if let Some(a) = self.active.get_mut(&session_id) {
+            a.session.model = Some(model.to_string());
+        }
+        self.db
+            .update_session_model(session_id, model)
+            .map_err(|e| e.to_string())
+    }
+
+    pub fn update_session_effort(
+        &mut self,
+        session_id: SessionId,
+        effort: &str,
+    ) -> Result<(), String> {
+        if let Some(a) = self.active.get_mut(&session_id) {
+            a.effort = Some(effort.to_string());
+        }
+        Ok(())
     }
 
     pub fn delete_session(&mut self, session_id: SessionId) -> Result<(), String> {

@@ -206,3 +206,25 @@ pub fn delete_session(session_id: SessionId, state: State<SessionState>) -> Resu
     state.write().delete_session(session_id)?;
     Ok(())
 }
+
+/// Update the model for a session. Takes effect on the next message.
+#[tauri::command]
+pub fn update_session_model(
+    session_id: SessionId,
+    model: String,
+    state: State<SessionState>,
+) -> Result<(), IpcError> {
+    state.write().update_session_model(session_id, &model)?;
+    Ok(())
+}
+
+/// Update the effort level for a session. Takes effect on the next message.
+#[tauri::command]
+pub fn update_session_effort(
+    session_id: SessionId,
+    effort: String,
+    state: State<SessionState>,
+) -> Result<(), IpcError> {
+    state.write().update_session_effort(session_id, &effort)?;
+    Ok(())
+}

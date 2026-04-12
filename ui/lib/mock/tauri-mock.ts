@@ -386,6 +386,16 @@ export async function mockInvoke(cmd: string, args?: Record<string, unknown>): P
     case 'list_project_files':
       return ['src/index.ts', 'src/auth/auth.ts', 'src/api/routes.ts', 'package.json', 'README.md'];
 
+    case 'update_session_model': {
+      const id = args?.sessionId as number;
+      const model = args?.model as string;
+      sessions = sessions.map((s) => (s.id === id ? { ...s, model } : s));
+      return null;
+    }
+
+    case 'update_session_effort':
+      return null;
+
     case 'get_tasks':
       return [];
 
@@ -525,6 +535,7 @@ function makeStateEvent(sessionId: number, status: string, extraTokens?: Partial
     miniLog: [],
     gitBranch: null,
     subagents: [],
+    model: session?.model ?? null,
   };
 }
 
