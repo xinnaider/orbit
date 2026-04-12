@@ -860,14 +860,32 @@ impl SessionManager {
             Ok(r) => r,
             Err(_) => return,
         };
-        // Don't cache an empty state for inactive sessions with no data.
-        // Keeps "not in map" semantically distinct from "loaded and empty".
         if rows.is_empty() && !self.active.contains_key(&session_id) {
             return;
         }
+
+        // Pick the right JSONL parser based on session provider
+        let provider_owned = self
+            .active
+            .get(&session_id)
+            .map(|a| a.session.provider.clone())
+            .or_else(|| {
+                self.db
+                    .get_session(session_id)
+                    .ok()
+                    .flatten()
+                    .map(|s| s.provider)
+            })
+            .unwrap_or_else(|| "claude-code".to_string());
+        let line_processor: fn(&mut JournalState, &str) = match provider_owned.as_str() {
+            "codex" => process_line_codex,
+            "claude-code" => process_line,
+            _ => process_line_opencode,
+        };
+
         let mut state = JournalState::default();
         for line in &rows {
-            process_line(&mut state, line);
+            line_processor(&mut state, line);
         }
         self.journal_states.insert(session_id, state);
     }
