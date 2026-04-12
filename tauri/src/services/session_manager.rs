@@ -365,8 +365,11 @@ impl SessionManager {
                 .clone()
                 .unwrap_or_else(|| "opencode/big-pickle".to_string());
             let provider = a.session.provider.clone();
-            // Build "provider/model" format for opencode -m flag
-            let full_model = if model.contains('/') {
+            // Build "provider/model" format for opencode -m flag.
+            // Always prefix with provider — model IDs from models.json
+            // may already contain slashes (e.g. "minimax/minimax-m2.5:free")
+            // but opencode expects "openrouter/minimax/minimax-m2.5:free".
+            let full_model = if model.starts_with(&format!("{provider}/")) {
                 model.clone()
             } else {
                 format!("{provider}/{model}")
