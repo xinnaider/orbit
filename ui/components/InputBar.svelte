@@ -18,6 +18,7 @@
   export let sessionId: number;
   export let cwd: string = '';
   export let sessionStatus: string = '';
+  export let provider: string = 'claude-code';
 
   let text = '';
   let textarea: HTMLTextAreaElement;
@@ -39,9 +40,19 @@
   // Orbit-native commands added to suggestions
   const ORBIT_COMMANDS: SlashCommand[] = [
     { cmd: '/model', desc: 'Switch model (opus, opus-1m, sonnet, haiku)', category: 'orbit' },
-
-    { cmd: '/effort', desc: 'Set thinking effort (low, medium, high, max)', category: 'orbit' },
   ];
+
+  $: effectiveCommands =
+    provider === 'claude-code'
+      ? [
+          ...ORBIT_COMMANDS,
+          {
+            cmd: '/effort',
+            desc: 'Set thinking effort (low, medium, high, max)',
+            category: 'orbit',
+          },
+        ]
+      : ORBIT_COMMANDS;
 
   function emitSystemEntry(msg: string) {
     const entry: JournalEntry = {
@@ -94,11 +105,24 @@
     try {
       const remote = await getSlashCommands();
       const blocked = new Set([...INTERACTIVE_CMDS, '/model']);
-      commands = [...ORBIT_COMMANDS, ...remote.filter((c) => !blocked.has(c.cmd))];
+      commands = [...effectiveCommands, ...remote.filter((c) => !blocked.has(c.cmd))];
     } catch (_e) {
-      commands = [...ORBIT_COMMANDS];
+      commands = [...effectiveCommands];
     }
   });
+
+  $: {
+    const remoteBlocked = new Set([...INTERACTIVE_CMDS, '/model']);
+    if (commands.length > 0) {
+      commands = commands.filter((c) => {
+        const isOrbit = c.category === 'orbit';
+        if (isOrbit) {
+          return provider === 'claude-code' || c.cmd !== '/effort';
+        }
+        return true;
+      });
+    }
+  }
 
   let prevId = sessionId;
   $: if (sessionId !== prevId) {
@@ -202,8 +226,8 @@
       return;
     }
 
-    // Intercept /effort
-    if (cmd === '/effort') {
+    // Intercept /effort (Claude Code only)
+    if (cmd === '/effort' && provider === 'claude-code') {
       const arg = msg.slice(7).trim().toLowerCase();
       if (!arg || !EFFORT_LEVELS.includes(arg)) {
         sendError = `Usage: /effort <level> (${EFFORT_LEVELS.join(', ')})`;

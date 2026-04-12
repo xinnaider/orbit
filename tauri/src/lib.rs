@@ -58,6 +58,7 @@ pub fn run() {
             ipc::session::delete_session,
             ipc::session::update_session_model,
             ipc::session::update_session_effort,
+            ipc::session::set_session_api_key,
             ipc::project::create_project,
             ipc::project::list_projects,
             commands::agents::get_subagents,
@@ -72,6 +73,8 @@ pub fn run() {
             ipc::updater::check_update,
             ipc::updater::install_update,
             commands::stats::get_changelog,
+            commands::providers::get_providers,
+            commands::providers::check_env_var,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

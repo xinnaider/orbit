@@ -9,6 +9,7 @@ function makeSession(overrides: Partial<Session> = {}): Session {
     status: 'running',
     permissionMode: 'ignore',
     model: null,
+    provider: 'claude-code',
     pid: null,
     cwd: '/tmp/proj',
     projectName: 'proj',

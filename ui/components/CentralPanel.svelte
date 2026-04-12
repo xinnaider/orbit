@@ -198,7 +198,12 @@
   {/if}
 
   <!-- Input -->
-  <InputBar sessionId={session.id} cwd={session.cwd ?? ''} sessionStatus={session.status} />
+  <InputBar
+    sessionId={session.id}
+    cwd={session.cwd ?? ''}
+    sessionStatus={session.status}
+    provider={session.provider}
+  />
 </div>
 
 <style>

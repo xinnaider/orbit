@@ -32,6 +32,7 @@ pub fn create_session(
     permission_mode: Option<String>,
     session_name: Option<String>,
     use_worktree: Option<bool>,
+    provider: Option<String>,
     state: State<SessionState>,
     app: AppHandle,
 ) -> Result<Session, IpcError> {
@@ -45,7 +46,7 @@ pub fn create_session(
             &mode,
             model.as_deref(),
             use_worktree.unwrap_or(false),
-            None,
+            provider.as_deref(),
         )?
     };
 
@@ -253,5 +254,16 @@ pub fn update_session_effort(
     state: State<SessionState>,
 ) -> Result<(), IpcError> {
     state.write().update_session_effort(session_id, &effort)?;
+    Ok(())
+}
+
+/// Set the API key for an OpenRouter session (in-memory only, never persisted).
+#[tauri::command]
+pub fn set_session_api_key(
+    session_id: SessionId,
+    api_key: String,
+    state: State<SessionState>,
+) -> Result<(), IpcError> {
+    state.write().set_api_key(session_id, api_key);
     Ok(())
 }

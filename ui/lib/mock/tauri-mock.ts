@@ -9,6 +9,7 @@ const MOCK_SESSIONS: Session[] = [
     status: 'running' as const,
     permissionMode: 'ignore',
     model: 'claude-sonnet-4-6',
+    provider: 'claude-code',
     pid: 12345,
     cwd: 'C:\\Users\\dev\\api-server',
     projectName: 'api-server',
@@ -33,6 +34,7 @@ const MOCK_SESSIONS: Session[] = [
     status: 'waiting' as const,
     permissionMode: 'approve',
     model: 'claude-opus-4-6',
+    provider: 'claude-code',
     pid: 23456,
     cwd: 'C:\\Users\\dev\\dashboard',
     projectName: 'dashboard',
@@ -54,6 +56,7 @@ const MOCK_SESSIONS: Session[] = [
     status: 'completed',
     permissionMode: 'ignore',
     model: 'claude-haiku-4-5-20251001',
+    provider: 'claude-code',
     pid: null,
     cwd: 'C:\\Users\\dev\\utils',
     projectName: 'utils-lib',
@@ -324,6 +327,7 @@ export async function mockInvoke(cmd: string, args?: Record<string, unknown>): P
         contextPercent: null,
         pendingApproval: null,
         miniLog: null,
+        provider: (args?.provider as string) ?? 'claude-code',
 
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -396,6 +400,9 @@ export async function mockInvoke(cmd: string, args?: Record<string, unknown>): P
     case 'update_session_effort':
       return null;
 
+    case 'set_session_api_key':
+      return null;
+
     case 'get_tasks':
       return [];
 
@@ -404,6 +411,54 @@ export async function mockInvoke(cmd: string, args?: Record<string, unknown>): P
 
     case 'get_changelog':
       return '# Changelog\n\n## April 2026\n\n### 04/07 · New — In-app changelog\nYou can now view the history of Orbit updates directly inside the app.';
+
+    case 'get_providers':
+      return [
+        {
+          id: 'claude-code',
+          name: 'Claude Code',
+          env: [],
+          models: [
+            { id: 'auto', name: 'auto', context: null, output: null },
+            { id: 'claude-sonnet-4-6', name: 'sonnet-4.6', context: 1000000, output: 64000 },
+            { id: 'claude-opus-4-6', name: 'opus-4.6', context: 1000000, output: 128000 },
+          ],
+          configured: true,
+          cliAvailable: true,
+          cliBackend: 'claude',
+        },
+        {
+          id: 'codex',
+          name: 'Codex',
+          env: ['OPENAI_API_KEY'],
+          models: [
+            { id: 'o3', name: 'o3', context: 200000, output: 100000 },
+            { id: 'o4-mini', name: 'o4-mini', context: 200000, output: 100000 },
+          ],
+          configured: false,
+          cliAvailable: true,
+          cliBackend: 'codex',
+        },
+        {
+          id: 'openrouter',
+          name: 'OpenRouter',
+          env: ['OPENROUTER_API_KEY'],
+          models: [
+            {
+              id: 'anthropic/claude-sonnet-4',
+              name: 'Claude Sonnet 4',
+              context: 200000,
+              output: 64000,
+            },
+          ],
+          configured: false,
+          cliAvailable: true,
+          cliBackend: 'opencode',
+        },
+      ];
+
+    case 'check_env_var':
+      return false;
 
     default:
       console.warn('[mock] Unhandled invoke:', cmd, args);

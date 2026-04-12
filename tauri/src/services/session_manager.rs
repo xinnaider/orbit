@@ -4,10 +4,12 @@ use std::sync::{Arc, RwLock};
 
 use tauri::{AppHandle, Emitter};
 
-use crate::journal::{process_line, JournalState};
+use crate::journal::{process_line, process_line_codex, process_line_opencode, JournalState};
 use crate::models::{AgentStatus, Session, SessionId, TokenUsage};
 use crate::services::database::DatabaseService;
-use crate::services::spawn_manager::{spawn_claude, SpawnConfig};
+use crate::services::spawn_manager::{
+    spawn_claude, spawn_codex, spawn_opencode, CodexConfig, OpenCodeConfig, SpawnConfig,
+};
 
 /// Reads `.git/HEAD` to detect the current branch without spawning a subprocess.
 fn detect_git_branch(cwd: &str) -> Option<String> {
@@ -46,6 +48,8 @@ struct ActiveSession {
     pub claude_session_id: Option<String>,
     /// Effort level for thinking (low, medium, high, max).
     pub effort: Option<String>,
+    /// Provider API key (stored in memory only, never persisted).
+    pub api_key: Option<String>,
 }
 
 pub struct SessionManager {
@@ -152,6 +156,7 @@ impl SessionManager {
                 session: session.clone(),
                 claude_session_id: None,
                 effort: None,
+                api_key: None,
             },
         );
         self.journal_states
@@ -160,9 +165,37 @@ impl SessionManager {
         Ok(session)
     }
 
-    /// Phase 2 (async): spawn Claude with `-p "prompt"`.
+    /// Phase 2 (async): spawn provider with `-p "prompt"`.
     /// Each message spawns a new process. Uses `--resume` for follow-ups.
     pub fn do_spawn(
+        manager: Arc<RwLock<SessionManager>>,
+        app: AppHandle,
+        session_id: SessionId,
+        prompt: String,
+    ) {
+        let provider = {
+            let m = manager.read().unwrap_or_else(|e| e.into_inner());
+            m.active
+                .get(&session_id)
+                .map(|a| a.session.provider.clone())
+                .unwrap_or_else(|| "claude-code".to_string())
+        };
+
+        match provider.as_str() {
+            "claude-code" => {
+                Self::do_spawn_claude(manager, app, session_id, prompt);
+            }
+            "codex" => {
+                Self::do_spawn_codex(manager, app, session_id, prompt);
+            }
+            _ => {
+                // Any other provider goes through opencode CLI
+                Self::do_spawn_opencode(manager, app, session_id, prompt);
+            }
+        }
+    }
+
+    fn do_spawn_claude(
         manager: Arc<RwLock<SessionManager>>,
         app: AppHandle,
         session_id: SessionId,
@@ -197,7 +230,7 @@ impl SessionManager {
             )
         };
 
-        let prompt_text = prompt.clone(); // keep a copy for the user entry
+        let prompt_text = prompt.clone();
         let config = SpawnConfig {
             session_id,
             cwd: std::path::PathBuf::from(&cwd),
@@ -225,7 +258,6 @@ impl SessionManager {
         let pid = handle.pid as i32;
         let _ = db.update_session_pid(session_id, pid);
 
-        // Monitor stderr for rate limit errors in a background thread
         let app_err = app.clone();
         let stderr_reader = handle.stderr;
         std::thread::spawn(move || {
@@ -266,7 +298,6 @@ impl SessionManager {
             }),
         );
 
-        // Emit user message entry immediately — Claude's -p flag doesn't echo it in the stream
         let user_entry = crate::models::JournalEntry {
             session_id: session_id.to_string(),
             timestamp: chrono::Utc::now().to_rfc3339(),
@@ -303,6 +334,226 @@ impl SessionManager {
             handle.reader,
             db,
             handle.child,
+            process_line,
+        );
+    }
+
+    fn do_spawn_opencode(
+        manager: Arc<RwLock<SessionManager>>,
+        app: AppHandle,
+        session_id: SessionId,
+        prompt: String,
+    ) {
+        let (db, cwd, model, extra_env, opencode_session_id) = {
+            let m = manager.read().unwrap_or_else(|e| e.into_inner());
+            let a = match m.active.get(&session_id) {
+                Some(a) => a,
+                None => {
+                    let _ = app.emit(
+                        "session:error",
+                        serde_json::json!({
+                            "sessionId": session_id,
+                            "error": "Session not found in active map"
+                        }),
+                    );
+                    return;
+                }
+            };
+            let model = a
+                .session
+                .model
+                .clone()
+                .unwrap_or_else(|| "opencode/big-pickle".to_string());
+            let provider = a.session.provider.clone();
+            // Build "provider/model" format for opencode -m flag
+            let full_model = if model.contains('/') {
+                model.clone()
+            } else {
+                format!("{provider}/{model}")
+            };
+            let mut env = vec![];
+            if let Some(ref key) = a.api_key {
+                // Infer env var name from provider
+                let var_name = format!("{}_API_KEY", provider.to_uppercase().replace('-', "_"));
+                env.push((var_name, key.clone()));
+            }
+            (
+                m.db.clone(),
+                a.session
+                    .worktree_path
+                    .clone()
+                    .or_else(|| a.session.cwd.clone())
+                    .unwrap_or_default(),
+                full_model,
+                env,
+                a.claude_session_id.clone(),
+            )
+        };
+
+        let prompt_text = prompt.clone();
+        let config = OpenCodeConfig {
+            session_id,
+            cwd: std::path::PathBuf::from(&cwd),
+            model,
+            prompt,
+            opencode_session_id: opencode_session_id.clone(),
+            extra_env,
+        };
+
+        let handle = match spawn_opencode(config) {
+            Ok(h) => h,
+            Err(e) => {
+                let _ = db.update_session_status(session_id, crate::models::SessionStatus::Error);
+                let _ = app.emit(
+                    "session:error",
+                    serde_json::json!({ "sessionId": session_id, "error": e }),
+                );
+                return;
+            }
+        };
+
+        Self::emit_spawn_started(
+            &manager,
+            &app,
+            &db,
+            session_id,
+            handle.pid as i32,
+            &prompt_text,
+        );
+
+        Self::reader_loop(
+            Arc::clone(&manager),
+            app,
+            session_id,
+            handle.reader,
+            db,
+            handle.child,
+            process_line_opencode,
+        );
+    }
+
+    fn do_spawn_codex(
+        manager: Arc<RwLock<SessionManager>>,
+        app: AppHandle,
+        session_id: SessionId,
+        prompt: String,
+    ) {
+        let (db, cwd, model) = {
+            let m = manager.read().unwrap_or_else(|e| e.into_inner());
+            let a = match m.active.get(&session_id) {
+                Some(a) => a,
+                None => {
+                    let _ = app.emit(
+                        "session:error",
+                        serde_json::json!({
+                            "sessionId": session_id,
+                            "error": "Session not found in active map"
+                        }),
+                    );
+                    return;
+                }
+            };
+            (
+                m.db.clone(),
+                a.session
+                    .worktree_path
+                    .clone()
+                    .or_else(|| a.session.cwd.clone())
+                    .unwrap_or_default(),
+                a.session.model.clone().unwrap_or_else(|| "o3".to_string()),
+            )
+        };
+
+        let prompt_text = prompt.clone();
+        let config = CodexConfig {
+            session_id,
+            cwd: std::path::PathBuf::from(&cwd),
+            model,
+            prompt,
+        };
+
+        let handle = match spawn_codex(config) {
+            Ok(h) => h,
+            Err(e) => {
+                let _ = db.update_session_status(session_id, crate::models::SessionStatus::Error);
+                let _ = app.emit(
+                    "session:error",
+                    serde_json::json!({ "sessionId": session_id, "error": e }),
+                );
+                return;
+            }
+        };
+
+        Self::emit_spawn_started(
+            &manager,
+            &app,
+            &db,
+            session_id,
+            handle.pid as i32,
+            &prompt_text,
+        );
+
+        Self::reader_loop(
+            Arc::clone(&manager),
+            app,
+            session_id,
+            handle.reader,
+            db,
+            handle.child,
+            process_line_codex,
+        );
+    }
+
+    /// Common post-spawn: set Running status, emit session:running, emit user entry.
+    fn emit_spawn_started(
+        manager: &Arc<RwLock<SessionManager>>,
+        app: &AppHandle,
+        db: &Arc<DatabaseService>,
+        session_id: SessionId,
+        pid: i32,
+        prompt_text: &str,
+    ) {
+        let _ = db.update_session_pid(session_id, pid);
+        {
+            let mut m = manager.write().unwrap_or_else(|e| e.into_inner());
+            if let Some(a) = m.active.get_mut(&session_id) {
+                a.session.status = crate::models::SessionStatus::Running;
+                a.session.pid = Some(pid);
+            }
+        }
+
+        let _ = app.emit(
+            "session:running",
+            serde_json::json!({ "sessionId": session_id, "pid": pid }),
+        );
+
+        let user_entry = crate::models::JournalEntry {
+            session_id: session_id.to_string(),
+            timestamp: chrono::Utc::now().to_rfc3339(),
+            entry_type: crate::models::JournalEntryType::User,
+            text: Some(prompt_text.to_string()),
+            ..crate::models::JournalEntry::default()
+        };
+        let user_line = serde_json::json!({
+            "type": "user",
+            "message": { "content": prompt_text },
+            "timestamp": &user_entry.timestamp
+        })
+        .to_string();
+        let _ = db.insert_output(session_id, &user_line);
+
+        {
+            let mut m = manager.write().unwrap_or_else(|e| e.into_inner());
+            let state = m.journal_states.entry(session_id).or_default();
+            state.entries.push(user_entry.clone());
+        }
+
+        let _ = app.emit(
+            "session:output",
+            SessionOutputEvent {
+                session_id,
+                entry: user_entry,
+            },
         );
     }
 
@@ -314,6 +565,7 @@ impl SessionManager {
         reader: Box<dyn std::io::Read + Send>,
         db: Arc<DatabaseService>,
         mut child: std::process::Child,
+        line_processor: fn(&mut JournalState, &str),
     ) {
         use std::io::BufRead;
         let mut reader = std::io::BufReader::new(reader);
@@ -382,7 +634,7 @@ impl SessionManager {
 
                         let prev_len = state.entries.len();
                         let prev_model = state.model.clone();
-                        process_line(state, &trimmed);
+                        line_processor(state, &trimmed);
                         let new_entries: Vec<_> = state.entries[prev_len..].to_vec();
 
                         // Persist model to DB + active session when first detected
@@ -503,6 +755,7 @@ impl SessionManager {
                         session,
                         claude_session_id,
                         effort: None,
+                        api_key: None,
                     },
                 );
                 m.journal_states.entry(session_id).or_default();
@@ -642,6 +895,12 @@ impl SessionManager {
         Ok(())
     }
 
+    pub fn set_api_key(&mut self, session_id: SessionId, api_key: String) {
+        if let Some(a) = self.active.get_mut(&session_id) {
+            a.api_key = Some(api_key);
+        }
+    }
+
     pub fn delete_session(&mut self, session_id: SessionId) -> Result<(), String> {
         self.active.remove(&session_id);
         self.journal_states.remove(&session_id);
@@ -741,7 +1000,7 @@ mod tests {
         let s = mgr
             .write()
             .unwrap()
-            .init_session("/tmp/proj", None, "ignore", None, false)
+            .init_session("/tmp/proj", None, "ignore", None, false, None)
             .expect("init failed");
         t.phase("Assert");
         t.ok("id is positive", s.id > 0);
@@ -760,7 +1019,7 @@ mod tests {
         let s = mgr
             .write()
             .unwrap()
-            .init_session("/tmp/proj", None, "ignore", None, false)
+            .init_session("/tmp/proj", None, "ignore", None, false, None)
             .expect("init failed");
         t.phase("Assert");
         t.ok(
@@ -777,7 +1036,7 @@ mod tests {
         let s = mgr
             .write()
             .unwrap()
-            .init_session("/tmp/proj", None, "ignore", None, false)
+            .init_session("/tmp/proj", None, "ignore", None, false, None)
             .expect("init failed");
         t.phase("Assert");
         t.ok(
@@ -796,7 +1055,7 @@ mod tests {
         let s = mgr
             .write()
             .unwrap()
-            .init_session("/tmp/proj", None, "ignore", None, false)
+            .init_session("/tmp/proj", None, "ignore", None, false, None)
             .expect("init failed");
         t.phase("Act");
         mgr.write()
@@ -822,7 +1081,7 @@ mod tests {
         let s = mgr
             .write()
             .unwrap()
-            .init_session("/tmp/proj", None, "ignore", None, false)
+            .init_session("/tmp/proj", None, "ignore", None, false, None)
             .expect("init failed");
         t.phase("Act");
         mgr.write()
@@ -849,7 +1108,7 @@ mod tests {
         let s = mgr
             .write()
             .unwrap()
-            .init_session("/tmp/proj", Some("old-name"), "ignore", None, false)
+            .init_session("/tmp/proj", Some("old-name"), "ignore", None, false, None)
             .expect("init failed");
         t.phase("Act");
         mgr.write()

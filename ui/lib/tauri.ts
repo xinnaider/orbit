@@ -29,6 +29,7 @@ export interface CreateSessionOptions {
   permissionMode?: 'ignore' | 'approve';
   sessionName?: string;
   useWorktree?: boolean;
+  provider?: string;
 }
 
 export async function createSession(opts: CreateSessionOptions): Promise<Session> {
@@ -39,6 +40,7 @@ export async function createSession(opts: CreateSessionOptions): Promise<Session
     permissionMode: opts.permissionMode ?? 'ignore',
     sessionName: opts.sessionName ?? null,
     useWorktree: opts.useWorktree ?? false,
+    provider: opts.provider ?? 'claude-code',
   });
 }
 
@@ -60,6 +62,35 @@ export async function updateSessionModel(sessionId: number, model: string): Prom
 
 export async function updateSessionEffort(sessionId: number, effort: string): Promise<void> {
   await invoke('update_session_effort', { sessionId, effort });
+}
+
+export async function setSessionApiKey(sessionId: number, apiKey: string): Promise<void> {
+  await invoke('set_session_api_key', { sessionId, apiKey });
+}
+
+export interface ModelInfo {
+  id: string;
+  name: string;
+  context: number | null;
+  output: number | null;
+}
+
+export interface ProviderInfo {
+  id: string;
+  name: string;
+  env: string[];
+  models: ModelInfo[];
+  configured: boolean;
+  cliAvailable: boolean;
+  cliBackend: string;
+}
+
+export async function getProviders(): Promise<ProviderInfo[]> {
+  return await invoke('get_providers');
+}
+
+export async function checkEnvVar(name: string): Promise<boolean> {
+  return await invoke('check_env_var', { name });
 }
 
 export async function getSessionJournal(sessionId: number): Promise<JournalEntry[]> {

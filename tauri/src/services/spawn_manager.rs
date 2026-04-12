@@ -231,6 +231,168 @@ pub fn spawn_claude(config: SpawnConfig) -> Result<SpawnHandle, String> {
     })
 }
 
+/// Find the full path to the opencode executable.
+pub fn find_opencode() -> Option<String> {
+    find_cli_in_path("opencode")
+}
+
+/// Find the full path to the codex executable.
+pub fn find_codex() -> Option<String> {
+    find_cli_in_path("codex")
+}
+
+/// Generic CLI lookup using augmented PATH.
+fn find_cli_in_path(name: &str) -> Option<String> {
+    let aug = extended_path();
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        let out = std::process::Command::new("where")
+            .arg(name)
+            .env("PATH", &aug)
+            .creation_flags(CREATE_NO_WINDOW)
+            .output()
+            .ok()?;
+        if out.status.success() {
+            if let Some(line) = String::from_utf8_lossy(&out.stdout).lines().next() {
+                let p = line.trim().to_string();
+                if !p.is_empty() {
+                    return Some(p);
+                }
+            }
+        }
+    }
+
+    #[cfg(not(windows))]
+    {
+        let out = std::process::Command::new("which")
+            .arg(name)
+            .env("PATH", &aug)
+            .output()
+            .ok()?;
+        if out.status.success() {
+            let p = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            if !p.is_empty() {
+                return Some(p);
+            }
+        }
+    }
+
+    None
+}
+
+pub struct OpenCodeConfig {
+    pub session_id: crate::models::SessionId,
+    pub cwd: PathBuf,
+    /// Full model string in "provider/model" format (e.g. "openrouter/anthropic/claude-sonnet-4")
+    pub model: String,
+    pub prompt: String,
+    /// OpenCode session ID for follow-ups (--continue -s <id>)
+    pub opencode_session_id: Option<String>,
+    /// Extra env vars to inject (e.g. API key overrides)
+    pub extra_env: Vec<(String, String)>,
+}
+
+pub struct CodexConfig {
+    pub session_id: crate::models::SessionId,
+    pub cwd: PathBuf,
+    pub model: String,
+    pub prompt: String,
+}
+
+/// Spawn opencode in non-interactive JSON mode.
+pub fn spawn_opencode(config: OpenCodeConfig) -> Result<SpawnHandle, String> {
+    let opencode = find_opencode()
+        .ok_or_else(|| "opencode not found — install with: npm i -g opencode".to_string())?;
+
+    let mut cmd = std::process::Command::new(&opencode);
+    cmd.args(["run", "--format", "json", "--dangerously-skip-permissions"]);
+    cmd.args(["-m", &config.model]);
+
+    if let Some(ref sid) = config.opencode_session_id {
+        cmd.args(["--continue", "-s", sid]);
+    }
+
+    cmd.arg(&config.prompt);
+
+    cmd.current_dir(&config.cwd);
+    cmd.env("PATH", extended_path());
+
+    for (k, v) in &config.extra_env {
+        cmd.env(k, v);
+    }
+
+    cmd.stdout(std::process::Stdio::piped());
+    cmd.stderr(std::process::Stdio::piped());
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| format!("spawn opencode failed: {e}"))?;
+
+    let pid = child.id();
+    let stdout = child.stdout.take().ok_or("no stdout")?;
+    let stderr = child.stderr.take().ok_or("no stderr")?;
+
+    Ok(SpawnHandle {
+        pid,
+        reader: Box::new(stdout),
+        stderr: Box::new(stderr),
+        child,
+    })
+}
+
+/// Spawn codex in non-interactive JSON mode.
+pub fn spawn_codex(config: CodexConfig) -> Result<SpawnHandle, String> {
+    let codex = find_codex()
+        .ok_or_else(|| "codex not found — install with: npm i -g @openai/codex".to_string())?;
+
+    let mut cmd = std::process::Command::new(&codex);
+    cmd.args([
+        "exec",
+        "--json",
+        "--dangerously-bypass-approvals-and-sandbox",
+    ]);
+    cmd.args(["-m", &config.model]);
+    cmd.arg(&config.prompt);
+
+    cmd.current_dir(&config.cwd);
+    cmd.env("PATH", extended_path());
+
+    cmd.stdout(std::process::Stdio::piped());
+    cmd.stderr(std::process::Stdio::piped());
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| format!("spawn codex failed: {e}"))?;
+
+    let pid = child.id();
+    let stdout = child.stdout.take().ok_or("no stdout")?;
+    let stderr = child.stderr.take().ok_or("no stderr")?;
+
+    Ok(SpawnHandle {
+        pid,
+        reader: Box::new(stdout),
+        stderr: Box::new(stderr),
+        child,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

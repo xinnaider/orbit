@@ -23,6 +23,7 @@ export interface Session {
   status: 'initializing' | 'running' | 'waiting' | 'completed' | 'stopped' | 'error';
   permissionMode: string;
   model: string | null;
+  provider: string;
   pid: number | null;
   cwd: string | null;
   projectName: string | null;

@@ -1,8 +1,14 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
+  import { onMount, createEventDispatcher } from 'svelte';
   import { open } from '@tauri-apps/plugin-dialog';
-  import { createSession, diagnoseSpawn } from '../lib/tauri';
-  import type { SpawnDiagnostic } from '../lib/tauri';
+  import {
+    createSession,
+    diagnoseSpawn,
+    setSessionApiKey,
+    getProviders,
+    checkEnvVar,
+  } from '../lib/tauri';
+  import type { SpawnDiagnostic, ProviderInfo } from '../lib/tauri';
   import { generateAgentName } from '../lib/android-names';
 
   const dispatch = createEventDispatcher();
@@ -10,6 +16,8 @@
   let path = '';
   let prompt = '';
   let model = 'auto';
+  let providerId = 'claude-code';
+  let apiKeyOverride = '';
   let loading = false;
   let error = '';
   let diagRunning = false;
@@ -19,6 +27,61 @@
   let generatedAgent = '';
   let generatedProject = '';
   let useWorktree = false;
+
+  // Provider data from backend
+  let allProviders: ProviderInfo[] = [];
+  let providerSearch = '';
+
+  // Favorites shown at top of selector
+  const FAVORITE_IDS = [
+    'claude-code',
+    'codex',
+    'openrouter',
+    'anthropic',
+    'openai',
+    'google',
+    'deepseek',
+  ];
+
+  $: selectedProvider = allProviders.find((p) => p.id === providerId) ?? null;
+  $: providerModels = selectedProvider?.models ?? [];
+  $: isClaude = providerId === 'claude-code';
+  $: needsApiKey = selectedProvider && selectedProvider.env.length > 0;
+  $: envVarName = selectedProvider?.env?.[0] ?? '';
+
+  // Filter providers for the search dropdown
+  $: favoriteProviders = allProviders.filter((p) => FAVORITE_IDS.includes(p.id));
+  $: otherProviders = allProviders.filter(
+    (p) =>
+      !FAVORITE_IDS.includes(p.id) &&
+      (providerSearch === '' || p.name.toLowerCase().includes(providerSearch.toLowerCase()))
+  );
+
+  onMount(async () => {
+    try {
+      allProviders = await getProviders();
+    } catch (e) {
+      console.warn('[NewSessionModal] getProviders failed:', e);
+    }
+  });
+
+  // Reset model when provider changes
+  $: {
+    if (selectedProvider) {
+      const first = selectedProvider.models[0];
+      model = first?.id ?? '';
+    }
+  }
+
+  // Check API key configured status when provider changes
+  let keyConfigured = false;
+  $: if (envVarName) {
+    checkEnvVar(envVarName)
+      .then((v) => (keyConfigured = v))
+      .catch(() => (keyConfigured = false));
+  } else {
+    keyConfigured = false;
+  }
 
   $: if (path) {
     const p = path.split(/[/\\]/).filter(Boolean).pop() ?? '';
@@ -44,13 +107,6 @@
     }
   }
 
-  const models = [
-    { v: 'auto', l: 'auto' },
-    { v: 'claude-sonnet-4-6', l: 'sonnet-4.6' },
-    { v: 'claude-opus-4-6', l: 'opus-4.6' },
-    { v: 'claude-haiku-4-5-20251001', l: 'haiku-4.5' },
-  ];
-
   async function browse() {
     const sel = await open({ directory: true, multiple: false });
     if (sel && typeof sel === 'string') path = sel;
@@ -61,6 +117,10 @@
       error = 'project path required';
       return;
     }
+    if (!selectedProvider?.cliAvailable) {
+      error = `${selectedProvider?.name ?? providerId} CLI not found`;
+      return;
+    }
     const agent = agentName.trim() || generatedAgent || generateAgentName();
     const project =
       projectSuffix.trim() || generatedProject || path.split(/[/\\]/).filter(Boolean).pop() || '';
@@ -68,14 +128,19 @@
     loading = true;
     error = '';
     try {
-      await createSession({
+      const session = await createSession({
         projectPath: path.trim(),
         prompt: prompt.trim() || 'Hello',
         model: model === 'auto' ? undefined : model,
         permissionMode: 'ignore',
         sessionName: finalName,
-        useWorktree,
+        useWorktree: isClaude ? useWorktree : false,
+        provider: providerId,
       });
+      // Pass API key override if provided
+      if (needsApiKey && apiKeyOverride.trim()) {
+        await setSessionApiKey(session.id, apiKeyOverride.trim());
+      }
       dispatch('done');
     } catch (e: any) {
       error = e?.message ?? String(e);
@@ -86,6 +151,18 @@
 
   function onKey(e: KeyboardEvent) {
     if (e.key === 'Escape') dispatch('cancel');
+  }
+
+  function statusIcon(p: ProviderInfo): string {
+    if (!p.cliAvailable) return '○';
+    if (p.configured || p.env.length === 0) return '●';
+    return '◐';
+  }
+
+  function statusColor(p: ProviderInfo): string {
+    if (!p.cliAvailable) return 'var(--t3)';
+    if (p.configured || p.env.length === 0) return 'var(--s-working)';
+    return 'var(--s-input)';
   }
 </script>
 
@@ -126,7 +203,7 @@
         id="ns-prompt"
         class="input textarea"
         bind:value={prompt}
-        placeholder="what should claude work on? (optional — leave blank to start interactively)"
+        placeholder="what should the agent work on? (optional)"
         rows="3"
         disabled={loading}
         on:keydown={(e) => {
@@ -135,17 +212,105 @@
       ></textarea>
     </div>
 
-    <div class="row">
-      <div class="field half">
-        <label class="label" for="ns-model">model</label>
-        <select id="ns-model" class="input select" bind:value={model} disabled={loading}>
-          {#each models as m}
-            <option value={m.v}>{m.l}</option>
-          {/each}
-        </select>
+    <!-- Provider selector -->
+    <div class="field">
+      <label class="label" for="ns-provider">provider</label>
+      <div class="provider-grid">
+        {#each favoriteProviders as p}
+          <button
+            class="provider-chip"
+            class:active={providerId === p.id}
+            class:unavailable={!p.cliAvailable}
+            disabled={loading}
+            on:click={() => (providerId = p.id)}
+            title={p.cliAvailable ? p.name : `${p.name} (CLI not installed)`}
+          >
+            <span class="chip-dot" style="color:{statusColor(p)}">{statusIcon(p)}</span>
+            <span class="chip-name">{p.name}</span>
+          </button>
+        {/each}
       </div>
+      {#if allProviders.length > FAVORITE_IDS.length}
+        <input
+          class="input provider-search"
+          bind:value={providerSearch}
+          placeholder="search providers..."
+          disabled={loading}
+        />
+        {#if providerSearch}
+          <div class="provider-results">
+            {#each otherProviders.slice(0, 12) as p}
+              <button
+                class="provider-result"
+                class:active={providerId === p.id}
+                disabled={loading || !p.cliAvailable}
+                on:click={() => {
+                  providerId = p.id;
+                  providerSearch = '';
+                }}
+              >
+                <span class="chip-dot" style="color:{statusColor(p)}">{statusIcon(p)}</span>
+                <span>{p.name}</span>
+                <span class="result-count">{p.models.length} models</span>
+              </button>
+            {/each}
+            {#if otherProviders.length === 0}
+              <div class="no-results">no providers match "{providerSearch}"</div>
+            {/if}
+          </div>
+        {/if}
+      {/if}
     </div>
 
+    <!-- Model selector -->
+    <div class="field">
+      <label class="label" for="ns-model">model</label>
+      {#if providerModels.length <= 10}
+        <select id="ns-model" class="input select" bind:value={model} disabled={loading}>
+          {#each providerModels as m}
+            <option value={m.id}>{m.name}</option>
+          {/each}
+        </select>
+      {:else}
+        <input
+          id="ns-model"
+          class="input"
+          list="model-list"
+          bind:value={model}
+          placeholder="search models..."
+          disabled={loading}
+        />
+        <datalist id="model-list">
+          {#each providerModels as m}
+            <option value={m.id}>{m.name}</option>
+          {/each}
+        </datalist>
+      {/if}
+    </div>
+
+    <!-- API Key -->
+    {#if needsApiKey}
+      <div class="field">
+        <label class="label" for="ns-apikey">
+          API Key
+          {#if keyConfigured}
+            <span class="key-hint configured">(configured via {envVarName})</span>
+          {:else}
+            <span class="key-hint">{envVarName} not set</span>
+          {/if}
+        </label>
+        <input
+          id="ns-apikey"
+          class="input"
+          type="password"
+          bind:value={apiKeyOverride}
+          placeholder={keyConfigured ? 'override (optional)' : `paste ${envVarName}...`}
+          disabled={loading}
+        />
+      </div>
+    {/if}
+
+    <!-- Session name -->
     <div class="field">
       <label class="label" for="ns-agent">apelido</label>
       <div class="nickname-row">
@@ -172,10 +337,12 @@
       {/if}
     </div>
 
-    <label class="toggle-row">
-      <input type="checkbox" bind:checked={useWorktree} disabled={loading} />
-      <span class="toggle-label">criar git worktree</span>
-    </label>
+    {#if isClaude}
+      <label class="toggle-row">
+        <input type="checkbox" bind:checked={useWorktree} disabled={loading} />
+        <span class="toggle-label">criar git worktree</span>
+      </label>
+    {/if}
 
     {#if error}
       <p class="error">! {error}</p>
@@ -191,17 +358,16 @@
         {/if}
         {#if !diag.claudeFound}
           <div class="diag-row fail">install: npm install -g @anthropic-ai/claude-code</div>
-          <div class="diag-row" style="font-size:9px;color:var(--t3)">
-            PATH: {diag.augmentedPath.slice(0, 120)}
-          </div>
         {/if}
       </div>
     {/if}
 
     <div class="actions">
-      <button class="btn ghost" on:click={runDiag} disabled={diagRunning || loading}>
-        {diagRunning ? 'testing...' : '⚙ diagnose'}
-      </button>
+      {#if isClaude}
+        <button class="btn ghost" on:click={runDiag} disabled={diagRunning || loading}>
+          {diagRunning ? 'testing...' : '⚙ diagnose'}
+        </button>
+      {/if}
       <button class="btn ghost" on:click={() => dispatch('cancel')} disabled={loading}
         >cancel</button
       >
@@ -226,8 +392,10 @@
     background: var(--bg1);
     border: 1px solid var(--bd1);
     border-radius: 4px;
-    width: 480px;
+    width: 500px;
     max-width: 94vw;
+    max-height: 90vh;
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
     gap: 14px;
@@ -263,6 +431,9 @@
     font-size: var(--xs);
     color: var(--t2);
     letter-spacing: 0.06em;
+    display: flex;
+    align-items: center;
+    gap: 6px;
   }
   .input {
     background: var(--bg2);
@@ -311,13 +482,102 @@
     color: var(--t0);
   }
 
-  .row {
+  /* Provider chips */
+  .provider-grid {
     display: flex;
-    gap: 12px;
+    flex-wrap: wrap;
+    gap: 5px;
   }
-  .half {
-    flex: 1;
+  .provider-chip {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--bg2);
+    border: 1px solid var(--bd1);
+    border-radius: 3px;
+    padding: 4px 8px;
+    font-size: var(--xs);
+    color: var(--t1);
+    cursor: pointer;
+    transition: all 0.15s;
   }
+  .provider-chip:hover {
+    border-color: var(--bd2);
+    color: var(--t0);
+  }
+  .provider-chip.active {
+    border-color: var(--ac);
+    color: var(--ac);
+    background: rgba(0, 212, 126, 0.08);
+  }
+  .provider-chip.unavailable {
+    opacity: 0.4;
+  }
+  .chip-dot {
+    font-size: 8px;
+    line-height: 1;
+  }
+  .chip-name {
+    white-space: nowrap;
+  }
+
+  .provider-search {
+    margin-top: 6px;
+    font-size: var(--xs);
+    padding: 4px 8px;
+  }
+  .provider-results {
+    display: flex;
+    flex-direction: column;
+    max-height: 180px;
+    overflow-y: auto;
+    border: 1px solid var(--bd1);
+    border-radius: 3px;
+    background: var(--bg2);
+  }
+  .provider-result {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    border: none;
+    background: none;
+    color: var(--t1);
+    font-size: var(--xs);
+    text-align: left;
+    cursor: pointer;
+    border-bottom: 1px solid var(--bd);
+  }
+  .provider-result:hover,
+  .provider-result.active {
+    background: var(--bg3);
+    color: var(--t0);
+  }
+  .provider-result:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+  .result-count {
+    margin-left: auto;
+    color: var(--t3);
+    font-size: 10px;
+  }
+  .no-results {
+    padding: 8px;
+    font-size: var(--xs);
+    color: var(--t3);
+    text-align: center;
+  }
+
+  .key-hint {
+    font-weight: normal;
+    color: var(--s-input);
+    font-size: 10px;
+  }
+  .key-hint.configured {
+    color: var(--s-working);
+  }
+
   .error {
     font-size: var(--sm);
     color: var(--s-error);

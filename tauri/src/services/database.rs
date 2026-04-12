@@ -117,7 +117,8 @@ impl DatabaseService {
                 cwd               TEXT,
                 claude_session_id TEXT,
                 created_at        TEXT NOT NULL DEFAULT (datetime('now')),
-                updated_at        TEXT NOT NULL DEFAULT (datetime('now'))
+                updated_at        TEXT NOT NULL DEFAULT (datetime('now')),
+                provider          TEXT DEFAULT 'claude-code'
             );
             -- Add claude_session_id column if upgrading from older schema
             CREATE TABLE IF NOT EXISTS _migrations (name TEXT PRIMARY KEY);

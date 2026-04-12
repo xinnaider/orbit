@@ -320,6 +320,271 @@ pub fn process_line(state: &mut JournalState, line: &str) {
     }
 }
 
+/// Process a JSONL line from OpenCode's `run --format json` output.
+pub fn process_line_opencode(state: &mut JournalState, line: &str) {
+    let val: Value = match serde_json::from_str(line) {
+        Ok(v) => v,
+        Err(_) => return,
+    };
+
+    let event_type = val.get("type").and_then(|v| v.as_str()).unwrap_or("");
+
+    match event_type {
+        "step_start" => {
+            state.status = AgentStatus::Working;
+        }
+
+        "text" => {
+            let text = val
+                .pointer("/part/text")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            if !text.is_empty() {
+                state.status = AgentStatus::Working;
+                state.entries.push(JournalEntry {
+                    entry_type: JournalEntryType::Assistant,
+                    text: Some(text.to_string()),
+                    ..JournalEntry::default()
+                });
+            }
+        }
+
+        "tool_use" => {
+            let tool = val
+                .pointer("/part/tool")
+                .and_then(|v| v.as_str())
+                .unwrap_or("tool");
+            let command = val
+                .pointer("/part/state/input/command")
+                .and_then(|v| v.as_str());
+            let description = val
+                .pointer("/part/state/input/description")
+                .and_then(|v| v.as_str());
+            let output = val.pointer("/part/state/output").and_then(|v| v.as_str());
+            let exit_code = val
+                .pointer("/part/state/metadata/exit")
+                .and_then(|v| v.as_i64());
+
+            let tool_name = match tool {
+                "bash" => "Bash",
+                "read" => "Read",
+                "edit" => "Edit",
+                "write" => "Write",
+                "grep" => "Grep",
+                "glob" => "Glob",
+                other => other,
+            };
+
+            let tool_input = command.map(|c| {
+                serde_json::json!({
+                    "command": c,
+                    "description": description.unwrap_or("")
+                })
+            });
+
+            let target = description
+                .unwrap_or_else(|| command.unwrap_or(""))
+                .to_string();
+            let target_short = if target.len() > 60 {
+                format!("{}...", &target[..60])
+            } else {
+                target
+            };
+
+            state.entries.push(JournalEntry {
+                entry_type: JournalEntryType::ToolCall,
+                tool: Some(tool_name.to_string()),
+                tool_input,
+                ..JournalEntry::default()
+            });
+
+            if let Some(out) = output {
+                state.entries.push(JournalEntry {
+                    entry_type: JournalEntryType::ToolResult,
+                    output: Some(truncate_output(out, 2000)),
+                    exit_code: exit_code.map(|c| c as i32),
+                    ..JournalEntry::default()
+                });
+            }
+
+            if state.mini_log.len() >= 4 {
+                state.mini_log.remove(0);
+            }
+            state.mini_log.push(MiniLogEntry {
+                tool: tool_name.to_string(),
+                target: target_short,
+                result: None,
+                success: exit_code.map(|c| c == 0),
+            });
+            state.pending_approval = detect_pending_approval(&state.entries);
+        }
+
+        "step_finish" => {
+            let reason = val
+                .pointer("/part/reason")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+
+            if let Some(tokens) = val.pointer("/part/tokens") {
+                state.input_tokens = tokens.get("input").and_then(|v| v.as_u64()).unwrap_or(0);
+                state.output_tokens = tokens.get("output").and_then(|v| v.as_u64()).unwrap_or(0);
+                state.cache_write = tokens
+                    .pointer("/cache/write")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0);
+                state.cache_read = tokens
+                    .pointer("/cache/read")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0);
+            }
+
+            if reason == "stop" {
+                state.status = AgentStatus::Idle;
+            }
+        }
+
+        "error" => {
+            let msg = val
+                .pointer("/error/data/message")
+                .or_else(|| val.pointer("/error/name"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("Unknown error");
+            state.entries.push(JournalEntry {
+                entry_type: JournalEntryType::System,
+                text: Some(format!("Error: {msg}")),
+                ..JournalEntry::default()
+            });
+            state.status = AgentStatus::Idle;
+        }
+
+        _ => {}
+    }
+}
+
+/// Process a JSONL line from Codex's `exec --json` output.
+pub fn process_line_codex(state: &mut JournalState, line: &str) {
+    let val: Value = match serde_json::from_str(line) {
+        Ok(v) => v,
+        Err(_) => return,
+    };
+
+    let event_type = val.get("type").and_then(|v| v.as_str()).unwrap_or("");
+
+    match event_type {
+        "turn.started" => {
+            state.status = AgentStatus::Working;
+        }
+
+        "item.completed" | "item.started" => {
+            let item_type = val
+                .pointer("/item/type")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+
+            match item_type {
+                "agent_message" => {
+                    let text = val
+                        .pointer("/item/text")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("");
+                    if !text.is_empty() {
+                        state.entries.push(JournalEntry {
+                            entry_type: JournalEntryType::Assistant,
+                            text: Some(text.to_string()),
+                            ..JournalEntry::default()
+                        });
+                    }
+                }
+
+                "command_execution" => {
+                    let command = val
+                        .pointer("/item/command")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("");
+                    let status = val
+                        .pointer("/item/status")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("");
+                    let output = val
+                        .pointer("/item/aggregated_output")
+                        .and_then(|v| v.as_str());
+                    let exit_code = val.pointer("/item/exit_code").and_then(|v| v.as_i64());
+
+                    if event_type == "item.started" || status == "in_progress" {
+                        state.entries.push(JournalEntry {
+                            entry_type: JournalEntryType::ToolCall,
+                            tool: Some("Bash".to_string()),
+                            tool_input: Some(serde_json::json!({ "command": command })),
+                            ..JournalEntry::default()
+                        });
+                    } else if status == "completed" {
+                        let has_pending_call = state
+                            .entries
+                            .last()
+                            .is_some_and(|e| e.entry_type == JournalEntryType::ToolCall);
+
+                        if !has_pending_call {
+                            state.entries.push(JournalEntry {
+                                entry_type: JournalEntryType::ToolCall,
+                                tool: Some("Bash".to_string()),
+                                tool_input: Some(serde_json::json!({ "command": command })),
+                                ..JournalEntry::default()
+                            });
+                        }
+
+                        if let Some(out) = output {
+                            state.entries.push(JournalEntry {
+                                entry_type: JournalEntryType::ToolResult,
+                                output: Some(truncate_output(out, 2000)),
+                                exit_code: exit_code.map(|c| c as i32),
+                                ..JournalEntry::default()
+                            });
+                        }
+
+                        let target = if command.len() > 60 {
+                            format!("{}...", &command[..60])
+                        } else {
+                            command.to_string()
+                        };
+
+                        if state.mini_log.len() >= 4 {
+                            state.mini_log.remove(0);
+                        }
+                        state.mini_log.push(MiniLogEntry {
+                            tool: "Bash".to_string(),
+                            target,
+                            result: None,
+                            success: exit_code.map(|c| c == 0),
+                        });
+                    }
+                    state.pending_approval = detect_pending_approval(&state.entries);
+                }
+                _ => {}
+            }
+        }
+
+        "turn.completed" => {
+            if let Some(usage) = val.get("usage") {
+                state.input_tokens = usage
+                    .get("input_tokens")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0);
+                state.output_tokens = usage
+                    .get("output_tokens")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0);
+                state.cache_read = usage
+                    .get("cached_input_tokens")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0);
+            }
+            state.status = AgentStatus::Idle;
+        }
+
+        _ => {}
+    }
+}
+
 #[cfg(test)]
 mod process_line_tests {
     use super::*;

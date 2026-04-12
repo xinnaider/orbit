@@ -4,6 +4,16 @@
 
 ## April 2026
 
+### 04/12 · New — Multi-provider support (OpenCode + Codex)
+
+You can now create sessions with any AI provider — not just Claude Code.
+The new session dialog shows a provider selector with favorites (Claude Code,
+Codex, OpenRouter, Anthropic, OpenAI, Google, DeepSeek) and a search bar for
+100+ additional providers. Models populate automatically for each provider.
+API keys are read from environment variables when available, with an option to
+override in the dialog. Sessions powered by OpenCode or Codex stream output
+in real time, just like Claude Code sessions.
+
 ### 04/09 · New — Sub-agents monitor tab
 
 When a session spawns sub-agents, they now appear in the "Sub-agents" tab on the right panel, grouped by Running and Completed. Click any agent to inspect its full conversation log in a modal. The list updates automatically as the session progresses, and a refresh button fetches the latest state on demand.
