@@ -122,8 +122,8 @@ export async function getSubagents(sessionId: number): Promise<SubagentInfo[]> {
   return await invoke('get_subagents', { sessionId });
 }
 
-export async function getSlashCommands(): Promise<SlashCommand[]> {
-  return await invoke('get_slash_commands');
+export async function getSlashCommands(provider?: string): Promise<SlashCommand[]> {
+  return await invoke('get_slash_commands', { provider: provider ?? null });
 }
 
 export async function listProjectFiles(cwd: string): Promise<string[]> {

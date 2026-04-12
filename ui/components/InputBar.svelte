@@ -113,16 +113,11 @@
   onDestroy(() => clearInterval(hintTimer));
 
   onMount(async () => {
-    // Remote slash commands only apply to Claude Code sessions
-    if (provider === 'claude-code') {
-      try {
-        const remote = await getSlashCommands();
-        const blocked = new Set([...INTERACTIVE_CMDS, '/model']);
-        commands = [...effectiveCommands, ...remote.filter((c) => !blocked.has(c.cmd))];
-      } catch (_e) {
-        commands = [...effectiveCommands];
-      }
-    } else {
+    try {
+      const remote = await getSlashCommands(provider);
+      const blocked = new Set([...INTERACTIVE_CMDS, '/model', '/effort']);
+      commands = [...effectiveCommands, ...remote.filter((c) => !blocked.has(c.cmd))];
+    } catch (_e) {
       commands = [...effectiveCommands];
     }
   });

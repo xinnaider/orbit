@@ -110,7 +110,16 @@ fn scan_plugin(install_path: &Path, plugin_name: &str, out: &mut Vec<SlashComman
 }
 
 #[tauri::command]
-pub fn get_slash_commands() -> Vec<SlashCommand> {
+pub fn get_slash_commands(provider: Option<String>) -> Vec<SlashCommand> {
+    let backend = provider.as_deref().unwrap_or("claude-code");
+    match backend {
+        "codex" => get_codex_commands(),
+        "claude-code" => get_claude_commands(),
+        _ => get_opencode_commands(),
+    }
+}
+
+fn get_claude_commands() -> Vec<SlashCommand> {
     let mut result: Vec<SlashCommand> = Vec::new();
 
     let builtins = [
@@ -144,39 +153,128 @@ pub fn get_slash_commands() -> Vec<SlashCommand> {
         None => return result,
     };
 
+    // Claude plugins from installed_plugins.json
     let plugins_file = home
         .join(".claude")
         .join("plugins")
         .join("installed_plugins.json");
-    let content = match std::fs::read_to_string(&plugins_file) {
-        Ok(c) => c,
-        Err(_) => return result,
-    };
-
-    let json: serde_json::Value = match serde_json::from_str(&content) {
-        Ok(v) => v,
-        Err(_) => return result,
-    };
-
-    if let Some(plugins) = json.get("plugins").and_then(|p| p.as_object()) {
-        for (key, entries) in plugins {
-            // key format: "superpowers@claude-plugins-official"
-            let plugin_name = key.split('@').next().unwrap_or(key);
-            if let Some(arr) = entries.as_array() {
-                for entry in arr {
-                    if let Some(install_path) = entry.get("installPath").and_then(|p| p.as_str()) {
-                        scan_plugin(Path::new(install_path), plugin_name, &mut result);
+    if let Ok(content) = std::fs::read_to_string(&plugins_file) {
+        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+            if let Some(plugins) = json.get("plugins").and_then(|p| p.as_object()) {
+                for (key, entries) in plugins {
+                    let plugin_name = key.split('@').next().unwrap_or(key);
+                    if let Some(arr) = entries.as_array() {
+                        for entry in arr {
+                            if let Some(path) = entry.get("installPath").and_then(|p| p.as_str()) {
+                                scan_plugin(Path::new(path), plugin_name, &mut result);
+                            }
+                        }
                     }
                 }
             }
         }
     }
 
-    // Deduplicate by cmd (keep first occurrence — built-ins win)
+    dedup_commands(&mut result);
+    result
+}
+
+fn get_codex_commands() -> Vec<SlashCommand> {
+    let mut result: Vec<SlashCommand> = Vec::new();
+
+    // Codex built-in commands
+    let builtins = [("/model", "Switch model"), ("/help", "Show help")];
+    for (cmd, desc) in builtins {
+        result.push(SlashCommand {
+            cmd: cmd.to_string(),
+            desc: desc.to_string(),
+            category: "built-in".to_string(),
+        });
+    }
+
+    // Codex skills from ~/.agents/skills/
+    if let Some(home) = dirs::home_dir() {
+        let skills_dir = home.join(".agents").join("skills");
+        if let Ok(entries) = std::fs::read_dir(&skills_dir) {
+            for entry in entries.flatten() {
+                let skill_file = entry.path().join("SKILL.md");
+                if skill_file.exists() {
+                    if let Ok(content) = std::fs::read_to_string(&skill_file) {
+                        let name = frontmatter_field(&content, "name")
+                            .unwrap_or_else(|| entry.file_name().to_string_lossy().to_string());
+                        let desc = frontmatter_field(&content, "description").unwrap_or_default();
+                        let desc_short = truncate_desc(&desc, 77);
+                        result.push(SlashCommand {
+                            cmd: format!("/{name}"),
+                            desc: desc_short,
+                            category: "skill".to_string(),
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    dedup_commands(&mut result);
+    result
+}
+
+fn get_opencode_commands() -> Vec<SlashCommand> {
+    let mut result: Vec<SlashCommand> = Vec::new();
+
+    // OpenCode built-in commands
+    let builtins = [
+        ("/model", "Switch model"),
+        ("/help", "Show help"),
+        ("/compact", "Compact conversation context"),
+        ("/clear", "Clear conversation"),
+        ("/cost", "Show token usage and cost"),
+    ];
+    for (cmd, desc) in builtins {
+        result.push(SlashCommand {
+            cmd: cmd.to_string(),
+            desc: desc.to_string(),
+            category: "built-in".to_string(),
+        });
+    }
+
+    // OpenCode plugins from ~/.config/opencode/node_modules/
+    // Plugins follow the same SKILL.md frontmatter format
+    if let Some(home) = dirs::home_dir() {
+        let plugins_dir = home.join(".config").join("opencode").join("node_modules");
+        if let Ok(entries) = std::fs::read_dir(&plugins_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                // Scan scoped packages (@opencode-ai/plugin)
+                if path
+                    .file_name()
+                    .is_some_and(|n| n.to_string_lossy().starts_with('@'))
+                {
+                    if let Ok(sub) = std::fs::read_dir(&path) {
+                        for pkg in sub.flatten() {
+                            let pkg_name = pkg.file_name().to_string_lossy().to_string();
+                            scan_plugin(&pkg.path(), &pkg_name, &mut result);
+                        }
+                    }
+                } else {
+                    let pkg_name = path
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string();
+                    scan_plugin(&path, &pkg_name, &mut result);
+                }
+            }
+        }
+    }
+
+    dedup_commands(&mut result);
+    result
+}
+
+fn dedup_commands(result: &mut Vec<SlashCommand>) {
     let mut seen = std::collections::HashSet::new();
     result.retain(|c| seen.insert(c.cmd.clone()));
-
-    result
 }
 
 #[cfg(test)]
