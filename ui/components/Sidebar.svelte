@@ -6,7 +6,7 @@
   import ContextMenu from './ContextMenu.svelte';
   import RenameSessionModal from './RenameSessionModal.svelte';
   import { deleteSession, stopSession, getAppVersion } from '../lib/tauri';
-  import { mutedSessions } from '../lib/stores/ui';
+  import { mutedSessions, sessionEffort } from '../lib/stores/ui';
   import { sidebarVisible } from '../lib/stores/preferences';
   import { modelDisplayName } from '../lib/status';
   import { onMount } from 'svelte';
@@ -211,6 +211,8 @@
           </div>
           <div class="item-meta">
             <span>{fmtModel(s.model)}</span>
+            <span class="sep">·</span>
+            <span>{sessionEffort.get($sessionEffort, String(s.id))}</span>
             <span class="sep">·</span>
             <span>{fmtTokens(s)}</span>
             {#if s.pendingApproval}

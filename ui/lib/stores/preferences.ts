@@ -1,5 +1,4 @@
 import { writable } from 'svelte/store';
-import type { DetailLevel, RightPanelTab } from '../types';
 
 export const THEME_OPTIONS = ['dark', 'light', 'nord', 'dracula', 'catppuccin'] as const;
 export type Theme = (typeof THEME_OPTIONS)[number];
@@ -82,7 +81,5 @@ function createSidebarVisibleStore() {
 }
 
 export const theme = createThemeStore();
-export const detailLevel = writable<DetailLevel>('full');
-export const rightPanelTab = writable<RightPanelTab>('agents');
 export const metaPanelVisible = createMetaPanelVisibleStore();
 export const sidebarVisible = createSidebarVisibleStore();
