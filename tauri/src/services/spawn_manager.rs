@@ -324,7 +324,8 @@ pub fn spawn_opencode(config: OpenCodeConfig) -> Result<SpawnHandle, String> {
         .ok_or_else(|| "opencode not found — install with: npm i -g opencode".to_string())?;
 
     let mut cmd = std::process::Command::new(&opencode);
-    cmd.args(["run", "--format", "json", "--dangerously-skip-permissions"]);
+    cmd.args(["run", "--format", "json"]);
+    cmd.args(["--dir", &config.cwd.to_string_lossy()]);
     cmd.args(["-m", &config.model]);
 
     if let Some(ref sid) = config.opencode_session_id {
@@ -332,8 +333,6 @@ pub fn spawn_opencode(config: OpenCodeConfig) -> Result<SpawnHandle, String> {
     }
 
     cmd.arg(&config.prompt);
-
-    cmd.current_dir(&config.cwd);
     cmd.env("PATH", extended_path());
 
     for (k, v) in &config.extra_env {
@@ -372,19 +371,28 @@ pub fn spawn_codex(config: CodexConfig) -> Result<SpawnHandle, String> {
         .ok_or_else(|| "codex not found — install with: npm i -g @openai/codex".to_string())?;
 
     let mut cmd = std::process::Command::new(&codex);
-    cmd.args([
-        "exec",
-        "--json",
-        "--dangerously-bypass-approvals-and-sandbox",
-    ]);
-    cmd.args(["-m", &config.model]);
 
     if let Some(ref sid) = config.codex_session_id {
-        // Resume a previous Codex session
-        cmd.args(["--session", sid]);
+        // Resume: codex exec resume <thread_id> "prompt"
+        cmd.args([
+            "exec",
+            "resume",
+            "--json",
+            "--dangerously-bypass-approvals-and-sandbox",
+        ]);
+        cmd.args(["-m", &config.model]);
+        cmd.arg(sid);
+        cmd.arg(&config.prompt);
+    } else {
+        // New session: codex exec --json "prompt"
+        cmd.args([
+            "exec",
+            "--json",
+            "--dangerously-bypass-approvals-and-sandbox",
+        ]);
+        cmd.args(["-m", &config.model]);
+        cmd.arg(&config.prompt);
     }
-
-    cmd.arg(&config.prompt);
 
     cmd.current_dir(&config.cwd);
     cmd.env("PATH", extended_path());
