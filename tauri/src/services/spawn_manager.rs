@@ -256,11 +256,25 @@ fn find_cli_in_path(name: &str) -> Option<String> {
             .output()
             .ok()?;
         if out.status.success() {
-            if let Some(line) = String::from_utf8_lossy(&out.stdout).lines().next() {
-                let p = line.trim().to_string();
-                if !p.is_empty() {
-                    return Some(p);
-                }
+            // `where` may return multiple lines. On Windows, prefer .cmd/.exe
+            // over extensionless shell scripts (which cause "not a valid Win32
+            // application" errors).
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            let lines: Vec<&str> = stdout
+                .lines()
+                .map(|l| l.trim())
+                .filter(|l| !l.is_empty())
+                .collect();
+            // First try .cmd or .exe
+            if let Some(win) = lines.iter().find(|l| {
+                let lower = l.to_lowercase();
+                lower.ends_with(".cmd") || lower.ends_with(".exe")
+            }) {
+                return Some(win.to_string());
+            }
+            // Fallback to first result
+            if let Some(first) = lines.first() {
+                return Some(first.to_string());
             }
         }
     }
