@@ -180,10 +180,7 @@ pub fn model_display_name(model_id: &str) -> &str {
     match model_id {
         "claude-opus-4-6" => "Opus 4.6",
         "claude-sonnet-4-6" => "Sonnet 4.6",
-        "claude-sonnet-4-5-20250514" => "Sonnet 4.5",
         "claude-haiku-4-5-20251001" => "Haiku 4.5",
-        "claude-opus-4-20250514" => "Opus 4",
-        "claude-sonnet-4-20250514" => "Sonnet 4",
         _ => model_id,
     }
 }

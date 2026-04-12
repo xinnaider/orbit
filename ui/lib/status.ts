@@ -67,10 +67,7 @@ export function isPulsing(status: string): boolean {
 const MODEL_NAMES: Record<string, string> = {
   'claude-opus-4-6': 'Opus 4.6',
   'claude-sonnet-4-6': 'Sonnet 4.6',
-  'claude-sonnet-4-5-20250514': 'Sonnet 4.5',
   'claude-haiku-4-5-20251001': 'Haiku 4.5',
-  'claude-opus-4-20250514': 'Opus 4',
-  'claude-sonnet-4-20250514': 'Sonnet 4',
 };
 
 export function modelDisplayName(modelId: string | null): string {

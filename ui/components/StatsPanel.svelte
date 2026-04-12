@@ -4,6 +4,7 @@
   import { formatTokens } from '../lib/cost';
   import { getClaudeUsageStats, type ClaudeUsageStats } from '../lib/tauri';
   import { modelDisplayName } from '../lib/status';
+  import { sessionEffort } from '../lib/stores/ui';
 
   export let session: Session;
 
@@ -59,6 +60,10 @@
   <div class="stat-row">
     <span class="label">Model</span>
     <span class="value">{modelDisplayName(session.model)}</span>
+  </div>
+  <div class="stat-row">
+    <span class="label">Effort</span>
+    <span class="value">{sessionEffort.get($sessionEffort, String(session.id))}</span>
   </div>
   {#if usage}
     <div class="usage-section">

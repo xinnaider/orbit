@@ -1,8 +1,19 @@
 <script lang="ts">
   import { onMount, onDestroy, tick } from 'svelte';
-  import { sendSessionMessage, getSlashCommands, listProjectFiles } from '../lib/tauri';
+  import {
+    sendSessionMessage,
+    getSlashCommands,
+    listProjectFiles,
+    updateSessionModel,
+    updateSessionEffort,
+  } from '../lib/tauri';
+  import { sessions, updateSessionState } from '../lib/stores/sessions';
+  import { journal } from '../lib/stores/journal';
   import { pendingMessages } from '../lib/stores/journal';
+  import { modelDisplayName } from '../lib/status';
+  import { sessionEffort } from '../lib/stores/ui';
   import type { SlashCommand } from '../lib/types';
+  import type { JournalEntry } from '../lib/types';
 
   export let sessionId: number;
   export let cwd: string = '';
@@ -19,7 +30,43 @@
   let sendError = '';
 
   // Commands that require an interactive TTY — sending them kills the session.
-  const INTERACTIVE_CMDS = new Set(['/model', '/mcp', '/login', '/logout', '/init', '/doctor']);
+  const INTERACTIVE_CMDS = new Set(['/mcp', '/login', '/logout', '/init', '/doctor']);
+
+  const MODEL_ALIASES: Record<string, string> = {
+    opus: 'claude-opus-4-6',
+    sonnet: 'claude-sonnet-4-6',
+    haiku: 'claude-haiku-4-5-20251001',
+  };
+  const MODEL_OPTIONS = Object.keys(MODEL_ALIASES);
+  const EFFORT_LEVELS = ['low', 'medium', 'high', 'max'];
+
+  // Orbit-native commands added to suggestions
+  const ORBIT_COMMANDS: SlashCommand[] = [
+    { cmd: '/model', desc: 'Switch model (opus, sonnet, haiku)', category: 'orbit' },
+
+    { cmd: '/effort', desc: 'Set thinking effort (low, medium, high, max)', category: 'orbit' },
+  ];
+
+  function emitSystemEntry(msg: string) {
+    const entry: JournalEntry = {
+      sessionId: String(sessionId),
+      timestamp: new Date().toISOString(),
+      entryType: 'system',
+      text: msg,
+      thinking: null,
+      thinkingDuration: null,
+      tool: null,
+      toolInput: null,
+      output: null,
+      exitCode: null,
+      linesChanged: null,
+    };
+    journal.update((map) => {
+      const next = new Map(map);
+      next.set(sessionId, [...(next.get(sessionId) ?? []), entry]);
+      return next;
+    });
+  }
 
   const hints = [
     'Orbit keeps all your Claude agents in sync — one dashboard, infinite sessions',
@@ -49,9 +96,11 @@
 
   onMount(async () => {
     try {
-      commands = await getSlashCommands();
+      const remote = await getSlashCommands();
+      const blocked = new Set([...INTERACTIVE_CMDS, '/model']);
+      commands = [...ORBIT_COMMANDS, ...remote.filter((c) => !blocked.has(c.cmd))];
     } catch (_e) {
-      /* no-op */
+      commands = [...ORBIT_COMMANDS];
     }
   });
 
@@ -70,13 +119,35 @@
       .catch((e) => console.warn('[InputBar] listProjectFiles failed:', e));
   }
 
-  $: suggestions = text.startsWith('/')
-    ? text.length === 1
-      ? commands.slice(0, 8)
-      : commands.filter((c) => c.cmd.toLowerCase().includes(text.toLowerCase())).slice(0, 8)
-    : [];
+  // Sub-options for /model and /effort
+  let subOptions: string[] = [];
+  $: {
+    const lower = text.toLowerCase();
+    if (lower.startsWith('/model ')) {
+      const arg = lower.slice(7);
+      subOptions = MODEL_OPTIONS.filter((o) => o.startsWith(arg));
+    } else if (lower.startsWith('/effort ')) {
+      const arg = lower.slice(8);
+      subOptions = EFFORT_LEVELS.filter((o) => o.startsWith(arg));
+    } else {
+      subOptions = [];
+    }
+  }
+  $: showSubOptions = subOptions.length > 0;
+
+  $: suggestions =
+    subOptions.length > 0
+      ? []
+      : text.startsWith('/')
+        ? text.length === 1
+          ? commands.slice(0, 8)
+          : commands.filter((c) => c.cmd.toLowerCase().includes(text.toLowerCase())).slice(0, 8)
+        : [];
   $: showSuggestions = suggestions.length > 0;
   $: if (selIdx >= suggestions.length) selIdx = 0;
+
+  let subSelIdx = 0;
+  $: if (subSelIdx >= subOptions.length) subSelIdx = 0;
 
   function atQuery(): string | null {
     if (!textarea) return null;
@@ -112,9 +183,43 @@
     if (!msg) return;
 
     const cmd = msg.split(/\s/)[0].toLowerCase();
+
     if (INTERACTIVE_CMDS.has(cmd)) {
       sendError = `${cmd} requires interactive input and is not supported inside Orbit`;
       setTimeout(() => (sendError = ''), 5000);
+      return;
+    }
+
+    // Intercept /model
+    if (cmd === '/model') {
+      const arg = msg.slice(6).trim().toLowerCase();
+      if (!arg) {
+        sendError = `Usage: /model <name> (${MODEL_OPTIONS.join(', ')})`;
+        setTimeout(() => (sendError = ''), 5000);
+        return;
+      }
+      const resolved = MODEL_ALIASES[arg] ?? arg;
+      text = '';
+      if (textarea) textarea.style.height = 'auto';
+      await updateSessionModel(sessionId, resolved);
+      sessions.update((l) => updateSessionState(l, sessionId, { model: resolved }));
+      emitSystemEntry(`Model changed to ${modelDisplayName(resolved)}`);
+      return;
+    }
+
+    // Intercept /effort
+    if (cmd === '/effort') {
+      const arg = msg.slice(7).trim().toLowerCase();
+      if (!arg || !EFFORT_LEVELS.includes(arg)) {
+        sendError = `Usage: /effort <level> (${EFFORT_LEVELS.join(', ')})`;
+        setTimeout(() => (sendError = ''), 5000);
+        return;
+      }
+      text = '';
+      if (textarea) textarea.style.height = 'auto';
+      await updateSessionEffort(sessionId, arg);
+      sessionEffort.set(String(sessionId), arg);
+      emitSystemEntry(`Effort level changed to ${arg}`);
       return;
     }
 
@@ -136,6 +241,13 @@
     textarea?.focus();
   }
 
+  function selectSubOption(opt: string) {
+    const cmd = text.toLowerCase().startsWith('/model') ? '/model' : '/effort';
+    text = cmd + ' ' + opt;
+    subOptions = [];
+    send();
+  }
+
   function selectFile(f: string) {
     if (!textarea) return;
     const pos = textarea.selectionStart;
@@ -152,6 +264,27 @@
   }
 
   function onKey(e: KeyboardEvent) {
+    if (showSubOptions) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        subSelIdx = (subSelIdx + 1) % subOptions.length;
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        subSelIdx = (subSelIdx - 1 + subOptions.length) % subOptions.length;
+        return;
+      }
+      if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) {
+        e.preventDefault();
+        selectSubOption(subOptions[subSelIdx]);
+        return;
+      }
+      if (e.key === 'Escape') {
+        subOptions = [];
+        return;
+      }
+    }
     if (showFiles) {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
@@ -222,7 +355,15 @@
     <div class="send-error">! {sendError}</div>
   {/if}
   <!-- Autocomplete dropdowns -->
-  {#if showFiles || showSuggestions}
+  {#if showSubOptions}
+    <div class="dropdown">
+      {#each subOptions as opt, i}
+        <button class="drop-item" class:sel={i === subSelIdx} on:click={() => selectSubOption(opt)}>
+          <span class="drop-main">{opt}</span>
+        </button>
+      {/each}
+    </div>
+  {:else if showFiles || showSuggestions}
     <div class="dropdown">
       {#if showFiles}
         {#each fileSuggestions as f, i}

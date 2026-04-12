@@ -377,8 +377,17 @@ impl SessionManager {
                         let state = m.journal_states.entry(session_id).or_default();
 
                         let prev_len = state.entries.len();
+                        let prev_model = state.model.clone();
                         process_line(state, &trimmed);
                         let new_entries: Vec<_> = state.entries[prev_len..].to_vec();
+
+                        // Persist model to DB + active session when first detected
+                        let model_changed = state.model != prev_model;
+                        let detected_model = if model_changed {
+                            state.model.clone()
+                        } else {
+                            None
+                        };
 
                         let window = state
                             .model
@@ -415,6 +424,13 @@ impl SessionManager {
                             subagents,
                             model: state.model.clone(),
                         };
+                        if let Some(ref model) = detected_model {
+                            let _ = db.update_session_model(session_id, model);
+                            if let Some(a) = m.active.get_mut(&session_id) {
+                                a.session.model = Some(model.clone());
+                            }
+                        }
+
                         (new_entries, event)
                     };
 
