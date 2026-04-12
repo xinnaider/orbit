@@ -45,6 +45,7 @@ pub fn create_session(
             &mode,
             model.as_deref(),
             use_worktree.unwrap_or(false),
+            None,
         )?
     };
 

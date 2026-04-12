@@ -235,7 +235,7 @@ impl DatabaseService {
         let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         let mut stmt = conn.prepare(
             "SELECT id, project_id, name, status, worktree_path, branch_name,
-                    permission_mode, model, pid, cwd, created_at, updated_at
+                    permission_mode, model, pid, cwd, created_at, updated_at, provider
              FROM sessions ORDER BY created_at DESC",
         )?;
         let sessions = stmt
@@ -253,6 +253,9 @@ impl DatabaseService {
                     created_at: row.get(10)?,
                     updated_at: row.get(11)?,
                     cwd: row.get(9)?,
+                    provider: row
+                        .get::<_, Option<String>>(12)?
+                        .unwrap_or_else(|| "claude-code".to_string()),
                     project_name: None,
                     git_branch: None,
                     tokens: None,
@@ -269,7 +272,8 @@ impl DatabaseService {
         let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         let mut stmt = conn.prepare(
             "SELECT id, project_id, name, status, worktree_path, branch_name,
-                    permission_mode, model, pid, cwd, created_at, updated_at
+                    permission_mode, model, pid, cwd, created_at, updated_at,
+                    provider
              FROM sessions WHERE id = ?1",
         )?;
         let session = stmt
@@ -283,6 +287,9 @@ impl DatabaseService {
                     branch_name: row.get(5)?,
                     permission_mode: row.get(6)?,
                     model: row.get(7)?,
+                    provider: row
+                        .get::<_, Option<String>>(12)?
+                        .unwrap_or_else(|| "claude-code".to_string()),
                     pid: row.get(8)?,
                     created_at: row.get(10)?,
                     updated_at: row.get(11)?,

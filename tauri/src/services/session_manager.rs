@@ -71,6 +71,7 @@ impl SessionManager {
         permission_mode: &str,
         model: Option<&str>,
         use_worktree: bool,
+        provider: Option<&str>,
     ) -> Result<Session, String> {
         let project_name = std::path::Path::new(project_path)
             .file_name()
@@ -90,7 +91,7 @@ impl SessionManager {
                 project_path,
                 permission_mode,
                 model,
-                None,
+                provider,
             )
             .map_err(|e| e.to_string())?;
 
@@ -132,6 +133,7 @@ impl SessionManager {
             branch_name: branch_name_val,
             permission_mode: permission_mode.to_string(),
             model: model.map(|s| s.to_string()),
+            provider: provider.unwrap_or("claude-code").to_string(),
             pid: None,
             created_at: now.clone(),
             updated_at: now,

@@ -291,6 +291,7 @@ pub struct Session {
     pub branch_name: Option<String>,
     pub permission_mode: String,
     pub model: Option<String>,
+    pub provider: String,
     pub pid: Option<i32>,
     pub created_at: String,
     pub updated_at: String,
