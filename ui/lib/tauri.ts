@@ -136,6 +136,7 @@ export interface SessionStatePayload {
   gitBranch: string | null;
   subagents: SubagentInfo[];
   model: string | null;
+  contextWindow: number | null;
 }
 
 export function onSessionCreated(cb: (session: Session) => void) {

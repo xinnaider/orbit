@@ -31,6 +31,7 @@ export interface Session {
   branchName: string | null;
   tokens: TokenUsage | null;
   contextPercent: number | null;
+  contextWindow?: number | null;
   pendingApproval: string | null;
   miniLog: MiniLogEntry[] | null;
   subagents?: SubagentInfo[];

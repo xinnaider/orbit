@@ -36,6 +36,7 @@ pub struct SessionStateEvent {
     pub git_branch: Option<String>,
     pub subagents: Vec<crate::models::SubagentInfo>,
     pub model: Option<String>,
+    pub context_window: Option<u64>,
 }
 
 struct ActiveSession {
@@ -389,11 +390,13 @@ impl SessionManager {
                             None
                         };
 
-                        let window = state
-                            .model
-                            .as_deref()
-                            .map(crate::models::context_window)
-                            .unwrap_or(200_000);
+                        let window = state.context_window.unwrap_or_else(|| {
+                            state
+                                .model
+                                .as_deref()
+                                .map(crate::models::context_window)
+                                .unwrap_or(200_000)
+                        });
                         let total = state.input_tokens + state.output_tokens;
 
                         let status_str = match state.status {
@@ -423,6 +426,7 @@ impl SessionManager {
                             git_branch,
                             subagents,
                             model: state.model.clone(),
+                            context_window: state.context_window.or(Some(window)),
                         };
                         if let Some(ref model) = detected_model {
                             let _ = db.update_session_model(session_id, model);
@@ -528,11 +532,13 @@ impl SessionManager {
         for s in &mut sessions {
             self.load_session_journal(s.id);
             if let Some(state) = self.journal_states.get(&s.id) {
-                let window = state
-                    .model
-                    .as_deref()
-                    .map(crate::models::context_window)
-                    .unwrap_or(200_000);
+                let window = state.context_window.unwrap_or_else(|| {
+                    state
+                        .model
+                        .as_deref()
+                        .map(crate::models::context_window)
+                        .unwrap_or(200_000)
+                });
                 let total = state.input_tokens + state.output_tokens;
                 s.tokens = Some(TokenUsage {
                     input: state.input_tokens,

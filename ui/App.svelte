@@ -122,6 +122,7 @@
           gitBranch: p.gitBranch ?? null,
           subagents: p.subagents,
           model: p.model ?? undefined,
+          contextWindow: p.contextWindow ?? undefined,
         })
       );
     });

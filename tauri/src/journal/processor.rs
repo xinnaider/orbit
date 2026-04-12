@@ -303,6 +303,17 @@ pub fn process_line(state: &mut JournalState, line: &str) {
 
         "result" => {
             state.status = AgentStatus::Idle;
+            // Extract contextWindow from modelUsage in result message
+            if let Ok(val) = serde_json::from_str::<serde_json::Value>(trimmed) {
+                if let Some(model_usage) = val.get("modelUsage").and_then(|v| v.as_object()) {
+                    for (_model, info) in model_usage {
+                        if let Some(cw) = info.get("contextWindow").and_then(|v| v.as_u64()) {
+                            state.context_window = Some(cw);
+                            break;
+                        }
+                    }
+                }
+            }
         }
 
         _ => {}

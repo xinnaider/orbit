@@ -1,8 +1,7 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
   import type { Session } from '../lib/stores/sessions';
   import { formatTokens } from '../lib/cost';
-  import { stopSession, getSubagents, getRateLimits, type RateLimits } from '../lib/tauri';
+  import { stopSession, getSubagents } from '../lib/tauri';
   import { isActive, modelDisplayName } from '../lib/status';
   import { sessionEffort } from '../lib/stores/ui';
   import { metaPanelVisible } from '../lib/stores/preferences';
@@ -14,40 +13,6 @@
 
   type Tab = 'stats' | 'tasks' | 'agents';
   let tab: Tab = 'stats';
-
-  let rateLimits: RateLimits | null = null;
-  let rlInterval: ReturnType<typeof setInterval> | null = null;
-
-  async function fetchRateLimits() {
-    try {
-      rateLimits = await getRateLimits(session.pid ?? null);
-    } catch (_e) {
-      /* no-op */
-    }
-  }
-
-  onMount(() => {
-    fetchRateLimits();
-    rlInterval = setInterval(fetchRateLimits, 10_000);
-  });
-  onDestroy(() => {
-    if (rlInterval) clearInterval(rlInterval);
-  });
-
-  $: (session.id, fetchRateLimits());
-
-  function fmtReset(resetEpoch: number): string {
-    const now = Math.floor(Date.now() / 1000);
-    const diff = resetEpoch - now;
-    if (diff <= 0) return '--';
-    const h = Math.floor(diff / 3600);
-    const m = Math.floor((diff % 3600) / 60);
-    if (h > 24) {
-      const d = Math.floor(h / 24);
-      return `${d}d${h % 24}h`;
-    }
-    return `${h}h${m}m`;
-  }
 
   let refreshing = false;
 
@@ -117,6 +82,8 @@
         </div>
 
         {#if ctx > 0}
+          {@const maxCtx = session.contextWindow ?? 200_000}
+          {@const usedTokens = Math.round((ctx / 100) * maxCtx)}
           <div class="stat-group">
             <div class="stat-label">context</div>
             <div class="ctx-row">
@@ -132,6 +99,12 @@
                 ></div>
               </div>
               <span class="ctx-pct">{Math.round(ctx)}%</span>
+            </div>
+            <div class="stat-row dim">
+              <span>used</span><span>{formatTokens(usedTokens)}</span>
+            </div>
+            <div class="stat-row dim">
+              <span>max</span><span>{formatTokens(maxCtx)}</span>
             </div>
           </div>
         {/if}
@@ -152,43 +125,6 @@
                 {/if}
               </div>
             {/each}
-          </div>
-        {/if}
-
-        {#if rateLimits}
-          <div class="stat-group">
-            <div class="stat-label">usage</div>
-            <div
-              class="rl-row"
-              class:rl-ok={rateLimits.fiveHourPct <= 70}
-              class:rl-warn={rateLimits.fiveHourPct > 70 && rateLimits.fiveHourPct <= 90}
-              class:rl-danger={rateLimits.fiveHourPct > 90}
-            >
-              <span class="rl-label">5h</span>
-              <span class="rl-pct">{Math.round(rateLimits.fiveHourPct)}%</span>
-              <div class="rl-bar">
-                <div class="rl-fill" style="width:{Math.min(rateLimits.fiveHourPct, 100)}%"></div>
-              </div>
-              <span class="rl-timer">{fmtReset(rateLimits.fiveHourReset)}</span>
-            </div>
-            <div
-              class="rl-row"
-              class:rl-ok={rateLimits.sevenDayPct <= 70}
-              class:rl-warn={rateLimits.sevenDayPct > 70 && rateLimits.sevenDayPct <= 90}
-              class:rl-danger={rateLimits.sevenDayPct > 90}
-            >
-              <span class="rl-label">7d</span>
-              <span class="rl-pct">{Math.round(rateLimits.sevenDayPct)}%</span>
-              <div class="rl-bar">
-                <div class="rl-fill" style="width:{Math.min(rateLimits.sevenDayPct, 100)}%"></div>
-              </div>
-              <span class="rl-timer">{fmtReset(rateLimits.sevenDayReset)}</span>
-            </div>
-            {#if rateLimits.cost > 0}
-              <div class="stat-row dim">
-                <span>cost</span><span>${rateLimits.cost.toFixed(2)}</span>
-              </div>
-            {/if}
           </div>
         {/if}
 
@@ -379,60 +315,5 @@
 
   .meta-info .stat-row {
     color: var(--t2);
-  }
-  .rl-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 3px 0;
-    font-size: var(--xs);
-  }
-  .rl-label {
-    color: var(--t2);
-    width: 16px;
-    flex-shrink: 0;
-  }
-  .rl-pct {
-    width: 28px;
-    text-align: right;
-    flex-shrink: 0;
-    font-weight: 600;
-  }
-  .rl-bar {
-    flex: 1;
-    height: 3px;
-    background: var(--bg3);
-    border-radius: 2px;
-    overflow: hidden;
-  }
-  .rl-fill {
-    height: 100%;
-    border-radius: 2px;
-    transition: width 0.3s;
-  }
-  .rl-timer {
-    color: var(--t3);
-    font-size: 10px;
-    flex-shrink: 0;
-    min-width: 32px;
-    text-align: right;
-  }
-  .rl-ok .rl-pct {
-    color: var(--ac);
-  }
-  .rl-ok .rl-fill {
-    background: var(--ac);
-  }
-  .rl-warn .rl-pct {
-    color: var(--s-input);
-  }
-  .rl-warn .rl-fill {
-    background: var(--s-input);
-  }
-  .rl-danger .rl-pct {
-    color: var(--s-error);
-  }
-  .rl-danger .rl-fill {
-    background: var(--s-error);
   }
 </style>

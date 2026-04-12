@@ -536,6 +536,7 @@ function makeStateEvent(sessionId: number, status: string, extraTokens?: Partial
     gitBranch: null,
     subagents: [],
     model: session?.model ?? null,
+    contextWindow: 200_000,
   };
 }
 
