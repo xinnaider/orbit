@@ -8,6 +8,33 @@
 
 When a session spawns sub-agents, they now appear in the "Sub-agents" tab on the right panel, grouped by Running and Completed. Click any agent to inspect its full conversation log in a modal. The list updates automatically as the session progresses, and a refresh button fetches the latest state on demand.
 
+### 04/09 · Improvement — Redesigned app icon with bolder orbital rings
+The app icon now features thicker, more legible orbital rings that stand out at small sizes (taskbar, title bar). The icon generation now uses Chrome renderer for crisp antialiasing across all platform variants.
+
+### 04/09 · Improvement — Light theme now has warmer, easier-on-the-eyes colors
+The light theme received a visual refresh with a warmer color palette that improves readability and reduces eye strain in bright environments.
+
+### 04/09 · Improvement — Context menu items now have SVG icons
+All context menu options (Rename, Mute, Force Stop, Delete) now display consistent SVG icons that match the header button styling, making the menu visually cohesive.
+
+### 04/09 · Fix — Mute button moved to header actions
+The mute button is now grouped with split and close controls in the panel header for a cleaner, more intuitive layout.
+
+### 04/09 · Fix — "Stopped" badge removed from stats panel
+The redundant "stopped" label that appeared in the stats panel header has been removed. The session's stopped state is still visible in the sidebar.
+
+### 04/09 · Improvement — Mute option now in context menu
+The mute/unmute action is now available directly in the session context menu. Right-click the session name in the sidebar to quickly silence notifications without opening the session header.
+
+### 04/09 · Improvement — Toast notifications now have action buttons
+Toasts have been repositioned and enhanced with support for action buttons. Update notifications have distinct styling to stand out from other messages.
+
+### 04/09 · Fix — Markdown tables and code blocks now style correctly
+Code blocks and tables in markdown now render with proper theme colors and consistent styling across light and dark modes.
+
+### 04/09 · Fix — Auto-scroll continues following new messages
+The session feed's auto-scroll now maintains follow-mode reliably when new content arrives, preventing unexpected jumps to old messages.
+
 ### 04/08 · Fix — Rate limit warning no longer triggers incorrectly
 The "rate limit reached" banner was sometimes shown when Claude's response simply
 mentioned rate limits or server load in its text — without an actual API error occurring.
