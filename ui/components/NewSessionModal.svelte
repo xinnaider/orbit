@@ -1,13 +1,7 @@
 <script lang="ts">
   import { onMount, createEventDispatcher } from 'svelte';
   import { open } from '@tauri-apps/plugin-dialog';
-  import {
-    createSession,
-    diagnoseSpawn,
-    setSessionApiKey,
-    getProviders,
-    checkEnvVar,
-  } from '../lib/tauri';
+  import { createSession, diagnoseSpawn, setSessionApiKey, getProviders } from '../lib/tauri';
   import type { SpawnDiagnostic, CliBackend, SubProvider } from '../lib/tauri';
   import { generateAgentName } from '../lib/android-names';
 
@@ -59,16 +53,6 @@
   $: envVars = selectedSubProvider?.env ?? [];
   $: needsApiKey = isOpenCode && envVars.length > 0;
   $: envVarName = envVars[0] ?? '';
-
-  // Check if API key is already configured
-  let keyConfigured = false;
-  $: if (envVarName) {
-    checkEnvVar(envVarName)
-      .then((v) => (keyConfigured = v))
-      .catch(() => (keyConfigured = false));
-  } else {
-    keyConfigured = false;
-  }
 
   onMount(async () => {
     try {
@@ -317,20 +301,15 @@
     <!-- API Key (OpenCode sub-providers only) -->
     {#if needsApiKey}
       <div class="field">
-        <label class="label" for="ns-apikey">
-          API Key
-          {#if keyConfigured}
-            <span class="key-hint configured">(configured via {envVarName})</span>
-          {:else}
-            <span class="key-hint">{envVarName} not set</span>
-          {/if}
-        </label>
+        <label class="label" for="ns-apikey"
+          >API Key <span class="key-hint">(optional if already configured in CLI)</span></label
+        >
         <input
           id="ns-apikey"
           class="input"
           type="password"
           bind:value={apiKeyOverride}
-          placeholder={keyConfigured ? 'override (optional)' : `paste ${envVarName}...`}
+          placeholder="paste API key to override..."
           disabled={loading}
         />
       </div>
@@ -604,11 +583,8 @@
 
   .key-hint {
     font-weight: normal;
-    color: var(--s-input);
+    color: var(--t3);
     font-size: 10px;
-  }
-  .key-hint.configured {
-    color: var(--s-working);
   }
 
   .error {
