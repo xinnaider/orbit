@@ -10,7 +10,8 @@ pub mod services;
 #[cfg(test)]
 pub mod test_utils;
 
-use ipc::session::SessionState;
+use ipc::session::{ProviderRegistryState, SessionState};
+use providers::ProviderRegistry;
 use services::database::DatabaseService;
 use services::session_manager::SessionManager;
 use std::sync::{Arc, RwLock};
@@ -35,6 +36,13 @@ pub fn run() {
 
             let session_manager = Arc::new(RwLock::new(SessionManager::new(db)));
             app.manage(SessionState(session_manager));
+
+            // Provider registry — maps provider IDs to trait implementations
+            let mut registry = ProviderRegistry::new();
+            registry.register(Box::new(providers::claude::ClaudeProvider));
+            registry.register(Box::new(providers::codex::CodexProvider));
+            registry.register(Box::new(providers::opencode::OpenCodeProvider));
+            app.manage(ProviderRegistryState(Arc::new(registry)));
 
             // Set window icon programmatically — bypasses Windows icon cache in dev mode
             if let Some(window) = app.get_webview_window("main") {

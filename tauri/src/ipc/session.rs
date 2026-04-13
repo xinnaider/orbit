@@ -3,10 +3,12 @@ use tauri::{AppHandle, State};
 
 use crate::ipc::IpcError;
 use crate::models::{JournalEntry, Session, SessionId};
+use crate::providers::ProviderRegistry;
 use crate::services::session_manager::SessionManager;
 use crate::services::spawn_manager::find_claude;
 
 pub struct SessionState(pub Arc<RwLock<SessionManager>>);
+pub struct ProviderRegistryState(pub Arc<ProviderRegistry>);
 
 impl SessionState {
     /// Acquire a write guard, recovering from a poisoned RwLock.
