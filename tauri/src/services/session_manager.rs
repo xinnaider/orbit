@@ -344,7 +344,7 @@ impl SessionManager {
         session_id: SessionId,
         prompt: String,
     ) {
-        let (db, cwd, model, extra_env, opencode_session_id) = {
+        let (db, cwd, model, raw_model, sub_provider, extra_env, opencode_session_id) = {
             let m = manager.read().unwrap_or_else(|e| e.into_inner());
             let a = match m.active.get(&session_id) {
                 Some(a) => a,
@@ -359,24 +359,19 @@ impl SessionManager {
                     return;
                 }
             };
-            let model = a
+            let raw = a
                 .session
                 .model
                 .clone()
                 .unwrap_or_else(|| "opencode/big-pickle".to_string());
             let provider = a.session.provider.clone();
-            // Build "provider/model" format for opencode -m flag.
-            // Always prefix with provider — model IDs from models.json
-            // may already contain slashes (e.g. "minimax/minimax-m2.5:free")
-            // but opencode expects "openrouter/minimax/minimax-m2.5:free".
-            let full_model = if model.starts_with(&format!("{provider}/")) {
-                model.clone()
+            let full_model = if raw.starts_with(&format!("{provider}/")) {
+                raw.clone()
             } else {
-                format!("{provider}/{model}")
+                format!("{provider}/{raw}")
             };
             let mut env = vec![];
             if let Some(ref key) = a.api_key {
-                // Infer env var name from provider
                 let var_name = format!("{}_API_KEY", provider.to_uppercase().replace('-', "_"));
                 env.push((var_name, key.clone()));
             }
@@ -388,10 +383,22 @@ impl SessionManager {
                     .or_else(|| a.session.cwd.clone())
                     .unwrap_or_default(),
                 full_model,
+                raw,
+                provider,
                 env,
                 a.claude_session_id.clone(),
             )
         };
+
+        // Set context window from models.json
+        if let Some(ctx) =
+            crate::commands::providers::lookup_context_window(&sub_provider, &raw_model)
+        {
+            let mut m = manager.write().unwrap_or_else(|e| e.into_inner());
+            if let Some(state) = m.journal_states.get_mut(&session_id) {
+                state.context_window = Some(ctx);
+            }
+        }
 
         let prompt_text = prompt.clone();
         let config = OpenCodeConfig {
@@ -470,6 +477,15 @@ impl SessionManager {
                 a.claude_session_id.clone(),
             )
         };
+
+        // Set context window for Codex models
+        {
+            let ctx = crate::commands::providers::codex_context_window(&model);
+            let mut m = manager.write().unwrap_or_else(|e| e.into_inner());
+            if let Some(state) = m.journal_states.get_mut(&session_id) {
+                state.context_window = Some(ctx);
+            }
+        }
 
         let prompt_text = prompt.clone();
         let config = CodexConfig {

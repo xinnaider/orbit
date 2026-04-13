@@ -187,3 +187,25 @@ fn read_opencode_providers() -> Option<Vec<SubProvider>> {
     result.sort_by(|a, b| a.name.cmp(&b.name));
     Some(result)
 }
+
+/// Look up the context window for a model from models.json.
+/// `provider` is the opencode sub-provider (e.g. "openrouter").
+/// `model` is the model ID within that provider (e.g. "minimax/minimax-m2.5:free").
+pub fn lookup_context_window(provider: &str, model: &str) -> Option<u64> {
+    let home = dirs::home_dir()?;
+    let path = home.join(".cache").join("opencode").join("models.json");
+    let content = std::fs::read_to_string(&path).ok()?;
+    let data: serde_json::Value = serde_json::from_str(&content).ok()?;
+    data.pointer(&format!("/{provider}/models/{model}/limit/context"))
+        .and_then(|v| v.as_u64())
+}
+
+/// Context window for Codex models (hardcoded — not in models.json).
+pub fn codex_context_window(model: &str) -> u64 {
+    match model {
+        "gpt-5.4" | "gpt-5.4-mini" => 200_000,
+        "gpt-5.3-codex" => 200_000,
+        "gpt-5.2" => 200_000,
+        _ => 200_000,
+    }
+}
