@@ -660,12 +660,16 @@ impl SessionManager {
                             None
                         };
 
+                        // Context window: use the value from the stream if
+                        // available, fall back to model lookup only for Claude
+                        // (which reports cumulative tokens). For Codex/OpenCode
+                        // the window stays None → context % stays 0 → UI hides it.
                         let window = state.context_window.unwrap_or_else(|| {
                             state
                                 .model
                                 .as_deref()
                                 .map(crate::models::context_window)
-                                .unwrap_or(200_000)
+                                .unwrap_or(0)
                         });
                         let total = state.input_tokens + state.output_tokens;
 
@@ -808,7 +812,7 @@ impl SessionManager {
                         .model
                         .as_deref()
                         .map(crate::models::context_window)
-                        .unwrap_or(200_000)
+                        .unwrap_or(0)
                 });
                 let total = state.input_tokens + state.output_tokens;
                 s.tokens = Some(TokenUsage {
