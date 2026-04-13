@@ -49,10 +49,10 @@
     <button class="tab" class:active={tab === 'stats'} on:click={() => (tab = 'stats')}
       >stats</button
     >
+    <button class="tab" class:active={tab === 'tasks'} on:click={() => (tab = 'tasks')}
+      >tasks</button
+    >
     {#if session.provider === 'claude-code'}
-      <button class="tab" class:active={tab === 'tasks'} on:click={() => (tab = 'tasks')}
-        >tasks</button
-      >
       <button class="tab" class:active={tab === 'agents'} on:click={() => (tab = 'agents')}
         >agents</button
       >
