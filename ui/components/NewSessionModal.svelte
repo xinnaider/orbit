@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount, createEventDispatcher } from 'svelte';
   import { open } from '@tauri-apps/plugin-dialog';
-  import { createSession, diagnoseSpawn, setSessionApiKey, getProviders } from '../lib/tauri';
-  import type { SpawnDiagnostic, CliBackend, SubProvider } from '../lib/tauri';
+  import { createSession, setSessionApiKey, getProviders, diagnoseProvider } from '../lib/tauri';
+  import type { ProviderDiagnostic, CliBackend, SubProvider } from '../lib/tauri';
   import { generateAgentName } from '../lib/android-names';
 
   const dispatch = createEventDispatcher();
@@ -16,7 +16,7 @@
   let loading = false;
   let error = '';
   let diagRunning = false;
-  let diag: SpawnDiagnostic | null = null;
+  let diag: ProviderDiagnostic | null = null;
   let agentName = '';
   let projectSuffix = '';
   let generatedAgent = '';
@@ -75,6 +75,7 @@
     prevSubProviderId = subProviderId;
     const first = currentModels[0];
     model = first?.id ?? '';
+    diag = null;
   }
 
   $: if (path) {
@@ -92,8 +93,9 @@
 
   async function runDiag() {
     diagRunning = true;
+    diag = null;
     try {
-      diag = await diagnoseSpawn();
+      diag = await diagnoseProvider(backendId);
     } catch (e: any) {
       error = e?.message ?? String(e);
     } finally {
@@ -355,24 +357,22 @@
 
     {#if diag}
       <div class="diag">
-        <div class="diag-row" class:ok={diag.claudeFound} class:fail={!diag.claudeFound}>
-          claude: {diag.claudeFound ? `✓ ${diag.claudePath ?? diag.whereOutput}` : '✗ not found'}
+        <div class="diag-row" class:ok={diag.found} class:fail={!diag.found}>
+          {diag.cliName}: {diag.found ? `✓ ${diag.path ?? ''}` : '✗ not found'}
         </div>
-        {#if diag.versionOutput}
-          <div class="diag-row ok">version: {diag.versionOutput.slice(0, 60)}</div>
+        {#if diag.version}
+          <div class="diag-row ok">version: {diag.version.slice(0, 60)}</div>
         {/if}
-        {#if !diag.claudeFound}
-          <div class="diag-row fail">install: npm install -g @anthropic-ai/claude-code</div>
+        {#if !diag.found}
+          <div class="diag-row fail">install: {diag.installHint}</div>
         {/if}
       </div>
     {/if}
 
     <div class="actions">
-      {#if isClaude}
-        <button class="btn ghost" on:click={runDiag} disabled={diagRunning || loading}>
-          {diagRunning ? 'testing...' : '⚙ diagnose'}
-        </button>
-      {/if}
+      <button class="btn ghost" on:click={runDiag} disabled={diagRunning || loading}>
+        {diagRunning ? 'testing...' : '⚙ diagnose'}
+      </button>
       <button class="btn ghost" on:click={() => dispatch('cancel')} disabled={loading}
         >cancel</button
       >

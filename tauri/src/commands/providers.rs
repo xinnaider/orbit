@@ -127,6 +127,64 @@ pub fn check_env_var(name: String) -> bool {
     std::env::var(&name).is_ok()
 }
 
+/// Diagnose a provider: check if CLI is found, get version, report path.
+#[tauri::command]
+pub fn diagnose_provider(backend: String) -> serde_json::Value {
+    let (cli_name, find_fn): (&str, fn() -> Option<String>) = match backend.as_str() {
+        "claude-code" => ("claude", find_claude as fn() -> Option<String>),
+        "codex" => ("codex", find_codex as fn() -> Option<String>),
+        _ => ("opencode", find_opencode as fn() -> Option<String>),
+    };
+
+    let path = find_fn();
+    let found = path.is_some();
+
+    let version = if found {
+        run_version(path.as_deref().unwrap_or(cli_name))
+    } else {
+        None
+    };
+
+    let install_hint = match backend.as_str() {
+        "claude-code" => "npm install -g @anthropic-ai/claude-code",
+        "codex" => "npm install -g @openai/codex",
+        _ => "npm install -g opencode",
+    };
+
+    serde_json::json!({
+        "backend": backend,
+        "cliName": cli_name,
+        "found": found,
+        "path": path,
+        "version": version,
+        "installHint": install_hint,
+    })
+}
+
+fn run_version(path: &str) -> Option<String> {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        let out = std::process::Command::new(path)
+            .arg("--version")
+            .creation_flags(CREATE_NO_WINDOW)
+            .output()
+            .ok()?;
+        let stdout = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
+        Some(if stdout.is_empty() { stderr } else { stdout })
+    }
+    #[cfg(not(windows))]
+    {
+        let out = std::process::Command::new(path)
+            .arg("--version")
+            .output()
+            .ok()?;
+        Some(String::from_utf8_lossy(&out.stdout).trim().to_string())
+    }
+}
+
 fn read_opencode_providers() -> Option<Vec<SubProvider>> {
     let home = dirs::home_dir()?;
     let path = home.join(".cache").join("opencode").join("models.json");

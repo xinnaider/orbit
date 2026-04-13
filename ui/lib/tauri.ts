@@ -99,6 +99,19 @@ export async function checkEnvVar(name: string): Promise<boolean> {
   return await invoke('check_env_var', { name });
 }
 
+export interface ProviderDiagnostic {
+  backend: string;
+  cliName: string;
+  found: boolean;
+  path: string | null;
+  version: string | null;
+  installHint: string;
+}
+
+export async function diagnoseProvider(backend: string): Promise<ProviderDiagnostic> {
+  return await invoke('diagnose_provider', { backend });
+}
+
 export async function getSessionJournal(sessionId: number): Promise<JournalEntry[]> {
   return await invoke('get_session_journal', { sessionId });
 }

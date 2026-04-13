@@ -84,6 +84,7 @@ pub fn run() {
             commands::stats::get_changelog,
             commands::providers::get_providers,
             commands::providers::check_env_var,
+            commands::providers::diagnose_provider,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

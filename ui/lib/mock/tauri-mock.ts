@@ -478,6 +478,18 @@ export async function mockInvoke(cmd: string, args?: Record<string, unknown>): P
     case 'check_env_var':
       return false;
 
+    case 'diagnose_provider': {
+      const backend = (args?.backend as string) ?? 'claude-code';
+      return {
+        backend,
+        cliName: backend === 'claude-code' ? 'claude' : backend === 'codex' ? 'codex' : 'opencode',
+        found: true,
+        path: '/mock/path/' + backend,
+        version: '1.0.0-mock',
+        installHint: 'npm install -g mock',
+      };
+    }
+
     default:
       console.warn('[mock] Unhandled invoke:', cmd, args);
       return null;
