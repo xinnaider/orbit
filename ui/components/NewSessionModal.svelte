@@ -189,7 +189,7 @@
   role="dialog"
   aria-modal="true"
   tabindex="-1"
-  on:click|self={() => dispatch('cancel')}
+  on:click|self={() => {}}
   on:keydown={onKey}
 >
   <div class="modal">
