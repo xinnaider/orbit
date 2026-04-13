@@ -1,3 +1,6 @@
+pub mod claude;
+pub mod codex;
+
 use std::collections::HashMap;
 
 /// Configuration passed to a provider when spawning a CLI process.

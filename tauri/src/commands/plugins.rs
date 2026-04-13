@@ -119,7 +119,7 @@ pub fn get_slash_commands(provider: Option<String>) -> Vec<SlashCommand> {
     }
 }
 
-fn get_claude_commands() -> Vec<SlashCommand> {
+pub fn get_claude_commands() -> Vec<SlashCommand> {
     let mut result: Vec<SlashCommand> = Vec::new();
 
     let builtins = [
@@ -179,7 +179,7 @@ fn get_claude_commands() -> Vec<SlashCommand> {
     result
 }
 
-fn get_codex_commands() -> Vec<SlashCommand> {
+pub fn get_codex_commands() -> Vec<SlashCommand> {
     let mut result: Vec<SlashCommand> = Vec::new();
 
     // Codex built-in commands
@@ -219,7 +219,7 @@ fn get_codex_commands() -> Vec<SlashCommand> {
     result
 }
 
-fn get_opencode_commands() -> Vec<SlashCommand> {
+pub fn get_opencode_commands() -> Vec<SlashCommand> {
     let mut result: Vec<SlashCommand> = Vec::new();
 
     // OpenCode built-in commands
