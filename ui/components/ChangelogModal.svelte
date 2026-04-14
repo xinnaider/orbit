@@ -1,51 +1,33 @@
 <script lang="ts">
   import Markdown from './Markdown.svelte';
+  import Modal from './shared/Modal.svelte';
 
   export let changelogContent: string;
   export let currentVersion: string;
   export let onClose: () => void;
 </script>
 
-<svelte:window on:keydown={(e) => e.key === 'Escape' && onClose()} />
-<!-- svelte-ignore a11y_click_events_have_key_events -->
-<div class="overlay" role="dialog" aria-modal="true" tabindex="-1" on:click|self={onClose}>
-  <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title">
-        <span class="title-text">what's new in orbit</span>
-        <span class="version-badge">v{currentVersion}</span>
-      </div>
-      <button class="close-btn" on:click={onClose} aria-label="Close">✕</button>
+<Modal
+  width="480px"
+  zIndex={600}
+  overlayBg="rgba(0, 0, 0, 0.6)"
+  modalStyle="max-height: 520px; background: var(--bg2); border-color: var(--bd2); overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.6); gap: 0; padding: 0;"
+  on:close={onClose}
+>
+  <div class="modal-header">
+    <div class="modal-title">
+      <span class="title-text">what's new in orbit</span>
+      <span class="version-badge">v{currentVersion}</span>
     </div>
-    <div class="modal-body">
-      <div class="current-badge">● current version — v{currentVersion}</div>
-      <Markdown content={changelogContent} />
-    </div>
+    <button class="close-btn" on:click={onClose} aria-label="Close">✕</button>
   </div>
-</div>
+  <div class="modal-body">
+    <div class="current-badge">● current version — v{currentVersion}</div>
+    <Markdown content={changelogContent} />
+  </div>
+</Modal>
 
 <style>
-  .overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.6);
-    z-index: 600;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .modal {
-    width: 480px;
-    max-width: 94vw;
-    max-height: 520px;
-    background: var(--bg2);
-    border: 1px solid var(--bd2);
-    border-radius: var(--radius-md);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
-  }
   .modal-header {
     display: flex;
     align-items: center;

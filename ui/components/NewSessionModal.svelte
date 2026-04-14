@@ -5,6 +5,7 @@
   import { backends as backendsStore, providerCaps, getCaps } from '../lib/stores/providers';
   import type { ProviderDiagnostic, SubProvider } from '../lib/tauri';
   import { generateAgentName } from '../lib/android-names';
+  import Modal from './shared/Modal.svelte';
 
   const dispatch = createEventDispatcher();
 
@@ -185,10 +186,6 @@
     }
   }
 
-  function onKey(e: KeyboardEvent) {
-    if (e.key === 'Escape') dispatch('cancel');
-  }
-
   function selectSubProvider(p: SubProvider) {
     subProviderId = p.id;
     subProviderSearch = '';
@@ -196,22 +193,7 @@
 
 </script>
 
-<svelte:window on:keydown={onKey} />
-
-<div
-  class="overlay"
-  role="dialog"
-  aria-modal="true"
-  tabindex="-1"
-  on:click|self={() => {}}
-  on:keydown={onKey}
->
-  <div class="modal">
-    <div class="modal-header">
-      <span class="modal-title">new session</span>
-      <button class="close" on:click={() => dispatch('cancel')}>✕</button>
-    </div>
-
+<Modal title="new session" width="500px" closeOnOverlayClick={false} on:close={() => dispatch('cancel')}>
     <div class="field">
       <label class="label" for="ns-path">{sshMode ? 'remote path' : 'path'}</label>
       <div class="path-row">
@@ -488,53 +470,9 @@
         {loading ? 'spawning...' : 'start session'}
       </button>
     </div>
-  </div>
-</div>
+</Modal>
 
 <style>
-  .overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 100;
-    background: rgba(0, 0, 0, 0.7);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .modal {
-    background: var(--bg1);
-    border: 1px solid var(--bd1);
-    border-radius: var(--radius-md);
-    width: 500px;
-    max-width: 94vw;
-    max-height: 90vh;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: var(--sp-7);
-    padding: var(--sp-9);
-  }
-  .modal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .modal-title {
-    font-size: var(--md);
-    color: var(--t1);
-    letter-spacing: 0.06em;
-  }
-  .close {
-    background: none;
-    border: none;
-    color: var(--t2);
-    font-size: 12px;
-    padding: var(--sp-1) var(--sp-2);
-  }
-  .close:hover {
-    color: var(--t0);
-  }
-
   .field {
     display: flex;
     flex-direction: column;

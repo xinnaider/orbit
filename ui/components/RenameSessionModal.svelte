@@ -2,6 +2,7 @@
   import { createEventDispatcher } from 'svelte';
   import { renameSession } from '../lib/tauri';
   import { parseSessionName } from '../lib/android-names';
+  import Modal from './shared/Modal.svelte';
 
   export let sessionId: number;
   export let sessionName: string;
@@ -30,10 +31,6 @@
     }
   }
 
-  function onKey(e: KeyboardEvent) {
-    if (e.key === 'Escape') dispatch('cancel');
-  }
-
   function focusOnMount(node: HTMLInputElement) {
     node.focus();
     node.select();
@@ -41,22 +38,7 @@
   }
 </script>
 
-<svelte:window on:keydown={onKey} />
-
-<div
-  class="overlay"
-  role="dialog"
-  aria-modal="true"
-  tabindex="-1"
-  on:click|self={() => dispatch('cancel')}
-  on:keydown={onKey}
->
-  <div class="modal">
-    <div class="modal-header">
-      <span class="modal-title">rename session</span>
-      <button class="close" on:click={() => dispatch('cancel')}>✕</button>
-    </div>
-
+<Modal title="rename session" width="400px" zIndex={200} on:close={() => dispatch('cancel')}>
     <div class="field">
       <label class="label" for="rn-prefix">apelido</label>
       <div class="nickname-row">
@@ -92,51 +74,9 @@
         {loading ? 'saving...' : 'rename'}
       </button>
     </div>
-  </div>
-</div>
+</Modal>
 
 <style>
-  .overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 200;
-    background: rgba(0, 0, 0, 0.7);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .modal {
-    background: var(--bg1);
-    border: 1px solid var(--bd1);
-    border-radius: var(--radius-md);
-    width: 400px;
-    max-width: 94vw;
-    display: flex;
-    flex-direction: column;
-    gap: var(--sp-7);
-    padding: var(--sp-9);
-  }
-  .modal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .modal-title {
-    font-size: var(--md);
-    color: var(--t1);
-    letter-spacing: 0.06em;
-  }
-  .close {
-    background: none;
-    border: none;
-    color: var(--t2);
-    font-size: 12px;
-    padding: var(--sp-1) var(--sp-2);
-    cursor: pointer;
-  }
-  .close:hover {
-    color: var(--t0);
-  }
   .field {
     display: flex;
     flex-direction: column;
