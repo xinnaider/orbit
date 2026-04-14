@@ -3,9 +3,11 @@
   import { open } from '@tauri-apps/plugin-dialog';
   import { createSession, getProviders, diagnoseProvider } from '../lib/tauri';
   import { backends as backendsStore, providerCaps, getCaps } from '../lib/stores/providers';
-  import type { ProviderDiagnostic, SubProvider } from '../lib/tauri';
+  import type { ProviderDiagnostic } from '../lib/tauri';
   import { generateAgentName } from '../lib/android-names';
   import Modal from './shared/Modal.svelte';
+  import ProviderSelector from './shared/ProviderSelector.svelte';
+  import SshFields from './shared/SshFields.svelte';
 
   const dispatch = createEventDispatcher();
 
@@ -24,7 +26,6 @@
   let generatedAgent = '';
   let generatedProject = '';
   let useWorktree = false;
-  let subProviderSearch = '';
   let sshMode = false;
   let sshHost = '';
   let sshUser = 'ubuntu';
@@ -34,36 +35,6 @@
   $: selectedBackend = backends.find((b) => b.id === backendId) ?? null;
   $: caps = getCaps($providerCaps, backendId);
   $: hasSubProviders = selectedBackend?.hasSubProviders ?? false;
-
-  // SSH mode: reset to claude-code if current backend doesn't support SSH
-  $: if (sshMode && !(backends.find((b) => b.id === backendId)?.supportsSsh ?? false))
-    backendId = 'claude-code';
-  $: sshBackends = sshMode
-    ? backends.filter((b) => b.supportsSsh)
-    : backends;
-
-  // Sub-provider selection (OpenCode only)
-  $: selectedSubProvider = hasSubProviders
-    ? (selectedBackend?.subProviders.find((p) => p.id === subProviderId) ?? null)
-    : null;
-
-  // Filtered sub-providers for search
-  $: filteredSubProviders = (selectedBackend?.subProviders ?? []).filter(
-    (p) =>
-      subProviderSearch === '' ||
-      p.name.toLowerCase().includes(subProviderSearch.toLowerCase()) ||
-      p.id.toLowerCase().includes(subProviderSearch.toLowerCase())
-  );
-
-  // Models depend on backend type
-  $: currentModels = hasSubProviders
-    ? (selectedSubProvider?.models ?? [])
-    : (selectedBackend?.models ?? []);
-
-  // API key needed? (only for sub-provider backends like OpenCode)
-  $: envVars = selectedSubProvider?.env ?? [];
-  $: needsApiKey = hasSubProviders && envVars.length > 0;
-  $: envVarName = envVars[0] ?? '';
 
   onMount(async () => {
     // Refresh providers if not already loaded
@@ -80,17 +51,6 @@
       subProviderId = oc.subProviders[0].id;
     }
   });
-
-  // Reset model when backend or sub-provider changes
-  let prevBackendId = backendId;
-  let prevSubProviderId = subProviderId;
-  $: if (backendId !== prevBackendId || subProviderId !== prevSubProviderId) {
-    prevBackendId = backendId;
-    prevSubProviderId = subProviderId;
-    const first = currentModels[0];
-    model = first?.id ?? '';
-    diag = null;
-  }
 
   $: if (path) {
     const p = path.split(/[/\\]/).filter(Boolean).pop() ?? '';
@@ -173,7 +133,7 @@
         sessionName: finalName,
         useWorktree: caps.supportsEffort && !sshMode ? useWorktree : false,
         provider: resolveProvider(),
-        apiKey: needsApiKey && apiKeyOverride.trim() ? apiKeyOverride.trim() : undefined,
+        apiKey: hasSubProviders && (selectedBackend?.subProviders.find((p) => p.id === subProviderId)?.env ?? []).length > 0 && apiKeyOverride.trim() ? apiKeyOverride.trim() : undefined,
         sshHost: sshMode ? sshHost.trim() : undefined,
         sshUser: sshMode ? sshUser.trim() : undefined,
         sshPassword: sshMode && sshPassword.trim() ? sshPassword.trim() : undefined,
@@ -185,12 +145,6 @@
       loading = false;
     }
   }
-
-  function selectSubProvider(p: SubProvider) {
-    subProviderId = p.id;
-    subProviderSearch = '';
-  }
-
 </script>
 
 <Modal title="new session" width="500px" closeOnOverlayClick={false} on:close={() => dispatch('cancel')}>
@@ -209,72 +163,18 @@
       </div>
     </div>
 
-    <!-- SSH mode toggle -->
-    <div class="field">
-      <!-- svelte-ignore a11y_label_has_associated_control -->
-      <label class="label">connection</label>
-      <div class="backend-row">
-        <button
-          class="backend-chip"
-          class:active={!sshMode}
-          on:click={() => (sshMode = false)}
-          disabled={loading}
-        >
-          <span class="chip-dot" style="color:{!sshMode ? 'var(--s-working)' : 'var(--t3)'}">
-            {!sshMode ? '●' : '○'}
-          </span>
-          <span>local</span>
-        </button>
-        <button
-          class="backend-chip"
-          class:active={sshMode}
-          on:click={() => (sshMode = true)}
-          disabled={loading}
-        >
-          <span class="chip-dot" style="color:{sshMode ? 'var(--s-working)' : 'var(--t3)'}">
-            {sshMode ? '●' : '○'}
-          </span>
-          <span>ssh remote</span>
-        </button>
-      </div>
-    </div>
+    <ProviderSelector
+      {backends}
+      bind:backendId
+      bind:subProviderId
+      bind:model
+      bind:apiKeyOverride
+      bind:sshMode
+      {loading}
+    />
 
     {#if sshMode}
-      <div class="field">
-        <label class="label" for="ns-ssh-host">host</label>
-        <input
-          id="ns-ssh-host"
-          class="input"
-          type="text"
-          bind:value={sshHost}
-          placeholder="vps.example.com"
-          disabled={loading}
-        />
-      </div>
-
-      <div class="field">
-        <label class="label" for="ns-ssh-user">user</label>
-        <input
-          id="ns-ssh-user"
-          class="input"
-          type="text"
-          bind:value={sshUser}
-          placeholder="ubuntu"
-          disabled={loading}
-        />
-      </div>
-
-      <div class="field">
-        <label class="label" for="ns-ssh-pw">password <span class="key-hint">(optional — uses SSH key if empty)</span></label>
-        <input
-          id="ns-ssh-pw"
-          class="input"
-          type="password"
-          bind:value={sshPassword}
-          placeholder="leave empty for key auth"
-          disabled={loading}
-        />
-      </div>
+      <SshFields bind:sshHost bind:sshUser bind:sshPassword {loading} />
     {/if}
 
     <div class="field">
@@ -291,109 +191,6 @@
         }}
       ></textarea>
     </div>
-
-    <!-- CLI Backend selector -->
-    <div class="field">
-      <!-- svelte-ignore a11y_label_has_associated_control -->
-      <label class="label">backend</label>
-      <div class="backend-row">
-        {#each sshBackends as b}
-          <button
-            class="backend-chip"
-            class:active={backendId === b.id}
-            class:unavailable={!b.cliAvailable}
-            disabled={loading || !b.cliAvailable}
-            on:click={() => (backendId = b.id)}
-            title={b.cliAvailable ? b.name : `${b.name} (not installed)`}
-          >
-            <span class="chip-dot" style="color:{b.cliAvailable ? 'var(--s-working)' : 'var(--t3)'}"
-              >{b.cliAvailable ? '●' : '○'}</span
-            >
-            <span>{b.name}</span>
-          </button>
-        {/each}
-      </div>
-    </div>
-
-    <!-- OpenCode: sub-provider selector -->
-    {#if hasSubProviders}
-      <div class="field">
-        <!-- svelte-ignore a11y_label_has_associated_control -->
-        <label class="label">provider</label>
-        <input
-          class="input sub-search"
-          bind:value={subProviderSearch}
-          placeholder="search providers... ({selectedBackend?.subProviders.length ?? 0} available)"
-          disabled={loading}
-        />
-        <div class="sub-list">
-          {#each subProviderSearch ? filteredSubProviders : (selectedBackend?.subProviders ?? []).slice(0, 20) as p}
-            <button
-              class="sub-item"
-              class:active={subProviderId === p.id}
-              disabled={loading}
-              on:click={() => selectSubProvider(p)}
-            >
-              <span
-                class="chip-dot"
-                style="color:{p.configured ? 'var(--s-working)' : 'var(--s-input)'}"
-                >{p.configured ? '●' : '◐'}</span
-              >
-              <span class="sub-name">{p.name}</span>
-              <span class="sub-count">{p.models.length}</span>
-            </button>
-          {/each}
-          {#if subProviderSearch && filteredSubProviders.length === 0}
-            <div class="no-results">no providers match "{subProviderSearch}"</div>
-          {/if}
-        </div>
-      </div>
-    {/if}
-
-    <!-- Model selector -->
-    {#if currentModels.length > 0}
-      <div class="field">
-        <label class="label" for="ns-model">model</label>
-        {#if currentModels.length <= 15}
-          <select id="ns-model" class="input select" bind:value={model} disabled={loading}>
-            {#each currentModels as m}
-              <option value={m.id}>{m.name}</option>
-            {/each}
-          </select>
-        {:else}
-          <input
-            id="ns-model"
-            class="input"
-            list="model-list"
-            bind:value={model}
-            placeholder="search models..."
-            disabled={loading}
-          />
-          <datalist id="model-list">
-            {#each currentModels as m}
-              <option value={m.id}>{m.name}</option>
-            {/each}
-          </datalist>
-        {/if}
-      </div>
-    {/if}
-
-    <!-- API Key (OpenCode sub-providers only) -->
-    {#if needsApiKey}
-      <div class="field">
-        <label class="label" for="ns-apikey"
-          >API Key <span class="key-hint">(optional if already configured in CLI)</span></label
-        >
-        <input
-          id="ns-apikey"
-          class="input"
-          type="password"
-          bind:value={apiKeyOverride}
-          placeholder="paste API key to override..."
-          disabled={loading}
-        />
-      </div>
-    {/if}
 
     <!-- Session name -->
     <div class="field">
@@ -507,10 +304,6 @@
     resize: none;
     line-height: 1.5;
   }
-  .select {
-    appearance: none;
-    cursor: pointer;
-  }
 
   .path-row {
     display: flex;
@@ -531,108 +324,6 @@
   .browse:hover {
     border-color: var(--bd2);
     color: var(--t0);
-  }
-
-  /* Backend chips */
-  .backend-row {
-    display: flex;
-    gap: var(--sp-3);
-  }
-  .backend-chip {
-    display: flex;
-    align-items: center;
-    gap: var(--sp-3);
-    flex: 1;
-    justify-content: center;
-    background: var(--bg2);
-    border: 1px solid var(--bd1);
-    border-radius: var(--radius-sm);
-    padding: var(--sp-3) var(--sp-5);
-    font-size: var(--sm);
-    color: var(--t1);
-    cursor: pointer;
-    transition: border-color 0.15s, color 0.15s, background 0.15s;
-    white-space: nowrap;
-    min-height: 30px;
-  }
-  .backend-chip:hover {
-    border-color: var(--bd2);
-    color: var(--t0);
-  }
-  .backend-chip.active {
-    border-color: var(--ac);
-    color: var(--ac);
-    background: rgba(0, 212, 126, 0.08);
-  }
-  .backend-chip.unavailable {
-    opacity: 0.35;
-  }
-  .chip-dot {
-    font-size: 8px;
-    line-height: 1;
-  }
-
-  /* Sub-provider list */
-  .sub-search {
-    font-size: var(--xs);
-    padding: var(--sp-2) var(--sp-4);
-  }
-  .sub-list {
-    display: flex;
-    flex-direction: column;
-    max-height: 160px;
-    overflow-y: auto;
-    border: 1px solid var(--bd1);
-    border-radius: var(--radius-sm);
-    background: var(--bg2);
-  }
-  .sub-item {
-    display: flex;
-    align-items: center;
-    gap: var(--sp-3);
-    padding: var(--sp-3) var(--sp-4);
-    border: none;
-    background: none;
-    color: var(--t1);
-    font-size: var(--xs);
-    text-align: left;
-    cursor: pointer;
-    border-bottom: 1px solid var(--bd);
-  }
-  .sub-item:hover {
-    background: var(--bg3);
-    color: var(--t0);
-  }
-  .sub-item.active {
-    background: rgba(0, 212, 126, 0.06);
-    color: var(--ac);
-  }
-  .sub-item:disabled {
-    opacity: 0.3;
-    cursor: not-allowed;
-  }
-  .sub-name {
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .sub-count {
-    color: var(--t3);
-    font-size: 10px;
-    flex-shrink: 0;
-  }
-  .no-results {
-    padding: var(--sp-4);
-    font-size: var(--xs);
-    color: var(--t3);
-    text-align: center;
-  }
-
-  .key-hint {
-    font-weight: normal;
-    color: var(--t3);
-    font-size: 10px;
   }
 
   .error {
@@ -726,5 +417,4 @@
     font-size: var(--sm);
     color: var(--t1);
   }
-
 </style>
