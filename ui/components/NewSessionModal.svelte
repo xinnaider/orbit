@@ -23,6 +23,10 @@
   let generatedProject = '';
   let useWorktree = false;
   let subProviderSearch = '';
+  let sshMode = false;
+  let sshHost = '';
+  let sshUser = 'ubuntu';
+  let sshPassword = '';
 
   let backends: CliBackend[] = [];
 
@@ -94,8 +98,18 @@
   async function runDiag() {
     diagRunning = true;
     diag = null;
+    error = '';
     try {
-      diag = await diagnoseProvider(backendId);
+      diag = await diagnoseProvider(
+        backendId,
+        sshMode
+          ? {
+              sshHost: sshHost.trim() || undefined,
+              sshUser: sshUser.trim() || undefined,
+              sshPassword: sshPassword.trim() || undefined,
+            }
+          : undefined
+      );
     } catch (e: any) {
       error = e?.message ?? String(e);
     } finally {
@@ -124,7 +138,15 @@
 
   async function submit() {
     if (!path.trim()) {
-      error = 'project path required';
+      error = sshMode ? 'remote path required' : 'project path required';
+      return;
+    }
+    if (sshMode && !sshHost.trim()) {
+      error = 'ssh host required';
+      return;
+    }
+    if (sshMode && !sshUser.trim()) {
+      error = 'ssh user required';
       return;
     }
     if (!selectedBackend?.cliAvailable) {
@@ -144,8 +166,11 @@
         model: resolveModel(),
         permissionMode: 'ignore',
         sessionName: finalName,
-        useWorktree: isClaude ? useWorktree : false,
+        useWorktree: isClaude && !sshMode ? useWorktree : false,
         provider: resolveProvider(),
+        sshHost: sshMode ? sshHost.trim() : undefined,
+        sshUser: sshMode ? sshUser.trim() : undefined,
+        sshPassword: sshMode && sshPassword.trim() ? sshPassword.trim() : undefined,
       });
       if (needsApiKey && apiKeyOverride.trim()) {
         await setSessionApiKey(session.id, apiKeyOverride.trim());
@@ -166,6 +191,7 @@
     subProviderId = p.id;
     subProviderSearch = '';
   }
+
 </script>
 
 <svelte:window on:keydown={onKey} />
@@ -185,19 +211,87 @@
     </div>
 
     <div class="field">
-      <label class="label" for="ns-path">path</label>
+      <label class="label" for="ns-path">{sshMode ? 'remote path' : 'path'}</label>
       <div class="path-row">
         <input
           id="ns-path"
           class="input"
           bind:value={path}
-          placeholder="/home/user/project"
+          placeholder={sshMode ? '/home/ubuntu/project' : '/home/user/project'}
           disabled={loading}
           on:keydown={(e) => e.key === 'Enter' && prompt && submit()}
         />
         <button class="browse" on:click={browse} disabled={loading} title="browse">⌘</button>
       </div>
     </div>
+
+    <!-- SSH mode toggle -->
+    <div class="field">
+      <!-- svelte-ignore a11y_label_has_associated_control -->
+      <label class="label">connection</label>
+      <div class="backend-row">
+        <button
+          class="backend-chip"
+          class:active={!sshMode}
+          on:click={() => (sshMode = false)}
+          disabled={loading}
+        >
+          <span class="chip-dot" style="color:{!sshMode ? 'var(--s-working)' : 'var(--t3)'}">
+            {!sshMode ? '●' : '○'}
+          </span>
+          <span>local</span>
+        </button>
+        <button
+          class="backend-chip"
+          class:active={sshMode}
+          on:click={() => (sshMode = true)}
+          disabled={loading}
+        >
+          <span class="chip-dot" style="color:{sshMode ? 'var(--s-working)' : 'var(--t3)'}">
+            {sshMode ? '●' : '○'}
+          </span>
+          <span>ssh remote</span>
+        </button>
+      </div>
+    </div>
+
+    {#if sshMode}
+      <div class="field">
+        <label class="label" for="ns-ssh-host">host</label>
+        <input
+          id="ns-ssh-host"
+          class="input"
+          type="text"
+          bind:value={sshHost}
+          placeholder="vps.example.com"
+          disabled={loading}
+        />
+      </div>
+
+      <div class="field">
+        <label class="label" for="ns-ssh-user">user</label>
+        <input
+          id="ns-ssh-user"
+          class="input"
+          type="text"
+          bind:value={sshUser}
+          placeholder="ubuntu"
+          disabled={loading}
+        />
+      </div>
+
+      <div class="field">
+        <label class="label" for="ns-ssh-pw">password <span class="key-hint">(optional — uses SSH key if empty)</span></label>
+        <input
+          id="ns-ssh-pw"
+          class="input"
+          type="password"
+          bind:value={sshPassword}
+          placeholder="leave empty for key auth"
+          disabled={loading}
+        />
+      </div>
+    {/if}
 
     <div class="field">
       <label class="label" for="ns-prompt">prompt</label>
@@ -344,7 +438,7 @@
       {/if}
     </div>
 
-    {#if isClaude}
+    {#if isClaude && !sshMode}
       <label class="toggle-row">
         <input type="checkbox" bind:checked={useWorktree} disabled={loading} />
         <span class="toggle-label">criar git worktree</span>
@@ -357,20 +451,27 @@
 
     {#if diag}
       <div class="diag">
-        <div class="diag-row" class:ok={diag.found} class:fail={!diag.found}>
-          {diag.cliName}: {diag.found ? `✓ ${diag.path ?? ''}` : '✗ not found'}
-        </div>
-        {#if diag.version}
-          <div class="diag-row ok">version: {diag.version.slice(0, 60)}</div>
+        {#if diag.ssh}
+          <div class="diag-row" class:ok={diag.ssh.ok} class:fail={!diag.ssh.ok}>
+            ssh: {diag.ssh.ok ? `✓ connected (${diag.ssh.latencyMs}ms)` : `✗ ${diag.ssh.error}`}
+          </div>
         {/if}
-        {#if !diag.found}
-          <div class="diag-row fail">install: {diag.installHint}</div>
+        {#if !diag.ssh || diag.ssh.ok}
+          <div class="diag-row" class:ok={diag.found} class:fail={!diag.found}>
+            {diag.cliName}: {diag.found ? `✓ ${diag.path ?? ''}` : '✗ not found'}
+          </div>
+          {#if diag.version}
+            <div class="diag-row ok">version: {diag.version.slice(0, 60)}</div>
+          {/if}
+          {#if !diag.found}
+            <div class="diag-row fail">install: {diag.installHint}</div>
+          {/if}
         {/if}
       </div>
     {/if}
 
     <div class="actions">
-      <button class="btn ghost" on:click={runDiag} disabled={diagRunning || loading}>
+      <button class="btn ghost" on:click={runDiag} disabled={diagRunning || loading || (sshMode && (!sshHost.trim() || !sshUser.trim()))}>
         {diagRunning ? 'testing...' : '⚙ diagnose'}
       </button>
       <button class="btn ghost" on:click={() => dispatch('cancel')} disabled={loading}
@@ -505,7 +606,9 @@
     font-size: var(--sm);
     color: var(--t1);
     cursor: pointer;
-    transition: all 0.15s;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+    white-space: nowrap;
+    min-height: 30px;
   }
   .backend-chip:hover {
     border-color: var(--bd2);
@@ -678,4 +781,5 @@
     font-size: var(--sm);
     color: var(--t1);
   }
+
 </style>

@@ -381,6 +381,8 @@ pub fn seed_session(db: &crate::services::database::DatabaseService) -> crate::m
         "ignore",
         None,
         None,
+        None,
+        None,
     )
     .expect("test setup: seed_session failed")
 }

@@ -16,6 +16,8 @@ pub struct SpawnHandle {
     pub reader: Box<dyn std::io::Read + Send>,
     pub stderr: Box<dyn std::io::Read + Send>,
     pub child: std::process::Child,
+    /// Keeps the askpass temp dir alive for the duration of an SSH session.
+    pub _askpass: Option<crate::services::ssh::AskpassGuard>,
 }
 
 /// Build a PATH string that includes common Claude/Node installation directories.
@@ -228,6 +230,7 @@ pub fn spawn_claude(config: SpawnConfig) -> Result<SpawnHandle, String> {
         reader: Box::new(stdout),
         stderr: Box::new(stderr),
         child,
+        _askpass: None,
     })
 }
 
@@ -362,6 +365,7 @@ pub fn spawn_opencode(config: OpenCodeConfig) -> Result<SpawnHandle, String> {
         reader: Box::new(stdout),
         stderr: Box::new(stderr),
         child,
+        _askpass: None,
     })
 }
 
@@ -420,6 +424,7 @@ pub fn spawn_codex(config: CodexConfig) -> Result<SpawnHandle, String> {
         reader: Box::new(stdout),
         stderr: Box::new(stderr),
         child,
+        _askpass: None,
     })
 }
 

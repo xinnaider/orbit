@@ -2,6 +2,7 @@ use super::{Provider, ProviderSpawnConfig};
 use crate::journal::JournalState;
 use crate::models::SlashCommand;
 use crate::services::spawn_manager::{spawn_codex, CodexConfig, SpawnHandle};
+use crate::services::ssh::{self, SpawnMode};
 
 pub struct CodexProvider;
 
@@ -15,13 +16,66 @@ impl Provider for CodexProvider {
     }
 
     fn spawn(&self, config: ProviderSpawnConfig) -> Result<SpawnHandle, String> {
-        spawn_codex(CodexConfig {
-            session_id: config.session_id,
-            cwd: config.cwd,
-            model: config.model,
-            prompt: config.prompt,
-            codex_session_id: config.resume_id,
-        })
+        match config.spawn_mode {
+            SpawnMode::Local => spawn_codex(CodexConfig {
+                session_id: config.session_id,
+                cwd: config.cwd,
+                model: config.model,
+                prompt: config.prompt,
+                codex_session_id: config.resume_id,
+            }),
+            SpawnMode::Ssh { ref host, ref user } => {
+                let mut parts = vec!["codex".to_string()];
+                if let Some(ref sid) = config.resume_id {
+                    parts.extend([
+                        "exec".to_string(),
+                        "resume".to_string(),
+                        "--json".to_string(),
+                        "--dangerously-bypass-approvals-and-sandbox".to_string(),
+                        "-m".to_string(),
+                        ssh::posix_escape(&config.model),
+                        ssh::posix_escape(sid),
+                        ssh::posix_escape(&config.prompt),
+                    ]);
+                } else {
+                    parts.extend([
+                        "exec".to_string(),
+                        "--json".to_string(),
+                        "--dangerously-bypass-approvals-and-sandbox".to_string(),
+                        "-m".to_string(),
+                        ssh::posix_escape(&config.model),
+                        ssh::posix_escape(&config.prompt),
+                    ]);
+                }
+
+                let cwd_str = config.cwd.to_string_lossy();
+                let remote_script = format!(
+                    "cd {} && {}",
+                    ssh::posix_escape(&cwd_str),
+                    parts.join(" ")
+                );
+
+                let (mut child, askpass) = ssh::spawn_via_ssh(
+                    host,
+                    user,
+                    config.ssh_password.as_deref(),
+                    &remote_script,
+                )
+                .map_err(|e| format!("ssh spawn failed: {e}"))?;
+
+                let pid = child.id();
+                let stdout = child.stdout.take().ok_or("no stdout")?;
+                let stderr = child.stderr.take().ok_or("no stderr")?;
+
+                Ok(SpawnHandle {
+                    pid,
+                    reader: Box::new(stdout),
+                    stderr: Box::new(stderr),
+                    child,
+                    _askpass: askpass,
+                })
+            }
+        }
     }
 
     fn process_line(&self, state: &mut JournalState, line: &str) {

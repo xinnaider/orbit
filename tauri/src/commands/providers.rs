@@ -137,9 +137,15 @@ pub fn check_env_var(name: String) -> bool {
 }
 
 /// Diagnose a provider: check if CLI is found, get version, report path.
+/// When SSH params are provided, first tests the SSH connection, then checks
+/// for the CLI on the remote machine via `which` and `--version` over SSH.
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 pub fn diagnose_provider(
     backend: String,
+    ssh_host: Option<String>,
+    ssh_user: Option<String>,
+    ssh_password: Option<String>,
     registry: tauri::State<crate::ipc::session::ProviderRegistryState>,
 ) -> serde_json::Value {
     let provider = match registry.0.resolve(&backend) {
@@ -152,10 +158,79 @@ pub fn diagnose_provider(
                 "path": null,
                 "version": null,
                 "installHint": "unknown provider",
+                "ssh": null,
             });
         }
     };
 
+    let cli_name = provider.cli_name().to_string();
+    let install_hint = provider.install_hint().to_string();
+
+    // SSH mode: test connection, then check CLI on remote
+    if let (Some(ref host), Some(ref user)) = (&ssh_host, &ssh_user) {
+        let ssh_result =
+            crate::services::ssh::test_ssh_connection(host, user, ssh_password.as_deref());
+
+        if !ssh_result.ok {
+            return serde_json::json!({
+                "backend": backend,
+                "cliName": cli_name,
+                "found": false,
+                "path": null,
+                "version": null,
+                "installHint": install_hint,
+                "ssh": {
+                    "ok": false,
+                    "latencyMs": ssh_result.latency_ms,
+                    "error": ssh_result.error,
+                },
+            });
+        }
+
+        // SSH connected — check for CLI on the remote machine
+        let remote_script = format!("which {} && {} --version", cli_name, cli_name);
+        let (path, version) = match crate::services::ssh::spawn_via_ssh(
+            host,
+            user,
+            ssh_password.as_deref(),
+            &remote_script,
+        ) {
+            Ok((child, _guard)) => {
+                let output = child.wait_with_output().ok();
+                match output {
+                    Some(o) if o.status.success() => {
+                        let stdout = String::from_utf8_lossy(&o.stdout);
+                        let mut lines = stdout.lines();
+                        let p = lines.next().map(|l| l.trim().to_string());
+                        let v = lines
+                            .next()
+                            .map(|l| l.trim().to_string())
+                            .filter(|s| !s.is_empty());
+                        (p, v)
+                    }
+                    _ => (None, None),
+                }
+            }
+            Err(_) => (None, None),
+        };
+
+        let found = path.is_some();
+        return serde_json::json!({
+            "backend": backend,
+            "cliName": cli_name,
+            "found": found,
+            "path": path,
+            "version": version,
+            "installHint": install_hint,
+            "ssh": {
+                "ok": true,
+                "latencyMs": ssh_result.latency_ms,
+                "error": "",
+            },
+        });
+    }
+
+    // Local mode: existing behavior
     let path = provider.find_cli();
     let found = path.is_some();
 
@@ -167,11 +242,12 @@ pub fn diagnose_provider(
 
     serde_json::json!({
         "backend": backend,
-        "cliName": provider.cli_name(),
+        "cliName": cli_name,
         "found": found,
         "path": path,
         "version": version,
-        "installHint": provider.install_hint(),
+        "installHint": install_hint,
+        "ssh": null,
     })
 }
 

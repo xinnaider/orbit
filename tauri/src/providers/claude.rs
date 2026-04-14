@@ -2,6 +2,7 @@ use super::{Provider, ProviderSpawnConfig};
 use crate::journal::JournalState;
 use crate::models::SlashCommand;
 use crate::services::spawn_manager::{spawn_claude, SpawnConfig, SpawnHandle};
+use crate::services::ssh::{self, SpawnMode};
 
 pub struct ClaudeProvider;
 
@@ -15,19 +16,71 @@ impl Provider for ClaudeProvider {
     }
 
     fn spawn(&self, config: ProviderSpawnConfig) -> Result<SpawnHandle, String> {
-        spawn_claude(SpawnConfig {
-            session_id: config.session_id,
-            cwd: config.cwd,
-            permission_mode: "ignore".to_string(),
-            model: if config.model == "auto" {
-                None
-            } else {
-                Some(config.model)
-            },
-            effort: config.effort,
-            prompt: config.prompt,
-            claude_session_id: config.resume_id,
-        })
+        match config.spawn_mode {
+            SpawnMode::Local => spawn_claude(SpawnConfig {
+                session_id: config.session_id,
+                cwd: config.cwd,
+                permission_mode: "ignore".to_string(),
+                model: if config.model == "auto" {
+                    None
+                } else {
+                    Some(config.model)
+                },
+                effort: config.effort,
+                prompt: config.prompt,
+                claude_session_id: config.resume_id,
+            }),
+            SpawnMode::Ssh { ref host, ref user } => {
+                let mut parts = vec![
+                    "claude".to_string(),
+                    "--output-format".to_string(),
+                    "stream-json".to_string(),
+                    "--verbose".to_string(),
+                    "--dangerously-skip-permissions".to_string(),
+                ];
+                if config.model != "auto" && !config.model.is_empty() {
+                    parts.push("--model".to_string());
+                    parts.push(ssh::posix_escape(&config.model));
+                }
+                if let Some(ref effort) = config.effort {
+                    parts.push("--effort".to_string());
+                    parts.push(ssh::posix_escape(effort));
+                }
+                if let Some(ref resume_id) = config.resume_id {
+                    parts.push("--resume".to_string());
+                    parts.push(ssh::posix_escape(resume_id));
+                }
+                parts.push("-p".to_string());
+                parts.push(ssh::posix_escape(&config.prompt));
+
+                let cwd_str = config.cwd.to_string_lossy();
+                let remote_script = format!(
+                    "cd {} && {}",
+                    ssh::posix_escape(&cwd_str),
+                    parts.join(" ")
+                );
+
+                let (mut child, askpass) = ssh::spawn_via_ssh(
+                    host,
+                    user,
+                    config.ssh_password.as_deref(),
+                    &remote_script,
+                )
+                .map_err(|e| format!("ssh spawn failed: {e}"))?;
+
+                let pid = child.id();
+                let stdout = child.stdout.take().ok_or("no stdout")?;
+                let stderr = child.stderr.take().ok_or("no stderr")?;
+
+                Ok(SpawnHandle {
+                    pid,
+                    reader: Box::new(stdout),
+                    stderr: Box::new(stderr),
+                    child,
+                    _askpass: askpass,
+                })
+            }
+        }
     }
 
     fn process_line(&self, state: &mut JournalState, line: &str) {

@@ -30,6 +30,16 @@ export interface CreateSessionOptions {
   sessionName?: string;
   useWorktree?: boolean;
   provider?: string;
+  sshHost?: string;
+  sshUser?: string;
+  /** SSH password. Never persisted — held in backend memory for session lifetime. */
+  sshPassword?: string;
+}
+
+export interface SshTestResult {
+  ok: boolean;
+  latencyMs: number;
+  error: string;
 }
 
 export async function createSession(opts: CreateSessionOptions): Promise<Session> {
@@ -41,6 +51,21 @@ export async function createSession(opts: CreateSessionOptions): Promise<Session
     sessionName: opts.sessionName ?? null,
     useWorktree: opts.useWorktree ?? false,
     provider: opts.provider ?? 'claude-code',
+    sshHost: opts.sshHost ?? null,
+    sshUser: opts.sshUser ?? null,
+    sshPassword: opts.sshPassword ?? null,
+  });
+}
+
+export async function testSsh(
+  host: string,
+  user: string,
+  password?: string
+): Promise<SshTestResult> {
+  return await invoke('test_ssh', {
+    host,
+    user,
+    password: password ?? null,
   });
 }
 
@@ -99,6 +124,12 @@ export async function checkEnvVar(name: string): Promise<boolean> {
   return await invoke('check_env_var', { name });
 }
 
+export interface SshDiagnostic {
+  ok: boolean;
+  latencyMs: number;
+  error: string;
+}
+
 export interface ProviderDiagnostic {
   backend: string;
   cliName: string;
@@ -106,10 +137,19 @@ export interface ProviderDiagnostic {
   path: string | null;
   version: string | null;
   installHint: string;
+  ssh: SshDiagnostic | null;
 }
 
-export async function diagnoseProvider(backend: string): Promise<ProviderDiagnostic> {
-  return await invoke('diagnose_provider', { backend });
+export async function diagnoseProvider(
+  backend: string,
+  opts?: { sshHost?: string; sshUser?: string; sshPassword?: string }
+): Promise<ProviderDiagnostic> {
+  return await invoke('diagnose_provider', {
+    backend,
+    sshHost: opts?.sshHost ?? null,
+    sshUser: opts?.sshUser ?? null,
+    sshPassword: opts?.sshPassword ?? null,
+  });
 }
 
 export async function getSessionJournal(sessionId: number): Promise<JournalEntry[]> {

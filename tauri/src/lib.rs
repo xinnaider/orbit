@@ -68,6 +68,7 @@ pub fn run() {
             ipc::session::update_session_model,
             ipc::session::update_session_effort,
             ipc::session::set_session_api_key,
+            ipc::session::test_ssh,
             ipc::project::create_project,
             ipc::project::list_projects,
             commands::agents::get_subagents,

@@ -35,6 +35,8 @@ export interface Session {
   contextWindow?: number | null;
   pendingApproval: string | null;
   miniLog: MiniLogEntry[] | null;
+  sshHost: string | null;
+  sshUser: string | null;
   subagents?: SubagentInfo[];
   createdAt: string;
   updatedAt: string;

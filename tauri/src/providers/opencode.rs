@@ -2,6 +2,7 @@ use super::{Provider, ProviderSpawnConfig};
 use crate::journal::JournalState;
 use crate::models::SlashCommand;
 use crate::services::spawn_manager::{spawn_opencode, OpenCodeConfig, SpawnHandle};
+use crate::services::ssh::{self, SpawnMode};
 
 pub struct OpenCodeProvider;
 
@@ -15,14 +16,69 @@ impl Provider for OpenCodeProvider {
     }
 
     fn spawn(&self, config: ProviderSpawnConfig) -> Result<SpawnHandle, String> {
-        spawn_opencode(OpenCodeConfig {
-            session_id: config.session_id,
-            cwd: config.cwd,
-            model: config.model,
-            prompt: config.prompt,
-            opencode_session_id: config.resume_id,
-            extra_env: config.extra_env,
-        })
+        match config.spawn_mode {
+            SpawnMode::Local => spawn_opencode(OpenCodeConfig {
+                session_id: config.session_id,
+                cwd: config.cwd,
+                model: config.model,
+                prompt: config.prompt,
+                opencode_session_id: config.resume_id,
+                extra_env: config.extra_env,
+            }),
+            SpawnMode::Ssh { ref host, ref user } => {
+                let mut parts = vec![
+                    "opencode".to_string(),
+                    "run".to_string(),
+                    "--format".to_string(),
+                    "json".to_string(),
+                ];
+
+                let cwd_str = config.cwd.to_string_lossy();
+                parts.extend([
+                    "--dir".to_string(),
+                    ssh::posix_escape(&cwd_str),
+                    "-m".to_string(),
+                    ssh::posix_escape(&config.model),
+                ]);
+
+                if let Some(ref sid) = config.resume_id {
+                    parts.extend([
+                        "--continue".to_string(),
+                        "-s".to_string(),
+                        ssh::posix_escape(sid),
+                    ]);
+                }
+
+                parts.push(ssh::posix_escape(&config.prompt));
+
+                let mut env_prefix = String::new();
+                for (k, v) in &config.extra_env {
+                    env_prefix.push_str(&format!("export {}={} && ", k, ssh::posix_escape(v)));
+                }
+
+                let remote_script = format!("{}{}", env_prefix, parts.join(" "));
+
+                let (mut child, askpass) = ssh::spawn_via_ssh(
+                    host,
+                    user,
+                    config.ssh_password.as_deref(),
+                    &remote_script,
+                )
+                .map_err(|e| format!("ssh spawn failed: {e}"))?;
+
+                let pid = child.id();
+                let stdout = child.stdout.take().ok_or("no stdout")?;
+                let stderr = child.stderr.take().ok_or("no stderr")?;
+
+                Ok(SpawnHandle {
+                    pid,
+                    reader: Box::new(stdout),
+                    stderr: Box::new(stderr),
+                    child,
+                    _askpass: askpass,
+                })
+            }
+        }
     }
 
     fn process_line(&self, state: &mut JournalState, line: &str) {

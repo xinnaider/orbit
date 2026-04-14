@@ -4,6 +4,14 @@
 
 ## April 2026
 
+### 04/14 · New — SSH remote sessions for all providers
+
+You can now run sessions on remote servers via SSH. When creating a session,
+switch to "ssh remote" mode, enter the host and user (with optional password),
+and test the connection before starting. Works with all providers — Claude Code,
+Codex, and OpenCode. SSH credentials are held in memory only and never saved
+to disk.
+
 ### 04/12 · New — Multi-provider support (OpenCode + Codex)
 
 You can now create sessions with any AI provider — not just Claude Code.

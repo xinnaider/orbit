@@ -35,6 +35,9 @@ pub fn create_session(
     session_name: Option<String>,
     use_worktree: Option<bool>,
     provider: Option<String>,
+    ssh_host: Option<String>,
+    ssh_user: Option<String>,
+    ssh_password: Option<String>,
     state: State<SessionState>,
     registry: State<ProviderRegistryState>,
     app: AppHandle,
@@ -50,6 +53,9 @@ pub fn create_session(
             model.as_deref(),
             use_worktree.unwrap_or(false),
             provider.as_deref(),
+            ssh_host.as_deref(),
+            ssh_user.as_deref(),
+            ssh_password,
         )?
     };
 
@@ -283,4 +289,12 @@ pub fn set_session_api_key(
 ) -> Result<(), IpcError> {
     state.write().set_api_key(session_id, api_key);
     Ok(())
+}
+
+use crate::services::ssh;
+
+/// Test SSH connectivity to a remote host without creating a session.
+#[tauri::command]
+pub fn test_ssh(host: String, user: String, password: Option<String>) -> ssh::SshTestResult {
+    ssh::test_ssh_connection(&host, &user, password.as_deref())
 }

@@ -48,6 +48,8 @@ struct ActiveSession {
     pub effort: Option<String>,
     /// Provider API key (stored in memory only, never persisted).
     pub api_key: Option<String>,
+    /// SSH password held in memory (never in DB). Reused for follow-up messages.
+    pub ssh_password: Option<String>,
 }
 
 pub struct SessionManager {
@@ -66,6 +68,7 @@ impl SessionManager {
     }
 
     /// Phase 1 (fast): create DB record, return Session immediately.
+    #[allow(clippy::too_many_arguments)]
     pub fn init_session(
         &mut self,
         project_path: &str,
@@ -74,6 +77,9 @@ impl SessionManager {
         model: Option<&str>,
         use_worktree: bool,
         provider: Option<&str>,
+        ssh_host: Option<&str>,
+        ssh_user: Option<&str>,
+        ssh_password: Option<String>,
     ) -> Result<Session, String> {
         let project_name = std::path::Path::new(project_path)
             .file_name()
@@ -94,8 +100,12 @@ impl SessionManager {
                 permission_mode,
                 model,
                 provider,
+                ssh_host,
+                ssh_user,
             )
             .map_err(|e| e.to_string())?;
+
+        let use_worktree = use_worktree && ssh_host.is_none();
 
         let (worktree_path_val, branch_name_val) = if use_worktree {
             let full_name = session_name.unwrap_or(&project_name);
@@ -146,6 +156,8 @@ impl SessionManager {
             context_percent: None,
             pending_approval: None,
             mini_log: None,
+            ssh_host: ssh_host.map(|s| s.to_string()),
+            ssh_user: ssh_user.map(|s| s.to_string()),
         };
 
         self.active.insert(
@@ -155,6 +167,7 @@ impl SessionManager {
                 claude_session_id: None,
                 effort: None,
                 api_key: None,
+                ssh_password,
             },
         );
         self.journal_states
@@ -176,7 +189,7 @@ impl SessionManager {
         registry: &ProviderRegistry,
     ) {
         // 1. Read session data from the active map
-        let (db, cwd, model, provider_id, effort, resume_id, extra_env) = {
+        let (db, cwd, model, provider_id, effort, resume_id, extra_env, spawn_mode, ssh_password) = {
             let m = manager.read().unwrap_or_else(|e| e.into_inner());
             let a = match m.active.get(&session_id) {
                 Some(a) => a,
@@ -215,6 +228,19 @@ impl SessionManager {
                 env.push((var_name, key.clone()));
             }
 
+            let spawn_mode = match (a.session.ssh_host.clone(), a.session.ssh_user.clone()) {
+                (Some(host), Some(user)) => crate::services::ssh::SpawnMode::Ssh { host, user },
+                (Some(host), None) => {
+                    eprintln!(
+                        "[orbit] session {session_id}: ssh_host={host:?} set but ssh_user is \
+                         missing — falling back to local spawn."
+                    );
+                    crate::services::ssh::SpawnMode::Local
+                }
+                _ => crate::services::ssh::SpawnMode::Local,
+            };
+            let ssh_password = a.ssh_password.clone();
+
             (
                 m.db.clone(),
                 a.session
@@ -227,6 +253,8 @@ impl SessionManager {
                 a.effort.clone(),
                 a.claude_session_id.clone(),
                 env,
+                spawn_mode,
+                ssh_password,
             )
         };
 
@@ -263,6 +291,8 @@ impl SessionManager {
             resume_id,
             extra_env,
             effort,
+            spawn_mode,
+            ssh_password,
         };
 
         let handle = match provider.spawn(spawn_config) {
@@ -600,6 +630,7 @@ impl SessionManager {
                         claude_session_id,
                         effort: None,
                         api_key: None,
+                        ssh_password: None,
                     },
                 );
                 m.journal_states.entry(session_id).or_default();
@@ -868,7 +899,7 @@ mod tests {
         let s = mgr
             .write()
             .unwrap()
-            .init_session("/tmp/proj", None, "ignore", None, false, None)
+            .init_session("/tmp/proj", None, "ignore", None, false, None, None, None, None)
             .expect("init failed");
         t.phase("Assert");
         t.ok("id is positive", s.id > 0);
@@ -887,7 +918,7 @@ mod tests {
         let s = mgr
             .write()
             .unwrap()
-            .init_session("/tmp/proj", None, "ignore", None, false, None)
+            .init_session("/tmp/proj", None, "ignore", None, false, None, None, None, None)
             .expect("init failed");
         t.phase("Assert");
         t.ok(
@@ -904,7 +935,7 @@ mod tests {
         let s = mgr
             .write()
             .unwrap()
-            .init_session("/tmp/proj", None, "ignore", None, false, None)
+            .init_session("/tmp/proj", None, "ignore", None, false, None, None, None, None)
             .expect("init failed");
         t.phase("Assert");
         t.ok(
@@ -923,7 +954,7 @@ mod tests {
         let s = mgr
             .write()
             .unwrap()
-            .init_session("/tmp/proj", None, "ignore", None, false, None)
+            .init_session("/tmp/proj", None, "ignore", None, false, None, None, None, None)
             .expect("init failed");
         t.phase("Act");
         mgr.write()
@@ -949,7 +980,7 @@ mod tests {
         let s = mgr
             .write()
             .unwrap()
-            .init_session("/tmp/proj", None, "ignore", None, false, None)
+            .init_session("/tmp/proj", None, "ignore", None, false, None, None, None, None)
             .expect("init failed");
         t.phase("Act");
         mgr.write()
@@ -976,7 +1007,7 @@ mod tests {
         let s = mgr
             .write()
             .unwrap()
-            .init_session("/tmp/proj", Some("old-name"), "ignore", None, false, None)
+            .init_session("/tmp/proj", Some("old-name"), "ignore", None, false, None, None, None, None)
             .expect("init failed");
         t.phase("Act");
         mgr.write()
@@ -1023,7 +1054,7 @@ mod tests {
         t.phase("Seed");
         let db = make_db();
         let sid = db
-            .create_session(None, None, "/tmp", "ignore", None, None)
+            .create_session(None, None, "/tmp", "ignore", None, None, None, None)
             .expect("session");
         seed_outputs(
             &db,
@@ -1049,7 +1080,7 @@ mod tests {
         t.phase("Seed");
         let db = make_db();
         let sid = db
-            .create_session(None, None, "/tmp", "ignore", None, None)
+            .create_session(None, None, "/tmp", "ignore", None, None, None, None)
             .expect("session");
         seed_outputs(&db, sid, &[&crate::test_utils::assistant_text("Hello")]);
         t.phase("Act");
@@ -1067,7 +1098,7 @@ mod tests {
         t.phase("Seed");
         let db = make_db();
         let sid = db
-            .create_session(None, None, "/tmp", "ignore", None, None)
+            .create_session(None, None, "/tmp", "ignore", None, None, None, None)
             .expect("session");
         // input=10, output=5, cache_write=2, cache_read=1 → input_tokens = 13
         seed_outputs(&db, sid, &[&assistant_with_tokens("Hi", 10, 5, 2, 1)]);
@@ -1209,7 +1240,7 @@ mod tests {
         t.phase("Seed — DB has session with outputs, manager is fresh (no restore)");
         let db = make_db();
         let sid = db
-            .create_session(None, None, "/tmp", "ignore", None, None)
+            .create_session(None, None, "/tmp", "ignore", None, None, None, None)
             .expect("session");
         seed_outputs(&db, sid, &[&crate::test_utils::assistant_text("hello")]);
         t.phase("Act — create manager without calling restore_from_db");
@@ -1227,7 +1258,7 @@ mod tests {
         t.phase("Seed — session with token output exists");
         let db = make_db();
         let sid = db
-            .create_session(None, None, "/tmp", "ignore", None, None)
+            .create_session(None, None, "/tmp", "ignore", None, None, None, None)
             .expect("session");
         seed_outputs(
             &db,
@@ -1255,7 +1286,7 @@ mod tests {
         t.phase("Seed");
         let db = make_db();
         let sid = db
-            .create_session(None, None, "/tmp", "ignore", None, None)
+            .create_session(None, None, "/tmp", "ignore", None, None, None, None)
             .expect("session");
         seed_outputs(&db, sid, &[&crate::test_utils::assistant_text("hello")]);
         t.phase("Act — get_journal triggers lazy load");
@@ -1273,7 +1304,7 @@ mod tests {
         t.phase("Seed");
         let db = make_db();
         let sid = db
-            .create_session(None, None, "/tmp", "ignore", None, None)
+            .create_session(None, None, "/tmp", "ignore", None, None, None, None)
             .expect("session");
         seed_outputs(
             &db,

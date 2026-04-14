@@ -21,6 +21,8 @@ const MOCK_SESSIONS: Session[] = [
       { tool: 'Read', target: 'auth.ts', result: null, success: true },
       { tool: 'Bash', target: 'git status', result: null, success: true },
     ],
+    sshHost: null,
+    sshUser: null,
 
     worktreePath: null,
     branchName: null,
@@ -43,6 +45,8 @@ const MOCK_SESSIONS: Session[] = [
     contextPercent: 51.3,
     pendingApproval: null,
     miniLog: null,
+    sshHost: null,
+    sshUser: null,
 
     worktreePath: null,
     branchName: null,
@@ -65,6 +69,8 @@ const MOCK_SESSIONS: Session[] = [
     contextPercent: 3.1,
     pendingApproval: null,
     miniLog: null,
+    sshHost: null,
+    sshUser: null,
 
     worktreePath: null,
     branchName: null,
@@ -327,6 +333,8 @@ export async function mockInvoke(cmd: string, args?: Record<string, unknown>): P
         contextPercent: null,
         pendingApproval: null,
         miniLog: null,
+        sshHost: null,
+        sshUser: null,
         provider: (args?.provider as string) ?? 'claude-code',
 
         createdAt: new Date().toISOString(),
@@ -480,15 +488,20 @@ export async function mockInvoke(cmd: string, args?: Record<string, unknown>): P
 
     case 'diagnose_provider': {
       const backend = (args?.backend as string) ?? 'claude-code';
+      const sshHost = args?.sshHost as string | null;
       return {
         backend,
         cliName: backend === 'claude-code' ? 'claude' : backend === 'codex' ? 'codex' : 'opencode',
         found: true,
-        path: '/mock/path/' + backend,
+        path: sshHost ? `/home/ubuntu/.local/bin/${backend}` : '/mock/path/' + backend,
         version: '1.0.0-mock',
         installHint: 'npm install -g mock',
+        ssh: sshHost ? { ok: true, latencyMs: 42, error: '' } : null,
       };
     }
+
+    case 'test_ssh':
+      return { ok: true, latencyMs: 42, error: '' };
 
     default:
       console.warn('[mock] Unhandled invoke:', cmd, args);

@@ -14,6 +14,10 @@ pub struct ProviderSpawnConfig {
     pub extra_env: Vec<(String, String)>,
     /// Effort level for thinking (low, medium, high, max). Only used by Claude Code.
     pub effort: Option<String>,
+    /// How to spawn: locally or via SSH tunnel.
+    pub spawn_mode: crate::services::ssh::SpawnMode,
+    /// SSH password (memory only, never persisted).
+    pub ssh_password: Option<String>,
 }
 
 /// Trait that every CLI backend (Claude Code, Codex, OpenCode, etc.) must implement.

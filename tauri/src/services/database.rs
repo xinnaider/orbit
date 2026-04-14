@@ -94,6 +94,8 @@ impl DatabaseService {
         let _ = conn.execute_batch("ALTER TABLE sessions ADD COLUMN cwd TEXT");
         let _ = conn
             .execute_batch("ALTER TABLE sessions ADD COLUMN provider TEXT DEFAULT 'claude-code'");
+        let _ = conn.execute_batch("ALTER TABLE sessions ADD COLUMN ssh_host TEXT");
+        let _ = conn.execute_batch("ALTER TABLE sessions ADD COLUMN ssh_user TEXT");
 
         conn.execute_batch(
             "
@@ -118,7 +120,9 @@ impl DatabaseService {
                 claude_session_id TEXT,
                 created_at        TEXT NOT NULL DEFAULT (datetime('now')),
                 updated_at        TEXT NOT NULL DEFAULT (datetime('now')),
-                provider          TEXT DEFAULT 'claude-code'
+                provider          TEXT DEFAULT 'claude-code',
+                ssh_host          TEXT,
+                ssh_user          TEXT
             );
             -- Add claude_session_id column if upgrading from older schema
             CREATE TABLE IF NOT EXISTS _migrations (name TEXT PRIMARY KEY);
@@ -158,6 +162,7 @@ impl DatabaseService {
         Ok(project)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn create_session(
         &self,
         project_id: Option<i64>,
@@ -166,11 +171,13 @@ impl DatabaseService {
         permission_mode: &str,
         model: Option<&str>,
         provider: Option<&str>,
+        ssh_host: Option<&str>,
+        ssh_user: Option<&str>,
     ) -> SqlResult<SessionId> {
         let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         conn.execute(
-            "INSERT INTO sessions (project_id, name, cwd, status, permission_mode, model, provider)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            "INSERT INTO sessions (project_id, name, cwd, status, permission_mode, model, provider, ssh_host, ssh_user)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
             params![
                 project_id,
                 name,
@@ -178,7 +185,9 @@ impl DatabaseService {
                 crate::models::SessionStatus::Initializing,
                 permission_mode,
                 model,
-                provider.unwrap_or("claude-code")
+                provider.unwrap_or("claude-code"),
+                ssh_host,
+                ssh_user,
             ],
         )?;
         Ok(conn.last_insert_rowid())
@@ -236,7 +245,8 @@ impl DatabaseService {
         let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         let mut stmt = conn.prepare(
             "SELECT id, project_id, name, status, worktree_path, branch_name,
-                    permission_mode, model, pid, cwd, created_at, updated_at, provider
+                    permission_mode, model, pid, cwd, created_at, updated_at, provider,
+                    ssh_host, ssh_user
              FROM sessions ORDER BY created_at DESC",
         )?;
         let sessions = stmt
@@ -263,6 +273,8 @@ impl DatabaseService {
                     context_percent: None,
                     pending_approval: None,
                     mini_log: None,
+                    ssh_host: row.get(13)?,
+                    ssh_user: row.get(14)?,
                 })
             })?
             .collect::<SqlResult<Vec<_>>>()?;
@@ -274,7 +286,7 @@ impl DatabaseService {
         let mut stmt = conn.prepare(
             "SELECT id, project_id, name, status, worktree_path, branch_name,
                     permission_mode, model, pid, cwd, created_at, updated_at,
-                    provider
+                    provider, ssh_host, ssh_user
              FROM sessions WHERE id = ?1",
         )?;
         let session = stmt
@@ -301,6 +313,8 @@ impl DatabaseService {
                     context_percent: None,
                     pending_approval: None,
                     mini_log: None,
+                    ssh_host: row.get(13)?,
+                    ssh_user: row.get(14)?,
                 })
             })
             .optional()?;
@@ -464,7 +478,7 @@ mod tests {
         t.phase("Act");
         let db = make_db();
         let id = db
-            .create_session(None, Some("task 1"), "/tmp/proj", "ignore", None, None)
+            .create_session(None, Some("task 1"), "/tmp/proj", "ignore", None, None, None, None)
             .expect("create_session failed");
         t.phase("Assert");
         t.ok("id is positive", id > 0);
@@ -483,7 +497,7 @@ mod tests {
         t.phase("Act");
         let db = make_db();
         let id = db
-            .create_session(None, None, "/tmp/proj", "ignore", None, None)
+            .create_session(None, None, "/tmp/proj", "ignore", None, None, None, None)
             .expect("create failed");
         t.phase("Assert");
         let session = db
@@ -553,6 +567,8 @@ mod tests {
                 "/myapp",
                 "approve",
                 Some("claude-sonnet-4-6"),
+                None,
+                None,
                 None,
             )
             .expect("create failed");
@@ -646,10 +662,10 @@ mod tests {
         t.phase("Seed");
         let db = make_db();
         let id1 = db
-            .create_session(None, None, "/a", "ignore", None, None)
+            .create_session(None, None, "/a", "ignore", None, None, None, None)
             .expect("s1");
         let id2 = db
-            .create_session(None, None, "/b", "ignore", None, None)
+            .create_session(None, None, "/b", "ignore", None, None, None, None)
             .expect("s2");
         db.insert_output(id1, &assistant_text("session 1 msg"))
             .expect("o1");
@@ -687,7 +703,7 @@ mod tests {
         t.phase("Seed");
         let db = make_db();
         let sid = db
-            .create_session(None, None, "/tmp", "ignore", None, None)
+            .create_session(None, None, "/tmp", "ignore", None, None, None, None)
             .expect("session");
         db.update_session_status(sid, crate::models::SessionStatus::Stopped)
             .expect("update");
@@ -699,5 +715,47 @@ mod tests {
             &sessions[0].status,
             &crate::models::SessionStatus::Stopped,
         );
+    }
+
+    #[test]
+    fn should_store_and_retrieve_ssh_host_and_user() {
+        let mut t = TestCase::new("should_store_and_retrieve_ssh_host_and_user");
+
+        t.phase("Seed");
+        let db = DatabaseService::open_in_memory().unwrap();
+        let pid = db
+            .create_session(
+                None,
+                Some("ssh-test"),
+                "/tmp",
+                "ignore",
+                Some("claude-sonnet"),
+                Some("claude-code"),
+                Some("vps.example.com"),
+                Some("ubuntu"),
+            )
+            .unwrap();
+
+        t.phase("Assert SSH session");
+        let s = db.get_session(pid).unwrap().unwrap();
+        t.eq("ssh_host stored", s.ssh_host.as_deref(), Some("vps.example.com"));
+        t.eq("ssh_user stored", s.ssh_user.as_deref(), Some("ubuntu"));
+
+        t.phase("Assert local session has null SSH");
+        let pid2 = db
+            .create_session(
+                None,
+                Some("local-test"),
+                "/tmp",
+                "ignore",
+                Some("claude-sonnet"),
+                Some("claude-code"),
+                None,
+                None,
+            )
+            .unwrap();
+        let s2 = db.get_session(pid2).unwrap().unwrap();
+        t.none("ssh_host is None for local session", &s2.ssh_host);
+        t.none("ssh_user is None for local session", &s2.ssh_user);
     }
 }

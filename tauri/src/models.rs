@@ -310,6 +310,10 @@ pub struct Session {
     pub pending_approval: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mini_log: Option<Vec<MiniLogEntry>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ssh_host: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ssh_user: Option<String>,
 }
 
 #[derive(Debug, Clone)]
