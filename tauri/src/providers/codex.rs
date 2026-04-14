@@ -93,6 +93,15 @@ impl Provider for CodexProvider {
     fn supports_effort(&self) -> bool {
         false
     }
+    fn supports_ssh(&self) -> bool {
+        true
+    }
+    fn line_processor(&self) -> fn(&mut JournalState, &str) {
+        crate::journal::process_line_codex
+    }
+    fn format_model(&self, raw_model: &str, _provider_id: &str) -> String {
+        raw_model.to_string()
+    }
     fn cli_name(&self) -> &str {
         "codex"
     }

@@ -49,6 +49,17 @@ pub trait Provider: Send + Sync {
     /// Whether this provider supports the `effort` parameter.
     fn supports_effort(&self) -> bool;
 
+    /// Whether this provider supports SSH remote sessions.
+    fn supports_ssh(&self) -> bool;
+
+    /// Return a fn pointer for parsing JSONL lines in a Send thread.
+    /// Needed because `&dyn Provider` is not Send across thread boundaries.
+    fn line_processor(&self) -> fn(&mut crate::journal::JournalState, &str);
+
+    /// Format a raw model string for this provider's CLI.
+    /// E.g. Claude returns "auto" as-is, OpenCode prefixes with "provider/model".
+    fn format_model(&self, raw_model: &str, provider_id: &str) -> String;
+
     /// CLI binary name for diagnostics (e.g. "claude", "codex", "opencode").
     fn cli_name(&self) -> &str;
 
@@ -89,6 +100,11 @@ impl ProviderRegistry {
     /// Look up a provider by exact ID. Returns `None` if not found.
     pub fn get(&self, id: &str) -> Option<&dyn Provider> {
         self.providers.get(id).map(|p| p.as_ref())
+    }
+
+    /// Return all registered providers (unordered).
+    pub fn all(&self) -> Vec<&dyn Provider> {
+        self.providers.values().map(|p| p.as_ref()).collect()
     }
 
     /// Resolve a provider by ID, falling back to "opencode" for unknown IDs.
@@ -152,6 +168,15 @@ mod tests {
 
         fn supports_effort(&self) -> bool {
             self.mock_effort
+        }
+        fn supports_ssh(&self) -> bool {
+            false
+        }
+        fn line_processor(&self) -> fn(&mut crate::journal::JournalState, &str) {
+            |_, _| {}
+        }
+        fn format_model(&self, raw: &str, _pid: &str) -> String {
+            raw.to_string()
         }
         fn cli_name(&self) -> &str {
             "mock"

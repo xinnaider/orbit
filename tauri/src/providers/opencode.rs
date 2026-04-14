@@ -102,6 +102,19 @@ impl Provider for OpenCodeProvider {
     fn supports_effort(&self) -> bool {
         false
     }
+    fn supports_ssh(&self) -> bool {
+        false // SSH not yet supported for OpenCode
+    }
+    fn line_processor(&self) -> fn(&mut JournalState, &str) {
+        crate::journal::process_line_opencode
+    }
+    fn format_model(&self, raw_model: &str, provider_id: &str) -> String {
+        if raw_model.starts_with(&format!("{provider_id}/")) {
+            raw_model.to_string()
+        } else {
+            format!("{provider_id}/{raw_model}")
+        }
+    }
     fn cli_name(&self) -> &str {
         "opencode"
     }

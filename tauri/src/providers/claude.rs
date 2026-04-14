@@ -103,6 +103,19 @@ impl Provider for ClaudeProvider {
     fn supports_effort(&self) -> bool {
         true
     }
+    fn supports_ssh(&self) -> bool {
+        true
+    }
+    fn line_processor(&self) -> fn(&mut JournalState, &str) {
+        crate::journal::process_line
+    }
+    fn format_model(&self, raw_model: &str, _provider_id: &str) -> String {
+        if raw_model.is_empty() || raw_model == "auto" {
+            "auto".to_string()
+        } else {
+            raw_model.to_string()
+        }
+    }
     fn cli_name(&self) -> &str {
         "claude"
     }

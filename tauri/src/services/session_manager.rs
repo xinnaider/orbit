@@ -4,8 +4,11 @@ use std::sync::{Arc, RwLock};
 
 use tauri::{AppHandle, Emitter};
 
-use crate::journal::{process_line, process_line_codex, process_line_opencode, JournalState};
+use crate::journal::JournalState;
 use crate::models::{AgentStatus, Session, SessionId, TokenUsage};
+
+/// Default provider ID when none is specified.
+const DEFAULT_PROVIDER: &str = "claude-code";
 use crate::providers::{ProviderRegistry, ProviderSpawnConfig};
 use crate::services::database::DatabaseService;
 
@@ -145,7 +148,7 @@ impl SessionManager {
             branch_name: branch_name_val,
             permission_mode: permission_mode.to_string(),
             model: model.map(|s| s.to_string()),
-            provider: provider.unwrap_or("claude-code").to_string(),
+            provider: provider.unwrap_or(DEFAULT_PROVIDER).to_string(),
             pid: None,
             created_at: now.clone(),
             updated_at: now,
@@ -215,19 +218,6 @@ impl SessionManager {
             let raw_model = a.session.model.clone().unwrap_or_default();
             let pid_str = a.session.provider.clone();
 
-            // Build model string — for opencode providers, prefix with provider
-            let model = if pid_str != "claude-code" && pid_str != "codex" {
-                if raw_model.starts_with(&format!("{pid_str}/")) {
-                    raw_model
-                } else {
-                    format!("{pid_str}/{raw_model}")
-                }
-            } else if pid_str == "claude-code" && (raw_model.is_empty() || raw_model == "auto") {
-                "auto".to_string()
-            } else {
-                raw_model
-            };
-
             // API key env vars for opencode providers
             let mut env = vec![];
             if let Some(ref key) = a.api_key {
@@ -255,7 +245,7 @@ impl SessionManager {
                     .clone()
                     .or_else(|| a.session.cwd.clone())
                     .unwrap_or_default(),
-                model,
+                raw_model,
                 pid_str,
                 a.effort.clone(),
                 a.claude_session_id.clone(),
@@ -280,7 +270,10 @@ impl SessionManager {
             }
         };
 
-        // 3. Set context window from provider
+        // 3. Format model via provider (no hardcoded string comparisons)
+        let model = provider.format_model(&model, &provider_id);
+
+        // 4. Set context window from provider
         if let Some(ctx) = provider.context_window(&model) {
             let mut m = manager.write().unwrap_or_else(|e| e.into_inner());
             if let Some(state) = m.journal_states.get_mut(&session_id) {
@@ -382,14 +375,9 @@ impl SessionManager {
             &prompt_text,
         );
 
-        // 7. Resolve the right line processor fn pointer from provider ID.
-        // We resolve here rather than passing the trait object into the thread,
-        // because Provider is not Send-safe across thread boundaries.
-        let line_processor: fn(&mut JournalState, &str) = match provider.id() {
-            "claude-code" => process_line,
-            "codex" => process_line_codex,
-            _ => process_line_opencode,
-        };
+        // 7. Get line processor fn pointer from the provider trait.
+        // Uses fn pointer (not trait object) because threads require Send.
+        let line_processor = provider.line_processor();
 
         // 8. Reader loop
         Self::reader_loop(
@@ -782,12 +770,8 @@ impl SessionManager {
                     .flatten()
                     .map(|s| s.provider)
             })
-            .unwrap_or_else(|| "claude-code".to_string());
-        let line_processor: fn(&mut JournalState, &str) = match provider_owned.as_str() {
-            "codex" => process_line_codex,
-            "claude-code" => process_line,
-            _ => process_line_opencode,
-        };
+            .unwrap_or_else(|| DEFAULT_PROVIDER.to_string());
+        let line_processor = resolve_line_processor(&provider_owned);
 
         let mut state = JournalState::default();
         for line in &rows {
@@ -877,6 +861,19 @@ impl SessionManager {
 }
 
 /// Forcefully terminate a process by PID.
+/// Resolve line processor fn pointer from provider ID.
+/// Used for journal replay where ProviderRegistry is not available.
+/// When adding a new provider, register its parser here.
+fn resolve_line_processor(provider_id: &str) -> fn(&mut JournalState, &str) {
+    // Fallback dispatch for journal replay where ProviderRegistry is unavailable.
+    // For live sessions, prefer provider.line_processor() via the trait.
+    match provider_id {
+        DEFAULT_PROVIDER => crate::journal::process_line,
+        "codex" => crate::journal::process_line_codex,
+        _ => crate::journal::process_line_opencode,
+    }
+}
+
 fn kill_pid(pid: u32) {
     #[cfg(windows)]
     {
