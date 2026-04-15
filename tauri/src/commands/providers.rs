@@ -79,16 +79,56 @@ pub fn get_providers(
 fn get_provider_models(provider_id: &str) -> Vec<ModelInfo> {
     match provider_id {
         "claude-code" => vec![
-            ModelInfo { id: "auto".into(), name: "auto".into(), context: None, output: None },
-            ModelInfo { id: "claude-sonnet-4-6".into(), name: "sonnet-4.6".into(), context: Some(1_000_000), output: Some(64_000) },
-            ModelInfo { id: "claude-opus-4-6".into(), name: "opus-4.6".into(), context: Some(1_000_000), output: Some(128_000) },
-            ModelInfo { id: "claude-haiku-4-5-20251001".into(), name: "haiku-4.5".into(), context: Some(200_000), output: Some(64_000) },
+            ModelInfo {
+                id: "auto".into(),
+                name: "auto".into(),
+                context: None,
+                output: None,
+            },
+            ModelInfo {
+                id: "claude-sonnet-4-6".into(),
+                name: "sonnet-4.6".into(),
+                context: Some(1_000_000),
+                output: Some(64_000),
+            },
+            ModelInfo {
+                id: "claude-opus-4-6".into(),
+                name: "opus-4.6".into(),
+                context: Some(1_000_000),
+                output: Some(128_000),
+            },
+            ModelInfo {
+                id: "claude-haiku-4-5-20251001".into(),
+                name: "haiku-4.5".into(),
+                context: Some(200_000),
+                output: Some(64_000),
+            },
         ],
         "codex" => vec![
-            ModelInfo { id: "gpt-5.4".into(), name: "gpt-5.4".into(), context: None, output: None },
-            ModelInfo { id: "gpt-5.4-mini".into(), name: "gpt-5.4-mini".into(), context: None, output: None },
-            ModelInfo { id: "gpt-5.3-codex".into(), name: "gpt-5.3-codex".into(), context: None, output: None },
-            ModelInfo { id: "gpt-5.2".into(), name: "gpt-5.2".into(), context: None, output: None },
+            ModelInfo {
+                id: "gpt-5.4".into(),
+                name: "gpt-5.4".into(),
+                context: None,
+                output: None,
+            },
+            ModelInfo {
+                id: "gpt-5.4-mini".into(),
+                name: "gpt-5.4-mini".into(),
+                context: None,
+                output: None,
+            },
+            ModelInfo {
+                id: "gpt-5.3-codex".into(),
+                name: "gpt-5.3-codex".into(),
+                context: None,
+                output: None,
+            },
+            ModelInfo {
+                id: "gpt-5.2".into(),
+                name: "gpt-5.2".into(),
+                context: None,
+                output: None,
+            },
         ],
         _ => vec![], // OpenCode models come from sub-providers
     }
@@ -161,8 +201,7 @@ pub fn diagnose_provider(
         } else {
             String::new()
         };
-        let remote_script =
-            format!("which {cli_name} && {cli_name} --version{dir_check}");
+        let remote_script = format!("which {cli_name} && {cli_name} --version{dir_check}");
 
         let (path, version, dir_ok) = match crate::services::ssh::spawn_via_ssh(
             host,
@@ -186,8 +225,8 @@ pub fn diagnose_provider(
                             (p, v, Some(has_dir))
                         } else {
                             // `which` succeeded but `test -d` failed → CLI found, dir missing
-                            let cli_found = p.is_some()
-                                && p.as_ref().is_some_and(|s| !s.is_empty());
+                            let cli_found =
+                                p.is_some() && p.as_ref().is_some_and(|s| !s.is_empty());
                             if cli_found {
                                 (p, v, Some(false))
                             } else {

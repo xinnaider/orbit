@@ -250,9 +250,8 @@ impl DatabaseService {
         id: SessionId,
     ) -> SqlResult<(Option<String>, Option<String>)> {
         let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
-        let mut stmt = conn.prepare(
-            "SELECT api_key_enc, ssh_password_enc FROM sessions WHERE id = ?1",
-        )?;
+        let mut stmt =
+            conn.prepare("SELECT api_key_enc, ssh_password_enc FROM sessions WHERE id = ?1")?;
         let result = stmt
             .query_row(params![id], |row| {
                 let api_enc: Option<String> = row.get(0)?;
@@ -263,10 +262,8 @@ impl DatabaseService {
 
         match result {
             Some((api_enc, pw_enc)) => {
-                let api_key =
-                    api_enc.and_then(|e| crate::services::crypto::decrypt(&e).ok());
-                let ssh_pw =
-                    pw_enc.and_then(|e| crate::services::crypto::decrypt(&e).ok());
+                let api_key = api_enc.and_then(|e| crate::services::crypto::decrypt(&e).ok());
+                let ssh_pw = pw_enc.and_then(|e| crate::services::crypto::decrypt(&e).ok());
                 Ok((api_key, ssh_pw))
             }
             None => Ok((None, None)),
@@ -527,7 +524,16 @@ mod tests {
         t.phase("Act");
         let db = make_db();
         let id = db
-            .create_session(None, Some("task 1"), "/tmp/proj", "ignore", None, None, None, None)
+            .create_session(
+                None,
+                Some("task 1"),
+                "/tmp/proj",
+                "ignore",
+                None,
+                None,
+                None,
+                None,
+            )
             .expect("create_session failed");
         t.phase("Assert");
         t.ok("id is positive", id > 0);
@@ -787,7 +793,11 @@ mod tests {
 
         t.phase("Assert SSH session");
         let s = db.get_session(pid).unwrap().unwrap();
-        t.eq("ssh_host stored", s.ssh_host.as_deref(), Some("vps.example.com"));
+        t.eq(
+            "ssh_host stored",
+            s.ssh_host.as_deref(),
+            Some("vps.example.com"),
+        );
         t.eq("ssh_user stored", s.ssh_user.as_deref(), Some("ubuntu"));
 
         t.phase("Assert local session has null SSH");

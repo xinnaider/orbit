@@ -298,7 +298,11 @@ impl SessionManager {
             );
             eprintln!(
                 "[orbit:debug]   ssh_password: {}",
-                if ssh_password.is_some() { "<set>" } else { "<none>" }
+                if ssh_password.is_some() {
+                    "<set>"
+                } else {
+                    "<none>"
+                }
             );
             if !extra_env.is_empty() {
                 for (k, _) in &extra_env {
@@ -308,7 +312,10 @@ impl SessionManager {
             if let Some(ref rid) = resume_id {
                 eprintln!("[orbit:debug]   resume: {rid}");
             }
-            eprintln!("[orbit:debug]   prompt: {}…", &prompt.chars().take(80).collect::<String>());
+            eprintln!(
+                "[orbit:debug]   prompt: {}…",
+                &prompt.chars().take(80).collect::<String>()
+            );
         }
         let spawn_config = ProviderSpawnConfig {
             session_id,
@@ -652,10 +659,9 @@ impl SessionManager {
                         .ok_or_else(|| format!("Session {session_id} not found"))?;
 
                 let claude_session_id = m.db.get_claude_session_id(session_id).ok().flatten();
-                let (api_key, ssh_password) = m
-                    .db
-                    .load_session_secrets(session_id)
-                    .unwrap_or((None, None));
+                let (api_key, ssh_password) =
+                    m.db.load_session_secrets(session_id)
+                        .unwrap_or((None, None));
 
                 m.active.insert(
                     session_id,
@@ -947,7 +953,17 @@ mod tests {
         let s = mgr
             .write()
             .unwrap()
-            .init_session("/tmp/proj", None, "ignore", None, false, None, None, None, None)
+            .init_session(
+                "/tmp/proj",
+                None,
+                "ignore",
+                None,
+                false,
+                None,
+                None,
+                None,
+                None,
+            )
             .expect("init failed");
         t.phase("Assert");
         t.ok("id is positive", s.id > 0);
@@ -966,7 +982,17 @@ mod tests {
         let s = mgr
             .write()
             .unwrap()
-            .init_session("/tmp/proj", None, "ignore", None, false, None, None, None, None)
+            .init_session(
+                "/tmp/proj",
+                None,
+                "ignore",
+                None,
+                false,
+                None,
+                None,
+                None,
+                None,
+            )
             .expect("init failed");
         t.phase("Assert");
         t.ok(
@@ -983,7 +1009,17 @@ mod tests {
         let s = mgr
             .write()
             .unwrap()
-            .init_session("/tmp/proj", None, "ignore", None, false, None, None, None, None)
+            .init_session(
+                "/tmp/proj",
+                None,
+                "ignore",
+                None,
+                false,
+                None,
+                None,
+                None,
+                None,
+            )
             .expect("init failed");
         t.phase("Assert");
         t.ok(
@@ -1002,7 +1038,17 @@ mod tests {
         let s = mgr
             .write()
             .unwrap()
-            .init_session("/tmp/proj", None, "ignore", None, false, None, None, None, None)
+            .init_session(
+                "/tmp/proj",
+                None,
+                "ignore",
+                None,
+                false,
+                None,
+                None,
+                None,
+                None,
+            )
             .expect("init failed");
         t.phase("Act");
         mgr.write()
@@ -1028,7 +1074,17 @@ mod tests {
         let s = mgr
             .write()
             .unwrap()
-            .init_session("/tmp/proj", None, "ignore", None, false, None, None, None, None)
+            .init_session(
+                "/tmp/proj",
+                None,
+                "ignore",
+                None,
+                false,
+                None,
+                None,
+                None,
+                None,
+            )
             .expect("init failed");
         t.phase("Act");
         mgr.write()
@@ -1055,7 +1111,17 @@ mod tests {
         let s = mgr
             .write()
             .unwrap()
-            .init_session("/tmp/proj", Some("old-name"), "ignore", None, false, None, None, None, None)
+            .init_session(
+                "/tmp/proj",
+                Some("old-name"),
+                "ignore",
+                None,
+                false,
+                None,
+                None,
+                None,
+                None,
+            )
             .expect("init failed");
         t.phase("Act");
         mgr.write()

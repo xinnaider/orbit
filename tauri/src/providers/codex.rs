@@ -49,19 +49,11 @@ impl Provider for CodexProvider {
                 }
 
                 let cwd_str = config.cwd.to_string_lossy();
-                let remote_script = format!(
-                    "cd {} && {}",
-                    cwd_str,
-                    parts.join(" ")
-                );
+                let remote_script = format!("cd {} && {}", cwd_str, parts.join(" "));
 
-                let (mut child, askpass) = ssh::spawn_via_ssh(
-                    host,
-                    user,
-                    config.ssh_password.as_deref(),
-                    &remote_script,
-                )
-                .map_err(|e| format!("ssh spawn failed: {e}"))?;
+                let (mut child, askpass) =
+                    ssh::spawn_via_ssh(host, user, config.ssh_password.as_deref(), &remote_script)
+                        .map_err(|e| format!("ssh spawn failed: {e}"))?;
 
                 let pid = child.id();
                 let stdout = child.stdout.take().ok_or("no stdout")?;
