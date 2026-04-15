@@ -441,7 +441,8 @@ jobs:
         run: npm ci
 
       - name: Build Tauri app
-        run: npm run tauri:build -- --bundles dmg
+        # "app" gera o .app.tar.gz + .sig usados pelo updater; "dmg" gera o instalador para o usuário
+        run: npm run tauri:build -- --bundles app,dmg
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
@@ -453,13 +454,14 @@ jobs:
           if [[ "$version" != v* ]]; then version="0.0.0-nightly"; fi
           version="${version#v}"
 
-          dmg=$(ls tauri/target/release/bundle/dmg/*.dmg 2>/dev/null | head -1)
-          if [ -z "$dmg" ]; then
-            echo "::error::No .dmg found in tauri/target/release/bundle/dmg/"
+          # O updater do macOS usa .app.tar.gz (não o .dmg)
+          tarball=$(ls tauri/target/release/bundle/macos/*.app.tar.gz 2>/dev/null | head -1)
+          if [ -z "$tarball" ]; then
+            echo "::error::No .app.tar.gz found in tauri/target/release/bundle/macos/"
             exit 1
           fi
 
-          sig_file="${dmg}.sig"
+          sig_file="${tarball}.sig"
           if [ ! -f "$sig_file" ]; then
             echo "::warning::.sig file not found — skipping updater JSON (signing key may not be set)"
             exit 0
@@ -467,7 +469,7 @@ jobs:
 
           signature=$(cat "$sig_file")
           pub_date=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
-          filename=$(basename "$dmg")
+          filename=$(basename "$tarball")
           download_url="https://github.com/xinnaider/orbit/releases/download/v${version}/${filename}"
 
           jq -n \
@@ -488,7 +490,8 @@ jobs:
           name: orbit-macos-${{ github.sha }}
           path: |
             tauri/target/release/bundle/dmg/*.dmg
-            tauri/target/release/bundle/dmg/*.dmg.sig
+            tauri/target/release/bundle/macos/*.app.tar.gz
+            tauri/target/release/bundle/macos/*.app.tar.gz.sig
             latest-macos-x86_64.json
           if-no-files-found: warn
           retention-days: 30
@@ -514,7 +517,8 @@ jobs:
           prerelease: ${{ steps.meta.outputs.prerelease }}
           files: |
             tauri/target/release/bundle/dmg/*.dmg
-            tauri/target/release/bundle/dmg/*.dmg.sig
+            tauri/target/release/bundle/macos/*.app.tar.gz
+            tauri/target/release/bundle/macos/*.app.tar.gz.sig
             latest-macos-x86_64.json
           generate_release_notes: true
         env:
