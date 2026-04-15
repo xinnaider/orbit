@@ -39,7 +39,8 @@ fn load_or_create_key(data_dir: &Path) -> [u8; 32] {
 }
 
 fn get_key() -> &'static [u8; 32] {
-    KEY.get().expect("crypto::init() must be called before encrypt/decrypt")
+    KEY.get()
+        .expect("crypto::init() must be called before encrypt/decrypt")
 }
 
 /// Encrypt a plaintext string. Returns a base64 string (nonce + ciphertext).

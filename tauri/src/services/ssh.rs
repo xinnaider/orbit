@@ -347,7 +347,11 @@ pub fn spawn_via_ssh(
         eprintln!(
             "[orbit:debug] spawn_via_ssh: ssh {}",
             args.iter()
-                .map(|a| if a.contains(' ') { format!("'{a}'") } else { a.clone() })
+                .map(|a| if a.contains(' ') {
+                    format!("'{a}'")
+                } else {
+                    a.clone()
+                })
                 .collect::<Vec<_>>()
                 .join(" ")
         );

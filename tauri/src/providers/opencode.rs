@@ -42,11 +42,7 @@ impl Provider for OpenCodeProvider {
                 ]);
 
                 if let Some(ref sid) = config.resume_id {
-                    parts.extend([
-                        "--continue".to_string(),
-                        "-s".to_string(),
-                        sid.clone(),
-                    ]);
+                    parts.extend(["--continue".to_string(), "-s".to_string(), sid.clone()]);
                 }
 
                 parts.push(config.prompt.clone());
@@ -57,16 +53,11 @@ impl Provider for OpenCodeProvider {
                     env_prefix.push_str(&format!("{k}={v} "));
                 }
 
-                let remote_script =
-                    format!("cd {cwd_str} && {env_prefix}{}", parts.join(" "));
+                let remote_script = format!("cd {cwd_str} && {env_prefix}{}", parts.join(" "));
 
-                let (mut child, askpass) = ssh::spawn_via_ssh(
-                    host,
-                    user,
-                    config.ssh_password.as_deref(),
-                    &remote_script,
-                )
-                .map_err(|e| format!("ssh spawn failed: {e}"))?;
+                let (mut child, askpass) =
+                    ssh::spawn_via_ssh(host, user, config.ssh_password.as_deref(), &remote_script)
+                        .map_err(|e| format!("ssh spawn failed: {e}"))?;
 
                 let pid = child.id();
                 let stdout = child.stdout.take().ok_or("no stdout")?;
