@@ -3,9 +3,14 @@
   import type { JournalEntry } from '../lib/types';
   import Markdown from './Markdown.svelte';
   import ToolCallEntry from './ToolCallEntry.svelte';
+  import { backends } from '../lib/stores/providers';
 
   export let entries: JournalEntry[] = [];
   export let status: string = '';
+  export let provider: string = 'claude-code';
+
+  $: agentLabel =
+    $backends.find((b) => b.id === provider)?.name.toLowerCase() ?? 'agent';
 
   const dispatch = createEventDispatcher<{ bottomchange: { atBottom: boolean } }>();
 
@@ -211,7 +216,7 @@
     {:else if e.entryType === 'assistant'}
       <div class="row assistant">
         <div class="row-meta">
-          <span class="row-who ai-who">claude</span>
+          <span class="row-who ai-who">{agentLabel}</span>
           <span class="row-ts">{ts(e)}</span>
         </div>
         <div class="row-body">
@@ -246,24 +251,24 @@
     overflow-x: hidden;
     display: flex;
     flex-direction: column;
-    padding: 10px 0;
+    padding: var(--sp-5) 0;
     box-sizing: border-box;
   }
 
   .load-more {
     display: flex;
     justify-content: center;
-    padding: 8px 0 4px;
+    padding: var(--sp-4) 0 var(--sp-2);
     flex-shrink: 0;
   }
 
   .load-more button {
     background: none;
     border: 1px solid var(--bd1);
-    border-radius: 3px;
+    border-radius: var(--radius-sm);
     color: var(--t3);
     font-size: var(--xs);
-    padding: 3px 10px;
+    padding: var(--sp-2) var(--sp-5);
     cursor: pointer;
   }
 
@@ -273,7 +278,7 @@
   }
 
   .row {
-    padding: 8px 14px;
+    padding: var(--sp-6) var(--sp-7);
     flex-shrink: 0;
   }
   .row:hover {
@@ -283,8 +288,8 @@
   .row-meta {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 4px;
+    gap: var(--sp-4);
+    margin-bottom: var(--sp-2);
   }
   .row-who {
     font-size: var(--xs);
@@ -320,7 +325,7 @@
 
   .row-body {
     font-size: var(--base);
-    line-height: 1.6;
+    line-height: var(--lh);
     color: var(--t0);
     padding-left: 0;
   }
@@ -336,8 +341,8 @@
     font-size: var(--sm);
     background: var(--think-bg);
     border-left: 2px solid var(--think-fg);
-    padding: 6px 10px;
-    border-radius: 0 3px 3px 0;
+    padding: var(--sp-3) var(--sp-5);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
     max-height: 280px;
     overflow-y: auto;
   }
@@ -352,7 +357,7 @@
   }
 
   .system {
-    padding: 4px 14px;
+    padding: var(--sp-2) var(--sp-7);
   }
   .system-text {
     font-size: var(--xs);
@@ -363,13 +368,13 @@
   .typing-row {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 10px 14px;
+    gap: var(--sp-4);
+    padding: var(--sp-5) var(--sp-7);
     flex-shrink: 0;
   }
   .typing-dots {
     display: flex;
-    gap: 3px;
+    gap: var(--sp-2);
     align-items: center;
   }
   .typing-dots span {

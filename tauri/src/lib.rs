@@ -4,12 +4,14 @@ pub mod diff_builder;
 pub mod ipc;
 pub mod journal;
 pub mod models;
+pub mod providers;
 pub mod services;
 
 #[cfg(test)]
 pub mod test_utils;
 
-use ipc::session::SessionState;
+use ipc::session::{ProviderRegistryState, SessionState};
+use providers::ProviderRegistry;
 use services::database::DatabaseService;
 use services::session_manager::SessionManager;
 use std::sync::{Arc, RwLock};
@@ -29,11 +31,21 @@ pub fn run() {
                 .expect("Could not resolve app data dir");
             std::fs::create_dir_all(&data_dir).expect("Could not create app data dir");
 
+            // Initialize encryption key for storing secrets (stored at {app_data}/orbit.key)
+            services::crypto::init(&data_dir);
+
             let db_path = data_dir.join("agent-dashboard.db");
             let db = Arc::new(DatabaseService::open(&db_path).expect("Could not open database"));
 
             let session_manager = Arc::new(RwLock::new(SessionManager::new(db)));
             app.manage(SessionState(session_manager));
+
+            // Provider registry — maps provider IDs to trait implementations
+            let mut registry = ProviderRegistry::new();
+            registry.register(Box::new(providers::claude::ClaudeProvider));
+            registry.register(Box::new(providers::codex::CodexProvider));
+            registry.register(Box::new(providers::opencode::OpenCodeProvider));
+            app.manage(ProviderRegistryState(Arc::new(registry)));
 
             // Set window icon programmatically — bypasses Windows icon cache in dev mode
             if let Some(window) = app.get_webview_window("main") {
@@ -56,6 +68,10 @@ pub fn run() {
             ipc::session::diagnose_spawn,
             ipc::session::rename_session,
             ipc::session::delete_session,
+            ipc::session::update_session_model,
+            ipc::session::update_session_effort,
+            ipc::session::set_session_api_key,
+            ipc::session::test_ssh,
             ipc::project::create_project,
             ipc::project::list_projects,
             commands::agents::get_subagents,
@@ -66,9 +82,13 @@ pub fn run() {
             commands::files::list_project_files,
             commands::tasks::get_tasks,
             commands::stats::get_claude_usage_stats,
+            commands::stats::get_rate_limits,
             ipc::updater::check_update,
             ipc::updater::install_update,
             commands::stats::get_changelog,
+            commands::providers::get_providers,
+            commands::providers::check_env_var,
+            commands::providers::diagnose_provider,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

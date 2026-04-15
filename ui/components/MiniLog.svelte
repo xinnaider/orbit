@@ -24,17 +24,17 @@
 
 <style>
   .mini-log {
-    margin-top: 6px;
-    padding: 4px 6px;
+    margin-top: var(--sp-3);
+    padding: var(--sp-2) var(--sp-3);
     background: var(--bg-inset);
-    border-radius: 4px;
+    border-radius: var(--radius-md);
     font-size: 11px;
     font-family: 'Cascadia Code', 'Fira Code', monospace;
     line-height: 1.5;
   }
   .entry {
     display: flex;
-    gap: 4px;
+    gap: var(--sp-2);
     color: var(--text-dim);
   }
   .tool {

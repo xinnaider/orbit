@@ -2,13 +2,16 @@
   import type { Session } from '../lib/stores/sessions';
   import { formatTokens } from '../lib/cost';
   import { stopSession, getSubagents } from '../lib/tauri';
-  import { isActive } from '../lib/status';
+  import { isActive, modelShortName } from '../lib/status';
+  import { sessionEffort } from '../lib/stores/ui';
   import { metaPanelVisible } from '../lib/stores/preferences';
   import { sessions, updateSessionState } from '../lib/stores/sessions';
   import TasksList from './TasksList.svelte';
   import SubagentsPanel from './SubagentsPanel.svelte';
+  import { providerCaps, getCaps } from '../lib/stores/providers';
 
   export let session: Session;
+  $: caps = getCaps($providerCaps, session.provider);
 
   type Tab = 'stats' | 'tasks' | 'agents';
   let tab: Tab = 'stats';
@@ -51,9 +54,11 @@
     <button class="tab" class:active={tab === 'tasks'} on:click={() => (tab = 'tasks')}
       >tasks</button
     >
-    <button class="tab" class:active={tab === 'agents'} on:click={() => (tab = 'agents')}
-      >agents</button
-    >
+    {#if caps.supportsSubagents}
+      <button class="tab" class:active={tab === 'agents'} on:click={() => (tab = 'agents')}
+        >agents</button
+      >
+    {/if}
     <span class="tabs-spacer"></span>
     <button class="collapse-btn" on:click={() => metaPanelVisible.set(false)} title="Hide panel"
       >›</button
@@ -81,6 +86,8 @@
         </div>
 
         {#if ctx > 0}
+          {@const maxCtx = session.contextWindow ?? 200_000}
+          {@const usedTokens = Math.round((ctx / 100) * maxCtx)}
           <div class="stat-group">
             <div class="stat-label">context</div>
             <div class="ctx-row">
@@ -96,6 +103,12 @@
                 ></div>
               </div>
               <span class="ctx-pct">{Math.round(ctx)}%</span>
+            </div>
+            <div class="stat-row dim">
+              <span>used</span><span>{formatTokens(usedTokens)}</span>
+            </div>
+            <div class="stat-row dim">
+              <span>max</span><span>{formatTokens(maxCtx)}</span>
             </div>
           </div>
         {/if}
@@ -121,10 +134,17 @@
 
         <div class="stat-group meta-info">
           <div class="stat-row">
-            <span>model</span><span class="mono-val"
-              >{session.model?.split('-').slice(-2).join('-') ?? '—'}</span
+            <span>model</span><span class="mono-val" title={session.model ?? ''}
+              >{modelShortName(session.model)}</span
             >
           </div>
+          {#if caps.supportsEffort}
+            <div class="stat-row">
+              <span>effort</span><span class="mono-val"
+                >{sessionEffort.get($sessionEffort, String(session.id))}</span
+              >
+            </div>
+          {/if}
           <div class="stat-row">
             <span>pid</span><span class="mono-val">{session.pid ?? '—'}</span>
           </div>
@@ -160,7 +180,7 @@
     display: flex;
     align-items: center;
     border-bottom: 1px solid var(--bd);
-    padding: 0 2px;
+    padding: 0 var(--sp-1);
     flex-shrink: 0;
   }
   .tab {
@@ -168,7 +188,7 @@
     border: none;
     color: var(--t2);
     font-size: var(--xs);
-    padding: 9px 10px 8px;
+    padding: var(--sp-5) var(--sp-5) var(--sp-4);
     letter-spacing: 0.06em;
     border-bottom: 1px solid transparent;
     margin-bottom: -1px;
@@ -190,7 +210,7 @@
     border: none;
     color: var(--t2);
     font-size: 14px;
-    padding: 4px 6px;
+    padding: var(--sp-2) var(--sp-3);
     line-height: 1;
     cursor: pointer;
     transition: color 0.15s;
@@ -205,13 +225,13 @@
   }
 
   .stats {
-    padding: 10px 0;
+    padding: var(--sp-5) 0;
     display: flex;
     flex-direction: column;
     gap: 0;
   }
   .stat-group {
-    padding: 8px 12px;
+    padding: var(--sp-4) var(--sp-6);
     border-bottom: 1px solid var(--bd);
   }
   .stat-group:last-child {
@@ -221,7 +241,7 @@
     font-size: var(--xs);
     color: var(--t2);
     letter-spacing: 0.08em;
-    margin-bottom: 4px;
+    margin-bottom: var(--sp-2);
   }
   .stat-value {
     font-size: var(--md);

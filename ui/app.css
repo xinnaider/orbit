@@ -5,12 +5,29 @@
   /* Font */
   --mono: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
 
-  /* Sizes */
+  /* Typography */
   --xs: 10px;
   --sm: 11px;
   --md: 12px;
   --base: 13px;
   --lg: 14px;
+  --lh: 1.6;
+
+  /* Spacing */
+  --sp-1: 2px;
+  --sp-2: 4px;
+  --sp-3: 6px;
+  --sp-4: 8px;
+  --sp-5: 10px;
+  --sp-6: 12px;
+  --sp-7: 14px;
+  --sp-8: 16px;
+  --sp-9: 20px;
+
+  /* Radius */
+  --radius-sm: 3px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
 }
 
 *,
@@ -36,7 +53,7 @@ body {
   font-size: var(--base);
   color: var(--t0);
   -webkit-font-smoothing: antialiased;
-  line-height: 1.5;
+  line-height: var(--lh);
 }
 
 #app {

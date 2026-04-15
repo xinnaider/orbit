@@ -9,6 +9,7 @@ const MOCK_SESSIONS: Session[] = [
     status: 'running' as const,
     permissionMode: 'ignore',
     model: 'claude-sonnet-4-6',
+    provider: 'claude-code',
     pid: 12345,
     cwd: 'C:\\Users\\dev\\api-server',
     projectName: 'api-server',
@@ -20,6 +21,8 @@ const MOCK_SESSIONS: Session[] = [
       { tool: 'Read', target: 'auth.ts', result: null, success: true },
       { tool: 'Bash', target: 'git status', result: null, success: true },
     ],
+    sshHost: null,
+    sshUser: null,
 
     worktreePath: null,
     branchName: null,
@@ -33,6 +36,7 @@ const MOCK_SESSIONS: Session[] = [
     status: 'waiting' as const,
     permissionMode: 'approve',
     model: 'claude-opus-4-6',
+    provider: 'claude-code',
     pid: 23456,
     cwd: 'C:\\Users\\dev\\dashboard',
     projectName: 'dashboard',
@@ -41,6 +45,8 @@ const MOCK_SESSIONS: Session[] = [
     contextPercent: 51.3,
     pendingApproval: null,
     miniLog: null,
+    sshHost: null,
+    sshUser: null,
 
     worktreePath: null,
     branchName: null,
@@ -54,6 +60,7 @@ const MOCK_SESSIONS: Session[] = [
     status: 'completed',
     permissionMode: 'ignore',
     model: 'claude-haiku-4-5-20251001',
+    provider: 'claude-code',
     pid: null,
     cwd: 'C:\\Users\\dev\\utils',
     projectName: 'utils-lib',
@@ -62,6 +69,8 @@ const MOCK_SESSIONS: Session[] = [
     contextPercent: 3.1,
     pendingApproval: null,
     miniLog: null,
+    sshHost: null,
+    sshUser: null,
 
     worktreePath: null,
     branchName: null,
@@ -324,6 +333,9 @@ export async function mockInvoke(cmd: string, args?: Record<string, unknown>): P
         contextPercent: null,
         pendingApproval: null,
         miniLog: null,
+        sshHost: null,
+        sshUser: null,
+        provider: (args?.provider as string) ?? 'claude-code',
 
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -386,6 +398,19 @@ export async function mockInvoke(cmd: string, args?: Record<string, unknown>): P
     case 'list_project_files':
       return ['src/index.ts', 'src/auth/auth.ts', 'src/api/routes.ts', 'package.json', 'README.md'];
 
+    case 'update_session_model': {
+      const id = args?.sessionId as number;
+      const model = args?.model as string;
+      sessions = sessions.map((s) => (s.id === id ? { ...s, model } : s));
+      return null;
+    }
+
+    case 'update_session_effort':
+      return null;
+
+    case 'set_session_api_key':
+      return null;
+
     case 'get_tasks':
       return [];
 
@@ -394,6 +419,103 @@ export async function mockInvoke(cmd: string, args?: Record<string, unknown>): P
 
     case 'get_changelog':
       return '# Changelog\n\n## April 2026\n\n### 04/07 · New — In-app changelog\nYou can now view the history of Orbit updates directly inside the app.';
+
+    case 'get_providers':
+      return [
+        {
+          id: 'claude-code',
+          name: 'Claude Code',
+          cliAvailable: true,
+          supportsEffort: true,
+          supportsSsh: true,
+          supportsSubagents: true,
+          hasSubProviders: false,
+          models: [
+            { id: 'auto', name: 'auto', context: null, output: null },
+            { id: 'claude-sonnet-4-6', name: 'sonnet-4.6', context: 1000000, output: 64000 },
+            { id: 'claude-opus-4-6', name: 'opus-4.6', context: 1000000, output: 128000 },
+          ],
+          subProviders: [],
+        },
+        {
+          id: 'codex',
+          name: 'Codex',
+          cliAvailable: true,
+          supportsEffort: false,
+          supportsSsh: true,
+          supportsSubagents: false,
+          hasSubProviders: false,
+          models: [
+            { id: 'gpt-5.4', name: 'gpt-5.4', context: null, output: null },
+            { id: 'gpt-5.4-mini', name: 'gpt-5.4-mini', context: null, output: null },
+            { id: 'gpt-5.3-codex', name: 'gpt-5.3-codex', context: null, output: null },
+            { id: 'gpt-5.2', name: 'gpt-5.2', context: null, output: null },
+          ],
+          subProviders: [],
+        },
+        {
+          id: 'opencode',
+          name: 'OpenCode',
+          cliAvailable: true,
+          supportsEffort: false,
+          supportsSsh: false,
+          supportsSubagents: false,
+          hasSubProviders: true,
+          models: [],
+          subProviders: [
+            {
+              id: 'openrouter',
+              name: 'OpenRouter',
+              env: ['OPENROUTER_API_KEY'],
+              configured: false,
+              models: [
+                {
+                  id: 'anthropic/claude-sonnet-4',
+                  name: 'Claude Sonnet 4',
+                  context: 200000,
+                  output: 64000,
+                },
+              ],
+            },
+            {
+              id: 'anthropic',
+              name: 'Anthropic',
+              env: ['ANTHROPIC_API_KEY'],
+              configured: true,
+              models: [
+                {
+                  id: 'claude-sonnet-4-6',
+                  name: 'Claude Sonnet 4.6',
+                  context: 1000000,
+                  output: 64000,
+                },
+              ],
+            },
+          ],
+        },
+      ];
+
+    case 'check_env_var':
+      return false;
+
+    case 'diagnose_provider': {
+      const backend = (args?.backend as string) ?? 'claude-code';
+      const sshHost = args?.sshHost as string | null;
+      const projectPath = args?.projectPath as string | null;
+      return {
+        backend,
+        cliName: backend === 'claude-code' ? 'claude' : backend === 'codex' ? 'codex' : 'opencode',
+        found: true,
+        path: sshHost ? `/home/ubuntu/.local/bin/${backend}` : '/mock/path/' + backend,
+        version: '1.0.0-mock',
+        installHint: 'npm install -g mock',
+        ssh: sshHost ? { ok: true, latencyMs: 42, error: '' } : null,
+        projectDirOk: projectPath ? true : null,
+      };
+    }
+
+    case 'test_ssh':
+      return { ok: true, latencyMs: 42, error: '' };
 
     default:
       console.warn('[mock] Unhandled invoke:', cmd, args);
@@ -525,6 +647,8 @@ function makeStateEvent(sessionId: number, status: string, extraTokens?: Partial
     miniLog: [],
     gitBranch: null,
     subagents: [],
+    model: session?.model ?? null,
+    contextWindow: 200_000,
   };
 }
 

@@ -5,6 +5,7 @@ pub struct SpawnConfig {
     pub cwd: PathBuf,
     pub permission_mode: String,
     pub model: Option<String>,
+    pub effort: Option<String>,
     pub prompt: String,
     /// For follow-up messages: the Claude session ID from the previous run
     pub claude_session_id: Option<String>,
@@ -15,6 +16,8 @@ pub struct SpawnHandle {
     pub reader: Box<dyn std::io::Read + Send>,
     pub stderr: Box<dyn std::io::Read + Send>,
     pub child: std::process::Child,
+    /// Keeps the askpass temp dir alive for the duration of an SSH session.
+    pub _askpass: Option<crate::services::ssh::AskpassGuard>,
 }
 
 /// Build a PATH string that includes common Claude/Node installation directories.
@@ -190,6 +193,10 @@ pub fn spawn_claude(config: SpawnConfig) -> Result<SpawnHandle, String> {
         }
     }
 
+    if let Some(ref effort) = config.effort {
+        cmd.args(["--effort", effort]);
+    }
+
     if let Some(ref resume_id) = config.claude_session_id {
         cmd.args(["--resume", resume_id]);
     }
@@ -223,6 +230,201 @@ pub fn spawn_claude(config: SpawnConfig) -> Result<SpawnHandle, String> {
         reader: Box::new(stdout),
         stderr: Box::new(stderr),
         child,
+        _askpass: None,
+    })
+}
+
+/// Find the full path to the opencode executable.
+pub fn find_opencode() -> Option<String> {
+    find_cli_in_path("opencode")
+}
+
+/// Find the full path to the codex executable.
+pub fn find_codex() -> Option<String> {
+    find_cli_in_path("codex")
+}
+
+/// Generic CLI lookup using augmented PATH.
+fn find_cli_in_path(name: &str) -> Option<String> {
+    let aug = extended_path();
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        let out = std::process::Command::new("where")
+            .arg(name)
+            .env("PATH", &aug)
+            .creation_flags(CREATE_NO_WINDOW)
+            .output()
+            .ok()?;
+        if out.status.success() {
+            // `where` may return multiple lines. On Windows, prefer .cmd/.exe
+            // over extensionless shell scripts (which cause "not a valid Win32
+            // application" errors).
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            let lines: Vec<&str> = stdout
+                .lines()
+                .map(|l| l.trim())
+                .filter(|l| !l.is_empty())
+                .collect();
+            // First try .cmd or .exe
+            if let Some(win) = lines.iter().find(|l| {
+                let lower = l.to_lowercase();
+                lower.ends_with(".cmd") || lower.ends_with(".exe")
+            }) {
+                return Some(win.to_string());
+            }
+            // Fallback to first result
+            if let Some(first) = lines.first() {
+                return Some(first.to_string());
+            }
+        }
+    }
+
+    #[cfg(not(windows))]
+    {
+        let out = std::process::Command::new("which")
+            .arg(name)
+            .env("PATH", &aug)
+            .output()
+            .ok()?;
+        if out.status.success() {
+            let p = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            if !p.is_empty() {
+                return Some(p);
+            }
+        }
+    }
+
+    None
+}
+
+pub struct OpenCodeConfig {
+    pub session_id: crate::models::SessionId,
+    pub cwd: PathBuf,
+    /// Full model string in "provider/model" format (e.g. "openrouter/anthropic/claude-sonnet-4")
+    pub model: String,
+    pub prompt: String,
+    /// OpenCode session ID for follow-ups (--continue -s <id>)
+    pub opencode_session_id: Option<String>,
+    /// Extra env vars to inject (e.g. API key overrides)
+    pub extra_env: Vec<(String, String)>,
+}
+
+pub struct CodexConfig {
+    pub session_id: crate::models::SessionId,
+    pub cwd: PathBuf,
+    pub model: String,
+    pub prompt: String,
+    /// Codex session (thread) ID for follow-ups
+    pub codex_session_id: Option<String>,
+}
+
+/// Spawn opencode in non-interactive JSON mode.
+pub fn spawn_opencode(config: OpenCodeConfig) -> Result<SpawnHandle, String> {
+    let opencode = find_opencode()
+        .ok_or_else(|| "opencode not found — install with: npm i -g opencode".to_string())?;
+
+    let mut cmd = std::process::Command::new(&opencode);
+    cmd.args(["run", "--format", "json"]);
+    cmd.args(["--dir", &config.cwd.to_string_lossy()]);
+    cmd.args(["-m", &config.model]);
+
+    if let Some(ref sid) = config.opencode_session_id {
+        cmd.args(["--continue", "-s", sid]);
+    }
+
+    cmd.arg(&config.prompt);
+    cmd.env("PATH", extended_path());
+
+    for (k, v) in &config.extra_env {
+        cmd.env(k, v);
+    }
+
+    cmd.stdout(std::process::Stdio::piped());
+    cmd.stderr(std::process::Stdio::piped());
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| format!("spawn opencode failed: {e}"))?;
+
+    let pid = child.id();
+    let stdout = child.stdout.take().ok_or("no stdout")?;
+    let stderr = child.stderr.take().ok_or("no stderr")?;
+
+    Ok(SpawnHandle {
+        pid,
+        reader: Box::new(stdout),
+        stderr: Box::new(stderr),
+        child,
+        _askpass: None,
+    })
+}
+
+/// Spawn codex in non-interactive JSON mode.
+pub fn spawn_codex(config: CodexConfig) -> Result<SpawnHandle, String> {
+    let codex = find_codex()
+        .ok_or_else(|| "codex not found — install with: npm i -g @openai/codex".to_string())?;
+
+    let mut cmd = std::process::Command::new(&codex);
+
+    if let Some(ref sid) = config.codex_session_id {
+        // Resume: codex exec resume <thread_id> "prompt"
+        cmd.args([
+            "exec",
+            "resume",
+            "--json",
+            "--dangerously-bypass-approvals-and-sandbox",
+        ]);
+        cmd.args(["-m", &config.model]);
+        cmd.arg(sid);
+        cmd.arg(&config.prompt);
+    } else {
+        // New session: codex exec --json "prompt"
+        cmd.args([
+            "exec",
+            "--json",
+            "--dangerously-bypass-approvals-and-sandbox",
+        ]);
+        cmd.args(["-m", &config.model]);
+        cmd.arg(&config.prompt);
+    }
+
+    cmd.current_dir(&config.cwd);
+    cmd.env("PATH", extended_path());
+
+    cmd.stdout(std::process::Stdio::piped());
+    cmd.stderr(std::process::Stdio::piped());
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| format!("spawn codex failed: {e}"))?;
+
+    let pid = child.id();
+    let stdout = child.stdout.take().ok_or("no stdout")?;
+    let stderr = child.stderr.take().ok_or("no stderr")?;
+
+    Ok(SpawnHandle {
+        pid,
+        reader: Box::new(stdout),
+        stderr: Box::new(stderr),
+        child,
+        _askpass: None,
     })
 }
 
@@ -292,6 +494,7 @@ mod tests {
             cwd: std::path::PathBuf::from("/nonexistent/path/xyz"),
             permission_mode: "ignore".to_string(),
             model: None,
+            effort: None,
             prompt: "test".to_string(),
             claude_session_id: None,
         });

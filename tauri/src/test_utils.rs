@@ -374,8 +374,17 @@ pub fn make_db() -> std::sync::Arc<crate::services::database::DatabaseService> {
 
 /// Inserts a session and returns its ID. Panics with a clear message if it fails.
 pub fn seed_session(db: &crate::services::database::DatabaseService) -> crate::models::SessionId {
-    db.create_session(None, Some("test-session"), "C:/test/proj", "ignore", None)
-        .expect("test setup: seed_session failed")
+    db.create_session(
+        None,
+        Some("test-session"),
+        "C:/test/proj",
+        "ignore",
+        None,
+        None,
+        None,
+        None,
+    )
+    .expect("test setup: seed_session failed")
 }
 
 /// Inserts multiple JSONL output lines into a session and flushes the background worker.

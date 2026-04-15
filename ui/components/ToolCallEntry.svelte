@@ -402,14 +402,14 @@
 
 <style>
   .tool-wrap {
-    margin: 2px 0;
+    margin: var(--sp-1) 0;
   }
   .tool-header {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 5px 10px;
-    border-radius: 6px;
+    gap: var(--sp-3);
+    padding: var(--sp-3) var(--sp-5);
+    border-radius: var(--radius-md);
     font-size: 12px;
     transition: background 0.15s;
   }
@@ -476,7 +476,7 @@
   }
   .changes {
     display: flex;
-    gap: 3px;
+    gap: var(--sp-2);
     flex-shrink: 0;
   }
   .added {
@@ -494,8 +494,8 @@
     color: var(--t1);
     font-size: 11px;
     cursor: pointer;
-    padding: 2px 6px;
-    border-radius: 4px;
+    padding: var(--sp-1) var(--sp-3);
+    border-radius: var(--radius-md);
     line-height: 1;
     transition: all 0.15s;
   }
@@ -506,12 +506,12 @@
   }
 
   .detail {
-    padding: 4px 10px 4px 10px;
+    padding: var(--sp-2) var(--sp-5) var(--sp-2) var(--sp-5);
   }
 
   .code-card {
     border: 1px solid var(--bd1);
-    border-radius: 8px;
+    border-radius: var(--radius-lg);
     overflow: hidden;
   }
   .code-inner {
@@ -522,7 +522,7 @@
     overflow-y: auto;
   }
   .code-text {
-    padding: 8px 10px;
+    padding: var(--sp-4) var(--sp-5);
     margin: 0;
     background: var(--bg2);
     white-space: pre-wrap;
@@ -539,7 +539,7 @@
   }
   .streaming-line {
     margin: 0;
-    padding: 2px 10px;
+    padding: var(--sp-1) var(--sp-5);
     font-size: 10px;
     line-height: 1.5;
     white-space: pre-wrap;
@@ -557,7 +557,7 @@
   }
   .result-pre {
     margin: 0;
-    padding: 8px 10px;
+    padding: var(--sp-4) var(--sp-5);
     font-size: 11px;
     line-height: 1.5;
     white-space: pre-wrap;
@@ -579,7 +579,7 @@
     background: var(--bg3);
   }
   .line-num {
-    padding: 0 8px 0 6px;
+    padding: 0 var(--sp-4) 0 var(--sp-3);
     text-align: right;
     color: var(--t2);
     user-select: none;
@@ -589,7 +589,7 @@
     vertical-align: top;
   }
   .line-code {
-    padding: 0 8px;
+    padding: 0 var(--sp-4);
     white-space: pre-wrap;
     word-break: break-all;
   }
@@ -601,8 +601,8 @@
   }
   .diff-line {
     display: flex;
-    gap: 6px;
-    padding: 1px 8px;
+    gap: var(--sp-3);
+    padding: 1px var(--sp-4);
     line-height: 1.5;
   }
   .diff-line.add {
@@ -655,7 +655,7 @@
     color: var(--t3);
     font-size: 10px;
     font-family: var(--mono);
-    padding: 3px 8px;
+    padding: var(--sp-2) var(--sp-4);
     text-align: center;
     cursor: pointer;
   }
@@ -752,7 +752,7 @@
   .modal {
     background: var(--bg1);
     border: 1px solid var(--bd2);
-    border-radius: 10px;
+    border-radius: var(--radius-lg);
     width: 100%;
     max-width: 900px;
     max-height: 90vh;
@@ -764,14 +764,14 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 16px;
+    padding: var(--sp-6) var(--sp-8);
     border-bottom: 1px solid var(--bd1);
     flex-shrink: 0;
   }
   .modal-title {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--sp-4);
     font-size: 13px;
     min-width: 0;
   }
@@ -786,8 +786,8 @@
     color: var(--t1);
     font-size: 16px;
     cursor: pointer;
-    padding: 4px 8px;
-    border-radius: 6px;
+    padding: var(--sp-2) var(--sp-4);
+    border-radius: var(--radius-md);
   }
   .modal-close:hover {
     background: var(--bg3);
@@ -796,10 +796,10 @@
   .modal-body {
     flex: 1;
     overflow-y: auto;
-    padding: 16px;
+    padding: var(--sp-8);
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: var(--sp-6);
     min-height: 0;
   }
   .modal-section-label {

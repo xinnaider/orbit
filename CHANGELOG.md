@@ -4,6 +4,27 @@
 
 ## April 2026
 
+### 04/15 · New — macOS support
+Orbit is now available for macOS (Intel and Apple Silicon). Download the .dmg from the releases page, open it, and drag Orbit to your Applications folder.
+
+### 04/14 · New — SSH remote sessions for all providers
+
+You can now run sessions on remote servers via SSH. When creating a session,
+switch to "ssh remote" mode, enter the host and user (with optional password),
+and test the connection before starting. Works with all providers — Claude Code,
+Codex, and OpenCode. SSH credentials are held in memory only and never saved
+to disk.
+
+### 04/12 · New — Multi-provider support (OpenCode + Codex)
+
+You can now create sessions with any AI provider — not just Claude Code.
+The new session dialog shows a provider selector with favorites (Claude Code,
+Codex, OpenRouter, Anthropic, OpenAI, Google, DeepSeek) and a search bar for
+100+ additional providers. Models populate automatically for each provider.
+API keys are read from environment variables when available, with an option to
+override in the dialog. Sessions powered by OpenCode or Codex stream output
+in real time, just like Claude Code sessions.
+
 ### 04/09 · New — Sub-agents monitor tab
 
 When a session spawns sub-agents, they now appear in the "Sub-agents" tab on the right panel, grouped by Running and Completed. Click any agent to inspect its full conversation log in a modal. The list updates automatically as the session progresses, and a refresh button fetches the latest state on demand.

@@ -58,22 +58,22 @@
 
 <style>
   .tasks {
-    padding: 10px 12px;
+    padding: var(--sp-5) var(--sp-6);
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--sp-2);
   }
   .empty {
     font-size: var(--xs);
     color: var(--t3);
-    padding: 4px 0;
+    padding: var(--sp-2) 0;
   }
 
   .progress-row {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 6px;
+    gap: var(--sp-4);
+    margin-bottom: var(--sp-3);
   }
   .bar {
     flex: 1;
@@ -96,8 +96,8 @@
   .task {
     display: flex;
     align-items: flex-start;
-    gap: 6px;
-    padding: 3px 0;
+    gap: var(--sp-3);
+    padding: var(--sp-2) 0;
   }
   .task-icon {
     font-size: var(--xs);

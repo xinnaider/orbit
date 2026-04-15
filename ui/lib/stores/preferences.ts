@@ -1,5 +1,4 @@
 import { writable } from 'svelte/store';
-import type { DetailLevel, RightPanelTab } from '../types';
 
 export const THEME_OPTIONS = ['dark', 'light', 'nord', 'dracula', 'catppuccin'] as const;
 export type Theme = (typeof THEME_OPTIONS)[number];
@@ -64,7 +63,23 @@ function createMetaPanelVisibleStore() {
   };
 }
 
+function createSidebarVisibleStore() {
+  const stored =
+    typeof localStorage !== 'undefined' ? localStorage.getItem('sidebarVisible') : null;
+  const initial = stored === null ? true : stored === 'true';
+  const { subscribe, set } = writable<boolean>(initial);
+
+  return {
+    subscribe,
+    set(value: boolean) {
+      set(value);
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('sidebarVisible', String(value));
+      }
+    },
+  };
+}
+
 export const theme = createThemeStore();
-export const detailLevel = writable<DetailLevel>('full');
-export const rightPanelTab = writable<RightPanelTab>('agents');
 export const metaPanelVisible = createMetaPanelVisibleStore();
+export const sidebarVisible = createSidebarVisibleStore();

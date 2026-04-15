@@ -19,7 +19,7 @@
     z-index: 9999;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--sp-4);
     pointer-events: none;
     align-items: flex-end;
   }

@@ -36,26 +36,26 @@
 
 <style>
   .thinking-block {
-    padding: 8px 10px;
+    padding: var(--sp-4) var(--sp-5);
     background: var(--bg-thinking);
   }
   .header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 6px;
+    margin-bottom: var(--sp-3);
     cursor: pointer;
   }
   .left {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--sp-3);
   }
   .badge {
     background: var(--purple-dim);
     color: var(--purple);
-    padding: 1px 6px;
-    border-radius: 4px;
+    padding: 1px var(--sp-3);
+    border-radius: var(--radius-md);
     font-size: 11px;
     font-weight: 600;
   }
@@ -71,9 +71,9 @@
     font-size: 13px;
     color: var(--thinking-text);
     line-height: 1.6;
-    padding: 6px 8px;
+    padding: var(--sp-3) var(--sp-4);
     background: var(--bg-thinking);
-    border-radius: 4px;
+    border-radius: var(--radius-md);
     font-style: italic;
     border: 1px solid var(--border-thinking);
     white-space: pre-wrap;
@@ -83,7 +83,7 @@
   .preview {
     font-size: 12px;
     color: var(--thinking-preview);
-    padding: 2px 8px;
+    padding: var(--sp-1) var(--sp-4);
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;

@@ -8,7 +8,7 @@ Guia de referência para o Claude Code trabalhar neste repositório.
 
 Orbit é um **dashboard desktop para gerenciar múltiplas sessões do Claude Code em paralelo**, construído com Tauri 2 (Rust + Svelte). Permite criar sessões, acompanhar output em tempo real, visualizar diffs de arquivos, tasks e tokens consumidos.
 
-- Plataformas: **Windows 10 1903+**, **Ubuntu 22.04+** (e outras distros Linux com webkit2gtk 4.1)
+- Plataformas: **Windows 10 1903+**, **Ubuntu 22.04+** (e outras distros Linux com webkit2gtk 4.1), **macOS** (Intel e Apple Silicon)
 - Identificador: `com.josefernando.orbit`
 - Repositório: `github.com/xinnaider/orbit`
 
@@ -254,6 +254,81 @@ on screen instead of silently stopping.
 - fix: detect rate_limit_error in session_manager reader_loop stderr thread
 - updated ui/App.svelte to listen for session:rate-limit event
 ```
+
+---
+
+## Architecture Rules — Provider System
+
+The provider system uses **dependency inversion**: `session_manager` depends on the `Provider` trait, not on concrete implementations. All provider-specific behavior must live behind this trait.
+
+### Zero hardcoded provider strings outside providers/
+
+**Never** compare provider IDs with string literals in `session_manager.rs`, `ipc/`, or `commands/`. If you need provider-specific behavior, add a method to the `Provider` trait.
+
+| Need | Wrong | Right |
+|------|-------|-------|
+| Format model ID | `if pid != "claude-code" && pid != "codex"` | `provider.format_model(raw)` |
+| Get line parser | `match id { "claude-code" => ... }` | `provider.line_processor()` |
+| Check capability | `if provider == "claude-code"` | `provider.supports_effort()` |
+| Default provider | `"claude-code".to_string()` | Constant: `Provider::DEFAULT_ID` |
+
+**Adding a new provider should require:**
+1. Create `providers/<name>.rs` implementing `Provider`
+2. Register in `lib.rs` with `registry.register(...)`
+3. Done — no changes to `session_manager`, `ipc/session`, or `commands/`
+
+**Current violations to fix** (tech debt):
+- `session_manager.rs:219` — model prefix logic hardcoded (needs `fn format_model`)
+- `session_manager.rs:388,786` — line_processor dispatch (needs `fn line_processor`)
+- `commands/providers.rs:39-128` — manual backend list (needs `registry.all()`)
+- Frontend: 6 components compare `provider === 'claude-code'` (needs capabilities from backend)
+
+### Provider Trait — Required Methods
+
+```rust
+pub trait Provider: Send + Sync {
+    fn id(&self) -> &str;
+    fn display_name(&self) -> &str;
+    fn spawn(&self, config: ProviderSpawnConfig) -> Result<SpawnHandle, String>;
+    fn process_line(&self, state: &mut JournalState, line: &str);
+    fn line_processor(&self) -> fn(&mut JournalState, &str);  // fn pointer for Send threads
+    fn format_model(&self, raw_model: &str) -> String;        // provider-specific model formatting
+    fn context_window(&self, model: &str) -> Option<u64>;
+    fn slash_commands(&self) -> Vec<SlashCommand>;
+    fn supports_effort(&self) -> bool;
+    fn supports_ssh(&self) -> bool;
+    fn cli_name(&self) -> &str;
+    fn find_cli(&self) -> Option<String>;
+    fn install_hint(&self) -> &str;
+}
+```
+
+### SSH Spawning
+
+SSH wrapping lives in `services/ssh.rs`. Providers must **not** call `posix_escape` on their arguments — `spawn_via_ssh` handles all escaping in a single layer (`bash -lc "script"`).
+
+- Providers build the remote command string with **raw** values
+- `spawn_via_ssh` wraps everything once with proper escaping
+- Env vars use inline syntax (`KEY=val cmd args`), not `export`
+- Double quotes are used for the outer `bash -lc` wrapper; `$`, `` ` ``, `\`, `"` are escaped
+
+### Encrypted Secrets
+
+API keys and SSH passwords are stored AES-256-GCM encrypted in the database (`api_key_enc`, `ssh_password_enc` columns). The encryption key is at `{app_data}/orbit.key`.
+
+- **Never** store plaintext credentials in the DB
+- Always use `db.save_session_secrets()` / `db.load_session_secrets()`
+- SSH password and API key must be set **before** the spawn thread starts (avoid race conditions)
+
+### Rust Best Practices (Apollo Style)
+
+- **Borrow over clone**: prefer `&str` over `String`, `&[T]` over `Vec<T>` in function params
+- **No `unwrap()`/`expect()` in production** — use `?`, `let Ok(..) = .. else`, or `unwrap_or_else`
+- **`thiserror` for typed errors** — no `anyhow` in library code, no `format!("error: {e}")` as error type
+- **Static dispatch by default** (`impl Trait`, `<T: Trait>`) — use `dyn Trait` only for heterogeneous collections (like `ProviderRegistry`)
+- **Iterators over loops** when transforming collections — no intermediate `.collect()` unless needed
+- **`?` for error propagation** — no verbose `match` chains for Result/Option
+- **Comments explain *why***, not *what* — let naming and structure speak for themselves
 
 ---
 

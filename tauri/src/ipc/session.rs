@@ -3,10 +3,12 @@ use tauri::{AppHandle, State};
 
 use crate::ipc::IpcError;
 use crate::models::{JournalEntry, Session, SessionId};
+use crate::providers::ProviderRegistry;
 use crate::services::session_manager::SessionManager;
 use crate::services::spawn_manager::find_claude;
 
 pub struct SessionState(pub Arc<RwLock<SessionManager>>);
+pub struct ProviderRegistryState(pub Arc<ProviderRegistry>);
 
 impl SessionState {
     /// Acquire a write guard, recovering from a poisoned RwLock.
@@ -21,7 +23,7 @@ impl SessionState {
 }
 
 /// Create a session: returns immediately after creating the DB record (status = "initializing").
-/// The actual Claude process spawns in a background thread — non-blocking.
+/// The actual CLI process spawns in a background thread — non-blocking.
 /// Frontend should listen to "session:running" (ready) or "session:error" (spawn failed).
 #[allow(clippy::too_many_arguments)]
 #[tauri::command]
@@ -32,20 +34,35 @@ pub fn create_session(
     permission_mode: Option<String>,
     session_name: Option<String>,
     use_worktree: Option<bool>,
+    provider: Option<String>,
+    api_key: Option<String>,
+    ssh_host: Option<String>,
+    ssh_user: Option<String>,
+    ssh_password: Option<String>,
     state: State<SessionState>,
+    registry: State<ProviderRegistryState>,
     app: AppHandle,
 ) -> Result<Session, IpcError> {
     let mode = permission_mode.unwrap_or_else(|| "ignore".to_string());
 
     let session = {
         let mut m = state.write();
-        m.init_session(
+        let s = m.init_session(
             &project_path,
             session_name.as_deref(),
             &mode,
             model.as_deref(),
             use_worktree.unwrap_or(false),
-        )?
+            provider.as_deref(),
+            ssh_host.as_deref(),
+            ssh_user.as_deref(),
+            ssh_password,
+        )?;
+        // Set API key before spawn thread starts — avoids race condition
+        if let Some(key) = api_key {
+            m.set_api_key(s.id, key);
+        }
+        s
     };
 
     // Emit session:created immediately so frontend shows the session
@@ -53,9 +70,10 @@ pub fn create_session(
     let _ = app.emit("session:created", &session);
 
     let manager = Arc::clone(&state.0);
+    let reg = Arc::clone(&registry.0);
     let session_id = session.id;
     std::thread::spawn(move || {
-        SessionManager::do_spawn(manager, app, session_id, prompt);
+        SessionManager::do_spawn(manager, app, session_id, prompt, &reg);
     });
 
     Ok(session)
@@ -86,13 +104,52 @@ pub fn send_session_message(
     session_id: SessionId,
     message: String,
     state: State<SessionState>,
+    registry: State<ProviderRegistryState>,
     app: AppHandle,
 ) -> Result<(), IpcError> {
+    let trimmed = message.trim();
+
+    // Intercept /model — changes model for the next message
+    if trimmed.eq_ignore_ascii_case("/model") || trimmed.to_lowercase().starts_with("/model ") {
+        let arg = trimmed.get(7..).unwrap_or("").trim();
+        if arg.is_empty() {
+            return Err(IpcError::Other("Usage: /model <name>".to_string()));
+        }
+        state.write().update_session_model(session_id, arg)?;
+        return Ok(());
+    }
+
+    // Intercept /effort — only for providers that support it
+    if trimmed.eq_ignore_ascii_case("/effort") || trimmed.to_lowercase().starts_with("/effort ") {
+        let provider_id = state
+            .read()
+            .get_session_provider(session_id)
+            .unwrap_or_default();
+        let supports = registry
+            .0
+            .resolve(&provider_id)
+            .is_some_and(|p| p.supports_effort());
+        if !supports {
+            return Err(IpcError::Other(
+                "/effort is not supported for this provider".to_string(),
+            ));
+        }
+        let arg = trimmed.get(8..).unwrap_or("").trim();
+        if arg.is_empty() {
+            return Err(IpcError::Other(
+                "Usage: /effort <level> (low, medium, high, max)".to_string(),
+            ));
+        }
+        state.write().update_session_effort(session_id, arg)?;
+        return Ok(());
+    }
+
     Ok(SessionManager::send_message(
         Arc::clone(&state.0),
         app,
         session_id,
         message,
+        Arc::clone(&registry.0),
     )?)
 }
 
@@ -205,4 +262,45 @@ pub fn rename_session(
 pub fn delete_session(session_id: SessionId, state: State<SessionState>) -> Result<(), IpcError> {
     state.write().delete_session(session_id)?;
     Ok(())
+}
+
+/// Update the model for a session. Takes effect on the next message.
+#[tauri::command]
+pub fn update_session_model(
+    session_id: SessionId,
+    model: String,
+    state: State<SessionState>,
+) -> Result<(), IpcError> {
+    state.write().update_session_model(session_id, &model)?;
+    Ok(())
+}
+
+/// Update the effort level for a session. Takes effect on the next message.
+#[tauri::command]
+pub fn update_session_effort(
+    session_id: SessionId,
+    effort: String,
+    state: State<SessionState>,
+) -> Result<(), IpcError> {
+    state.write().update_session_effort(session_id, &effort)?;
+    Ok(())
+}
+
+/// Set the API key for an OpenRouter session (in-memory only, never persisted).
+#[tauri::command]
+pub fn set_session_api_key(
+    session_id: SessionId,
+    api_key: String,
+    state: State<SessionState>,
+) -> Result<(), IpcError> {
+    state.write().set_api_key(session_id, api_key);
+    Ok(())
+}
+
+use crate::services::ssh;
+
+/// Test SSH connectivity to a remote host without creating a session.
+#[tauri::command]
+pub fn test_ssh(host: String, user: String, password: Option<String>) -> ssh::SshTestResult {
+    ssh::test_ssh_connection(&host, &user, password.as_deref())
 }

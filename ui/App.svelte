@@ -14,6 +14,7 @@
   import {
     listSessions,
     checkClaude,
+    getProviders,
     onSessionCreated,
     onSessionOutput,
     onSessionState,
@@ -33,8 +34,9 @@
   import Sidebar from './components/Sidebar.svelte';
   import PaneGrid from './components/PaneGrid.svelte';
   import MetaPanel from './components/MetaPanel.svelte';
-  import { metaPanelVisible } from './lib/stores/preferences';
+  import { metaPanelVisible, sidebarVisible } from './lib/stores/preferences';
   import { mutedSessions } from './lib/stores/ui';
+  import { backends } from './lib/stores/providers';
 
   let prevStatuses: Record<number, string> = {};
   let audioCtx: AudioContext | null = null;
@@ -77,12 +79,14 @@
   }
 
   onMount(async () => {
-    const [existing, check, version, changelog] = await Promise.all([
+    const [existing, check, version, changelog, providerList] = await Promise.all([
       listSessions(),
       checkClaude(),
       getAppVersion(),
       getChangelog(),
+      getProviders().catch(() => []),
     ]);
+    backends.set(providerList);
     appVersion = version;
     changelogContent = changelog;
     const lastSeen = localStorage.getItem(CHANGELOG_VERSION_KEY);
@@ -121,6 +125,10 @@
           miniLog: p.miniLog,
           gitBranch: p.gitBranch ?? null,
           subagents: p.subagents,
+          // Only overwrite model/contextWindow when the stream provides them
+          // (Codex/OpenCode don't emit model — preserve the one set at creation)
+          ...(p.model != null ? { model: p.model } : {}),
+          ...(p.contextWindow != null ? { contextWindow: p.contextWindow } : {}),
         })
       );
     });
@@ -206,7 +214,13 @@
 {/if}
 
 <div class="layout">
-  <Sidebar onOpenChangelog={openChangelog} />
+  {#if $sidebarVisible}
+    <Sidebar onOpenChangelog={openChangelog} />
+  {:else}
+    <button class="sidebar-reopen" on:click={() => sidebarVisible.set(true)} title="Show sidebar"
+      >›</button
+    >
+  {/if}
   {#if claudeCheck && !claudeCheck.found}
     <div class="empty">
       <div class="claude-warn">
@@ -272,6 +286,27 @@
     font-size: var(--xs);
     color: var(--t1);
     font-style: italic;
+  }
+  .sidebar-reopen {
+    flex-shrink: 0;
+    width: 20px;
+    background: var(--bg1);
+    border: none;
+    border-right: 1px solid var(--bd);
+    color: var(--t2);
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition:
+      color 0.15s,
+      background 0.15s;
+  }
+  .sidebar-reopen:hover {
+    color: var(--t0);
+    background: var(--bg2);
   }
   .meta-reopen {
     flex-shrink: 0;

@@ -36,9 +36,9 @@
   .toast {
     display: flex;
     align-items: flex-start;
-    gap: 8px;
-    padding: 10px 12px;
-    border-radius: 6px;
+    gap: var(--sp-4);
+    padding: var(--sp-5) var(--sp-6);
+    border-radius: var(--radius-md);
     border: 1px solid transparent;
     min-width: 280px;
     max-width: 400px;
@@ -86,7 +86,7 @@
   .toast-icon {
     font-size: 13px;
     flex-shrink: 0;
-    margin-top: 2px;
+    margin-top: var(--sp-1);
   }
 
   .toast--error .toast-icon {
@@ -111,7 +111,7 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--sp-3);
   }
 
   .toast-message {
@@ -130,8 +130,8 @@
     background: var(--ac);
     color: #000;
     border: none;
-    border-radius: 4px;
-    padding: 4px 12px;
+    border-radius: var(--radius-md);
+    padding: var(--sp-2) var(--sp-6);
     font-size: var(--xs);
     font-weight: 700;
     cursor: pointer;
@@ -148,7 +148,7 @@
     border: none;
     color: var(--t2);
     font-size: 10px;
-    padding: 1px 4px;
+    padding: 1px var(--sp-2);
     flex-shrink: 0;
     cursor: pointer;
     margin-top: 1px;

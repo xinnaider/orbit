@@ -1,24 +1,56 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
+  import { onMount, createEventDispatcher } from 'svelte';
   import { open } from '@tauri-apps/plugin-dialog';
-  import { createSession, diagnoseSpawn } from '../lib/tauri';
-  import type { SpawnDiagnostic } from '../lib/tauri';
+  import { createSession, getProviders, diagnoseProvider } from '../lib/tauri';
+  import { backends as backendsStore, providerCaps, getCaps } from '../lib/stores/providers';
+  import type { ProviderDiagnostic } from '../lib/tauri';
   import { generateAgentName } from '../lib/android-names';
+  import Modal from './shared/Modal.svelte';
+  import ProviderSelector from './shared/ProviderSelector.svelte';
+  import SshFields from './shared/SshFields.svelte';
 
   const dispatch = createEventDispatcher();
 
   let path = '';
   let prompt = '';
   let model = 'auto';
+  let backendId = 'claude-code';
+  let subProviderId = '';
+  let apiKeyOverride = '';
   let loading = false;
   let error = '';
   let diagRunning = false;
-  let diag: SpawnDiagnostic | null = null;
+  let diag: ProviderDiagnostic | null = null;
   let agentName = '';
   let projectSuffix = '';
   let generatedAgent = '';
   let generatedProject = '';
   let useWorktree = false;
+  let sshMode = false;
+  let sshHost = '';
+  let sshUser = 'ubuntu';
+  let sshPassword = '';
+
+  $: backends = $backendsStore;
+  $: selectedBackend = backends.find((b) => b.id === backendId) ?? null;
+  $: caps = getCaps($providerCaps, backendId);
+  $: hasSubProviders = selectedBackend?.hasSubProviders ?? false;
+
+  onMount(async () => {
+    // Refresh providers if not already loaded
+    if (backends.length === 0) {
+      try {
+        backendsStore.set(await getProviders());
+      } catch (e) {
+        console.warn('[NewSessionModal] getProviders failed:', e);
+      }
+    }
+    // Pre-select first sub-provider if OpenCode
+    const oc = backends.find((b) => b.hasSubProviders);
+    if (oc?.subProviders?.length) {
+      subProviderId = oc.subProviders[0].id;
+    }
+  });
 
   $: if (path) {
     const p = path.split(/[/\\]/).filter(Boolean).pop() ?? '';
@@ -35,8 +67,15 @@
 
   async function runDiag() {
     diagRunning = true;
+    diag = null;
+    error = '';
     try {
-      diag = await diagnoseSpawn();
+      diag = await diagnoseProvider(backendId, {
+        projectPath: path.trim() || undefined,
+        sshHost: sshMode ? sshHost.trim() || undefined : undefined,
+        sshUser: sshMode ? sshUser.trim() || undefined : undefined,
+        sshPassword: sshMode ? sshPassword.trim() || undefined : undefined,
+      });
     } catch (e: any) {
       error = e?.message ?? String(e);
     } finally {
@@ -44,21 +83,39 @@
     }
   }
 
-  const models = [
-    { v: 'auto', l: 'auto' },
-    { v: 'claude-sonnet-4-6', l: 'sonnet-4.6' },
-    { v: 'claude-opus-4-6', l: 'opus-4.6' },
-    { v: 'claude-haiku-4-5-20251001', l: 'haiku-4.5' },
-  ];
-
   async function browse() {
     const sel = await open({ directory: true, multiple: false });
     if (sel && typeof sel === 'string') path = sel;
   }
 
+  function resolveProvider(): string {
+    if (hasSubProviders && subProviderId) return subProviderId;
+    return backendId;
+  }
+
+  function resolveModel(): string | undefined {
+    if (!model || model === 'auto') return caps.supportsEffort ? undefined : model;
+    if (hasSubProviders && subProviderId && !model.includes('/')) {
+      return `${subProviderId}/${model}`;
+    }
+    return model;
+  }
+
   async function submit() {
     if (!path.trim()) {
-      error = 'project path required';
+      error = sshMode ? 'remote path required' : 'project path required';
+      return;
+    }
+    if (sshMode && !sshHost.trim()) {
+      error = 'ssh host required';
+      return;
+    }
+    if (sshMode && !sshUser.trim()) {
+      error = 'ssh user required';
+      return;
+    }
+    if (!selectedBackend?.cliAvailable) {
+      error = `${selectedBackend?.name ?? backendId} CLI not found`;
       return;
     }
     const agent = agentName.trim() || generatedAgent || generateAgentName();
@@ -71,10 +128,15 @@
       await createSession({
         projectPath: path.trim(),
         prompt: prompt.trim() || 'Hello',
-        model: model === 'auto' ? undefined : model,
+        model: resolveModel(),
         permissionMode: 'ignore',
         sessionName: finalName,
-        useWorktree,
+        useWorktree: caps.supportsEffort && !sshMode ? useWorktree : false,
+        provider: resolveProvider(),
+        apiKey: hasSubProviders && (selectedBackend?.subProviders.find((p) => p.id === subProviderId)?.env ?? []).length > 0 && apiKeyOverride.trim() ? apiKeyOverride.trim() : undefined,
+        sshHost: sshMode ? sshHost.trim() : undefined,
+        sshUser: sshMode ? sshUser.trim() : undefined,
+        sshPassword: sshMode && sshPassword.trim() ? sshPassword.trim() : undefined,
       });
       dispatch('done');
     } catch (e: any) {
@@ -83,36 +145,17 @@
       loading = false;
     }
   }
-
-  function onKey(e: KeyboardEvent) {
-    if (e.key === 'Escape') dispatch('cancel');
-  }
 </script>
 
-<svelte:window on:keydown={onKey} />
-
-<div
-  class="overlay"
-  role="dialog"
-  aria-modal="true"
-  tabindex="-1"
-  on:click|self={() => dispatch('cancel')}
-  on:keydown={onKey}
->
-  <div class="modal">
-    <div class="modal-header">
-      <span class="modal-title">new session</span>
-      <button class="close" on:click={() => dispatch('cancel')}>✕</button>
-    </div>
-
+<Modal title="new session" width="500px" closeOnOverlayClick={false} on:close={() => dispatch('cancel')}>
     <div class="field">
-      <label class="label" for="ns-path">path</label>
+      <label class="label" for="ns-path">{sshMode ? 'remote path' : 'path'}</label>
       <div class="path-row">
         <input
           id="ns-path"
           class="input"
           bind:value={path}
-          placeholder="/home/user/project"
+          placeholder={sshMode ? '/home/ubuntu/project' : '/home/user/project'}
           disabled={loading}
           on:keydown={(e) => e.key === 'Enter' && prompt && submit()}
         />
@@ -120,13 +163,27 @@
       </div>
     </div>
 
+    <ProviderSelector
+      {backends}
+      bind:backendId
+      bind:subProviderId
+      bind:model
+      bind:apiKeyOverride
+      bind:sshMode
+      {loading}
+    />
+
+    {#if sshMode}
+      <SshFields bind:sshHost bind:sshUser bind:sshPassword {loading} />
+    {/if}
+
     <div class="field">
       <label class="label" for="ns-prompt">prompt</label>
       <textarea
         id="ns-prompt"
         class="input textarea"
         bind:value={prompt}
-        placeholder="what should claude work on? (optional — leave blank to start interactively)"
+        placeholder="what should the agent work on? (optional)"
         rows="3"
         disabled={loading}
         on:keydown={(e) => {
@@ -135,17 +192,7 @@
       ></textarea>
     </div>
 
-    <div class="row">
-      <div class="field half">
-        <label class="label" for="ns-model">model</label>
-        <select id="ns-model" class="input select" bind:value={model} disabled={loading}>
-          {#each models as m}
-            <option value={m.v}>{m.l}</option>
-          {/each}
-        </select>
-      </div>
-    </div>
-
+    <!-- Session name -->
     <div class="field">
       <label class="label" for="ns-agent">apelido</label>
       <div class="nickname-row">
@@ -172,10 +219,12 @@
       {/if}
     </div>
 
-    <label class="toggle-row">
-      <input type="checkbox" bind:checked={useWorktree} disabled={loading} />
-      <span class="toggle-label">criar git worktree</span>
-    </label>
+    {#if caps.supportsEffort && !sshMode}
+      <label class="toggle-row">
+        <input type="checkbox" bind:checked={useWorktree} disabled={loading} />
+        <span class="toggle-label">criar git worktree</span>
+      </label>
+    {/if}
 
     {#if error}
       <p class="error">! {error}</p>
@@ -183,23 +232,32 @@
 
     {#if diag}
       <div class="diag">
-        <div class="diag-row" class:ok={diag.claudeFound} class:fail={!diag.claudeFound}>
-          claude: {diag.claudeFound ? `✓ ${diag.claudePath ?? diag.whereOutput}` : '✗ not found'}
-        </div>
-        {#if diag.versionOutput}
-          <div class="diag-row ok">version: {diag.versionOutput.slice(0, 60)}</div>
-        {/if}
-        {#if !diag.claudeFound}
-          <div class="diag-row fail">install: npm install -g @anthropic-ai/claude-code</div>
-          <div class="diag-row" style="font-size:9px;color:var(--t3)">
-            PATH: {diag.augmentedPath.slice(0, 120)}
+        {#if diag.ssh}
+          <div class="diag-row" class:ok={diag.ssh.ok} class:fail={!diag.ssh.ok}>
+            ssh: {diag.ssh.ok ? `✓ connected (${diag.ssh.latencyMs}ms)` : `✗ ${diag.ssh.error}`}
           </div>
+        {/if}
+        {#if !diag.ssh || diag.ssh.ok}
+          <div class="diag-row" class:ok={diag.found} class:fail={!diag.found}>
+            {diag.cliName}: {diag.found ? `✓ ${diag.path ?? ''}` : '✗ not found'}
+          </div>
+          {#if diag.version}
+            <div class="diag-row ok">version: {diag.version.slice(0, 60)}</div>
+          {/if}
+          {#if !diag.found}
+            <div class="diag-row fail">install: {diag.installHint}</div>
+          {/if}
+          {#if diag.projectDirOk === true}
+            <div class="diag-row ok">path: ✓ exists</div>
+          {:else if diag.projectDirOk === false}
+            <div class="diag-row fail">path: ✗ directory not found</div>
+          {/if}
         {/if}
       </div>
     {/if}
 
     <div class="actions">
-      <button class="btn ghost" on:click={runDiag} disabled={diagRunning || loading}>
+      <button class="btn ghost" on:click={runDiag} disabled={diagRunning || loading || (sshMode && (!sshHost.trim() || !sshUser.trim()))}>
         {diagRunning ? 'testing...' : '⚙ diagnose'}
       </button>
       <button class="btn ghost" on:click={() => dispatch('cancel')} disabled={loading}
@@ -209,68 +267,29 @@
         {loading ? 'spawning...' : 'start session'}
       </button>
     </div>
-  </div>
-</div>
+</Modal>
 
 <style>
-  .overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 100;
-    background: rgba(0, 0, 0, 0.7);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .modal {
-    background: var(--bg1);
-    border: 1px solid var(--bd1);
-    border-radius: 4px;
-    width: 480px;
-    max-width: 94vw;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    padding: 20px;
-  }
-  .modal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .modal-title {
-    font-size: var(--md);
-    color: var(--t1);
-    letter-spacing: 0.06em;
-  }
-  .close {
-    background: none;
-    border: none;
-    color: var(--t2);
-    font-size: 12px;
-    padding: 2px 4px;
-  }
-  .close:hover {
-    color: var(--t0);
-  }
-
   .field {
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: var(--sp-3);
   }
   .label {
     font-size: var(--xs);
     color: var(--t2);
     letter-spacing: 0.06em;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
   }
   .input {
     background: var(--bg2);
     border: 1px solid var(--bd1);
-    border-radius: 3px;
+    border-radius: var(--radius-sm);
     color: var(--t0);
     font-size: var(--md);
-    padding: 6px 8px;
+    padding: var(--sp-3) var(--sp-4);
     outline: none;
     width: 100%;
     transition: border-color 0.15s;
@@ -285,14 +304,10 @@
     resize: none;
     line-height: 1.5;
   }
-  .select {
-    appearance: none;
-    cursor: pointer;
-  }
 
   .path-row {
     display: flex;
-    gap: 6px;
+    gap: var(--sp-3);
   }
   .path-row .input {
     flex: 1;
@@ -301,8 +316,8 @@
     background: var(--bg2);
     border: 1px solid var(--bd1);
     color: var(--t1);
-    border-radius: 3px;
-    padding: 0 10px;
+    border-radius: var(--radius-sm);
+    padding: 0 var(--sp-5);
     font-size: var(--base);
     flex-shrink: 0;
   }
@@ -311,13 +326,6 @@
     color: var(--t0);
   }
 
-  .row {
-    display: flex;
-    gap: 12px;
-  }
-  .half {
-    flex: 1;
-  }
   .error {
     font-size: var(--sm);
     color: var(--s-error);
@@ -325,11 +333,11 @@
   .diag {
     background: var(--bg3);
     border: 1px solid var(--bd1);
-    border-radius: 3px;
-    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    padding: var(--sp-4) var(--sp-5);
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: var(--sp-2);
   }
   .diag-row {
     font-size: var(--xs);
@@ -345,15 +353,15 @@
   .actions {
     display: flex;
     justify-content: flex-end;
-    gap: 8px;
+    gap: var(--sp-4);
   }
   .btn {
     background: none;
     border: 1px solid var(--bd1);
-    border-radius: 3px;
+    border-radius: var(--radius-sm);
     color: var(--t1);
     font-size: var(--sm);
-    padding: 5px 14px;
+    padding: var(--sp-3) var(--sp-7);
     transition: all 0.15s;
   }
   .btn:hover {
@@ -376,7 +384,7 @@
   .nickname-row {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--sp-3);
   }
   .nickname-row .input {
     flex: 1;
@@ -395,7 +403,7 @@
   .toggle-row {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--sp-4);
     cursor: pointer;
     user-select: none;
   }

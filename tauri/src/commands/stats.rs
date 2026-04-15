@@ -128,6 +128,93 @@ fn is_leap(year: u64) -> bool {
     (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)
 }
 
+/// Raw format from ~/.orbit/status/{pid}.json (snake_case)
+#[derive(serde::Deserialize, Default)]
+struct RateLimitsRaw {
+    #[serde(default)]
+    cost: f64,
+    #[serde(default)]
+    five_hour_pct: f64,
+    #[serde(default)]
+    five_hour_reset: i64,
+    #[serde(default)]
+    seven_day_pct: f64,
+    #[serde(default)]
+    seven_day_reset: i64,
+    #[serde(default)]
+    context_pct: f64,
+}
+
+/// Frontend format (camelCase)
+#[derive(serde::Serialize, Default, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct RateLimits {
+    pub cost: f64,
+    pub five_hour_pct: f64,
+    pub five_hour_reset: i64,
+    pub seven_day_pct: f64,
+    pub seven_day_reset: i64,
+    pub context_pct: f64,
+}
+
+impl From<RateLimitsRaw> for RateLimits {
+    fn from(r: RateLimitsRaw) -> Self {
+        RateLimits {
+            cost: r.cost,
+            five_hour_pct: r.five_hour_pct,
+            five_hour_reset: r.five_hour_reset,
+            seven_day_pct: r.seven_day_pct,
+            seven_day_reset: r.seven_day_reset,
+            context_pct: r.context_pct,
+        }
+    }
+}
+
+/// Read rate-limit data captured by the statusline hook for a given PID.
+/// Falls back to PID 1 (global) if the session PID file doesn't exist.
+#[tauri::command]
+pub fn get_rate_limits(pid: Option<i32>) -> RateLimits {
+    let status_dir = match dirs::home_dir() {
+        Some(h) => h.join(".orbit").join("status"),
+        None => return RateLimits::default(),
+    };
+
+    // Try session PID first, then most recently modified file in status dir
+    if let Some(p) = pid {
+        let path = status_dir.join(format!("{p}.json"));
+        if let Ok(content) = std::fs::read_to_string(&path) {
+            if let Ok(raw) = serde_json::from_str::<RateLimitsRaw>(&content) {
+                return raw.into();
+            }
+        }
+    }
+
+    // Fallback: pick the most recently modified .json in status dir
+    if let Ok(entries) = std::fs::read_dir(&status_dir) {
+        let mut newest: Option<(std::path::PathBuf, std::time::SystemTime)> = None;
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().is_some_and(|e| e == "json") {
+                if let Ok(meta) = path.metadata() {
+                    let modified = meta.modified().unwrap_or(std::time::UNIX_EPOCH);
+                    if newest.as_ref().is_none_or(|(_, t)| modified > *t) {
+                        newest = Some((path, modified));
+                    }
+                }
+            }
+        }
+        if let Some((path, _)) = newest {
+            if let Ok(content) = std::fs::read_to_string(&path) {
+                if let Ok(raw) = serde_json::from_str::<RateLimitsRaw>(&content) {
+                    return raw.into();
+                }
+            }
+        }
+    }
+
+    RateLimits::default()
+}
+
 #[tauri::command]
 pub fn get_changelog() -> String {
     include_str!("../../../CHANGELOG.md").to_string()

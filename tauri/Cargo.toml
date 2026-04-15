@@ -1,6 +1,6 @@
 [package]
 name = "orbit"
-version = "0.4.0"
+version = "0.4.1"
 description = "Orbit — Claude agent dashboard"
 authors = ["you"]
 license = "MIT"
@@ -30,6 +30,9 @@ tokio = { version = "1", features = ["full"] }
 ignore = "0.4"
 rusqlite = { version = "0.31", features = ["bundled"] }
 thiserror = "1"
+aes-gcm = "0.10"
+base64 = "0.22"
+rand = "0.8"
 
 [dev-dependencies]
 tempfile = "3"

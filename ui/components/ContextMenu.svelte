@@ -82,8 +82,8 @@
     z-index: 999;
     background: var(--bg2);
     border: 1px solid var(--bd1);
-    border-radius: 4px;
-    padding: 4px;
+    border-radius: var(--radius-md);
+    padding: var(--sp-2);
     min-width: 160px;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
   }
@@ -96,8 +96,8 @@
     color: var(--t0);
     font-family: var(--mono);
     font-size: var(--sm);
-    padding: 6px 10px;
-    border-radius: 3px;
+    padding: var(--sp-3) var(--sp-5);
+    border-radius: var(--radius-sm);
     cursor: pointer;
   }
   .item:hover {
@@ -112,11 +112,11 @@
   .divider {
     height: 1px;
     background: var(--bd);
-    margin: 3px 4px;
+    margin: var(--sp-2) var(--sp-2);
   }
   .item :global(.ctx-icon-label) {
     display: flex;
     align-items: center;
-    gap: 7px;
+    gap: var(--sp-3);
   }
 </style>

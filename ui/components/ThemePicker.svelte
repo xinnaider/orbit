@@ -59,7 +59,7 @@
     border-radius: 0px;
     outline: none;
     color: var(--t2);
-    padding: 3px 5px;
+    padding: var(--sp-2) var(--sp-3);
     font-size: var(--xs);
     transition:
       color 0.15s,
@@ -76,11 +76,11 @@
     right: 0;
     background: var(--bg2);
     border: 1px solid var(--bd1);
-    border-radius: 6px;
-    padding: 4px;
+    border-radius: var(--radius-md);
+    padding: var(--sp-2);
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: var(--sp-1);
     min-width: 130px;
     z-index: 100;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
@@ -89,13 +89,13 @@
   .option {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--sp-4);
     background: none;
     border: none;
-    border-radius: 4px;
+    border-radius: var(--radius-md);
     color: var(--t1);
     font-size: var(--xs);
-    padding: 5px 8px;
+    padding: var(--sp-3) var(--sp-4);
     text-align: left;
     transition:
       background 0.1s,

@@ -2,7 +2,8 @@
   import type { Session } from '../lib/stores/sessions';
   import { journal, pendingMessages } from '../lib/stores/journal';
   import { getSessionJournal } from '../lib/tauri';
-  import { statusColor, statusLabel, isPulsing } from '../lib/status';
+  import { backends as backendsStore } from '../lib/stores/providers';
+  import { statusColor, statusLabel, isPulsing, modelShortName } from '../lib/status';
   import { formatTokens } from '../lib/cost';
   import { mutedSessions, toggleMute } from '../lib/stores/ui';
   import Feed from './Feed.svelte';
@@ -55,13 +56,21 @@
   $: pulsing = isPulsing(session?.status ?? '');
   $: muted = mutedSessions.isMuted($mutedSessions, String(session?.id));
 
-  function fmtModel(m: string | null) {
-    if (!m) return 'auto';
-    if (m.includes('opus')) return 'opus-4.6';
-    if (m.includes('sonnet')) return 'sonnet-4.6';
-    if (m.includes('haiku')) return 'haiku-4.5';
-    return m;
+  function fmtModel(m: string | null): string {
+    return modelShortName(m);
   }
+
+  // Provider models for /model autocomplete — read from store
+  $: providerModelIds = (() => {
+    const p = session?.provider ?? 'claude-code';
+    // Find models from matching backend or sub-provider
+    for (const b of $backendsStore) {
+      if (b.id === p) return b.models.map((m) => m.id);
+      const sub = b.subProviders?.find((s) => s.id === p);
+      if (sub) return sub.models.map((m) => m.id);
+    }
+    return [];
+  })();
 </script>
 
 <div class="panel">
@@ -106,7 +115,7 @@
           </span>
         {/if}
       {/if}
-      <span class="model">{fmtModel(session.model)}</span>
+      <span class="model" title={session.model ?? ''}>{fmtModel(session.model)}</span>
       <div class="header-actions">
         <button
           class="action-btn mute-btn"
@@ -185,6 +194,7 @@
           bind:this={feedComponent}
           {entries}
           status={session.status}
+          provider={session.provider}
           on:bottomchange={onFeedBottomChange}
         />
       {/key}
@@ -202,7 +212,13 @@
   {/if}
 
   <!-- Input -->
-  <InputBar sessionId={session.id} cwd={session.cwd ?? ''} sessionStatus={session.status} />
+  <InputBar
+    sessionId={session.id}
+    cwd={session.cwd ?? ''}
+    sessionStatus={session.status}
+    provider={session.provider}
+    providerModels={providerModelIds}
+  />
 </div>
 
 <style>
@@ -221,7 +237,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 14px;
+    padding: var(--sp-4) var(--sp-7);
     border-bottom: 1px solid var(--bd);
     flex-shrink: 0;
     background: var(--bg1);
@@ -229,7 +245,7 @@
   .header-left {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--sp-4);
     min-width: 0;
     flex: 1;
     overflow: hidden;
@@ -262,8 +278,8 @@
   .branch-strip {
     display: flex;
     align-items: center;
-    gap: 5px;
-    padding: 2px 14px;
+    gap: var(--sp-3);
+    padding: var(--sp-1) var(--sp-7);
     border-bottom: 1px solid var(--bd);
     background: var(--bg1);
     flex-shrink: 0;
@@ -292,9 +308,9 @@
   .header-right {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--sp-5);
     flex-shrink: 0;
-    padding-left: 12px;
+    padding-left: var(--sp-6);
   }
   .meta {
     font-size: var(--xs);
@@ -303,18 +319,18 @@
   .ctx {
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: var(--sp-3);
   }
   .ctx-bar {
     width: 40px;
     height: 3px;
     background: var(--bg3);
-    border-radius: 2px;
+    border-radius: var(--radius-sm);
     overflow: hidden;
   }
   .ctx-fill {
     height: 100%;
-    border-radius: 2px;
+    border-radius: var(--radius-sm);
     transition: width 0.3s;
   }
   .ctx-pct {
@@ -329,8 +345,8 @@
   .approval {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 6px 14px;
+    gap: var(--sp-4);
+    padding: var(--sp-3) var(--sp-7);
     background: rgba(232, 160, 48, 0.07);
     border-bottom: 1px solid rgba(232, 160, 48, 0.2);
     flex-shrink: 0;
@@ -355,8 +371,8 @@
   .header-actions {
     display: flex;
     align-items: center;
-    gap: 3px;
-    margin-left: 4px;
+    gap: var(--sp-2);
+    margin-left: var(--sp-2);
   }
 
   .action-btn {
@@ -365,7 +381,7 @@
     color: var(--t2);
     width: 18px;
     height: 18px;
-    border-radius: 3px;
+    border-radius: var(--radius-sm);
     font-size: 11px;
     display: flex;
     align-items: center;
@@ -413,14 +429,14 @@
 
   .pending-msg {
     display: flex;
-    gap: 8px;
+    gap: var(--sp-4);
     align-items: flex-start;
-    padding: 8px 14px 8px 10px;
+    padding: var(--sp-4) var(--sp-7) var(--sp-4) var(--sp-5);
     font-size: var(--base);
     color: var(--t1);
     opacity: 0.6;
     border-left: 2px solid var(--user-fg);
-    margin: 2px 0;
+    margin: var(--sp-1) 0;
   }
   .pending-arrow {
     color: var(--user-fg);
@@ -434,10 +450,10 @@
     z-index: 10;
     background: var(--bg2);
     border: 1px solid var(--bd1);
-    border-radius: 3px;
+    border-radius: var(--radius-sm);
     color: var(--t1);
     font-size: var(--xs);
-    padding: 4px 10px;
+    padding: var(--sp-2) var(--sp-5);
   }
   .scroll-btn:hover {
     border-color: var(--ac);

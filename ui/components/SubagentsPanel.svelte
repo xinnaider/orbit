@@ -122,17 +122,17 @@
 
 <style>
   .agents {
-    padding: 10px 12px;
+    padding: var(--sp-5) var(--sp-6);
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--sp-4);
   }
 
   .agents-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 2px;
+    margin-bottom: var(--sp-1);
   }
 
   .count {
@@ -146,7 +146,7 @@
     border: none;
     color: var(--t2);
     font-size: 11px;
-    padding: 2px 4px;
+    padding: var(--sp-1) var(--sp-2);
     cursor: pointer;
     line-height: 1;
     transition: color 0.15s;
@@ -162,14 +162,14 @@
   .empty {
     font-size: var(--xs);
     color: var(--t3);
-    padding: 4px 0;
+    padding: var(--sp-2) 0;
   }
 
   .agent {
     display: flex;
     align-items: flex-start;
-    gap: 6px;
-    padding: 3px 0;
+    gap: var(--sp-3);
+    padding: var(--sp-2) 0;
     background: none;
     border: none;
     width: 100%;
@@ -225,7 +225,7 @@
     height: 75vh;
     background: var(--bg);
     border: 1px solid var(--bd1);
-    border-radius: 8px;
+    border-radius: var(--radius-lg);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -234,7 +234,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 14px;
+    padding: var(--sp-4) var(--sp-7);
     border-bottom: 1px solid var(--bd);
     flex-shrink: 0;
     background: var(--bg1);
@@ -242,7 +242,7 @@
   .header-left {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--sp-4);
     min-width: 0;
     flex: 1;
     overflow: hidden;
@@ -287,7 +287,7 @@
     color: var(--t2);
     width: 18px;
     height: 18px;
-    border-radius: 3px;
+    border-radius: var(--radius-sm);
     font-size: 14px;
     display: flex;
     align-items: center;
@@ -308,8 +308,8 @@
   .desc-strip {
     display: flex;
     align-items: center;
-    gap: 5px;
-    padding: 2px 14px;
+    gap: var(--sp-3);
+    padding: var(--sp-1) var(--sp-7);
     border-bottom: 1px solid var(--bd);
     background: var(--bg1);
     flex-shrink: 0;

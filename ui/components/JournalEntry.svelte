@@ -46,9 +46,9 @@
 
 <style>
   .entry {
-    padding: 10px 14px;
-    border-radius: 10px;
-    margin: 2px 0;
+    padding: var(--sp-5) var(--sp-7);
+    border-radius: var(--radius-lg);
+    margin: var(--sp-1) 0;
   }
   .entry.user {
     background: var(--bg-user);
@@ -68,12 +68,12 @@
   .entry-header {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 6px;
+    gap: var(--sp-4);
+    margin-bottom: var(--sp-3);
   }
   .badge {
-    padding: 2px 8px;
-    border-radius: 4px;
+    padding: var(--sp-1) var(--sp-4);
+    border-radius: var(--radius-md);
     font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.5px;

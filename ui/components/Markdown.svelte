@@ -16,7 +16,7 @@
 
 <style>
   .md :global(p) {
-    margin: 0 0 4px 0;
+    margin: 0 0 var(--sp-2) 0;
   }
   .md :global(p:last-child) {
     margin-bottom: 0;
@@ -34,17 +34,17 @@
   .md :global(code) {
     font-family: 'Cascadia Code', 'Fira Code', monospace;
     background: var(--bg3);
-    padding: 1px 5px;
-    border-radius: 3px;
+    padding: 1px var(--sp-3);
+    border-radius: var(--radius-sm);
     font-size: 0.9em;
   }
   .md :global(pre) {
     background: var(--bg3);
     border: 1px solid var(--bd1);
-    padding: 8px 10px;
-    border-radius: 6px;
+    padding: var(--sp-4) var(--sp-5);
+    border-radius: var(--radius-md);
     overflow-x: auto;
-    margin: 6px 0;
+    margin: var(--sp-3) 0;
   }
   .md :global(pre code) {
     background: none;
@@ -52,17 +52,17 @@
   }
   .md :global(ul),
   .md :global(ol) {
-    margin: 4px 0;
-    padding-left: 20px;
+    margin: var(--sp-2) 0;
+    padding-left: var(--sp-9);
   }
   .md :global(li) {
-    margin: 2px 0;
+    margin: var(--sp-1) 0;
   }
   .md :global(h1),
   .md :global(h2),
   .md :global(h3) {
     font-weight: 700;
-    margin: 8px 0 4px 0;
+    margin: var(--sp-4) 0 var(--sp-2) 0;
     color: var(--t0);
   }
   .md :global(h1) {
@@ -76,8 +76,8 @@
   }
   .md :global(blockquote) {
     border-left: 3px solid var(--bd2);
-    padding-left: 10px;
-    margin: 4px 0;
+    padding-left: var(--sp-5);
+    margin: var(--sp-2) 0;
     color: var(--t1);
   }
   .md :global(a) {
@@ -90,18 +90,18 @@
   .md :global(hr) {
     border: none;
     border-top: 1px solid var(--bd1);
-    margin: 8px 0;
+    margin: var(--sp-4) 0;
   }
   .md :global(table) {
     border-collapse: collapse;
     width: 100%;
-    margin: 6px 0;
+    margin: var(--sp-3) 0;
     font-size: 0.9em;
   }
   .md :global(th),
   .md :global(td) {
     border: 1px solid var(--bd2);
-    padding: 5px 10px;
+    padding: var(--sp-3) var(--sp-5);
     text-align: left;
   }
   .md :global(th) {

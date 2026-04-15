@@ -303,9 +303,313 @@ pub fn process_line(state: &mut JournalState, line: &str) {
 
         "result" => {
             state.status = AgentStatus::Idle;
+            // Extract contextWindow from modelUsage in result message
+            if let Ok(val) = serde_json::from_str::<serde_json::Value>(trimmed) {
+                if let Some(model_usage) = val.get("modelUsage").and_then(|v| v.as_object()) {
+                    for (_model, info) in model_usage {
+                        if let Some(cw) = info.get("contextWindow").and_then(|v| v.as_u64()) {
+                            state.context_window = Some(cw);
+                            break;
+                        }
+                    }
+                }
+            }
         }
 
         _ => {}
+    }
+}
+
+/// Process a JSONL line from OpenCode's `run --format json` output.
+pub fn process_line_opencode(state: &mut JournalState, line: &str) {
+    let val: Value = match serde_json::from_str(line) {
+        Ok(v) => v,
+        Err(_) => return,
+    };
+
+    let event_type = val.get("type").and_then(|v| v.as_str()).unwrap_or("");
+
+    match event_type {
+        "step_start" => {
+            state.status = AgentStatus::Working;
+        }
+
+        "text" => {
+            let text = val
+                .pointer("/part/text")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            if !text.is_empty() {
+                state.status = AgentStatus::Working;
+                state.entries.push(JournalEntry {
+                    entry_type: JournalEntryType::Assistant,
+                    text: Some(text.to_string()),
+                    ..JournalEntry::default()
+                });
+            }
+        }
+
+        "tool_use" => {
+            let tool = val
+                .pointer("/part/tool")
+                .and_then(|v| v.as_str())
+                .unwrap_or("tool");
+            let command = val
+                .pointer("/part/state/input/command")
+                .and_then(|v| v.as_str());
+            let description = val
+                .pointer("/part/state/input/description")
+                .and_then(|v| v.as_str());
+            let output = val.pointer("/part/state/output").and_then(|v| v.as_str());
+            let exit_code = val
+                .pointer("/part/state/metadata/exit")
+                .and_then(|v| v.as_i64());
+
+            let tool_name = match tool {
+                "bash" => "Bash",
+                "read" => "Read",
+                "edit" => "Edit",
+                "write" => "Write",
+                "grep" => "Grep",
+                "glob" => "Glob",
+                other => other,
+            };
+
+            let tool_input = command.map(|c| {
+                serde_json::json!({
+                    "command": c,
+                    "description": description.unwrap_or("")
+                })
+            });
+
+            let target = description
+                .unwrap_or_else(|| command.unwrap_or(""))
+                .to_string();
+            let target_short = if target.len() > 60 {
+                format!("{}...", &target[..60])
+            } else {
+                target
+            };
+
+            state.entries.push(JournalEntry {
+                entry_type: JournalEntryType::ToolCall,
+                tool: Some(tool_name.to_string()),
+                tool_input,
+                ..JournalEntry::default()
+            });
+
+            if let Some(out) = output {
+                state.entries.push(JournalEntry {
+                    entry_type: JournalEntryType::ToolResult,
+                    output: Some(truncate_output(out, 2000)),
+                    exit_code: exit_code.map(|c| c as i32),
+                    ..JournalEntry::default()
+                });
+            }
+
+            if state.mini_log.len() >= 4 {
+                state.mini_log.remove(0);
+            }
+            state.mini_log.push(MiniLogEntry {
+                tool: tool_name.to_string(),
+                target: target_short,
+                result: None,
+                success: exit_code.map(|c| c == 0),
+            });
+            state.pending_approval = detect_pending_approval(&state.entries);
+        }
+
+        "step_finish" => {
+            let reason = val
+                .pointer("/part/reason")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+
+            if let Some(tokens) = val.pointer("/part/tokens") {
+                // Each step reports its own totals — overwrite, don't accumulate
+                state.input_tokens = tokens.get("input").and_then(|v| v.as_u64()).unwrap_or(0);
+                state.output_tokens = tokens.get("output").and_then(|v| v.as_u64()).unwrap_or(0);
+                state.cache_write = tokens
+                    .pointer("/cache/write")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0);
+                state.cache_read = tokens
+                    .pointer("/cache/read")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0);
+            }
+
+            if reason == "stop" {
+                state.status = AgentStatus::Idle;
+            }
+        }
+
+        "error" => {
+            let msg = val
+                .pointer("/error/data/message")
+                .or_else(|| val.pointer("/error/name"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("Unknown error");
+            state.entries.push(JournalEntry {
+                entry_type: JournalEntryType::System,
+                text: Some(format!("Error: {msg}")),
+                ..JournalEntry::default()
+            });
+            state.status = AgentStatus::Idle;
+        }
+
+        // User messages are stored in Claude format by emit_spawn_started
+        _ => {
+            process_line(state, line);
+        }
+    }
+}
+
+/// Extract the inner command from a Codex PowerShell wrapper.
+/// Codex on Windows wraps commands as:
+///   `"C:\\WINDOWS\\...\\powershell.exe" -Command 'echo hello'`
+/// This extracts just `echo hello`.
+fn extract_codex_command(raw: &str) -> String {
+    if let Some(pos) = raw.find("-Command") {
+        let after = raw[pos + 8..].trim_start();
+        let cmd = after
+            .trim_start_matches('\'')
+            .trim_start_matches('"')
+            .trim_end_matches('\'')
+            .trim_end_matches('"');
+        if !cmd.is_empty() {
+            return cmd.to_string();
+        }
+    }
+    raw.to_string()
+}
+
+/// Process a JSONL line from Codex's `exec --json` output.
+pub fn process_line_codex(state: &mut JournalState, line: &str) {
+    let val: Value = match serde_json::from_str(line) {
+        Ok(v) => v,
+        Err(_) => return,
+    };
+
+    let event_type = val.get("type").and_then(|v| v.as_str()).unwrap_or("");
+
+    match event_type {
+        "turn.started" => {
+            state.status = AgentStatus::Working;
+        }
+
+        "item.completed" | "item.started" => {
+            let item_type = val
+                .pointer("/item/type")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+
+            match item_type {
+                "agent_message" => {
+                    let text = val
+                        .pointer("/item/text")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("");
+                    if !text.is_empty() {
+                        state.entries.push(JournalEntry {
+                            entry_type: JournalEntryType::Assistant,
+                            text: Some(text.to_string()),
+                            ..JournalEntry::default()
+                        });
+                    }
+                }
+
+                "command_execution" => {
+                    let raw_command = val
+                        .pointer("/item/command")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("");
+                    let command = extract_codex_command(raw_command);
+                    let status = val
+                        .pointer("/item/status")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("");
+                    let output = val
+                        .pointer("/item/aggregated_output")
+                        .and_then(|v| v.as_str());
+                    let exit_code = val.pointer("/item/exit_code").and_then(|v| v.as_i64());
+
+                    if event_type == "item.started" || status == "in_progress" {
+                        state.entries.push(JournalEntry {
+                            entry_type: JournalEntryType::ToolCall,
+                            tool: Some("Bash".to_string()),
+                            tool_input: Some(serde_json::json!({ "command": command })),
+                            ..JournalEntry::default()
+                        });
+                    } else if status == "completed" {
+                        let has_pending_call = state
+                            .entries
+                            .last()
+                            .is_some_and(|e| e.entry_type == JournalEntryType::ToolCall);
+
+                        if !has_pending_call {
+                            state.entries.push(JournalEntry {
+                                entry_type: JournalEntryType::ToolCall,
+                                tool: Some("Bash".to_string()),
+                                tool_input: Some(serde_json::json!({ "command": command })),
+                                ..JournalEntry::default()
+                            });
+                        }
+
+                        if let Some(out) = output {
+                            state.entries.push(JournalEntry {
+                                entry_type: JournalEntryType::ToolResult,
+                                output: Some(truncate_output(out, 2000)),
+                                exit_code: exit_code.map(|c| c as i32),
+                                ..JournalEntry::default()
+                            });
+                        }
+
+                        let target = if command.len() > 60 {
+                            format!("{}...", &command[..60])
+                        } else {
+                            command.to_string()
+                        };
+
+                        if state.mini_log.len() >= 4 {
+                            state.mini_log.remove(0);
+                        }
+                        state.mini_log.push(MiniLogEntry {
+                            tool: "Bash".to_string(),
+                            target,
+                            result: None,
+                            success: exit_code.map(|c| c == 0),
+                        });
+                    }
+                    state.pending_approval = detect_pending_approval(&state.entries);
+                }
+                _ => {}
+            }
+        }
+
+        "turn.completed" => {
+            if let Some(usage) = val.get("usage") {
+                // Each turn reports its own totals — overwrite, don't accumulate
+                state.input_tokens = usage
+                    .get("input_tokens")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0);
+                state.output_tokens = usage
+                    .get("output_tokens")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0);
+                state.cache_read = usage
+                    .get("cached_input_tokens")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0);
+            }
+            state.status = AgentStatus::Idle;
+        }
+
+        // User messages are stored in Claude format by emit_spawn_started
+        _ => {
+            process_line(state, line);
+        }
     }
 }
 

@@ -4,10 +4,13 @@ use std::sync::{Arc, RwLock};
 
 use tauri::{AppHandle, Emitter};
 
-use crate::journal::{process_line, JournalState};
+use crate::journal::JournalState;
 use crate::models::{AgentStatus, Session, SessionId, TokenUsage};
+
+/// Default provider ID when none is specified.
+const DEFAULT_PROVIDER: &str = "claude-code";
+use crate::providers::{ProviderRegistry, ProviderSpawnConfig};
 use crate::services::database::DatabaseService;
-use crate::services::spawn_manager::{spawn_claude, SpawnConfig};
 
 /// Reads `.git/HEAD` to detect the current branch without spawning a subprocess.
 fn detect_git_branch(cwd: &str) -> Option<String> {
@@ -35,6 +38,8 @@ pub struct SessionStateEvent {
     pub mini_log: Vec<crate::models::MiniLogEntry>,
     pub git_branch: Option<String>,
     pub subagents: Vec<crate::models::SubagentInfo>,
+    pub model: Option<String>,
+    pub context_window: Option<u64>,
 }
 
 struct ActiveSession {
@@ -42,6 +47,12 @@ struct ActiveSession {
     /// The Claude CLI session ID (from stream-json system/init message).
     /// Required for --resume on follow-up messages.
     pub claude_session_id: Option<String>,
+    /// Effort level for thinking (low, medium, high, max).
+    pub effort: Option<String>,
+    /// Provider API key (stored in memory only, never persisted).
+    pub api_key: Option<String>,
+    /// SSH password held in memory (never in DB). Reused for follow-up messages.
+    pub ssh_password: Option<String>,
 }
 
 pub struct SessionManager {
@@ -60,6 +71,7 @@ impl SessionManager {
     }
 
     /// Phase 1 (fast): create DB record, return Session immediately.
+    #[allow(clippy::too_many_arguments)]
     pub fn init_session(
         &mut self,
         project_path: &str,
@@ -67,6 +79,10 @@ impl SessionManager {
         permission_mode: &str,
         model: Option<&str>,
         use_worktree: bool,
+        provider: Option<&str>,
+        ssh_host: Option<&str>,
+        ssh_user: Option<&str>,
+        ssh_password: Option<String>,
     ) -> Result<Session, String> {
         let project_name = std::path::Path::new(project_path)
             .file_name()
@@ -86,8 +102,13 @@ impl SessionManager {
                 project_path,
                 permission_mode,
                 model,
+                provider,
+                ssh_host,
+                ssh_user,
             )
             .map_err(|e| e.to_string())?;
+
+        let use_worktree = use_worktree && ssh_host.is_none();
 
         let (worktree_path_val, branch_name_val) = if use_worktree {
             let full_name = session_name.unwrap_or(&project_name);
@@ -127,6 +148,7 @@ impl SessionManager {
             branch_name: branch_name_val,
             permission_mode: permission_mode.to_string(),
             model: model.map(|s| s.to_string()),
+            provider: provider.unwrap_or(DEFAULT_PROVIDER).to_string(),
             pid: None,
             created_at: now.clone(),
             updated_at: now,
@@ -137,13 +159,25 @@ impl SessionManager {
             context_percent: None,
             pending_approval: None,
             mini_log: None,
+            ssh_host: ssh_host.map(|s| s.to_string()),
+            ssh_user: ssh_user.map(|s| s.to_string()),
         };
+
+        // Persist SSH password encrypted to DB (api_key saved separately via set_api_key)
+        if ssh_password.is_some() {
+            let _ = self
+                .db
+                .save_session_secrets(session_id, None, ssh_password.as_deref());
+        }
 
         self.active.insert(
             session_id,
             ActiveSession {
                 session: session.clone(),
                 claude_session_id: None,
+                effort: None,
+                api_key: None,
+                ssh_password,
             },
         );
         self.journal_states
@@ -152,16 +186,21 @@ impl SessionManager {
         Ok(session)
     }
 
-    /// Phase 2 (async): spawn Claude with `-p "prompt"`.
+    /// Phase 2 (async): spawn provider with `-p "prompt"`.
     /// Each message spawns a new process. Uses `--resume` for follow-ups.
+    ///
+    /// Resolves the provider from the registry and delegates spawning + output
+    /// parsing to the `Provider` trait, eliminating per-provider match dispatch.
     pub fn do_spawn(
         manager: Arc<RwLock<SessionManager>>,
         app: AppHandle,
         session_id: SessionId,
         prompt: String,
+        registry: &ProviderRegistry,
     ) {
-        let (db, cwd, permission_mode, model, claude_session_id) = {
-            let m = manager.write().unwrap_or_else(|e| e.into_inner());
+        // 1. Read session data from the active map
+        let (db, cwd, model, provider_id, effort, resume_id, extra_env, spawn_mode, ssh_password) = {
+            let m = manager.read().unwrap_or_else(|e| e.into_inner());
             let a = match m.active.get(&session_id) {
                 Some(a) => a,
                 None => {
@@ -175,6 +214,30 @@ impl SessionManager {
                     return;
                 }
             };
+
+            let raw_model = a.session.model.clone().unwrap_or_default();
+            let pid_str = a.session.provider.clone();
+
+            // API key env vars for opencode providers
+            let mut env = vec![];
+            if let Some(ref key) = a.api_key {
+                let var_name = format!("{}_API_KEY", pid_str.to_uppercase().replace('-', "_"));
+                env.push((var_name, key.clone()));
+            }
+
+            let spawn_mode = match (a.session.ssh_host.clone(), a.session.ssh_user.clone()) {
+                (Some(host), Some(user)) => crate::services::ssh::SpawnMode::Ssh { host, user },
+                (Some(host), None) => {
+                    eprintln!(
+                        "[orbit] session {session_id}: ssh_host={host:?} set but ssh_user is \
+                         missing — falling back to local spawn."
+                    );
+                    crate::services::ssh::SpawnMode::Local
+                }
+                _ => crate::services::ssh::SpawnMode::Local,
+            };
+            let ssh_password = a.ssh_password.clone();
+
             (
                 m.db.clone(),
                 a.session
@@ -182,23 +245,84 @@ impl SessionManager {
                     .clone()
                     .or_else(|| a.session.cwd.clone())
                     .unwrap_or_default(),
-                a.session.permission_mode.clone(),
-                a.session.model.clone(),
+                raw_model,
+                pid_str,
+                a.effort.clone(),
                 a.claude_session_id.clone(),
+                env,
+                spawn_mode,
+                ssh_password,
             )
         };
 
-        let prompt_text = prompt.clone(); // keep a copy for the user entry
-        let config = SpawnConfig {
-            session_id,
-            cwd: std::path::PathBuf::from(&cwd),
-            permission_mode,
-            model,
-            prompt,
-            claude_session_id,
+        // 2. Resolve provider from registry
+        let provider = match registry.resolve(&provider_id) {
+            Some(p) => p,
+            None => {
+                let _ = app.emit(
+                    "session:error",
+                    serde_json::json!({
+                        "sessionId": session_id,
+                        "error": format!("Unknown provider: {provider_id}")
+                    }),
+                );
+                return;
+            }
         };
 
-        let handle = match spawn_claude(config) {
+        // 3. Format model via provider (no hardcoded string comparisons)
+        let model = provider.format_model(&model, &provider_id);
+
+        // 4. Set context window from provider
+        if let Some(ctx) = provider.context_window(&model) {
+            let mut m = manager.write().unwrap_or_else(|e| e.into_inner());
+            if let Some(state) = m.journal_states.get_mut(&session_id) {
+                state.context_window = Some(ctx);
+            }
+        }
+
+        // 4. Spawn CLI via provider trait
+        let prompt_text = prompt.clone();
+        if cfg!(debug_assertions) {
+            eprintln!("[orbit:debug] ── spawn session {session_id} ──");
+            eprintln!("[orbit:debug]   provider: {provider_id}");
+            eprintln!("[orbit:debug]   model: {model}");
+            eprintln!("[orbit:debug]   cwd: {cwd}");
+            eprintln!(
+                "[orbit:debug]   spawn_mode: {}",
+                match &spawn_mode {
+                    crate::services::ssh::SpawnMode::Local => "local".to_string(),
+                    crate::services::ssh::SpawnMode::Ssh { host, user } =>
+                        format!("ssh {user}@{host}"),
+                }
+            );
+            eprintln!(
+                "[orbit:debug]   ssh_password: {}",
+                if ssh_password.is_some() { "<set>" } else { "<none>" }
+            );
+            if !extra_env.is_empty() {
+                for (k, _) in &extra_env {
+                    eprintln!("[orbit:debug]   env: {k}=<set>");
+                }
+            }
+            if let Some(ref rid) = resume_id {
+                eprintln!("[orbit:debug]   resume: {rid}");
+            }
+            eprintln!("[orbit:debug]   prompt: {}…", &prompt.chars().take(80).collect::<String>());
+        }
+        let spawn_config = ProviderSpawnConfig {
+            session_id,
+            cwd: std::path::PathBuf::from(&cwd),
+            model,
+            prompt,
+            resume_id,
+            extra_env,
+            effort,
+            spawn_mode,
+            ssh_password,
+        };
+
+        let handle = match provider.spawn(spawn_config) {
             Ok(h) => h,
             Err(e) => {
                 let _ = db.update_session_status(session_id, crate::models::SessionStatus::Error);
@@ -212,10 +336,7 @@ impl SessionManager {
             }
         };
 
-        let pid = handle.pid as i32;
-        let _ = db.update_session_pid(session_id, pid);
-
-        // Monitor stderr for rate limit errors in a background thread
+        // 5. Stderr monitoring for rate limit detection
         let app_err = app.clone();
         let stderr_reader = handle.stderr;
         std::thread::spawn(move || {
@@ -228,6 +349,9 @@ impl SessionManager {
                     Ok(0) | Err(_) => break,
                     Ok(_) => {
                         let trimmed = line.trim();
+                        if cfg!(debug_assertions) && !trimmed.is_empty() {
+                            eprintln!("[orbit:debug] stderr {session_id}: {trimmed}");
+                        }
                         if trimmed.contains("rate_limit_error")
                             || trimmed.contains("overloaded_error")
                         {
@@ -241,6 +365,42 @@ impl SessionManager {
             }
         });
 
+        // 6. Emit spawn-started events
+        Self::emit_spawn_started(
+            &manager,
+            &app,
+            &db,
+            session_id,
+            handle.pid as i32,
+            &prompt_text,
+        );
+
+        // 7. Get line processor fn pointer from the provider trait.
+        // Uses fn pointer (not trait object) because threads require Send.
+        let line_processor = provider.line_processor();
+
+        // 8. Reader loop
+        Self::reader_loop(
+            Arc::clone(&manager),
+            app,
+            session_id,
+            handle.reader,
+            db,
+            handle.child,
+            line_processor,
+        );
+    }
+
+    /// Common post-spawn: set Running status, emit session:running, emit user entry.
+    fn emit_spawn_started(
+        manager: &Arc<RwLock<SessionManager>>,
+        app: &AppHandle,
+        db: &Arc<DatabaseService>,
+        session_id: SessionId,
+        pid: i32,
+        prompt_text: &str,
+    ) {
+        let _ = db.update_session_pid(session_id, pid);
         {
             let mut m = manager.write().unwrap_or_else(|e| e.into_inner());
             if let Some(a) = m.active.get_mut(&session_id) {
@@ -251,22 +411,19 @@ impl SessionManager {
 
         let _ = app.emit(
             "session:running",
-            serde_json::json!({
-                "sessionId": session_id, "pid": pid
-            }),
+            serde_json::json!({ "sessionId": session_id, "pid": pid }),
         );
 
-        // Emit user message entry immediately — Claude's -p flag doesn't echo it in the stream
         let user_entry = crate::models::JournalEntry {
             session_id: session_id.to_string(),
             timestamp: chrono::Utc::now().to_rfc3339(),
             entry_type: crate::models::JournalEntryType::User,
-            text: Some(prompt_text.clone()),
+            text: Some(prompt_text.to_string()),
             ..crate::models::JournalEntry::default()
         };
         let user_line = serde_json::json!({
             "type": "user",
-            "message": { "content": &prompt_text },
+            "message": { "content": prompt_text },
             "timestamp": &user_entry.timestamp
         })
         .to_string();
@@ -285,15 +442,6 @@ impl SessionManager {
                 entry: user_entry,
             },
         );
-
-        Self::reader_loop(
-            Arc::clone(&manager),
-            app,
-            session_id,
-            handle.reader,
-            db,
-            handle.child,
-        );
     }
 
     /// Read JSON lines from Claude's stdout, parse, emit events.
@@ -304,6 +452,7 @@ impl SessionManager {
         reader: Box<dyn std::io::Read + Send>,
         db: Arc<DatabaseService>,
         mut child: std::process::Child,
+        line_processor: fn(&mut JournalState, &str),
     ) {
         use std::io::BufRead;
         let mut reader = std::io::BufReader::new(reader);
@@ -319,9 +468,21 @@ impl SessionManager {
                         continue;
                     }
 
+                    if cfg!(debug_assertions) {
+                        let preview: String = trimmed.chars().take(200).collect();
+                        eprintln!("[orbit:debug] stdout {session_id}: {preview}");
+                    }
+
                     // Extract and persist Claude session ID from system/init message
                     if let Ok(val) = serde_json::from_str::<serde_json::Value>(&trimmed) {
-                        if let Some(claude_id) = val.get("session_id").and_then(|v| v.as_str()) {
+                        // Extract CLI session ID for resume support:
+                        //   Claude: "session_id", OpenCode: "sessionID", Codex: "thread_id"
+                        let cli_sid = val
+                            .get("session_id")
+                            .or_else(|| val.get("sessionID"))
+                            .or_else(|| val.get("thread_id"))
+                            .and_then(|v| v.as_str());
+                        if let Some(claude_id) = cli_sid {
                             let should_persist = {
                                 let mut m = manager.write().unwrap_or_else(|e| e.into_inner());
                                 if let Some(a) = m.active.get_mut(&session_id) {
@@ -371,15 +532,30 @@ impl SessionManager {
                         let state = m.journal_states.entry(session_id).or_default();
 
                         let prev_len = state.entries.len();
-                        process_line(state, &trimmed);
+                        let prev_model = state.model.clone();
+                        line_processor(state, &trimmed);
                         let new_entries: Vec<_> = state.entries[prev_len..].to_vec();
 
-                        let window = state
-                            .model
-                            .as_deref()
-                            .map(crate::models::context_window)
-                            .unwrap_or(200_000);
-                        let total = state.input_tokens + state.output_tokens;
+                        // Persist model to DB + active session when first detected
+                        let model_changed = state.model != prev_model;
+                        let detected_model = if model_changed {
+                            state.model.clone()
+                        } else {
+                            None
+                        };
+
+                        // Context window: use the value from the stream if
+                        // available, fall back to model lookup only for Claude
+                        // (which reports cumulative tokens). For Codex/OpenCode
+                        // the window stays None → context % stays 0 → UI hides it.
+                        let window = state.context_window.unwrap_or_else(|| {
+                            state
+                                .model
+                                .as_deref()
+                                .map(crate::models::context_window)
+                                .unwrap_or(0)
+                        });
+                        let total = state.input_tokens;
 
                         let status_str = match state.status {
                             AgentStatus::Working => "working",
@@ -407,7 +583,16 @@ impl SessionManager {
                             mini_log: state.mini_log.clone(),
                             git_branch,
                             subagents,
+                            model: state.model.clone(),
+                            context_window: state.context_window.or(Some(window)),
                         };
+                        if let Some(ref model) = detected_model {
+                            let _ = db.update_session_model(session_id, model);
+                            if let Some(a) = m.active.get_mut(&session_id) {
+                                a.session.model = Some(model.clone());
+                            }
+                        }
+
                         (new_entries, event)
                     };
 
@@ -447,13 +632,14 @@ impl SessionManager {
         let _ = child.wait();
     }
 
-    /// Send a follow-up message by spawning a new Claude process with --resume.
+    /// Send a follow-up message by spawning a new CLI process with --resume.
     /// Reads session data from DB so it works even after app restart.
     pub fn send_message(
         manager: Arc<RwLock<SessionManager>>,
         app: AppHandle,
         session_id: SessionId,
         text: String,
+        registry: Arc<ProviderRegistry>,
     ) -> Result<(), String> {
         // Re-add to active map if missing (e.g. after app restart)
         {
@@ -466,12 +652,19 @@ impl SessionManager {
                         .ok_or_else(|| format!("Session {session_id} not found"))?;
 
                 let claude_session_id = m.db.get_claude_session_id(session_id).ok().flatten();
+                let (api_key, ssh_password) = m
+                    .db
+                    .load_session_secrets(session_id)
+                    .unwrap_or((None, None));
 
                 m.active.insert(
                     session_id,
                     ActiveSession {
                         session,
                         claude_session_id,
+                        effort: None,
+                        api_key,
+                        ssh_password,
                     },
                 );
                 m.journal_states.entry(session_id).or_default();
@@ -480,7 +673,7 @@ impl SessionManager {
 
         let manager_clone = Arc::clone(&manager);
         std::thread::spawn(move || {
-            Self::do_spawn(manager_clone, app, session_id, text);
+            Self::do_spawn(manager_clone, app, session_id, text, &registry);
         });
 
         Ok(())
@@ -504,12 +697,14 @@ impl SessionManager {
         for s in &mut sessions {
             self.load_session_journal(s.id);
             if let Some(state) = self.journal_states.get(&s.id) {
-                let window = state
-                    .model
-                    .as_deref()
-                    .map(crate::models::context_window)
-                    .unwrap_or(200_000);
-                let total = state.input_tokens + state.output_tokens;
+                let window = state.context_window.unwrap_or_else(|| {
+                    state
+                        .model
+                        .as_deref()
+                        .map(crate::models::context_window)
+                        .unwrap_or(0)
+                });
+                let total = state.input_tokens;
                 s.tokens = Some(TokenUsage {
                     input: state.input_tokens,
                     output: state.output_tokens,
@@ -559,14 +754,28 @@ impl SessionManager {
             Ok(r) => r,
             Err(_) => return,
         };
-        // Don't cache an empty state for inactive sessions with no data.
-        // Keeps "not in map" semantically distinct from "loaded and empty".
         if rows.is_empty() && !self.active.contains_key(&session_id) {
             return;
         }
+
+        // Pick the right JSONL parser based on session provider
+        let provider_owned = self
+            .active
+            .get(&session_id)
+            .map(|a| a.session.provider.clone())
+            .or_else(|| {
+                self.db
+                    .get_session(session_id)
+                    .ok()
+                    .flatten()
+                    .map(|s| s.provider)
+            })
+            .unwrap_or_else(|| DEFAULT_PROVIDER.to_string());
+        let line_processor = resolve_line_processor(&provider_owned);
+
         let mut state = JournalState::default();
         for line in &rows {
-            process_line(&mut state, line);
+            line_processor(&mut state, line);
         }
         self.journal_states.insert(session_id, state);
     }
@@ -575,10 +784,55 @@ impl SessionManager {
         self.active.contains_key(&session_id)
     }
 
+    pub fn get_session_provider(&self, session_id: SessionId) -> Option<String> {
+        self.active
+            .get(&session_id)
+            .map(|a| a.session.provider.clone())
+    }
+
     pub fn rename_session(&mut self, session_id: SessionId, name: &str) -> Result<(), String> {
         self.db
             .rename_session(session_id, name)
             .map_err(|e| e.to_string())
+    }
+
+    pub fn update_session_model(
+        &mut self,
+        session_id: SessionId,
+        model: &str,
+    ) -> Result<(), String> {
+        if let Some(a) = self.active.get_mut(&session_id) {
+            a.session.model = Some(model.to_string());
+        }
+        // Reset context_window so it re-derives from the new model
+        if let Some(state) = self.journal_states.get_mut(&session_id) {
+            state.context_window = None;
+        }
+        self.db
+            .update_session_model(session_id, model)
+            .map_err(|e| e.to_string())
+    }
+
+    pub fn update_session_effort(
+        &mut self,
+        session_id: SessionId,
+        effort: &str,
+    ) -> Result<(), String> {
+        if let Some(a) = self.active.get_mut(&session_id) {
+            a.effort = Some(effort.to_string());
+        }
+        Ok(())
+    }
+
+    pub fn set_api_key(&mut self, session_id: SessionId, api_key: String) {
+        if let Some(a) = self.active.get_mut(&session_id) {
+            // Persist encrypted to DB so it survives app restart
+            let ssh_pw = a.ssh_password.as_deref();
+            let _ = self
+                .db
+                .save_session_secrets(session_id, Some(&api_key), ssh_pw);
+            a.api_key = Some(api_key);
+        }
     }
 
     pub fn delete_session(&mut self, session_id: SessionId) -> Result<(), String> {
@@ -607,6 +861,19 @@ impl SessionManager {
 }
 
 /// Forcefully terminate a process by PID.
+/// Resolve line processor fn pointer from provider ID.
+/// Used for journal replay where ProviderRegistry is not available.
+/// When adding a new provider, register its parser here.
+fn resolve_line_processor(provider_id: &str) -> fn(&mut JournalState, &str) {
+    // Fallback dispatch for journal replay where ProviderRegistry is unavailable.
+    // For live sessions, prefer provider.line_processor() via the trait.
+    match provider_id {
+        DEFAULT_PROVIDER => crate::journal::process_line,
+        "codex" => crate::journal::process_line_codex,
+        _ => crate::journal::process_line_opencode,
+    }
+}
+
 fn kill_pid(pid: u32) {
     #[cfg(windows)]
     {
@@ -680,7 +947,7 @@ mod tests {
         let s = mgr
             .write()
             .unwrap()
-            .init_session("/tmp/proj", None, "ignore", None, false)
+            .init_session("/tmp/proj", None, "ignore", None, false, None, None, None, None)
             .expect("init failed");
         t.phase("Assert");
         t.ok("id is positive", s.id > 0);
@@ -699,7 +966,7 @@ mod tests {
         let s = mgr
             .write()
             .unwrap()
-            .init_session("/tmp/proj", None, "ignore", None, false)
+            .init_session("/tmp/proj", None, "ignore", None, false, None, None, None, None)
             .expect("init failed");
         t.phase("Assert");
         t.ok(
@@ -716,7 +983,7 @@ mod tests {
         let s = mgr
             .write()
             .unwrap()
-            .init_session("/tmp/proj", None, "ignore", None, false)
+            .init_session("/tmp/proj", None, "ignore", None, false, None, None, None, None)
             .expect("init failed");
         t.phase("Assert");
         t.ok(
@@ -735,7 +1002,7 @@ mod tests {
         let s = mgr
             .write()
             .unwrap()
-            .init_session("/tmp/proj", None, "ignore", None, false)
+            .init_session("/tmp/proj", None, "ignore", None, false, None, None, None, None)
             .expect("init failed");
         t.phase("Act");
         mgr.write()
@@ -761,7 +1028,7 @@ mod tests {
         let s = mgr
             .write()
             .unwrap()
-            .init_session("/tmp/proj", None, "ignore", None, false)
+            .init_session("/tmp/proj", None, "ignore", None, false, None, None, None, None)
             .expect("init failed");
         t.phase("Act");
         mgr.write()
@@ -788,7 +1055,7 @@ mod tests {
         let s = mgr
             .write()
             .unwrap()
-            .init_session("/tmp/proj", Some("old-name"), "ignore", None, false)
+            .init_session("/tmp/proj", Some("old-name"), "ignore", None, false, None, None, None, None)
             .expect("init failed");
         t.phase("Act");
         mgr.write()
@@ -835,7 +1102,7 @@ mod tests {
         t.phase("Seed");
         let db = make_db();
         let sid = db
-            .create_session(None, None, "/tmp", "ignore", None)
+            .create_session(None, None, "/tmp", "ignore", None, None, None, None)
             .expect("session");
         seed_outputs(
             &db,
@@ -861,7 +1128,7 @@ mod tests {
         t.phase("Seed");
         let db = make_db();
         let sid = db
-            .create_session(None, None, "/tmp", "ignore", None)
+            .create_session(None, None, "/tmp", "ignore", None, None, None, None)
             .expect("session");
         seed_outputs(&db, sid, &[&crate::test_utils::assistant_text("Hello")]);
         t.phase("Act");
@@ -879,7 +1146,7 @@ mod tests {
         t.phase("Seed");
         let db = make_db();
         let sid = db
-            .create_session(None, None, "/tmp", "ignore", None)
+            .create_session(None, None, "/tmp", "ignore", None, None, None, None)
             .expect("session");
         // input=10, output=5, cache_write=2, cache_read=1 → input_tokens = 13
         seed_outputs(&db, sid, &[&assistant_with_tokens("Hi", 10, 5, 2, 1)]);
@@ -1021,7 +1288,7 @@ mod tests {
         t.phase("Seed — DB has session with outputs, manager is fresh (no restore)");
         let db = make_db();
         let sid = db
-            .create_session(None, None, "/tmp", "ignore", None)
+            .create_session(None, None, "/tmp", "ignore", None, None, None, None)
             .expect("session");
         seed_outputs(&db, sid, &[&crate::test_utils::assistant_text("hello")]);
         t.phase("Act — create manager without calling restore_from_db");
@@ -1039,7 +1306,7 @@ mod tests {
         t.phase("Seed — session with token output exists");
         let db = make_db();
         let sid = db
-            .create_session(None, None, "/tmp", "ignore", None)
+            .create_session(None, None, "/tmp", "ignore", None, None, None, None)
             .expect("session");
         seed_outputs(
             &db,
@@ -1067,7 +1334,7 @@ mod tests {
         t.phase("Seed");
         let db = make_db();
         let sid = db
-            .create_session(None, None, "/tmp", "ignore", None)
+            .create_session(None, None, "/tmp", "ignore", None, None, None, None)
             .expect("session");
         seed_outputs(&db, sid, &[&crate::test_utils::assistant_text("hello")]);
         t.phase("Act — get_journal triggers lazy load");
@@ -1085,7 +1352,7 @@ mod tests {
         t.phase("Seed");
         let db = make_db();
         let sid = db
-            .create_session(None, None, "/tmp", "ignore", None)
+            .create_session(None, None, "/tmp", "ignore", None, None, None, None)
             .expect("session");
         seed_outputs(
             &db,

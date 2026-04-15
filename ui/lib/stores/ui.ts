@@ -38,3 +38,30 @@ export const mutedSessions = createMutedSessionsStore();
 export function toggleMute(sessionId: string) {
   mutedSessions.toggle(sessionId);
 }
+
+function createSessionEffortStore() {
+  const stored =
+    typeof localStorage !== 'undefined'
+      ? JSON.parse(localStorage.getItem('sessionEffort') ?? '{}')
+      : {};
+
+  const { subscribe, update } = writable<Record<string, string>>(stored);
+
+  subscribe((val) => {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('sessionEffort', JSON.stringify(val));
+    }
+  });
+
+  return {
+    subscribe,
+    set(sessionId: string, level: string) {
+      update((m) => ({ ...m, [sessionId]: level }));
+    },
+    get(map: Record<string, string>, sessionId: string): string {
+      return map[sessionId] ?? 'high';
+    },
+  };
+}
+
+export const sessionEffort = createSessionEffortStore();

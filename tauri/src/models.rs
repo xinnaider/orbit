@@ -179,11 +179,9 @@ pub struct TaskItem {
 pub fn model_display_name(model_id: &str) -> &str {
     match model_id {
         "claude-opus-4-6" => "Opus 4.6",
+        "claude-opus-4-6[1m]" => "Opus 4.6 (1M)",
         "claude-sonnet-4-6" => "Sonnet 4.6",
-        "claude-sonnet-4-5-20250514" => "Sonnet 4.5",
         "claude-haiku-4-5-20251001" => "Haiku 4.5",
-        "claude-opus-4-20250514" => "Opus 4",
-        "claude-sonnet-4-20250514" => "Sonnet 4",
         _ => model_id,
     }
 }
@@ -191,7 +189,7 @@ pub fn model_display_name(model_id: &str) -> &str {
 /// Context window size for a given model ID.
 pub fn context_window(model_id: &str) -> u64 {
     match model_id {
-        "claude-opus-4-6" => 1_000_000,
+        "claude-opus-4-6[1m]" => 1_000_000,
         _ => 200_000,
     }
 }
@@ -293,6 +291,7 @@ pub struct Session {
     pub branch_name: Option<String>,
     pub permission_mode: String,
     pub model: Option<String>,
+    pub provider: String,
     pub pid: Option<i32>,
     pub created_at: String,
     pub updated_at: String,
@@ -311,6 +310,10 @@ pub struct Session {
     pub pending_approval: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mini_log: Option<Vec<MiniLogEntry>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ssh_host: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ssh_user: Option<String>,
 }
 
 #[derive(Debug, Clone)]
