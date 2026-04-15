@@ -282,7 +282,7 @@
     atQuery={aq}
     on:select={handlePickerSelect}
     on:close={() => {
-      text = text;
+      text = text + '';
     }}
   />
 

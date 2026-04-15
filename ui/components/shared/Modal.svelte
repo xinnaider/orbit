@@ -17,7 +17,6 @@
 
 <svelte:window on:keydown={onKey} />
 
-<!-- svelte-ignore a11y_click_events_have_key_events -->
 <div
   class="overlay"
   role="dialog"
