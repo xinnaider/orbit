@@ -133,7 +133,13 @@
         sessionName: finalName,
         useWorktree: caps.supportsEffort && !sshMode ? useWorktree : false,
         provider: resolveProvider(),
-        apiKey: hasSubProviders && (selectedBackend?.subProviders.find((p) => p.id === subProviderId)?.env ?? []).length > 0 && apiKeyOverride.trim() ? apiKeyOverride.trim() : undefined,
+        apiKey:
+          hasSubProviders &&
+          (selectedBackend?.subProviders.find((p) => p.id === subProviderId)?.env ?? []).length >
+            0 &&
+          apiKeyOverride.trim()
+            ? apiKeyOverride.trim()
+            : undefined,
         sshHost: sshMode ? sshHost.trim() : undefined,
         sshUser: sshMode ? sshUser.trim() : undefined,
         sshPassword: sshMode && sshPassword.trim() ? sshPassword.trim() : undefined,
@@ -147,126 +153,133 @@
   }
 </script>
 
-<Modal title="new session" width="500px" closeOnOverlayClick={false} on:close={() => dispatch('cancel')}>
-    <div class="field">
-      <label class="label" for="ns-path">{sshMode ? 'remote path' : 'path'}</label>
-      <div class="path-row">
-        <input
-          id="ns-path"
-          class="input"
-          bind:value={path}
-          placeholder={sshMode ? '/home/ubuntu/project' : '/home/user/project'}
-          disabled={loading}
-          on:keydown={(e) => e.key === 'Enter' && prompt && submit()}
-        />
-        <button class="browse" on:click={browse} disabled={loading} title="browse">⌘</button>
-      </div>
-    </div>
-
-    <ProviderSelector
-      {backends}
-      bind:backendId
-      bind:subProviderId
-      bind:model
-      bind:apiKeyOverride
-      bind:sshMode
-      {loading}
-    />
-
-    {#if sshMode}
-      <SshFields bind:sshHost bind:sshUser bind:sshPassword {loading} />
-    {/if}
-
-    <div class="field">
-      <label class="label" for="ns-prompt">prompt</label>
-      <textarea
-        id="ns-prompt"
-        class="input textarea"
-        bind:value={prompt}
-        placeholder="what should the agent work on? (optional)"
-        rows="3"
+<Modal
+  title="new session"
+  width="500px"
+  closeOnOverlayClick={false}
+  on:close={() => dispatch('cancel')}
+>
+  <div class="field">
+    <label class="label" for="ns-path">{sshMode ? 'remote path' : 'path'}</label>
+    <div class="path-row">
+      <input
+        id="ns-path"
+        class="input"
+        bind:value={path}
+        placeholder={sshMode ? '/home/ubuntu/project' : '/home/user/project'}
         disabled={loading}
-        on:keydown={(e) => {
-          if (e.key === 'Enter' && e.metaKey) submit();
-        }}
-      ></textarea>
+        on:keydown={(e) => e.key === 'Enter' && prompt && submit()}
+      />
+      <button class="browse" on:click={browse} disabled={loading} title="browse">⌘</button>
     </div>
+  </div>
 
-    <!-- Session name -->
-    <div class="field">
-      <label class="label" for="ns-agent">apelido</label>
-      <div class="nickname-row">
-        <input
-          id="ns-agent"
-          class="input"
-          bind:value={agentName}
-          placeholder={generatedAgent || '—'}
-          title="nome do agente"
-          disabled={loading}
-        />
-        <span class="nick-sep">·</span>
-        <input
-          id="ns-project"
-          class="input"
-          bind:value={projectSuffix}
-          placeholder={generatedProject || 'projeto'}
-          title="sufixo do projeto"
-          disabled={loading}
-        />
-      </div>
-      {#if namePreview}
-        <span class="name-preview">{namePreview}</span>
+  <ProviderSelector
+    {backends}
+    bind:backendId
+    bind:subProviderId
+    bind:model
+    bind:apiKeyOverride
+    bind:sshMode
+    {loading}
+  />
+
+  {#if sshMode}
+    <SshFields bind:sshHost bind:sshUser bind:sshPassword {loading} />
+  {/if}
+
+  <div class="field">
+    <label class="label" for="ns-prompt">prompt</label>
+    <textarea
+      id="ns-prompt"
+      class="input textarea"
+      bind:value={prompt}
+      placeholder="what should the agent work on? (optional)"
+      rows="3"
+      disabled={loading}
+      on:keydown={(e) => {
+        if (e.key === 'Enter' && e.metaKey) submit();
+      }}
+    ></textarea>
+  </div>
+
+  <!-- Session name -->
+  <div class="field">
+    <label class="label" for="ns-agent">apelido</label>
+    <div class="nickname-row">
+      <input
+        id="ns-agent"
+        class="input"
+        bind:value={agentName}
+        placeholder={generatedAgent || '—'}
+        title="nome do agente"
+        disabled={loading}
+      />
+      <span class="nick-sep">·</span>
+      <input
+        id="ns-project"
+        class="input"
+        bind:value={projectSuffix}
+        placeholder={generatedProject || 'projeto'}
+        title="sufixo do projeto"
+        disabled={loading}
+      />
+    </div>
+    {#if namePreview}
+      <span class="name-preview">{namePreview}</span>
+    {/if}
+  </div>
+
+  {#if caps.supportsEffort && !sshMode}
+    <label class="toggle-row">
+      <input type="checkbox" bind:checked={useWorktree} disabled={loading} />
+      <span class="toggle-label">criar git worktree</span>
+    </label>
+  {/if}
+
+  {#if error}
+    <p class="error">! {error}</p>
+  {/if}
+
+  {#if diag}
+    <div class="diag">
+      {#if diag.ssh}
+        <div class="diag-row" class:ok={diag.ssh.ok} class:fail={!diag.ssh.ok}>
+          ssh: {diag.ssh.ok ? `✓ connected (${diag.ssh.latencyMs}ms)` : `✗ ${diag.ssh.error}`}
+        </div>
+      {/if}
+      {#if !diag.ssh || diag.ssh.ok}
+        <div class="diag-row" class:ok={diag.found} class:fail={!diag.found}>
+          {diag.cliName}: {diag.found ? `✓ ${diag.path ?? ''}` : '✗ not found'}
+        </div>
+        {#if diag.version}
+          <div class="diag-row ok">version: {diag.version.slice(0, 60)}</div>
+        {/if}
+        {#if !diag.found}
+          <div class="diag-row fail">install: {diag.installHint}</div>
+        {/if}
+        {#if diag.projectDirOk === true}
+          <div class="diag-row ok">path: ✓ exists</div>
+        {:else if diag.projectDirOk === false}
+          <div class="diag-row fail">path: ✗ directory not found</div>
+        {/if}
       {/if}
     </div>
+  {/if}
 
-    {#if caps.supportsEffort && !sshMode}
-      <label class="toggle-row">
-        <input type="checkbox" bind:checked={useWorktree} disabled={loading} />
-        <span class="toggle-label">criar git worktree</span>
-      </label>
-    {/if}
-
-    {#if error}
-      <p class="error">! {error}</p>
-    {/if}
-
-    {#if diag}
-      <div class="diag">
-        {#if diag.ssh}
-          <div class="diag-row" class:ok={diag.ssh.ok} class:fail={!diag.ssh.ok}>
-            ssh: {diag.ssh.ok ? `✓ connected (${diag.ssh.latencyMs}ms)` : `✗ ${diag.ssh.error}`}
-          </div>
-        {/if}
-        {#if !diag.ssh || diag.ssh.ok}
-          <div class="diag-row" class:ok={diag.found} class:fail={!diag.found}>
-            {diag.cliName}: {diag.found ? `✓ ${diag.path ?? ''}` : '✗ not found'}
-          </div>
-          {#if diag.version}
-            <div class="diag-row ok">version: {diag.version.slice(0, 60)}</div>
-          {/if}
-          {#if !diag.found}
-            <div class="diag-row fail">install: {diag.installHint}</div>
-          {/if}
-          {#if diag.projectDirOk === true}
-            <div class="diag-row ok">path: ✓ exists</div>
-          {:else if diag.projectDirOk === false}
-            <div class="diag-row fail">path: ✗ directory not found</div>
-          {/if}
-        {/if}
-      </div>
-    {/if}
-
-    <div class="actions">
-      <button class="btn ghost" on:click={runDiag} disabled={diagRunning || loading || (sshMode && (!sshHost.trim() || !sshUser.trim()))}>
-        {diagRunning ? 'testing...' : '⚙ diagnose'}
-      </button>
-      <button class="btn ghost" on:click={() => dispatch('cancel')} disabled={loading}
-        >cancel</button
-      >
-      <button class="btn primary" on:click={submit} disabled={loading || !path}>
-        {loading ? 'spawning...' : 'start session'}
-      </button>
-    </div>
+  <div class="actions">
+    <button
+      class="btn ghost"
+      on:click={runDiag}
+      disabled={diagRunning || loading || (sshMode && (!sshHost.trim() || !sshUser.trim()))}
+    >
+      {diagRunning ? 'testing...' : '⚙ diagnose'}
+    </button>
+    <button class="btn ghost" on:click={() => dispatch('cancel')} disabled={loading}>cancel</button>
+    <button class="btn primary" on:click={submit} disabled={loading || !path}>
+      {loading ? 'spawning...' : 'start session'}
+    </button>
+  </div>
 </Modal>
 
 <style>

@@ -244,7 +244,10 @@
     font-size: var(--sm);
     color: var(--t1);
     cursor: pointer;
-    transition: border-color 0.15s, color 0.15s, background 0.15s;
+    transition:
+      border-color 0.15s,
+      color 0.15s,
+      background 0.15s;
     white-space: nowrap;
     min-height: 30px;
   }

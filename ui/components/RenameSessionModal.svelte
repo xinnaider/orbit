@@ -39,41 +39,41 @@
 </script>
 
 <Modal title="rename session" width="400px" zIndex={200} on:close={() => dispatch('cancel')}>
-    <div class="field">
-      <label class="label" for="rn-prefix">apelido</label>
-      <div class="nickname-row">
-        <input
-          id="rn-prefix"
-          class="input"
-          bind:value={prefix}
-          placeholder="agent name"
-          disabled={loading}
-          use:focusOnMount
-          on:keydown={(e) => e.key === 'Enter' && submit()}
-        />
-        <span class="nick-sep">·</span>
-        <input
-          id="rn-suffix"
-          class="input"
-          bind:value={suffix}
-          placeholder="project"
-          disabled={loading}
-          on:keydown={(e) => e.key === 'Enter' && submit()}
-        />
-      </div>
-      {#if namePreview}
-        <span class="name-preview">{namePreview}</span>
-      {/if}
+  <div class="field">
+    <label class="label" for="rn-prefix">apelido</label>
+    <div class="nickname-row">
+      <input
+        id="rn-prefix"
+        class="input"
+        bind:value={prefix}
+        placeholder="agent name"
+        disabled={loading}
+        use:focusOnMount
+        on:keydown={(e) => e.key === 'Enter' && submit()}
+      />
+      <span class="nick-sep">·</span>
+      <input
+        id="rn-suffix"
+        class="input"
+        bind:value={suffix}
+        placeholder="project"
+        disabled={loading}
+        on:keydown={(e) => e.key === 'Enter' && submit()}
+      />
     </div>
+    {#if namePreview}
+      <span class="name-preview">{namePreview}</span>
+    {/if}
+  </div>
 
-    <div class="actions">
-      <button class="btn ghost" on:click={() => dispatch('cancel')} disabled={loading}>
-        cancel
-      </button>
-      <button class="btn primary" on:click={submit} disabled={loading || !namePreview}>
-        {loading ? 'saving...' : 'rename'}
-      </button>
-    </div>
+  <div class="actions">
+    <button class="btn ghost" on:click={() => dispatch('cancel')} disabled={loading}>
+      cancel
+    </button>
+    <button class="btn primary" on:click={submit} disabled={loading || !namePreview}>
+      {loading ? 'saving...' : 'rename'}
+    </button>
+  </div>
 </Modal>
 
 <style>

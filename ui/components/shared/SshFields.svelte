@@ -30,7 +30,9 @@
 </div>
 
 <div class="field">
-  <label class="label" for="ns-ssh-pw">password <span class="key-hint">(optional — uses SSH key if empty)</span></label>
+  <label class="label" for="ns-ssh-pw"
+    >password <span class="key-hint">(optional — uses SSH key if empty)</span></label
+  >
   <input
     id="ns-ssh-pw"
     class="input"

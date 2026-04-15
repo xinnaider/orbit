@@ -215,7 +215,7 @@
   }
 
   function handlePickerSelect(
-    e: CustomEvent<{ type: 'cmd' | 'subOption' | 'file'; value: string }>,
+    e: CustomEvent<{ type: 'cmd' | 'subOption' | 'file'; value: string }>
   ) {
     const { type, value } = e.detail;
     if (type === 'cmd') {
