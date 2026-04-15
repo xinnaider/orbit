@@ -4,6 +4,9 @@
 
 ## April 2026
 
+### 04/15 · New — macOS support
+Orbit is now available for macOS (Intel and Apple Silicon). Download the .dmg from the releases page, open it, and drag Orbit to your Applications folder.
+
 ### 04/09 · New — Sub-agents monitor tab
 
 When a session spawns sub-agents, they now appear in the "Sub-agents" tab on the right panel, grouped by Running and Completed. Click any agent to inspect its full conversation log in a modal. The list updates automatically as the session progresses, and a refresh button fetches the latest state on demand.

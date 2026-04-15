@@ -8,7 +8,7 @@ Guia de referência para o Claude Code trabalhar neste repositório.
 
 Orbit é um **dashboard desktop para gerenciar múltiplas sessões do Claude Code em paralelo**, construído com Tauri 2 (Rust + Svelte). Permite criar sessões, acompanhar output em tempo real, visualizar diffs de arquivos, tasks e tokens consumidos.
 
-- Plataformas: **Windows 10 1903+**, **Ubuntu 22.04+** (e outras distros Linux com webkit2gtk 4.1)
+- Plataformas: **Windows 10 1903+**, **Ubuntu 22.04+** (e outras distros Linux com webkit2gtk 4.1), **macOS** (Intel e Apple Silicon)
 - Identificador: `com.josefernando.orbit`
 - Repositório: `github.com/xinnaider/orbit`
 

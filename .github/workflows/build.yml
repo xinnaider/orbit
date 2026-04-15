@@ -409,3 +409,113 @@ jobs:
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-macos:
+    name: Build macOS (.dmg)
+    runs-on: macos-latest
+    needs: lint
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: tauri -> tauri/target
+          shared-key: "rust-macos"
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Build Tauri app
+        run: npm run tauri:build -- --bundles dmg
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+      - name: Generate latest-macos-x86_64.json for updater
+        shell: bash
+        run: |
+          version="${{ github.ref_name }}"
+          if [[ "$version" != v* ]]; then version="0.0.0-nightly"; fi
+          version="${version#v}"
+
+          dmg=$(ls tauri/target/release/bundle/dmg/*.dmg 2>/dev/null | head -1)
+          if [ -z "$dmg" ]; then
+            echo "::error::No .dmg found in tauri/target/release/bundle/dmg/"
+            exit 1
+          fi
+
+          sig_file="${dmg}.sig"
+          if [ ! -f "$sig_file" ]; then
+            echo "::error::.sig file not found: $sig_file"
+            exit 1
+          fi
+
+          signature=$(cat "$sig_file")
+          pub_date=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+          filename=$(basename "$dmg")
+          download_url="https://github.com/xinnaider/orbit/releases/download/v${version}/${filename}"
+
+          jq -n \
+            --arg version  "$version" \
+            --arg notes    "See the full changelog at https://github.com/xinnaider/orbit/releases/tag/v${version}" \
+            --arg pub_date "$pub_date" \
+            --arg sig      "$signature" \
+            --arg url      "$download_url" \
+            '{version: $version, notes: $notes, pub_date: $pub_date, signature: $sig, url: $url}' \
+            > latest-macos-x86_64.json
+
+          echo "latest-macos-x86_64.json generated:"
+          cat latest-macos-x86_64.json
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: orbit-macos-${{ github.sha }}
+          path: |
+            tauri/target/release/bundle/dmg/*.dmg
+            tauri/target/release/bundle/dmg/*.dmg.sig
+            latest-macos-x86_64.json
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Resolve release metadata
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        id: meta
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=nightly-${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create/update Release with macOS assets
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          prerelease: ${{ steps.meta.outputs.prerelease }}
+          files: |
+            tauri/target/release/bundle/dmg/*.dmg
+            tauri/target/release/bundle/dmg/*.dmg.sig
+            latest-macos-x86_64.json
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
