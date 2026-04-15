@@ -40,18 +40,18 @@ impl Provider for ClaudeProvider {
                 ];
                 if config.model != "auto" && !config.model.is_empty() {
                     parts.push("--model".to_string());
-                    parts.push(config.model.clone());
+                    parts.push(ssh::posix_escape(&config.model));
                 }
                 if let Some(ref effort) = config.effort {
                     parts.push("--effort".to_string());
-                    parts.push(effort.clone());
+                    parts.push(ssh::posix_escape(effort));
                 }
                 if let Some(ref resume_id) = config.resume_id {
                     parts.push("--resume".to_string());
-                    parts.push(resume_id.clone());
+                    parts.push(ssh::posix_escape(resume_id));
                 }
                 parts.push("-p".to_string());
-                parts.push(config.prompt.clone());
+                parts.push(ssh::posix_escape(&config.prompt));
 
                 let cwd_str = config.cwd.to_string_lossy();
                 let remote_script = format!("cd {} && {}", cwd_str, parts.join(" "));

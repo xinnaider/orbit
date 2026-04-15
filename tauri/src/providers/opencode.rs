@@ -36,16 +36,20 @@ impl Provider for OpenCodeProvider {
                 let cwd_str = config.cwd.to_string_lossy();
                 parts.extend([
                     "--dir".to_string(),
-                    cwd_str.to_string(),
+                    ssh::posix_escape(&cwd_str.to_string()),
                     "-m".to_string(),
-                    config.model.clone(),
+                    ssh::posix_escape(&config.model),
                 ]);
 
                 if let Some(ref sid) = config.resume_id {
-                    parts.extend(["--continue".to_string(), "-s".to_string(), sid.clone()]);
+                    parts.extend([
+                        "--continue".to_string(),
+                        "-s".to_string(),
+                        ssh::posix_escape(sid),
+                    ]);
                 }
 
-                parts.push(config.prompt.clone());
+                parts.push(ssh::posix_escape(&config.prompt));
 
                 // Inline env vars: KEY=val KEY2=val2 cmd args
                 let mut env_prefix = String::new();

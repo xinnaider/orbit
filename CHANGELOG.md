@@ -4,6 +4,10 @@
 
 ## April 2026
 
+### 04/15 · Fix — SSH messages with spaces and special characters now arrive complete
+
+When sending messages via SSH remote sessions containing spaces, question marks, or other special characters, only the first word was being received by the remote agent. Now all arguments are properly escaped, so messages like "Você está usando o memory? e o caveman?" arrive complete.
+
 ### 04/15 · Fix — Feed auto-scroll losing position on large content
 The session feed now reliably follows new output even when a large block of content
 (code blocks, tool call results, long markdown) appears at once. Previously the

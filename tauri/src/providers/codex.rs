@@ -33,9 +33,9 @@ impl Provider for CodexProvider {
                         "--json".to_string(),
                         "--dangerously-bypass-approvals-and-sandbox".to_string(),
                         "-m".to_string(),
-                        config.model.clone(),
-                        sid.clone(),
-                        config.prompt.clone(),
+                        ssh::posix_escape(&config.model),
+                        ssh::posix_escape(sid),
+                        ssh::posix_escape(&config.prompt),
                     ]);
                 } else {
                     parts.extend([
@@ -43,8 +43,8 @@ impl Provider for CodexProvider {
                         "--json".to_string(),
                         "--dangerously-bypass-approvals-and-sandbox".to_string(),
                         "-m".to_string(),
-                        config.model.clone(),
-                        config.prompt.clone(),
+                        ssh::posix_escape(&config.model),
+                        ssh::posix_escape(&config.prompt),
                     ]);
                 }
 
