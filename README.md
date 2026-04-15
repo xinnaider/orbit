@@ -4,12 +4,14 @@
 
 # Orbit
 
-**Desktop app for running multiple [Claude Code](https://github.com/anthropics/claude-code) agents simultaneously.**
+**Desktop app for running multiple AI coding agents simultaneously.**
+**Supports [Claude Code](https://github.com/anthropics/claude-code), [Codex](https://github.com/openai/codex), and [OpenCode](https://github.com/opencode-ai/opencode).**
 
 [![Build](https://img.shields.io/github/actions/workflow/status/xinnaider/orbit/build.yml?branch=master)](https://github.com/xinnaider/orbit/actions)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
-[![Platform: Windows](https://img.shields.io/badge/platform-Windows-blue.svg)](#installation)
-[![Platform: Linux](https://img.shields.io/badge/platform-Linux-orange.svg)](#installation)
+[![Platform: Windows](https://img.shields.io/badge/platform-Windows-blue.svg)](#windows-10-1903)
+[![Platform: macOS](https://img.shields.io/badge/platform-macOS-lightgrey.svg)](#macos-13)
+[![Platform: Linux](https://img.shields.io/badge/platform-Linux-orange.svg)](#linux-ubuntu-2204--debian--kde--other-distros)
 
 [orbit.jfernando.dev](https://orbit.jfernando.dev)
 
@@ -19,23 +21,28 @@
 
 ## Features
 
-- **Multi-session** — run multiple Claude Code agents in parallel across different projects
+- **Multi-provider** — run Claude Code, Codex, and OpenCode sessions side by side
+- **Multi-session** — run multiple agents in parallel across different projects
+- **SSH remote sessions** — run sessions on remote servers via SSH with any provider
 - **Real-time feed** — streaming output with thinking blocks, tool calls, and responses
+- **Sub-agents monitor** — track spawned sub-agents and inspect their conversations
 - **Persistent history** — sessions survive app restarts; conversations resume automatically
-- **Cost tracking** — per-session token usage and estimated cost in USD
-- **Slash commands** — `/` autocomplete from installed Claude Code plugins
+- **Cost tracking** — per-session token usage, context window %, and estimated cost in USD
+- **`/model` & `/effort`** — switch models and thinking effort on the fly
+- **Slash commands** — `/` autocomplete from installed plugins
 - **@ file picker** — reference files inline with `@filename`
+- **Sidebar toggle** — collapse the session list for more screen space
 - **Context menu** — right-click to rename, stop, or delete sessions
 
 ## Installation
 
 ### Requirements
 
-- **[Claude Code CLI](https://github.com/anthropics/claude-code)** installed and logged in:
-  ```bash
-  npm install -g @anthropic-ai/claude-code
-  claude login
-  ```
+At least one CLI backend installed:
+
+- **[Claude Code](https://github.com/anthropics/claude-code)** — `npm install -g @anthropic-ai/claude-code && claude login`
+- **[Codex](https://github.com/openai/codex)** — `npm install -g @openai/codex`
+- **[OpenCode](https://github.com/opencode-ai/opencode)** — `go install github.com/opencode-ai/opencode@latest`
 
 ---
 
@@ -50,6 +57,18 @@ irm https://raw.githubusercontent.com/xinnaider/orbit/master/scripts/install-win
 This downloads the latest release, shows a progress bar, and launches the installer automatically. Open Orbit from the Start Menu when done.
 
 Orbit updates itself automatically when a new version is available.
+
+---
+
+### macOS (13+)
+
+**One-line installer** — downloads the latest .dmg, copies Orbit to /Applications, and cleans up:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/xinnaider/orbit/master/scripts/install-macos.sh | bash
+```
+
+Works on both Intel and Apple Silicon. Orbit updates itself automatically when a new version is available.
 
 ---
 
