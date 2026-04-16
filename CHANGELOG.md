@@ -4,10 +4,38 @@
 
 ## April 2026
 
-### 04/16 · New — Permission approval for ACP agents
-When an ACP agent (Gemini CLI, Copilot CLI, etc.) requests permission to use a tool,
-Orbit now shows an inline approval bar with Allow and Deny buttons. Previously, the
-request appeared as a text-only banner with no way to respond.
+### 04/16 · New — Rate limit and cost stats
+The stats panel now shows rate limit utilization bars for 5-hour and 7-day windows
+(when approaching or exceeding the limit) with reset time and status. Session cost
+in USD is also displayed, accumulated per step and finalized when the session completes.
+
+### 04/16 · New — Provider API keys are saved automatically
+When you enter an API key for a provider (e.g. OpenCode with Ollama), it's saved
+encrypted and auto-filled next time you create a session with that provider. No need
+to re-enter it every time.
+
+### 04/16 · New — SSH key file authentication
+SSH sessions now use a private key file instead of a password. You can browse for the
+key file or type the path directly. This works with standard SSH keys (id_rsa, id_ed25519, etc.).
+
+### 04/16 · Improvement — Permission bypass always enabled
+Sessions now always run with permissions bypassed (equivalent to --dangerously-skip-permissions).
+The approval/deny dialog has been removed — tools execute automatically without waiting.
+The checkbox remains visible in the session creation dialog as a reminder that bypass is on.
+
+### 04/16 · Improvement — Git worktree available for all providers
+The git worktree option is now available when creating sessions with any local provider,
+not just Claude Code. SSH sessions do not support worktrees.
+
+### 04/16 · Fix — OpenCode spawn errors on Windows
+OpenCode sessions failed to start on Windows due to the .cmd wrapper rejecting
+multiline arguments (batch file error) and the wrong CLI flags being used.
+Prompts are now piped via stdin on Windows and the correct --format json flag is used.
+
+### 04/16 · Fix — MCP agent output was empty
+The orbit-mcp sidecar was using wrong CLI arguments for OpenCode (--json instead of
+--format json) and didn't parse OpenCode's text output format. Agents now return
+their full response.
 
 ### 04/16 · New — Orbit MCP sidecar
 The orbit-mcp binary (multi-agent orchestration server) is now built automatically
@@ -22,12 +50,8 @@ Orbit can now connect to agents that use the Agent Client Protocol (JSON-RPC ove
 such as Gemini CLI and Copilot CLI. They appear in the provider selector when installed.
 
 ### 04/16 · New — Attention system
-Sessions that need your attention (completed, error, permission request, rate limit) now
+Sessions that need your attention (completed, error, rate limit exceeded) now
 show a colored badge in the sidebar. Clicking the session clears the badge.
-
-### 04/16 · New — Configurable permission bypass
-You can now choose whether to auto-approve tool calls per session. A new toggle in the
-session creation dialog lets you disable the permission bypass for more controlled execution.
 
 ### 04/16 · New — Multi-agent orchestration via MCP
 A new `/orchestrate` command enables multi-agent workflows. Claude can spawn Codex, OpenCode,
@@ -63,10 +87,9 @@ Orbit is now available for macOS (Intel and Apple Silicon). Download the .dmg fr
 ### 04/14 · New — SSH remote sessions for all providers
 
 You can now run sessions on remote servers via SSH. When creating a session,
-switch to "ssh remote" mode, enter the host and user (with optional password),
-and test the connection before starting. Works with all providers — Claude Code,
-Codex, and OpenCode. SSH credentials are held in memory only and never saved
-to disk.
+switch to "ssh remote" mode, enter the host, user, and SSH private key file,
+then test the connection before starting. Works with all providers — Claude Code,
+Codex, and OpenCode. SSH keys are held in memory only and never stored in plaintext.
 
 ### 04/12 · New — Multi-provider support (OpenCode + Codex)
 
