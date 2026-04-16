@@ -375,17 +375,32 @@ Kill a running agent.
       return;
     }
 
-    if (e.key === 'ArrowUp' && text === '') {
+    const cursor = textarea?.selectionStart ?? 0;
+    const len = text.length;
+    const atStart = cursor === 0;
+    const atEnd = cursor === len;
+
+    if (e.key === 'ArrowUp' && atStart) {
       e.preventDefault();
       const prev = messageHistory.up(String(sessionId), text);
-      if (prev !== null) text = prev;
+      if (prev !== null) {
+        text = prev;
+        tick().then(() => {
+          if (textarea) textarea.selectionStart = textarea.selectionEnd = 0;
+        });
+      }
       return;
     }
 
-    if (e.key === 'ArrowDown' && text === '') {
+    if (e.key === 'ArrowDown' && atEnd) {
       e.preventDefault();
       const next = messageHistory.down(String(sessionId));
-      if (next !== null) text = next;
+      if (next !== null) {
+        text = next;
+        tick().then(() => {
+          if (textarea) textarea.selectionStart = textarea.selectionEnd = text.length;
+        });
+      }
       return;
     }
 
