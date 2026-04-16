@@ -12,7 +12,7 @@ impl Provider for OpenCodeProvider {
     }
 
     fn display_name(&self) -> &str {
-        "agent"
+        "opencode"
     }
 
     fn spawn(&self, config: ProviderSpawnConfig) -> Result<SpawnHandle, String> {
@@ -145,12 +145,12 @@ mod tests {
     }
 
     #[test]
-    fn should_return_agent_as_display_name() {
-        let mut t = TestCase::new("should_return_agent_as_display_name");
+    fn should_return_opencode_as_display_name() {
+        let mut t = TestCase::new("should_return_opencode_as_display_name");
         let provider = OpenCodeProvider;
 
         t.phase("Assert");
-        t.eq("display_name", provider.display_name(), "agent");
+        t.eq("display_name", provider.display_name(), "opencode");
     }
 
     #[test]

@@ -1,3 +1,4 @@
+pub mod acp;
 pub mod claude;
 pub mod codex;
 pub mod opencode;
@@ -18,6 +19,8 @@ pub struct ProviderSpawnConfig {
     pub spawn_mode: crate::services::ssh::SpawnMode,
     /// SSH password (memory only, never persisted).
     pub ssh_password: Option<String>,
+    /// Whether to skip permission prompts (auto-approve all tool calls).
+    pub skip_permissions: bool,
 }
 
 /// Trait that every CLI backend (Claude Code, Codex, OpenCode, etc.) must implement.
