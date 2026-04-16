@@ -12,6 +12,7 @@
 
   export let session: Session;
   export let onClose: (() => void) | null = null;
+  export let paneId: string = '';
 
   let feedComponent: Feed;
   let atBottom = true;
@@ -91,7 +92,10 @@
     draggable="true"
     on:dragstart={(e) => {
       if (e.dataTransfer) {
-        e.dataTransfer.setData('text/plain', JSON.stringify({ sessionId: session.id }));
+        e.dataTransfer.setData(
+          'text/plain',
+          JSON.stringify({ sessionId: session.id, sourcePaneId: paneId })
+        );
         e.dataTransfer.effectAllowed = 'move';
       }
     }}

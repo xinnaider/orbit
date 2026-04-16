@@ -77,9 +77,19 @@ export function focusPane(paneId: string): void {
 export function splitPane(
   paneId: string,
   direction: 'horizontal' | 'vertical',
-  sessionId: number | null,
+  sessionId: number | null
 ): void {
   workspace.update((ws) => {
+    if (sessionId !== null) {
+      const existing = Object.entries(ws.panes).find(
+        ([pid, p]) => pid !== paneId && p.sessionId === sessionId
+      );
+      if (existing) {
+        ws.focusedPaneId = existing[0];
+        return ws;
+      }
+    }
+
     const newPId = newPaneId();
     ws.panes[newPId] = { sessionId };
     ws.root = replaceLeaf(ws.root, paneId, {
@@ -127,6 +137,16 @@ export function moveSession(fromPaneId: string, toPaneId: string): void {
     const from = ws.panes[fromPaneId];
     const to = ws.panes[toPaneId];
     if (!from || !to || !from.sessionId) return ws;
+    if (fromPaneId === toPaneId) return ws;
+
+    const existingHolder = Object.entries(ws.panes).find(
+      ([pid, p]) => pid !== fromPaneId && pid !== toPaneId && p.sessionId === from.sessionId
+    );
+    if (existingHolder) {
+      ws.panes[fromPaneId] = { sessionId: null };
+      ws.focusedPaneId = existingHolder[0];
+      return ws;
+    }
 
     ws.panes[toPaneId] = { sessionId: from.sessionId };
     ws.panes[fromPaneId] = { sessionId: null };

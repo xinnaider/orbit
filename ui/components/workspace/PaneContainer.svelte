@@ -5,6 +5,7 @@
     assignSession,
     splitPane,
     closePane,
+    moveSession,
   } from '../../lib/stores/workspace';
   import { sessions } from '../../lib/stores/sessions';
   import SplitDropZone from './SplitDropZone.svelte';
@@ -46,7 +47,7 @@
     e: CustomEvent<{
       position: 'center' | 'top' | 'bottom' | 'left' | 'right';
       data: string;
-    }>,
+    }>
   ) {
     dragOver = false;
     dragEnterCount = 0;
@@ -61,12 +62,16 @@
     const sid = parsed.sessionId ?? null;
 
     if (e.detail.position === 'center') {
-      if (sid !== null) assignSession(paneId, sid);
+      if (sid !== null) {
+        if (parsed.sourcePaneId && parsed.sourcePaneId !== paneId) {
+          moveSession(parsed.sourcePaneId, paneId);
+        } else {
+          assignSession(paneId, sid);
+        }
+      }
     } else {
       const direction: 'horizontal' | 'vertical' =
-        e.detail.position === 'left' || e.detail.position === 'right'
-          ? 'horizontal'
-          : 'vertical';
+        e.detail.position === 'left' || e.detail.position === 'right' ? 'horizontal' : 'vertical';
       splitPane(paneId, direction, sid);
     }
   }
@@ -84,10 +89,7 @@
   on:drop={handleDrop}
 >
   {#if session}
-    <CentralPanel
-      {session}
-      onClose={canClose ? () => closePane(paneId) : null}
-    />
+    <CentralPanel {session} {paneId} onClose={canClose ? () => closePane(paneId) : null} />
   {:else}
     <div class="empty-state">
       <span class="icon">+</span>
