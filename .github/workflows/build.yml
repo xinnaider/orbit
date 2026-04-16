@@ -347,18 +347,51 @@ jobs:
       - name: Install Node dependencies
         run: npm ci
 
+      - name: Stamp dev version + patch updater endpoint (dev branch only)
+        if: github.ref == 'refs/heads/dev'
+        shell: bash
+        run: |
+          version=$(jq -r '.version' tauri/tauri.conf.json)
+          new_version="${version}-dev.${{ github.run_number }}"
+          jq --arg v "$new_version" \
+             --arg ep "https://github.com/xinnaider/orbit/releases/download/nightly/latest-{{target}}-{{arch}}.json" \
+             '.version = $v | .plugins.updater.endpoints = [$ep]' \
+             tauri/tauri.conf.json > tmp.json && mv tmp.json tauri/tauri.conf.json
+          echo "Version stamped: $new_version"
+
       - name: Build Tauri app
         run: npm run tauri:build -- --bundles appimage
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
+      - name: Rename installer to fixed name (dev builds only)
+        if: github.ref == 'refs/heads/dev'
+        shell: bash
+        run: |
+          appimage=$(ls tauri/target/release/bundle/appimage/*.AppImage 2>/dev/null | head -1)
+          if [ -n "$appimage" ]; then
+            dir=$(dirname "$appimage")
+            mv "$appimage" "$dir/Orbit-nightly.AppImage"
+            [ -f "${appimage}.sig" ] && mv "${appimage}.sig" "$dir/Orbit-nightly.AppImage.sig"
+            echo "Renamed to Orbit-nightly.AppImage"
+          fi
+
       - name: Generate latest-linux-x86_64.json for updater
         shell: bash
         run: |
-          version="${{ github.ref_name }}"
-          if [[ "$version" != v* ]]; then version="0.0.0-nightly"; fi
-          version="${version#v}"
+          is_dev=$([[ "$GITHUB_REF" == refs/heads/dev ]] && echo true || echo false)
+
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            version="${GITHUB_REF_NAME#v}"
+            release_tag="${GITHUB_REF_NAME}"
+          elif [[ "$is_dev" == "true" ]]; then
+            version=$(jq -r '.version' tauri/tauri.conf.json)
+            release_tag="nightly"
+          else
+            version="0.0.0-nightly"
+            release_tag="nightly-${{ github.run_number }}"
+          fi
 
           appimage=$(ls tauri/target/release/bundle/appimage/*.AppImage 2>/dev/null | head -1)
           if [ -z "$appimage" ]; then
@@ -375,11 +408,11 @@ jobs:
           signature=$(cat "$sig_file")
           pub_date=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
           filename=$(basename "$appimage")
-          download_url="https://github.com/xinnaider/orbit/releases/download/v${version}/${filename}"
+          download_url="https://github.com/xinnaider/orbit/releases/download/${release_tag}/${filename}"
 
           jq -n \
             --arg version  "$version" \
-            --arg notes    "See the full changelog at https://github.com/xinnaider/orbit/releases/tag/v${version}" \
+            --arg notes    "See the full changelog at https://github.com/xinnaider/orbit/releases" \
             --arg pub_date "$pub_date" \
             --arg sig      "$signature" \
             --arg url      "$download_url" \
@@ -407,10 +440,19 @@ jobs:
         run: |
           if [[ "$GITHUB_REF" == refs/tags/* ]]; then
             echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+            echo "name=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
             echo "prerelease=false" >> "$GITHUB_OUTPUT"
+            echo "make_latest=true" >> "$GITHUB_OUTPUT"
+          elif [[ "$GITHUB_REF" == refs/heads/dev ]]; then
+            echo "tag=nightly" >> "$GITHUB_OUTPUT"
+            echo "name=Nightly (dev)" >> "$GITHUB_OUTPUT"
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+            echo "make_latest=false" >> "$GITHUB_OUTPUT"
           else
             echo "tag=nightly-${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+            echo "name=nightly-${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
             echo "prerelease=true" >> "$GITHUB_OUTPUT"
+            echo "make_latest=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Create/update Release with Linux assets
@@ -418,7 +460,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.meta.outputs.tag }}
+          name: ${{ steps.meta.outputs.name }}
           prerelease: ${{ steps.meta.outputs.prerelease }}
+          make_latest: ${{ steps.meta.outputs.make_latest }}
           files: |
             tauri/target/release/bundle/appimage/*.AppImage
             tauri/target/release/bundle/appimage/*.AppImage.sig
@@ -458,21 +502,58 @@ jobs:
       - name: Install Node dependencies
         run: npm ci
 
+      - name: Stamp dev version + patch updater endpoint (dev branch only)
+        if: github.ref == 'refs/heads/dev'
+        shell: bash
+        run: |
+          version=$(jq -r '.version' tauri/tauri.conf.json)
+          new_version="${version}-dev.${{ github.run_number }}"
+          jq --arg v "$new_version" \
+             --arg ep "https://github.com/xinnaider/orbit/releases/download/nightly/latest-{{target}}-{{arch}}.json" \
+             '.version = $v | .plugins.updater.endpoints = [$ep]' \
+             tauri/tauri.conf.json > tmp.json && mv tmp.json tauri/tauri.conf.json
+          echo "Version stamped: $new_version"
+
       - name: Build Tauri app
-        # "app" gera o .app.tar.gz + .sig usados pelo updater; "dmg" gera o instalador para o usuário
         run: npm run tauri:build -- --bundles app,dmg
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
+      - name: Rename installer to fixed name (dev builds only)
+        if: github.ref == 'refs/heads/dev'
+        shell: bash
+        run: |
+          dmg=$(ls tauri/target/release/bundle/dmg/*.dmg 2>/dev/null | head -1)
+          if [ -n "$dmg" ]; then
+            dir=$(dirname "$dmg")
+            mv "$dmg" "$dir/Orbit-nightly.dmg"
+            echo "Renamed to Orbit-nightly.dmg"
+          fi
+          tarball=$(ls tauri/target/release/bundle/macos/*.app.tar.gz 2>/dev/null | head -1)
+          if [ -n "$tarball" ]; then
+            dir=$(dirname "$tarball")
+            mv "$tarball" "$dir/Orbit-nightly.app.tar.gz"
+            [ -f "${tarball}.sig" ] && mv "${tarball}.sig" "$dir/Orbit-nightly.app.tar.gz.sig"
+            echo "Renamed to Orbit-nightly.app.tar.gz"
+          fi
+
       - name: Generate latest-macos-x86_64.json for updater
         shell: bash
         run: |
-          version="${{ github.ref_name }}"
-          if [[ "$version" != v* ]]; then version="0.0.0-nightly"; fi
-          version="${version#v}"
+          is_dev=$([[ "$GITHUB_REF" == refs/heads/dev ]] && echo true || echo false)
 
-          # O updater do macOS usa .app.tar.gz (não o .dmg)
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            version="${GITHUB_REF_NAME#v}"
+            release_tag="${GITHUB_REF_NAME}"
+          elif [[ "$is_dev" == "true" ]]; then
+            version=$(jq -r '.version' tauri/tauri.conf.json)
+            release_tag="nightly"
+          else
+            version="0.0.0-nightly"
+            release_tag="nightly-${{ github.run_number }}"
+          fi
+
           tarball=$(ls tauri/target/release/bundle/macos/*.app.tar.gz 2>/dev/null | head -1)
           if [ -z "$tarball" ]; then
             echo "::error::No .app.tar.gz found in tauri/target/release/bundle/macos/"
@@ -488,11 +569,11 @@ jobs:
           signature=$(cat "$sig_file")
           pub_date=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
           filename=$(basename "$tarball")
-          download_url="https://github.com/xinnaider/orbit/releases/download/v${version}/${filename}"
+          download_url="https://github.com/xinnaider/orbit/releases/download/${release_tag}/${filename}"
 
           jq -n \
             --arg version  "$version" \
-            --arg notes    "See the full changelog at https://github.com/xinnaider/orbit/releases/tag/v${version}" \
+            --arg notes    "See the full changelog at https://github.com/xinnaider/orbit/releases" \
             --arg pub_date "$pub_date" \
             --arg sig      "$signature" \
             --arg url      "$download_url" \
@@ -521,10 +602,19 @@ jobs:
         run: |
           if [[ "$GITHUB_REF" == refs/tags/* ]]; then
             echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+            echo "name=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
             echo "prerelease=false" >> "$GITHUB_OUTPUT"
+            echo "make_latest=true" >> "$GITHUB_OUTPUT"
+          elif [[ "$GITHUB_REF" == refs/heads/dev ]]; then
+            echo "tag=nightly" >> "$GITHUB_OUTPUT"
+            echo "name=Nightly (dev)" >> "$GITHUB_OUTPUT"
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+            echo "make_latest=false" >> "$GITHUB_OUTPUT"
           else
             echo "tag=nightly-${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+            echo "name=nightly-${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
             echo "prerelease=true" >> "$GITHUB_OUTPUT"
+            echo "make_latest=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Create/update Release with macOS assets
@@ -532,7 +622,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.meta.outputs.tag }}
+          name: ${{ steps.meta.outputs.name }}
           prerelease: ${{ steps.meta.outputs.prerelease }}
+          make_latest: ${{ steps.meta.outputs.make_latest }}
           files: |
             tauri/target/release/bundle/dmg/*.dmg
             tauri/target/release/bundle/macos/*.app.tar.gz
