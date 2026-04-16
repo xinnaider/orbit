@@ -4,6 +4,15 @@
 
 ## April 2026
 
+### 04/16 · New — Permission approval for ACP agents
+When an ACP agent (Gemini CLI, Copilot CLI, etc.) requests permission to use a tool,
+Orbit now shows an inline approval bar with Allow and Deny buttons. Previously, the
+request appeared as a text-only banner with no way to respond.
+
+### 04/16 · New — Orbit MCP sidecar
+The orbit-mcp binary (multi-agent orchestration server) is now built automatically
+alongside the app and bundled in the installer. No separate build step needed.
+
 ### 04/16 · New — Interactive terminal panel
 Each session now includes a built-in terminal (PowerShell on Windows, bash on Linux/macOS)
 running in the project directory. Access it from the Terminal tab in the session view.

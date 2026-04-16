@@ -16,6 +16,8 @@ pub struct JournalState {
     pub last_activity: Option<String>,
     pub status: AgentStatus,
     pub pending_approval: Option<String>,
+    /// JSON-RPC request ID for the pending permission request (ACP providers).
+    pub pending_approval_id: Option<serde_json::Value>,
     pub mini_log: Vec<MiniLogEntry>,
     pub attention: AttentionState,
     pub next_seq: u32,
@@ -36,6 +38,7 @@ impl Default for JournalState {
             last_activity: None,
             status: AgentStatus::New,
             pending_approval: None,
+            pending_approval_id: None,
             mini_log: Vec::new(),
             attention: AttentionState {
                 requires_attention: false,
@@ -91,7 +94,10 @@ pub(crate) fn detect_pending_approval(entries: &[JournalEntry]) -> Option<String
                     .and_then(|v| v.get("file_path"))
                     .and_then(|v| v.as_str())
                     .unwrap_or("");
-                return Some(format!("Allow {} to {}?", tool, target));
+                if target.is_empty() {
+                    return Some(format!("Allow {tool}?"));
+                }
+                return Some(format!("Allow {tool} to {target}?"));
             }
             _ => {}
         }

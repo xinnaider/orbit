@@ -8,6 +8,7 @@
   import { mutedSessions, toggleMute } from '../lib/stores/ui';
   import Feed from './Feed.svelte';
   import InputBar from './InputBar.svelte';
+  import PermissionDialog from './PermissionDialog.svelte';
 
   export let session: Session;
   export let onClose: (() => void) | null = null;
@@ -60,6 +61,16 @@
   }
 
   // Provider models for /model autocomplete — read from store
+  function parseToolName(approval: string): string {
+    const match = approval.match(/^Allow\s+(.+?)\?/);
+    return match ? match[1] : approval;
+  }
+
+  function parseToolDesc(approval: string): string {
+    const match = approval.match(/^Allow\s+.+?\?\s*(.*)/);
+    return match ? match[1].trim() : '';
+  }
+
   $: providerModelIds = (() => {
     const p = session?.provider ?? 'claude-code';
     // Find models from matching backend or sub-provider
@@ -182,10 +193,18 @@
 
   <!-- Approval banner -->
   {#if session.pendingApproval && (session.status as string) !== 'working'}
-    <div class="approval">
-      <span class="approval-icon">⚑</span>
-      <span class="approval-text">{session.pendingApproval}</span>
-    </div>
+    {#if session.attention?.reason === 'permission'}
+      <PermissionDialog
+        sessionId={session.id}
+        toolName={parseToolName(session.pendingApproval)}
+        description={parseToolDesc(session.pendingApproval)}
+      />
+    {:else}
+      <div class="approval">
+        <span class="approval-icon">⚑</span>
+        <span class="approval-text">{session.pendingApproval}</span>
+      </div>
+    {/if}
   {/if}
 
   <!-- Feed -->

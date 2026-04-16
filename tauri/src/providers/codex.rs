@@ -70,6 +70,7 @@ impl Provider for CodexProvider {
                     reader: Box::new(stdout),
                     stderr: Box::new(stderr),
                     child,
+                    stdin: None,
                     _askpass: askpass,
                 })
             }

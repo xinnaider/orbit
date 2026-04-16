@@ -311,6 +311,17 @@ pub fn delete_session(session_id: SessionId, state: State<SessionState>) -> Resu
     Ok(())
 }
 
+/// Respond to a pending ACP permission request (approve or deny).
+#[tauri::command]
+pub fn respond_permission(
+    session_id: SessionId,
+    allow: bool,
+    state: State<SessionState>,
+) -> Result<(), IpcError> {
+    state.write().respond_permission(session_id, allow)?;
+    Ok(())
+}
+
 /// Clear attention flag for a session (called when user focuses/clicks it).
 #[tauri::command]
 pub fn clear_attention(session_id: SessionId, state: State<SessionState>) -> Result<(), IpcError> {

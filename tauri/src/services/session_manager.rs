@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::io::Write;
 use std::path::Path;
 use std::sync::{Arc, RwLock};
 
@@ -94,6 +95,8 @@ struct ActiveSession {
     pub api_key: Option<String>,
     /// SSH password held in memory (never in DB). Reused for follow-up messages.
     pub ssh_password: Option<String>,
+    /// Stdin handle for providers that use persistent stdin (e.g. ACP JSON-RPC).
+    pub stdin: Option<Arc<std::sync::Mutex<Box<dyn std::io::Write + Send>>>>,
 }
 
 pub struct SessionManager {
@@ -223,6 +226,7 @@ impl SessionManager {
                 effort: None,
                 api_key: None,
                 ssh_password,
+                stdin: None,
             },
         );
         self.journal_states
@@ -470,7 +474,12 @@ impl SessionManager {
             }
         });
 
-        // 6. Emit spawn-started events
+        // 6. Store stdin handle (if provider returned one, e.g. ACP)
+        let stdin_handle = handle
+            .stdin
+            .map(|s| Arc::new(std::sync::Mutex::new(s)));
+
+        // 7. Emit spawn-started events
         Self::emit_spawn_started(
             &manager,
             &app,
@@ -480,11 +489,19 @@ impl SessionManager {
             &prompt_text,
         );
 
-        // 7. Get line processor fn pointer from the provider trait.
+        // 8. Attach stdin to the active session for later use (permission responses)
+        if stdin_handle.is_some() {
+            let mut m = manager.write().unwrap_or_else(|e| e.into_inner());
+            if let Some(a) = m.active.get_mut(&session_id) {
+                a.stdin = stdin_handle;
+            }
+        }
+
+        // 10. Get line processor fn pointer from the provider trait.
         // Uses fn pointer (not trait object) because threads require Send.
         let line_processor = provider.line_processor();
 
-        // 8. Reader loop
+        // 11. Reader loop
         Self::reader_loop(
             Arc::clone(&manager),
             app,
@@ -810,6 +827,7 @@ impl SessionManager {
                         effort: None,
                         api_key,
                         ssh_password,
+                        stdin: None,
                     },
                 );
                 m.journal_states.entry(session_id).or_default();
@@ -966,6 +984,75 @@ impl SessionManager {
         if let Some(a) = self.active.get_mut(&session_id) {
             a.effort = Some(effort.to_string());
         }
+        Ok(())
+    }
+
+    /// Respond to a pending ACP permission request by writing a JSON-RPC response to stdin.
+    pub fn respond_permission(
+        &mut self,
+        session_id: SessionId,
+        allow: bool,
+    ) -> Result<(), String> {
+        let request_id = {
+            let state = self
+                .journal_states
+                .get(&session_id)
+                .ok_or("Session journal state not found")?;
+            state
+                .pending_approval_id
+                .clone()
+                .ok_or("No pending permission request")?
+        };
+
+        let stdin = {
+            let a = self
+                .active
+                .get(&session_id)
+                .ok_or("Session not active")?;
+            a.stdin
+                .clone()
+                .ok_or("Session does not support interactive permissions (no stdin)")?
+        };
+
+        let response = if allow {
+            serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": { "approved": true }
+            })
+        } else {
+            serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": { "approved": false }
+            })
+        };
+
+        {
+            let mut writer = stdin.lock().map_err(|e| format!("stdin lock failed: {e}"))?;
+            let line =
+                serde_json::to_string(&response).map_err(|e| format!("serialize: {e}"))?;
+            writer
+                .write_all(line.as_bytes())
+                .map_err(|e| format!("write: {e}"))?;
+            writer
+                .write_all(b"\n")
+                .map_err(|e| format!("write newline: {e}"))?;
+            writer.flush().map_err(|e| format!("flush: {e}"))?;
+        }
+
+        // Clear pending state
+        if let Some(state) = self.journal_states.get_mut(&session_id) {
+            state.pending_approval = None;
+            state.pending_approval_id = None;
+            state.status = crate::models::AgentStatus::Working;
+            state.attention = crate::models::AttentionState {
+                requires_attention: false,
+                reason: None,
+                since: None,
+            };
+        }
+
         Ok(())
     }
 

@@ -73,13 +73,18 @@ impl Provider for AcpProvider {
         let prompt = config.prompt.clone();
         let session_id_str = format!("orbit-{}", config.session_id);
 
-        // Spawn a thread to write the handshake so we don't block
+        // Spawn a thread to write the handshake, then send stdin back via channel
+        let (tx, rx) = std::sync::mpsc::channel();
         std::thread::spawn(move || {
             let _ = write_jsonrpc_handshake(&mut stdin, &cwd_str, &prompt, &session_id_str);
-            // Keep stdin open — the agent reads from it throughout the session.
-            // Leaking stdin handle is intentional; it closes when child exits.
-            std::mem::forget(stdin);
+            let _ = tx.send(stdin);
         });
+
+        // Wait for handshake completion (up to 5s)
+        let stdin_handle: Option<Box<dyn std::io::Write + Send>> = rx
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .ok()
+            .map(|s| Box::new(s) as Box<dyn std::io::Write + Send>);
 
         let stdout = child.stdout.take().ok_or("no stdout")?;
         let stderr = child.stderr.take().ok_or("no stderr")?;
@@ -89,6 +94,7 @@ impl Provider for AcpProvider {
             reader: Box::new(stdout),
             stderr: Box::new(stderr),
             child,
+            stdin: stdin_handle,
             _askpass: None,
         })
     }
@@ -249,6 +255,7 @@ pub fn process_acp_line(state: &mut JournalState, line: &str) {
     // JSON-RPC request from agent (has "id" + "method") — e.g. permission requests
     if let Some(method) = msg.get("method").and_then(|m| m.as_str()) {
         if method == "requestPermission" || method == "client/requestPermission" {
+            let request_id = msg.get("id").cloned();
             let tool = msg
                 .pointer("/params/title")
                 .or_else(|| msg.pointer("/params/name"))
@@ -258,7 +265,13 @@ pub fn process_acp_line(state: &mut JournalState, line: &str) {
                 .pointer("/params/description")
                 .and_then(|d| d.as_str())
                 .unwrap_or("");
-            state.pending_approval = Some(format!("Allow {tool}? {desc}"));
+            let approval_text = if desc.is_empty() {
+                format!("Allow {tool}?")
+            } else {
+                format!("Allow {tool}? {desc}")
+            };
+            state.pending_approval = Some(approval_text);
+            state.pending_approval_id = request_id;
             state.status = crate::models::AgentStatus::Input;
             state.attention = crate::models::AttentionState {
                 requires_attention: true,

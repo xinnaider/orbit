@@ -75,6 +75,7 @@ impl Provider for ClaudeProvider {
                     reader: Box::new(stdout),
                     stderr: Box::new(stderr),
                     child,
+                    stdin: None,
                     _askpass: askpass,
                 })
             }
