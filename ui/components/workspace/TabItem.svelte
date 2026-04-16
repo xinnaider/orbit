@@ -15,12 +15,7 @@
     if (tab.target.kind === 'agent') {
       const target = tab.target as { kind: 'agent'; sessionId: number };
       const s = $sessions.find((s) => s.id === target.sessionId);
-      return (
-        s?.name ??
-        s?.projectName ??
-        s?.cwd?.split(/[\\/]/).pop() ??
-        `#${target.sessionId}`
-      );
+      return s?.name ?? s?.projectName ?? s?.cwd?.split(/[\\/]/).pop() ?? `#${target.sessionId}`;
     }
     return 'Terminal';
   })();

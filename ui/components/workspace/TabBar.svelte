@@ -193,7 +193,9 @@
     cursor: pointer;
     flex-shrink: 0;
     border-radius: var(--radius-sm);
-    transition: background 0.1s, color 0.1s;
+    transition:
+      background 0.1s,
+      color 0.1s;
     align-self: center;
     margin: 0 var(--sp-2);
   }

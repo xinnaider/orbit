@@ -13,7 +13,7 @@ export async function ptyCreate(
   cwd: string,
   env: [string, string][],
   rows: number,
-  cols: number,
+  cols: number
 ): Promise<number> {
   return invoke<number>('pty_create', {
     sessionId,
