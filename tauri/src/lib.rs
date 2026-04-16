@@ -11,10 +11,12 @@ pub mod services;
 pub mod test_utils;
 
 use ipc::session::{ProviderRegistryState, SessionState};
+use ipc::terminal::PtyManagerState;
 use providers::ProviderRegistry;
 use services::database::DatabaseService;
+use services::pty_manager::PtyManager;
 use services::session_manager::SessionManager;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -45,7 +47,22 @@ pub fn run() {
             registry.register(Box::new(providers::claude::ClaudeProvider));
             registry.register(Box::new(providers::codex::CodexProvider));
             registry.register(Box::new(providers::opencode::OpenCodeProvider));
+            registry.register(Box::new(providers::acp::AcpProvider::new(
+                "gemini-cli",
+                "Gemini CLI",
+                "gemini",
+                &["--acp"],
+            )));
+            registry.register(Box::new(providers::acp::AcpProvider::new(
+                "copilot-cli",
+                "Copilot CLI",
+                "copilot",
+                &["--acp"],
+            )));
             app.manage(ProviderRegistryState(Arc::new(registry)));
+
+            let pty_manager = Arc::new(Mutex::new(PtyManager::new(app.handle().clone())));
+            app.manage(PtyManagerState(pty_manager));
 
             // Set window icon programmatically — bypasses Windows icon cache in dev mode
             if let Some(window) = app.get_webview_window("main") {
@@ -64,6 +81,7 @@ pub fn run() {
             ipc::session::stop_session,
             ipc::session::send_session_message,
             ipc::session::get_session_journal,
+            ipc::session::get_session_journal_page,
             ipc::session::check_claude,
             ipc::session::diagnose_spawn,
             ipc::session::rename_session,
@@ -72,6 +90,7 @@ pub fn run() {
             ipc::session::update_session_effort,
             ipc::session::set_session_api_key,
             ipc::session::test_ssh,
+            ipc::session::clear_attention,
             ipc::project::create_project,
             ipc::project::list_projects,
             commands::agents::get_subagents,
@@ -89,6 +108,12 @@ pub fn run() {
             commands::providers::get_providers,
             commands::providers::check_env_var,
             commands::providers::diagnose_provider,
+            commands::orchestration::setup_orchestration,
+            commands::orchestration::check_orchestration,
+            ipc::terminal::pty_create,
+            ipc::terminal::pty_write,
+            ipc::terminal::pty_resize,
+            ipc::terminal::pty_kill,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

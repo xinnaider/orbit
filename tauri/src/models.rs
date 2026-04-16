@@ -92,6 +92,10 @@ pub struct JournalEntry {
     pub output: Option<String>,
     pub exit_code: Option<i32>,
     pub lines_changed: Option<LinesChanged>,
+    #[serde(default)]
+    pub seq: u32,
+    #[serde(default)]
+    pub epoch: String,
 }
 
 impl Default for JournalEntry {
@@ -110,6 +114,8 @@ impl Default for JournalEntry {
             output: None,
             exit_code: None,
             lines_changed: None,
+            seq: 0,
+            epoch: String::new(),
         }
     }
 }
@@ -196,6 +202,32 @@ pub fn context_window(model_id: &str) -> u64 {
 
 // Session ID type — SQLite AUTOINCREMENT rowid
 pub type SessionId = i64;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub enum AttentionReason {
+    Permission,
+    Completed,
+    Error,
+    RateLimit,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AttentionState {
+    pub requires_attention: bool,
+    pub reason: Option<AttentionReason>,
+    pub since: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PtySize {
+    pub rows: u16,
+    pub cols: u16,
+    pub pixel_width: u16,
+    pub pixel_height: u16,
+}
 
 #[cfg(test)]
 mod tests {
@@ -314,6 +346,18 @@ pub struct Session {
     pub ssh_host: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ssh_user: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub attention: Option<AttentionState>,
+    #[serde(default = "default_true")]
+    pub skip_permissions: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parent_session_id: Option<SessionId>,
+    #[serde(default)]
+    pub depth: i32,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 #[derive(Debug, Clone)]
