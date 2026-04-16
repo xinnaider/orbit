@@ -216,6 +216,7 @@ npm run dev:mock
 - Never commit with `--no-verify`
 - Issues follow the same conventional prefix format: `feat:`, `fix:`, `refactor:`, `chore:`, `docs:`
 - **Commit by logical context, not by step.** The pre-commit hook runs Prettier, rustfmt, ESLint, svelte-check, and Clippy on every commit — committing after each small step wastes tokens and time. Group related changes into one commit per meaningful unit of work (e.g. one commit for a new utility + its tests, one for the new component, one for the wiring). A feature with 3 tasks → 2–3 commits, not 10.
+- **Always run checks BEFORE committing.** Do not rely solely on the pre-commit hook. When finishing a logical unit of work, before `git commit`, manually run: `npx prettier --check "ui/**/*.{ts,svelte,css}"`, `npx eslint ui --max-warnings 0`, `npx svelte-check --fail-on-warnings`, `cargo clippy --manifest-path tauri/Cargo.toml -- -D warnings`. Fix any failures before committing.
 
 #### Git hook: `pre-commit`
 Roda automaticamente antes de todo commit:
