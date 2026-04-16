@@ -82,8 +82,6 @@ export function splitPane(
   sessionId: number | null
 ): void {
   workspace.update((ws) => {
-    if (ws.root.type !== 'leaf') return ws;
-
     const newPId = newPaneId();
     ws.panes[newPId] = { sessionId };
     ws.root = replaceLeaf(ws.root, paneId, {

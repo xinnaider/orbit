@@ -2,7 +2,6 @@
   import { createEventDispatcher } from 'svelte';
 
   export let visible: boolean = false;
-  export let canSplit: boolean = true;
 
   type DropPosition = 'center' | 'top' | 'bottom' | 'left' | 'right';
 
@@ -13,7 +12,6 @@
   let hoverPosition: DropPosition | null = null;
 
   function getPosition(e: DragEvent): DropPosition {
-    if (!canSplit) return 'center';
     const el = e.currentTarget as HTMLElement;
     const rect = el.getBoundingClientRect();
     const x = e.clientX - rect.left;

@@ -43,8 +43,6 @@
     dragOver = false;
   }
 
-  $: canSplit = Object.keys($workspace.panes).length <= 1;
-
   function handleSplitDrop(
     e: CustomEvent<{
       position: 'center' | 'top' | 'bottom' | 'left' | 'right';
@@ -62,9 +60,8 @@
     }
 
     const sid = parsed.sessionId ?? null;
-    const isSplit = canSplit && e.detail.position !== 'center';
 
-    if (!isSplit) {
+    if (e.detail.position === 'center') {
       if (sid !== null) {
         if (parsed.sourcePaneId && parsed.sourcePaneId !== paneId) {
           moveSession(parsed.sourcePaneId, paneId);
@@ -100,7 +97,7 @@
     </div>
   {/if}
 
-  <SplitDropZone visible={dragOver} {canSplit} on:drop={handleSplitDrop} />
+  <SplitDropZone visible={dragOver} on:drop={handleSplitDrop} />
 </div>
 
 <style>
