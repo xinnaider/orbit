@@ -147,6 +147,6 @@
   }
 
   .resize-handle:hover {
-    background: var(--ac);
+    background: var(--bd1);
   }
 </style>
