@@ -4,6 +4,41 @@
 
 ## April 2026
 
+### 04/16 · New — Interactive terminal panel
+Each session now includes a built-in terminal (PowerShell on Windows, bash on Linux/macOS)
+running in the project directory. Access it from the Terminal tab in the session view.
+
+### 04/16 · New — ACP protocol support
+Orbit can now connect to agents that use the Agent Client Protocol (JSON-RPC over stdio),
+such as Gemini CLI and Copilot CLI. They appear in the provider selector when installed.
+
+### 04/16 · New — Attention system
+Sessions that need your attention (completed, error, permission request, rate limit) now
+show a colored badge in the sidebar. Clicking the session clears the badge.
+
+### 04/16 · New — Configurable permission bypass
+You can now choose whether to auto-approve tool calls per session. A new toggle in the
+session creation dialog lets you disable the permission bypass for more controlled execution.
+
+### 04/16 · New — Multi-agent orchestration via MCP
+A new `/orchestrate` command enables multi-agent workflows. Claude can spawn Codex, OpenCode,
+or other Claude instances to delegate tasks. Providers are auto-detected from your system.
+
+### 04/16 · New — Sub-agent hierarchy
+When an agent spawns sub-agents, they appear nested under the parent session in the sidebar
+with a collapsible tree view and count badge.
+
+### 04/16 · New — Timeline pagination
+Journal entries now carry sequence numbers and epoch markers. A new cursor-based pagination
+endpoint allows loading history in chunks for long sessions.
+
+### 04/16 · Improvement — Provider detection without diagnose
+The provider selector now shows installed/not-installed status and install instructions
+directly, without needing to run the diagnose command. Diagnose is still available for SSH.
+
+### 04/16 · Adjustment — OpenCode provider renamed
+The "agent" label in the provider selector has been renamed to "opencode" for clarity.
+
 ### 04/15 · Fix — SSH messages with spaces and special characters now arrive complete
 
 When sending messages via SSH remote sessions containing spaces, question marks, or other special characters, only the first word was being received by the remote agent. Now all arguments are properly escaped, so messages like "Você está usando o memory? e o caveman?" arrive complete.

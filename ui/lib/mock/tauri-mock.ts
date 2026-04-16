@@ -93,6 +93,8 @@ const MOCK_JOURNAL: Record<number, JournalEntry[]> = {
       output: null,
       exitCode: null,
       linesChanged: null,
+      seq: 0,
+      epoch: '',
     },
     {
       sessionId: '1',
@@ -107,6 +109,8 @@ const MOCK_JOURNAL: Record<number, JournalEntry[]> = {
       output: null,
       exitCode: null,
       linesChanged: null,
+      seq: 0,
+      epoch: '',
     },
     {
       sessionId: '1',
@@ -120,6 +124,8 @@ const MOCK_JOURNAL: Record<number, JournalEntry[]> = {
       output: null,
       exitCode: null,
       linesChanged: null,
+      seq: 0,
+      epoch: '',
     },
     {
       sessionId: '1',
@@ -133,6 +139,8 @@ const MOCK_JOURNAL: Record<number, JournalEntry[]> = {
       output: null,
       exitCode: null,
       linesChanged: null,
+      seq: 0,
+      epoch: '',
     },
     {
       sessionId: '1',
@@ -146,6 +154,8 @@ const MOCK_JOURNAL: Record<number, JournalEntry[]> = {
       thinkingDuration: null,
       exitCode: 0,
       linesChanged: null,
+      seq: 0,
+      epoch: '',
     },
     {
       sessionId: '1',
@@ -163,6 +173,8 @@ const MOCK_JOURNAL: Record<number, JournalEntry[]> = {
       output: null,
       exitCode: null,
       linesChanged: null,
+      seq: 0,
+      epoch: '',
     },
     {
       sessionId: '1',
@@ -176,6 +188,8 @@ const MOCK_JOURNAL: Record<number, JournalEntry[]> = {
       thinkingDuration: null,
       exitCode: 0,
       linesChanged: { added: 1, removed: 1 },
+      seq: 0,
+      epoch: '',
     },
     {
       sessionId: '1',
@@ -189,6 +203,8 @@ const MOCK_JOURNAL: Record<number, JournalEntry[]> = {
       output: null,
       exitCode: null,
       linesChanged: null,
+      seq: 0,
+      epoch: '',
     },
     {
       sessionId: '1',
@@ -203,6 +219,8 @@ const MOCK_JOURNAL: Record<number, JournalEntry[]> = {
       thinkingDuration: null,
       exitCode: 0,
       linesChanged: null,
+      seq: 0,
+      epoch: '',
     },
     {
       sessionId: '1',
@@ -216,6 +234,8 @@ const MOCK_JOURNAL: Record<number, JournalEntry[]> = {
       output: null,
       exitCode: null,
       linesChanged: null,
+      seq: 0,
+      epoch: '',
     },
   ],
   2: [
@@ -231,6 +251,8 @@ const MOCK_JOURNAL: Record<number, JournalEntry[]> = {
       output: null,
       exitCode: null,
       linesChanged: null,
+      seq: 0,
+      epoch: '',
     },
     {
       sessionId: '2',
@@ -245,6 +267,8 @@ const MOCK_JOURNAL: Record<number, JournalEntry[]> = {
       output: null,
       exitCode: null,
       linesChanged: null,
+      seq: 0,
+      epoch: '',
     },
     {
       sessionId: '2',
@@ -258,6 +282,8 @@ const MOCK_JOURNAL: Record<number, JournalEntry[]> = {
       output: null,
       exitCode: null,
       linesChanged: null,
+      seq: 0,
+      epoch: '',
     },
     {
       sessionId: '2',
@@ -272,6 +298,8 @@ const MOCK_JOURNAL: Record<number, JournalEntry[]> = {
       thinkingDuration: null,
       exitCode: 0,
       linesChanged: null,
+      seq: 0,
+      epoch: '',
     },
   ],
   3: [],
@@ -538,6 +566,8 @@ function simulateClaudeResponse(sessionId: number, userMsg: string) {
     output: null,
     exitCode: null,
     linesChanged: null,
+    seq: 0,
+    epoch: '',
   };
   journals[sessionId].push(userEntry);
   mockEmit('session:output', { sessionId, entry: userEntry });
@@ -557,6 +587,8 @@ function simulateClaudeResponse(sessionId: number, userMsg: string) {
       output: null,
       exitCode: null,
       linesChanged: null,
+      seq: 0,
+      epoch: '',
     };
     journals[sessionId].push(thinkEntry);
     mockEmit('session:output', { sessionId, entry: thinkEntry });
@@ -576,6 +608,8 @@ function simulateClaudeResponse(sessionId: number, userMsg: string) {
       output: null,
       exitCode: null,
       linesChanged: null,
+      seq: 0,
+      epoch: '',
     };
     journals[sessionId].push(toolEntry);
     mockEmit('session:output', { sessionId, entry: toolEntry });
@@ -595,6 +629,8 @@ function simulateClaudeResponse(sessionId: number, userMsg: string) {
       thinkingDuration: null,
       exitCode: 0,
       linesChanged: null,
+      seq: 0,
+      epoch: '',
     };
     journals[sessionId].push(resultEntry);
     mockEmit('session:output', { sessionId, entry: resultEntry });
@@ -614,6 +650,8 @@ function simulateClaudeResponse(sessionId: number, userMsg: string) {
       output: null,
       exitCode: null,
       linesChanged: null,
+      seq: 0,
+      epoch: '',
     };
     journals[sessionId].push(aiEntry);
     mockEmit('session:output', { sessionId, entry: aiEntry });
