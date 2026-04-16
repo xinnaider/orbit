@@ -42,16 +42,16 @@ export const workspace = writable<WorkspaceState>(defaultState());
 
 // ── Pane actions ───────────────────────────────────────────────────────
 
-/** Assign a session to a pane. If session is already open in another pane, focus that one. */
+/** Assign a session to a pane. If session is already open in another pane, move it here. */
 export function assignSession(paneId: string, sessionId: number): void {
   workspace.update((ws) => {
-    // Check if already open somewhere
+    if (!ws.panes[paneId]) return ws;
     for (const [pid, pane] of Object.entries(ws.panes)) {
-      if (pane.sessionId === sessionId) {
-        return { ...ws, focusedPaneId: pid };
+      if (pid !== paneId && pane.sessionId === sessionId) {
+        pane.sessionId = null;
+        break;
       }
     }
-    if (!ws.panes[paneId]) return ws;
     ws.panes[paneId] = { sessionId };
     ws.focusedPaneId = paneId;
     return ws;
@@ -80,16 +80,6 @@ export function splitPane(
   sessionId: number | null
 ): void {
   workspace.update((ws) => {
-    if (sessionId !== null) {
-      const existing = Object.entries(ws.panes).find(
-        ([pid, p]) => pid !== paneId && p.sessionId === sessionId
-      );
-      if (existing) {
-        ws.focusedPaneId = existing[0];
-        return ws;
-      }
-    }
-
     const newPId = newPaneId();
     ws.panes[newPId] = { sessionId };
     ws.root = replaceLeaf(ws.root, paneId, {
@@ -102,6 +92,13 @@ export function splitPane(
       ],
     });
     ws.focusedPaneId = newPId;
+    if (sessionId !== null) {
+      for (const [pid, pane] of Object.entries(ws.panes)) {
+        if (pid !== newPId && pane.sessionId === sessionId) {
+          pane.sessionId = null;
+        }
+      }
+    }
     return ws;
   });
 }
@@ -139,13 +136,10 @@ export function moveSession(fromPaneId: string, toPaneId: string): void {
     if (!from || !to || !from.sessionId) return ws;
     if (fromPaneId === toPaneId) return ws;
 
-    const existingHolder = Object.entries(ws.panes).find(
-      ([pid, p]) => pid !== fromPaneId && pid !== toPaneId && p.sessionId === from.sessionId
-    );
-    if (existingHolder) {
-      ws.panes[fromPaneId] = { sessionId: null };
-      ws.focusedPaneId = existingHolder[0];
-      return ws;
+    for (const [pid, pane] of Object.entries(ws.panes)) {
+      if (pid !== fromPaneId && pid !== toPaneId && pane.sessionId === from.sessionId) {
+        pane.sessionId = null;
+      }
     }
 
     ws.panes[toPaneId] = { sessionId: from.sessionId };
