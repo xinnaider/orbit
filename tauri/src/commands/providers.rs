@@ -22,7 +22,9 @@ pub struct SubProvider {
 pub struct CliBackend {
     pub id: String,
     pub name: String,
+    pub cli_name: String,
     pub cli_available: bool,
+    pub install_hint: String,
     pub supports_effort: bool,
     pub supports_ssh: bool,
     pub supports_subagents: bool,
@@ -58,7 +60,9 @@ pub fn get_providers(
             CliBackend {
                 id: p.id().to_string(),
                 name: p.display_name().to_string(),
+                cli_name: p.cli_name().to_string(),
                 cli_available: p.find_cli().is_some(),
+                install_hint: p.install_hint().to_string(),
                 supports_effort: p.supports_effort(),
                 supports_ssh: p.supports_ssh(),
                 supports_subagents: p.id() == "claude-code", // only Claude has subagents

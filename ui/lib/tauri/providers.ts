@@ -18,7 +18,9 @@ export interface SubProvider {
 export interface CliBackend {
   id: string;
   name: string;
+  cliName: string;
   cliAvailable: boolean;
+  installHint: string;
   supportsEffort: boolean;
   supportsSsh: boolean;
   supportsSubagents: boolean;

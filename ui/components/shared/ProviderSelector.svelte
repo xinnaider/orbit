@@ -99,7 +99,7 @@
         class:unavailable={!b.cliAvailable}
         disabled={loading || !b.cliAvailable}
         on:click={() => (backendId = b.id)}
-        title={b.cliAvailable ? b.name : `${b.name} (not installed)`}
+        title={b.cliAvailable ? b.name : `${b.name} (not installed — ${b.installHint})`}
       >
         <span class="chip-dot" style="color:{b.cliAvailable ? 'var(--s-working)' : 'var(--t3)'}"
           >{b.cliAvailable ? '●' : '○'}</span

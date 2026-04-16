@@ -13,7 +13,7 @@
   import { sessionEffort } from '../lib/stores/ui';
   import type { SlashCommand } from '../lib/types';
   import type { JournalEntry } from '../lib/types';
-  import { providerCaps, getCaps } from '../lib/stores/providers';
+  import { providerCaps, getCaps, backends as backendsStore } from '../lib/stores/providers';
   import SlashCommandPicker from './shared/SlashCommandPicker.svelte';
 
   export let sessionId: number;
@@ -62,8 +62,85 @@
         category: 'orbit',
       });
     }
+    cmds.push({
+      cmd: '/orchestrate',
+      desc: '/orchestrate [provider] [task] — delegate to another agent',
+      category: 'orbit',
+    });
     return cmds;
   })();
+
+  function buildOrchestratePrompt(userGoal: string, preferredProvider?: string): string {
+    const installed = $backendsStore
+      .filter((b) => b.cliAvailable)
+      .map((b) => `${b.id} (${b.cliName})`)
+      .join(', ');
+    const notInstalled = $backendsStore
+      .filter((b) => !b.cliAvailable)
+      .map((b) => `${b.id}`)
+      .join(', ');
+    const providerList = installed || 'none detected';
+    const unavailable = notInstalled ? `\nNot installed: ${notInstalled}` : '';
+
+    const intro = `You have access to Orbit's multi-agent orchestration tools via MCP. Use them to delegate tasks to other AI agents.
+
+## Installed providers
+${providerList}${unavailable}
+
+## Available tools
+
+### orbit_create_agent
+Spawn a new agent. Returns the agent's output when done (wait=true) or a sessionId to poll (wait=false).
+- **provider**: one of the installed providers above (default: claude-code)
+- **model**: model ID (optional)
+- **cwd**: working directory (required)
+- **prompt**: task for the agent (required)
+- **wait**: block until done (default: true)
+- **timeoutSecs**: max wait time (default: 300)
+
+### orbit_get_status
+Check if a background agent (wait=false) has finished. Returns status + output so far.
+- **sessionId**: from orbit_create_agent
+
+### orbit_send_message
+Send a follow-up message to an existing Claude agent session (uses --resume).
+- **sessionId**: agent to message
+- **message**: follow-up text
+
+### orbit_cancel_agent
+Kill a running agent.
+- **sessionId**: agent to cancel
+
+## Example workflows
+
+**Delegate to another Claude:**
+\`orbit_create_agent(cwd="/project", prompt="Write tests for auth module")\`
+
+**Use Codex for a subtask:**
+\`orbit_create_agent(provider="codex", cwd="/project", prompt="Refactor database layer")\`
+
+**Fan-out pattern (parallel agents):**
+1. \`orbit_create_agent(wait=false, prompt="Task A")\` → sessionId 1
+2. \`orbit_create_agent(wait=false, prompt="Task B")\` → sessionId 2
+3. Poll both with \`orbit_get_status\` until done
+
+**Worker + reviewer loop:**
+1. Create worker agent → get output
+2. Create reviewer agent with worker's output → get feedback
+3. If feedback has issues, send_message to worker with corrections`;
+
+    const providerHint = preferredProvider
+      ? `\n\n**Use provider "${preferredProvider}" for this task.**`
+      : '';
+
+    if (userGoal) {
+      return `${intro}\n\n## Your task${providerHint}\n\n${userGoal}`;
+    }
+    if (preferredProvider) {
+      return `${intro}${providerHint}\n\nReady to orchestrate with ${preferredProvider}. What should I delegate?`;
+    }
+    return `${intro}\n\nReady to orchestrate. What would you like me to delegate?`;
+  }
 
   function emitSystemEntry(msg: string) {
     const entry: JournalEntry = {
@@ -78,6 +155,8 @@
       output: null,
       exitCode: null,
       linesChanged: null,
+      seq: 0,
+      epoch: '',
     };
     journal.update((map) => {
       const next = new Map(map);
@@ -199,6 +278,50 @@
       await updateSessionEffort(sessionId, arg);
       sessionEffort.set(String(sessionId), arg);
       emitSystemEntry(`Effort level changed to ${arg}`);
+      return;
+    }
+
+    // Intercept /orchestrate [provider] [prompt]
+    if (cmd === '/orchestrate') {
+      const rest = msg.slice('/orchestrate'.length).trim();
+      const knownIds = $backendsStore.map((b) => b.id);
+      const knownAliases: Record<string, string> = {};
+      for (const b of $backendsStore) {
+        knownAliases[b.cliName] = b.id;
+        knownAliases[b.id] = b.id;
+      }
+
+      let chosenProvider = '';
+      let userGoal = rest;
+
+      // Check if first word is a provider name/alias
+      const firstWord = rest.split(/\s/)[0]?.toLowerCase() ?? '';
+      if (firstWord && knownAliases[firstWord]) {
+        chosenProvider = knownAliases[firstWord];
+        userGoal = rest.slice(firstWord.length).trim();
+      }
+
+      if (chosenProvider && !$backendsStore.find((b) => b.id === chosenProvider)?.cliAvailable) {
+        sendError = `${chosenProvider} is not installed`;
+        setTimeout(() => (sendError = ''), 5000);
+        return;
+      }
+
+      text = '';
+      if (textarea) textarea.style.height = 'auto';
+
+      const orchestratePrompt = buildOrchestratePrompt(userGoal, chosenProvider);
+      const label = chosenProvider
+        ? `Orchestrating with ${chosenProvider}`
+        : 'Multi-agent orchestration enabled';
+      emitSystemEntry(label);
+      pendingMessages.add(orchestratePrompt);
+      try {
+        await sendSessionMessage(sessionId, orchestratePrompt);
+      } catch (e: any) {
+        sendError = e?.message ?? String(e);
+        setTimeout(() => (sendError = ''), 4000);
+      }
       return;
     }
 
