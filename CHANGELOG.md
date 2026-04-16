@@ -4,6 +4,15 @@
 
 ## April 2026
 
+### 04/16 · New — Message history navigation
+Press Arrow Up in an empty input to recall previous messages sent in that session,
+and Arrow Down to go back to more recent ones. History is saved per session and
+persists across restarts.
+
+### 04/16 · New — Ctrl+C kills the running agent
+Press Ctrl+C in an empty input to stop the running agent. This works for all
+providers including SSH sessions.
+
 ### 04/16 · New — Rate limit and cost stats
 The stats panel now shows rate limit utilization bars for 5-hour and 7-day windows
 (when approaching or exceeding the limit) with reset time and status. Session cost

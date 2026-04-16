@@ -6,7 +6,9 @@
     listProjectFiles,
     updateSessionModel,
     updateSessionEffort,
+    stopSession,
   } from '../lib/tauri';
+  import { messageHistory } from '../lib/stores/history';
   import { sessions, updateSessionState } from '../lib/stores/sessions';
   import { journal } from '../lib/stores/journal';
   import { pendingMessages } from '../lib/stores/journal';
@@ -328,6 +330,7 @@ Kill a running agent.
     text = '';
     sendError = '';
     if (textarea) textarea.style.height = 'auto';
+    messageHistory.push(String(sessionId), msg);
     pendingMessages.add(msg);
     try {
       await sendSessionMessage(sessionId, msg);
@@ -365,6 +368,31 @@ Kill a running agent.
 
   function onKey(e: KeyboardEvent) {
     if (picker?.handleKey(e)) return;
+
+    if (e.ctrlKey && e.key === 'c' && text === '') {
+      e.preventDefault();
+      stopSession(sessionId);
+      return;
+    }
+
+    if (e.key === 'ArrowUp' && text === '') {
+      e.preventDefault();
+      const prev = messageHistory.up(String(sessionId), text);
+      if (prev !== null) text = prev;
+      return;
+    }
+
+    if (e.key === 'ArrowDown' && text === '') {
+      e.preventDefault();
+      const next = messageHistory.down(String(sessionId));
+      if (next !== null) text = next;
+      return;
+    }
+
+    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') {
+      messageHistory.resetCursor(String(sessionId));
+    }
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       send();
