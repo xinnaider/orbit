@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import type { Tab } from '../../lib/stores/workspace';
+  import { sessions } from '../../lib/stores/sessions';
 
   export let tab: Tab;
   export let active: boolean;
@@ -10,9 +11,19 @@
 
   $: isAgent = tab.target.kind === 'agent';
   $: icon = isAgent ? '●' : '>';
-  $: label = isAgent
-    ? `Session #${(tab.target as { kind: 'agent'; sessionId: number }).sessionId}`
-    : 'Terminal';
+  $: label = (() => {
+    if (tab.target.kind === 'agent') {
+      const target = tab.target as { kind: 'agent'; sessionId: number };
+      const s = $sessions.find((s) => s.id === target.sessionId);
+      return (
+        s?.name ??
+        s?.projectName ??
+        s?.cwd?.split(/[\\/]/).pop() ??
+        `#${target.sessionId}`
+      );
+    }
+    return 'Terminal';
+  })();
 
   function handleDragStart(e: DragEvent) {
     e.dataTransfer!.effectAllowed = 'move';
