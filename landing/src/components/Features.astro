@@ -11,16 +11,6 @@ const features = [
     desc: 'View up to <mark>4 sessions simultaneously</mark> in a 2×2 grid. Drag sessions from the sidebar to split.',
   },
   {
-    icon: '⇅',
-    title: 'SSH remote',
-    desc: 'Run sessions on <mark>remote servers via SSH</mark> with any provider. Key-based auth, auto-verified before start.',
-  },
-  {
-    icon: '▸',
-    title: 'Real-time feed',
-    desc: 'Streaming output with <mark>thinking blocks</mark>, tool calls, diffs, and markdown — as it happens.',
-  },
-  {
     icon: '◇',
     title: 'Sub-agents monitor',
     desc: 'Track <mark>spawned sub-agents</mark> in a dedicated tab. Click any agent to inspect its full conversation.',
@@ -36,41 +26,77 @@ const features = [
     desc: 'Per-session <mark>token usage</mark>, context window %, rate limit bars, and estimated cost in USD.',
   },
   {
-    icon: '/',
-    title: 'Slash commands',
-    desc: '<mark>/model</mark> and <mark>/effort</mark> to switch on the fly. Autocomplete from installed plugins.',
+    icon: '⎇',
+    title: 'Git worktree',
+    desc: 'Isolate each session in its own <mark>branch</mark>. Works locally and via SSH remote.',
   },
-  {
-    icon: '@',
-    title: 'File picker',
-    desc: 'Reference files inline with <mark>@filename</mark> — fuzzy search across the project tree.',
-  },
+];
+
+const shortcuts = [
+  { keys: ['Ctrl', 'C'], desc: 'interrupt agent' },
+  { keys: ['/model'], desc: 'switch model' },
+  { keys: ['/effort'], desc: 'set thinking' },
+  { keys: ['@file'], desc: 'pick a file' },
+  { keys: ['↑', '↓'], desc: 'message history' },
 ];
 ---
 
-<section class="features">
-  <p class="label">what it does</p>
-  <div class="grid">
-    {features.map((f) => (
-      <div class="cell">
-        <span class="icon">{f.icon}</span>
-        <div class="title">{f.title}</div>
-        <div class="desc" set:html={f.desc} />
-      </div>
-    ))}
+<section class="features" id="features" data-section>
+  <div class="features-inner">
+
+    <p class="label">what it does</p>
+    <h2 class="tagline">Built for the way you <span class="accent">actually work.</span></h2>
+    <div class="grid">
+      {features.map((f) => (
+        <div class="cell">
+          <span class="icon">{f.icon}</span>
+          <div class="title">{f.title}</div>
+          <div class="desc" set:html={f.desc} />
+        </div>
+      ))}
+    </div>
+
+    <!-- Keyboard shortcuts -->
+    <div class="shortcuts">
+      {shortcuts.map((s) => (
+        <div class="shortcut">
+          <div class="keys">
+            {s.keys.map((k) => (
+              <kbd class="key">{k}</kbd>
+            ))}
+          </div>
+          <span class="shortcut-desc">{s.desc}</span>
+        </div>
+      ))}
+    </div>
+
   </div>
 </section>
 
 <style>
   .features {
-    padding: 100px 48px;
-    max-width: 960px; margin: 0 auto;
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
     border-top: 1px solid var(--bd);
+    position: relative; z-index: 1;
+  }
+  .features-inner {
+    padding: 80px 48px;
+    max-width: 960px; width: 100%; margin: 0 auto;
   }
   .label {
     font-size: 9px; letter-spacing: 0.3em; text-transform: uppercase;
-    color: var(--t3); margin-bottom: 44px; text-align: center;
+    color: var(--t3); margin-bottom: 16px; text-align: center;
   }
+  .tagline {
+    text-align: center;
+    font-size: clamp(22px, 3.5vw, 34px);
+    font-weight: 600; letter-spacing: 0.05em;
+    color: var(--t1); line-height: 1.3;
+    margin-bottom: 40px;
+  }
+  .accent { color: var(--ac); }
+
   .grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -80,19 +106,52 @@ const features = [
     border-radius: 6px; overflow: hidden;
   }
   .cell {
-    background: var(--bg); padding: 26px 22px;
+    background: #080808; padding: 28px 24px;
     transition: background 0.2s;
   }
-  .cell:hover { background: var(--bg1); }
-  .icon { font-size: 17px; margin-bottom: 11px; display: block; }
-  .title { font-size: 12px; font-weight: 600; color: var(--t1); margin-bottom: 7px; }
-  .desc { font-size: 11px; color: #444; line-height: 1.6; }
+  .cell:hover { background: #0e0e0e; }
+  .icon { font-size: 17px; margin-bottom: 12px; display: block; }
+  .title { font-size: 12px; font-weight: 600; color: var(--t1); margin-bottom: 8px; }
+  .desc { font-size: 11px; color: #444; line-height: 1.7; }
   .desc :global(mark) {
     background: none; color: var(--ac);
   }
 
+  /* ── Shortcuts ── */
+  .shortcuts {
+    display: flex; justify-content: center;
+    gap: 24px; flex-wrap: wrap;
+    margin-top: 32px;
+  }
+  .shortcut {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .keys {
+    display: flex; gap: 3px;
+  }
+  .key {
+    display: inline-flex; align-items: center; justify-content: center;
+    background: #111;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-family: var(--font);
+    font-size: 10px; color: var(--t1);
+    letter-spacing: 0.04em;
+    min-width: 24px;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.06);
+  }
+  .shortcut-desc {
+    font-size: 10px; color: var(--t3);
+    letter-spacing: 0.06em;
+  }
+
   @media (max-width: 768px) {
-    .features { padding: 60px 20px; }
+    .features { min-height: auto; }
+    .features-inner { padding: 60px 16px; }
+    .tagline { font-size: 22px; margin-bottom: 28px; }
     .grid { grid-template-columns: 1fr; }
+    .shortcuts { gap: 12px; }
+    .shortcut { gap: 6px; }
   }
 </style>

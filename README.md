@@ -22,17 +22,20 @@
 ## Features
 
 - **Multi-provider** — run Claude Code, Codex, and OpenCode sessions side by side
-- **Multi-session** — run multiple agents in parallel across different projects
-- **SSH remote sessions** — run sessions on remote servers via SSH with any provider
-- **Real-time feed** — streaming output with thinking blocks, tool calls, and responses
-- **Sub-agents monitor** — track spawned sub-agents and inspect their conversations
-- **Persistent history** — sessions survive app restarts; conversations resume automatically
-- **Cost tracking** — per-session token usage, context window %, and estimated cost in USD
+- **Split panes** — view up to 4 sessions simultaneously in a 2x2 grid
+- **SSH remote sessions** — run sessions on remote servers via SSH with any provider, key-based auth
+- **Git worktree** — isolate each session in its own branch, works locally and via SSH
+- **MCP orchestrator** — built-in MCP server lets any agent spawn other agents across providers
+- **Sub-agents monitor** — track spawned sub-agents and inspect their full conversations
+- **Real-time feed** — streaming output with thinking blocks, tool calls, diffs, and markdown
+- **Persistent history** — SQLite-backed sessions survive app restarts; conversations resume automatically
+- **Cost tracking** — per-session token usage, context window %, rate limit bars, and estimated cost in USD
 - **`/model` & `/effort`** — switch models and thinking effort on the fly
 - **Slash commands** — `/` autocomplete from installed plugins
-- **@ file picker** — reference files inline with `@filename`
-- **Sidebar toggle** — collapse the session list for more screen space
-- **Context menu** — right-click to rename, stop, or delete sessions
+- **@ file picker** — reference files inline with `@filename` fuzzy search
+- **Agent control** — Ctrl+C to interrupt, Arrow keys for message history
+- **Attention system** — badges for sessions needing attention (completed, error, rate limit)
+- **Context menu** — right-click to rename, mute, stop, or delete sessions
 
 ## Installation
 
@@ -91,13 +94,26 @@ Orbit updates itself automatically when a new version is available.
 > **Requirements:** `curl`, `fuse2` (pre-installed on most desktop distros).
 > On Ubuntu: `sudo apt install fuse libfuse2` if not present.
 
+## MCP Orchestrator
+
+Orbit ships with `orbit-mcp`, a built-in MCP server that enables multi-agent orchestration. Any MCP-capable agent can spawn, message, and monitor other agents through standard tool calls:
+
+| Tool | Description |
+|------|-------------|
+| `orbit_create_agent` | Spawn a new agent with any provider |
+| `orbit_send_message` | Send a follow-up message to a running agent |
+| `orbit_get_status` | Check agent status and read output |
+| `orbit_cancel_agent` | Stop a running agent |
+
+The MCP server is configured automatically when a session starts — no setup needed.
+
 ## Contributing
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ### Development setup
 
-**Requirements:** Node.js ≥ 20, Rust stable ([rustup](https://rustup.rs)), npm ≥ 10
+**Requirements:** Node.js >= 20, Rust stable ([rustup](https://rustup.rs)), npm >= 10
 
 ```bash
 git clone https://github.com/xinnaider/orbit.git
@@ -118,7 +134,7 @@ npm run test:rust  # Backend (cargo test)
 ### Linting & formatting
 
 ```bash
-npm run lint       # ESLint + clippy
+npm run lint       # ESLint + svelte-check + clippy
 npm run format     # Prettier + rustfmt
 ```
 

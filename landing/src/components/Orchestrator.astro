@@ -1,0 +1,202 @@
+---
+// MCP Orchestrator showcase
+---
+
+<section class="orch-section" id="orchestrator" data-section>
+  <div class="orch-inner">
+    <p class="label">multi-agent orchestration</p>
+    <h2 class="title">Agents that spawn agents</h2>
+    <p class="subtitle">
+      Orbit includes a built-in MCP server. Any agent can delegate tasks
+      to other providers through standard tool calls — no configuration needed.
+    </p>
+
+    <div class="flow-card">
+      <div class="flow">
+        <div class="node node-parent">
+          <span class="node-icon">●</span>
+          <span class="node-name">claude-code</span>
+          <span class="node-role">orchestrator</span>
+        </div>
+
+        <div class="arrows">
+          <div class="arrow-line"></div>
+          <div class="arrow-line"></div>
+          <div class="arrow-line"></div>
+        </div>
+
+        <div class="children">
+          <div class="node node-child">
+            <span class="node-icon">○</span>
+            <span class="node-name">codex</span>
+            <span class="node-role">refactor API</span>
+          </div>
+          <div class="node node-child">
+            <span class="node-icon">○</span>
+            <span class="node-name">claude</span>
+            <span class="node-role">write tests</span>
+          </div>
+          <div class="node node-child">
+            <span class="node-icon">○</span>
+            <span class="node-name">opencode</span>
+            <span class="node-role">update docs</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tools">
+      <code class="tool">orbit_create_agent</code>
+      <code class="tool">orbit_send_message</code>
+      <code class="tool">orbit_get_status</code>
+      <code class="tool">orbit_cancel_agent</code>
+    </div>
+
+    <div class="example">
+      <div class="example-bar">
+        <span class="example-dot"></span>
+        <span class="example-title">tool call example</span>
+      </div>
+      <pre class="example-code"><span class="ek">{</span>
+  <span class="ep">"tool"</span>: <span class="ev">"orbit_create_agent"</span>,
+  <span class="ep">"input"</span>: <span class="ek">{</span>
+    <span class="ep">"provider"</span>: <span class="ev">"codex"</span>,
+    <span class="ep">"task"</span>: <span class="ev">"Refactor the user API to use async handlers"</span>,
+    <span class="ep">"cwd"</span>: <span class="ev">"/home/dev/project"</span>
+  <span class="ek">}</span>
+<span class="ek">}</span></pre>
+    </div>
+
+  </div>
+</section>
+
+<style>
+  .orch-section {
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 80px 48px;
+    border-top: 1px solid var(--bd);
+    position: relative; z-index: 1;
+  }
+  .orch-inner {
+    max-width: 640px; width: 100%;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 24px;
+  }
+  .label {
+    font-size: 9px; letter-spacing: 0.3em; text-transform: uppercase;
+    color: var(--t3);
+  }
+  .title {
+    font-size: clamp(20px, 3vw, 28px);
+    font-weight: 600; letter-spacing: 0.04em;
+    color: var(--t0); text-align: center;
+  }
+  .subtitle {
+    font-size: 12px; color: var(--t2);
+    line-height: 1.8; text-align: center;
+    max-width: 480px;
+  }
+
+  /* Flow diagram */
+  .flow-card {
+    width: 100%;
+    border: 1px solid var(--bd);
+    border-radius: 6px;
+    background: #080808;
+    padding: 32px 24px;
+  }
+  .flow {
+    display: flex; align-items: center; justify-content: center;
+    gap: 20px;
+  }
+  .node {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    background: #0d0d0d;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 6px; padding: 14px 18px;
+    min-width: 90px; text-align: center;
+    transition: border-color 0.3s, background 0.3s;
+  }
+  .node:hover { background: #111; }
+  .node-parent {
+    border-color: rgba(0, 212, 126, 0.35);
+    background: #0a120e;
+  }
+  .node-parent:hover { background: #0d1611; }
+  .node-icon { font-size: 10px; color: var(--ac); margin-bottom: 2px; }
+  .node-name { font-size: 11px; font-weight: 600; color: var(--t1); }
+  .node-role { font-size: 9px; color: var(--t3); letter-spacing: 0.03em; }
+
+  .arrows {
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .arrow-line {
+    width: 24px; height: 1px;
+    background: linear-gradient(90deg, rgba(0,212,126,0.4), rgba(0,212,126,0.1));
+  }
+
+  .children {
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .node-child { padding: 10px 14px; min-width: 80px; }
+
+  /* Tool badges */
+  .tools {
+    display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+  }
+  .tool {
+    font-size: 10px; color: var(--ac); opacity: 0.7;
+    letter-spacing: 0.04em;
+    background: rgba(0, 212, 126, 0.06);
+    border: 1px solid rgba(0, 212, 126, 0.15);
+    border-radius: 4px; padding: 5px 10px;
+  }
+
+  /* Code example */
+  .example {
+    width: 100%;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 6px; overflow: hidden;
+    background: #0a0a0a;
+  }
+  .example-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 14px;
+    background: #0e0e0e;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .example-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--ac); opacity: 0.5;
+  }
+  .example-title {
+    font-size: 9px; color: var(--t3); letter-spacing: 0.1em; text-transform: uppercase;
+  }
+  .example-code {
+    padding: 16px;
+    font-family: 'Courier New', monospace;
+    font-size: 11px; line-height: 1.7;
+    color: var(--t2);
+    overflow-x: auto;
+  }
+  .example-code :global(.ek) { color: var(--t3); }
+  .example-code :global(.ep) { color: var(--ac); opacity: 0.8; }
+  .example-code :global(.ev) { color: var(--t1); }
+
+  @media (max-width: 768px) {
+    .orch-section { padding: 60px 16px; min-height: auto; }
+    .orch-inner { gap: 20px; }
+    .title { font-size: 22px; }
+    .subtitle { font-size: 11px; }
+    .flow-card { padding: 20px 14px; }
+    .flow { flex-direction: column; gap: 12px; }
+    .arrows { flex-direction: row; }
+    .arrow-line { width: 1px; height: 16px; }
+    .children { flex-direction: column; gap: 6px; }
+    .node { min-width: 70px; padding: 10px 12px; }
+    .tools { gap: 5px; }
+    .tool { font-size: 9px; padding: 4px 7px; }
+    .example-code { font-size: 10px; padding: 12px; }
+  }
+</style>

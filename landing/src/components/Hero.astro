@@ -2,11 +2,8 @@
 // No props
 ---
 
-<section class="hero">
-  <!-- Stars (generated via JS for parallax layers) -->
-  <div class="stars" id="stars-container" aria-hidden="true"></div>
+<section class="hero" id="hero" data-section>
 
-  <!-- Orbit SVG -->
   <div class="orbit-wrap" aria-hidden="true">
     <svg viewBox="0 0 300 300" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
@@ -19,35 +16,26 @@
           <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
         </filter>
       </defs>
-
-      <!-- Outer ring (clockwise) -->
       <g class="ring-outer">
         <ellipse cx="150" cy="150" rx="138" ry="53"
           stroke="#00d47e" stroke-width="1.2" opacity="0.35"
           transform="rotate(-38 150 150)"/>
       </g>
-
-      <!-- Inner ring (counter-clockwise) -->
       <g class="ring-inner">
         <ellipse cx="150" cy="150" rx="88" ry="34"
           stroke="#00d47e" stroke-width="0.8" opacity="0.18"
           transform="rotate(-38 150 150)"/>
       </g>
-
-      <!-- Satellite (follows outer ring) -->
       <g class="satellite">
         <circle cx="279" cy="117" r="4.5"
           fill="#00d47e" opacity="0.9" filter="url(#glow-sm)"/>
       </g>
-
-      <!-- Central body -->
       <circle cx="150" cy="150" r="20" fill="#00d47e" opacity="0.10"/>
       <circle cx="150" cy="150" r="12" fill="#00d47e" opacity="0.15"/>
       <circle cx="150" cy="150" r="6"  fill="#00d47e" filter="url(#glow)"/>
     </svg>
   </div>
 
-  <!-- Content -->
   <p class="eyebrow">● multi-agent dashboard</p>
   <h1>orbit</h1>
   <p class="subtitle">
@@ -56,7 +44,7 @@
   </p>
 
   <div class="cta-group">
-    <a href="https://github.com/xinnaider/orbit" class="btn-primary" id="github-star-btn">
+    <a href="https://github.com/xinnaider/orbit" class="btn-github" id="github-star-btn">
       <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
         <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38
           0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13
@@ -72,28 +60,41 @@
       <span class="star-count" id="star-count" style="display:none"></span>
     </a>
 
-    <div class="download-group">
-      <button class="btn-secondary btn-os" id="btn-win" aria-label="Select Windows">
-        <svg width="13" height="13" viewBox="0 0 88 88" fill="currentColor" aria-hidden="true" style="flex-shrink:0">
-          <path d="M0 0h42v42H0V0z" opacity="0.9"/>
-          <path d="M46 0h42v42H46V0z" opacity="0.9"/>
-          <path d="M0 46h42v42H0V46z" opacity="0.9"/>
-          <path d="M46 46h42v42H46V46z" opacity="0.9"/>
+    <div class="install-wrap">
+      <button class="btn-install" id="btn-install">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
         </svg>
-        Windows <span class="btn-tag">10+</span>
-      </button>
-      <button class="btn-secondary btn-os" id="btn-mac" aria-label="Select macOS">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="flex-shrink:0">
-          <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+        <span id="install-label">Install for Windows</span>
+        <svg class="chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 12 15 18 9"/>
         </svg>
-        macOS <span class="btn-tag">13+</span>
       </button>
-      <button class="btn-secondary btn-os" id="btn-linux" aria-label="Select Linux">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="flex-shrink:0">
-          <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
-        </svg>
-        Linux <span class="btn-tag">AppImage</span>
-      </button>
+      <div class="dropdown" id="os-dropdown">
+        <button class="dropdown-item" data-os="win">
+          <svg width="13" height="13" viewBox="0 0 88 88" fill="currentColor" aria-hidden="true">
+            <path d="M0 0h42v42H0V0z" opacity="0.9"/>
+            <path d="M46 0h42v42H46V0z" opacity="0.9"/>
+            <path d="M0 46h42v42H0V46z" opacity="0.9"/>
+            <path d="M46 46h42v42H46V46z" opacity="0.9"/>
+          </svg>
+          Windows <span class="os-tag">10+</span>
+        </button>
+        <button class="dropdown-item" data-os="mac">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+          </svg>
+          macOS <span class="os-tag">13+</span>
+        </button>
+        <button class="dropdown-item" data-os="linux">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
+          </svg>
+          Linux <span class="os-tag">AppImage</span>
+        </button>
+      </div>
     </div>
 
     <div class="install-cmd" id="install-cmd">
@@ -113,10 +114,10 @@
     <span class="meta">Windows 10+ · macOS 13+ · Ubuntu 22.04+ · MIT</span>
   </div>
 
-  <div class="preview-wrap">
-    <div class="preview-frame">
-      <img src="/demo.gif" alt="Orbit demo" class="preview-img" loading="lazy" />
-    </div>
+  <div class="scroll-down" aria-hidden="true">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+      <polyline points="6 9 12 15 18 9"/>
+    </svg>
   </div>
 </section>
 
@@ -129,7 +130,6 @@
     padding: 120px 24px 80px;
     text-align: center;
   }
-  .stars { position: absolute; inset: 0; pointer-events: none; }
 
   .orbit-wrap {
     width: 300px; height: 300px;
@@ -159,62 +159,95 @@
     display: flex; flex-direction: column;
     align-items: center; gap: 10px;
     position: relative; z-index: 1;
-    width: fit-content;
+    width: 360px; max-width: 100%;
   }
-  .btn-primary {
+  .btn-github {
     display: inline-flex; align-items: center; justify-content: center; gap: 8px;
     border-radius: 4px; font-family: var(--font);
     cursor: pointer; transition: all 0.2s;
-    background: var(--ac-dim);
-    border: 1px solid rgba(0, 212, 126, 0.4);
-    color: var(--ac); padding: 11px 24px; font-size: 13px;
-    letter-spacing: 0.06em;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: var(--t1); padding: 11px 24px; font-size: 13px;
+    letter-spacing: 0.06em; width: 100%;
   }
-  .btn-primary:hover {
-    background: rgba(0, 212, 126, 0.18);
-    border-color: rgba(0, 212, 126, 0.7);
-    box-shadow: 0 0 24px rgba(0, 212, 126, 0.12);
+  .btn-github:hover {
+    background: rgba(255,255,255,0.07);
+    border-color: rgba(255,255,255,0.18);
+    color: var(--t0);
   }
   .star-count {
-    background: rgba(0, 212, 126, 0.15);
-    border: 1px solid rgba(0, 212, 126, 0.3);
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
     border-radius: 3px;
     padding: 1px 6px;
     font-size: 11px;
     letter-spacing: 0.04em;
     margin-left: 2px;
   }
-  /* Download toggles */
-  .download-group {
-    display: flex; gap: 4px; width: 100%;
+
+  /* ── Install CTA + dropdown ── */
+  .install-wrap {
+    position: relative; width: 100%;
   }
-  .btn-secondary {
-    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  .btn-install {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    width: 100%;
     border-radius: 4px; font-family: var(--font);
     cursor: pointer; transition: all 0.2s;
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.08);
-    color: #555; padding: 9px 12px; font-size: 11px;
-    letter-spacing: 0.04em; white-space: nowrap; flex: 1;
-    min-width: 0;
+    background: var(--ac-dim);
+    border: 1px solid rgba(0, 212, 126, 0.4);
+    color: var(--ac); padding: 13px 24px; font-size: 14px;
+    font-weight: 600; letter-spacing: 0.06em;
   }
-  .btn-secondary:hover {
-    background: rgba(255,255,255,0.05);
-    border-color: rgba(255,255,255,0.14);
-    color: var(--t1);
+  .btn-install:hover {
+    background: rgba(0, 212, 126, 0.18);
+    border-color: rgba(0, 212, 126, 0.7);
+    box-shadow: 0 0 24px rgba(0, 212, 126, 0.12);
   }
-  .btn-secondary.active {
+  .btn-install .chevron {
+    transition: transform 0.2s;
+  }
+  .install-wrap.open .btn-install .chevron {
+    transform: rotate(180deg);
+  }
+  .dropdown {
+    position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+    background: #111; border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 4px; overflow: hidden;
+    opacity: 0; transform: translateY(-4px);
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+    z-index: 10;
+  }
+  .install-wrap.open .dropdown {
+    opacity: 1; transform: translateY(0);
+    pointer-events: auto;
+  }
+  .dropdown-item {
+    display: flex; align-items: center; gap: 10px;
+    width: 100%; padding: 11px 16px;
+    background: none; border: none;
+    font-family: var(--font); font-size: 12px;
+    color: var(--t1); cursor: pointer;
+    letter-spacing: 0.04em;
+    transition: background 0.15s;
+  }
+  .dropdown-item:hover {
     background: rgba(255,255,255,0.06);
-    border-color: rgba(255,255,255,0.2);
-    color: var(--t0);
   }
-  .btn-tag {
+  .dropdown-item.active {
+    color: var(--ac);
+  }
+  .dropdown-item + .dropdown-item {
+    border-top: 1px solid rgba(255,255,255,0.05);
+  }
+  .os-tag {
     font-size: 9px; color: var(--t3);
     border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 3px; padding: 1px 4px;
-    letter-spacing: 0.03em;
+    border-radius: 3px; padding: 1px 5px;
+    margin-left: auto;
   }
-  .btn-secondary.active .btn-tag { color: var(--t2); border-color: rgba(255,255,255,0.18); }
+
   /* Install command bar */
   .install-cmd {
     display: flex; align-items: center; gap: 8px;
@@ -245,90 +278,38 @@
     font-size: 10px; color: var(--t3); letter-spacing: 0.1em;
   }
 
-  .preview-wrap {
-    width: 100%;
-    max-width: 900px;
-    margin: 64px auto 0;
-    position: relative;
-    z-index: 1;
+  .scroll-down {
+    position: absolute; bottom: 28px;
+    color: var(--t3);
+    animation: bounce-down 2s ease-in-out infinite;
   }
-  .preview-frame {
-    border-radius: 8px;
-    border: 1px solid rgba(0, 212, 126, 0.12);
-    overflow: hidden;
-    background: #0d0d0d;
-  }
-  .preview-img {
-    width: 100%;
-    height: auto;
-    display: block;
+  @keyframes bounce-down {
+    0%, 100% { transform: translateY(0); opacity: 0.3; }
+    50% { transform: translateY(6px); opacity: 0.7; }
   }
 
   @media (max-width: 768px) {
-    .orbit-wrap { width: 220px; height: 220px; margin-bottom: 32px; }
-    .subtitle { font-size: 12px; }
-    .btn-primary, .btn-secondary { width: 100%; }
-    .preview-wrap { margin-top: 48px; }
+    .hero { padding: 100px 20px 60px; }
+    .orbit-wrap { width: 180px; height: 180px; margin-bottom: 24px; }
+    .subtitle { font-size: 12px; max-width: 320px; }
+    .cta-group { width: 100%; }
+    .btn-github { padding: 10px 16px; font-size: 12px; }
+    .btn-install { padding: 11px 16px; font-size: 13px; }
+    .dropdown-item { padding: 10px 14px; font-size: 11px; }
+    .install-cmd { font-size: 9px; padding: 7px 10px; }
+    .install-text { font-size: 9px; }
   }
   @media (max-width: 480px) {
-    h1 { letter-spacing: 0.06em; }
-    .orbit-wrap { width: 180px; height: 180px; }
+    h1 { letter-spacing: 0.06em; font-size: 36px; }
+    .orbit-wrap { width: 150px; height: 150px; margin-bottom: 20px; }
+    .eyebrow { font-size: 8px; }
   }
 </style>
 
 <script>
-  // ── Star config ──────────────────────────────────────────
-  const STAR_COUNT = 120;  // change this to add/remove stars
-  const PARALLAX_LAYERS = 3; // number of depth layers
-
-  // ── Generate stars ───────────────────────────────────────
-  const container = document.getElementById('stars-container');
-  if (container) {
-    for (let i = 0; i < STAR_COUNT; i++) {
-      const star = document.createElement('div');
-      const layer = Math.floor(Math.random() * PARALLAX_LAYERS) + 1; // 1..3
-      const size = layer === 1 ? 1 : layer === 2 ? 1.5 : 2; // closer = bigger
-      const peakOpacity = 0.15 + Math.random() * 0.5;
-      const duration = 3 + Math.random() * 5;
-      const delay = Math.random() * 6;
-
-      star.className = 'star';
-      star.dataset.layer = String(layer);
-      star.style.cssText = [
-        `top:${(Math.random() * 100).toFixed(2)}%`,
-        `left:${(Math.random() * 100).toFixed(2)}%`,
-        `width:${size}px`,
-        `height:${size}px`,
-        `--d:${duration.toFixed(1)}s`,
-        `--delay:${delay.toFixed(2)}s`,
-        `--peak:${peakOpacity.toFixed(2)}`,
-      ].join(';');
-
-      container.appendChild(star);
-    }
-  }
-
-  // ── Parallax on mousemove ────────────────────────────────
-  const LAYER_SPEED = [0, 0.008, 0.018, 0.032]; // index = layer (0 unused)
-
-  document.addEventListener('mousemove', (e) => {
-    const cx = window.innerWidth / 2;
-    const cy = window.innerHeight / 2;
-    const dx = e.clientX - cx;
-    const dy = e.clientY - cy;
-
-    const stars = container?.querySelectorAll<HTMLElement>('.star[data-layer]');
-    stars?.forEach((star) => {
-      const layer = Number(star.dataset.layer);
-      const speed = LAYER_SPEED[layer] ?? 0.01;
-      star.style.transform = `translate(${dx * speed}px, ${dy * speed}px)`;
-    });
-  });
-
-  // ── GitHub star count (cached 1h in localStorage) ────────
+  // ── GitHub stars ──
   const CACHE_KEY = 'orbit_gh_stars';
-  const CACHE_TTL = 60 * 60 * 1000; // 1 hour
-
+  const CACHE_TTL = 60 * 60 * 1000;
   function showStars(count: number) {
     const el = document.getElementById('star-count');
     if (el) {
@@ -336,19 +317,13 @@
       el.style.display = 'inline';
     }
   }
-
   try {
     const cached = localStorage.getItem(CACHE_KEY);
     if (cached) {
       const { count, ts } = JSON.parse(cached);
-      if (Date.now() - ts < CACHE_TTL) {
-        showStars(count);
-      } else {
-        throw new Error('stale');
-      }
-    } else {
-      throw new Error('miss');
-    }
+      if (Date.now() - ts < CACHE_TTL) showStars(count);
+      else throw new Error('stale');
+    } else throw new Error('miss');
   } catch {
     fetch('https://api.github.com/repos/xinnaider/orbit')
       .then((r) => r.json())
@@ -358,23 +333,27 @@
           showStars(count);
           localStorage.setItem(CACHE_KEY, JSON.stringify({ count, ts: Date.now() }));
         }
-      })
-      .catch(() => { /* silently ignore if API fails */ });
+      }).catch(() => {});
   }
 
-  // ── OS detection + install command toggle ────────────────
+  // ── OS detection + Install CTA ──
   type OS = 'win' | 'mac' | 'linux';
-
   const CMDS: Record<OS, string> = {
     win:   'irm https://raw.githubusercontent.com/xinnaider/orbit/master/scripts/install-windows.ps1 | iex',
     mac:   'curl -fsSL https://raw.githubusercontent.com/xinnaider/orbit/master/scripts/install-macos.sh | bash',
     linux: 'curl -fsSL https://raw.githubusercontent.com/xinnaider/orbit/master/scripts/install-linux.sh | bash',
   };
   const PROMPTS: Record<OS, string> = { win: 'PS>', mac: '$', linux: '$' };
+  const OS_LABELS: Record<OS, string> = {
+    win: 'Install for Windows',
+    mac: 'Install for macOS',
+    linux: 'Install for Linux',
+  };
 
-  const btnWin     = document.getElementById('btn-win');
-  const btnMac     = document.getElementById('btn-mac');
-  const btnLinux   = document.getElementById('btn-linux');
+  const installWrap  = document.querySelector('.install-wrap');
+  const btnInstall   = document.getElementById('btn-install');
+  const installLabel = document.getElementById('install-label');
+  const dropdown     = document.getElementById('os-dropdown');
   const installPrompt = document.getElementById('install-prompt');
   const installText   = document.getElementById('install-text');
   const copyBtn    = document.getElementById('copy-btn');
@@ -392,18 +371,35 @@
 
   function setOS(os: OS) {
     currentOS = os;
+    if (installLabel) installLabel.textContent = OS_LABELS[os];
     if (installPrompt) installPrompt.textContent = PROMPTS[os];
-    if (installText)   installText.textContent   = CMDS[os];
-    btnWin?.classList.toggle('active',   os === 'win');
-    btnMac?.classList.toggle('active',   os === 'mac');
-    btnLinux?.classList.toggle('active', os === 'linux');
+    if (installText) installText.textContent = CMDS[os];
+    dropdown?.querySelectorAll('.dropdown-item').forEach((item) => {
+      item.classList.toggle('active', (item as HTMLElement).dataset.os === os);
+    });
+    installWrap?.classList.remove('open');
   }
 
-  btnWin?.addEventListener('click',   () => setOS('win'));
-  btnMac?.addEventListener('click',   () => setOS('mac'));
-  btnLinux?.addEventListener('click', () => setOS('linux'));
-  setOS(currentOS); // init on load
+  // Toggle dropdown
+  btnInstall?.addEventListener('click', () => {
+    installWrap?.classList.toggle('open');
+  });
+  // Close on click outside
+  document.addEventListener('click', (e) => {
+    if (!installWrap?.contains(e.target as Node)) {
+      installWrap?.classList.remove('open');
+    }
+  });
+  // OS selection
+  dropdown?.querySelectorAll('.dropdown-item').forEach((item) => {
+    item.addEventListener('click', () => {
+      setOS((item as HTMLElement).dataset.os as OS);
+    });
+  });
 
+  setOS(currentOS);
+
+  // Copy
   copyBtn?.addEventListener('click', () => {
     navigator.clipboard.writeText(CMDS[currentOS]).then(() => {
       if (copyIcon) copyIcon.style.display = 'none';
