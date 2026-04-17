@@ -168,21 +168,6 @@
   closeOnOverlayClick={false}
   on:close={() => dispatch('cancel')}
 >
-  <div class="field">
-    <label class="label" for="ns-path">{sshMode ? 'remote path' : 'path'}</label>
-    <div class="path-row">
-      <input
-        id="ns-path"
-        class="input"
-        bind:value={path}
-        placeholder={sshMode ? '/home/ubuntu/project' : '/home/user/project'}
-        disabled={loading}
-        on:keydown={(e) => e.key === 'Enter' && prompt && submit()}
-      />
-      <button class="browse" on:click={browse} disabled={loading} title="browse">⌘</button>
-    </div>
-  </div>
-
   <ProviderSelector
     {backends}
     bind:backendId
@@ -196,6 +181,23 @@
   {#if sshMode}
     <SshFields bind:sshHost bind:sshUser bind:sshKeyPath {loading} />
   {/if}
+
+  <div class="field">
+    <label class="label" for="ns-path">{sshMode ? 'remote path' : 'path'}</label>
+    <div class="path-row">
+      <input
+        id="ns-path"
+        class="input"
+        bind:value={path}
+        placeholder={sshMode ? '/home/ubuntu/project' : '/home/user/project'}
+        disabled={loading}
+        on:keydown={(e) => e.key === 'Enter' && prompt && submit()}
+      />
+      {#if !sshMode}
+        <button class="browse" on:click={browse} disabled={loading} title="browse">⌘</button>
+      {/if}
+    </div>
+  </div>
 
   <div class="field">
     <label class="label" for="ns-prompt">prompt</label>
