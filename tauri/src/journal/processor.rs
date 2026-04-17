@@ -353,12 +353,20 @@ pub fn process_line(state: &mut JournalState, line: &str) {
             } else {
                 state.rate_limit.push(rl_entry);
             }
-            // Only set attention for exceeded status, not for allowed/warning
             if status == "exceeded" || status == "blocked" {
                 state.attention = crate::models::AttentionState {
                     requires_attention: true,
                     reason: Some(crate::models::AttentionReason::RateLimit),
                     since: Some(ts.clone()),
+                };
+            } else if matches!(
+                state.attention.reason,
+                Some(crate::models::AttentionReason::RateLimit)
+            ) {
+                state.attention = crate::models::AttentionState {
+                    requires_attention: false,
+                    reason: None,
+                    since: None,
                 };
             }
         }
@@ -604,12 +612,20 @@ pub fn process_line_opencode(state: &mut JournalState, line: &str) {
                 state.rate_limit.push(rl_entry);
             }
 
-            // Only set attention for exceeded status, not for allowed/warning
             if status == "exceeded" || status == "blocked" {
                 state.attention = crate::models::AttentionState {
                     requires_attention: true,
                     reason: Some(crate::models::AttentionReason::RateLimit),
                     since: Some(chrono::Utc::now().to_rfc3339()),
+                };
+            } else if matches!(
+                state.attention.reason,
+                Some(crate::models::AttentionReason::RateLimit)
+            ) {
+                state.attention = crate::models::AttentionState {
+                    requires_attention: false,
+                    reason: None,
+                    since: None,
                 };
             }
         }
