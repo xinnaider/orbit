@@ -157,7 +157,7 @@ fn push_base_options(args: &mut Vec<String>) {
 }
 
 /// Builds the `ssh` [`Command`] used for diagnostics (test connection).
-fn build_test_command(host: &str, user: &str, _with_key: bool) -> Command {
+fn build_test_command(host: &str, user: &str, ssh_key_path: Option<&str>) -> Command {
     let mut args: Vec<String> = vec![
         "-o".into(),
         "BatchMode=no".into(),
@@ -165,6 +165,11 @@ fn build_test_command(host: &str, user: &str, _with_key: bool) -> Command {
         "LogLevel=ERROR".into(),
     ];
     push_base_options(&mut args);
+
+    if let Some(key) = ssh_key_path {
+        args.push("-i".into());
+        args.push(key.to_string());
+    }
 
     args.push(format!("{}@{}", user, host));
     args.push("echo __orbit_ok__".into());
@@ -190,13 +195,7 @@ fn build_test_command(host: &str, user: &str, _with_key: bool) -> Command {
 /// Tests whether an SSH connection to `host` as `user` (optionally
 /// authenticated with `ssh_key_path`) succeeds. Uses a 15-second hard timeout.
 pub fn test_ssh_connection(host: &str, user: &str, ssh_key_path: Option<&str>) -> SshTestResult {
-    let mut cmd = build_test_command(host, user, ssh_key_path.is_some());
-
-    // Attach identity file if provided
-    if let Some(key) = ssh_key_path {
-        cmd.arg("-i");
-        cmd.arg(key);
-    }
+    let mut cmd = build_test_command(host, user, ssh_key_path);
 
     let _guard: Option<AskpassGuard> = None;
 
