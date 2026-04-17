@@ -12,9 +12,8 @@ pub fn create_worktree_remote(
 ) -> Result<String, String> {
     let worktree_path = format!("{remote_project_path}/.worktrees/{slug}");
     let branch_name = format!("orbit/{slug}");
-    let script = format!(
-        "git -C {remote_project_path} worktree add {worktree_path} -b {branch_name}",
-    );
+    let script =
+        format!("git -C {remote_project_path} worktree add {worktree_path} -b {branch_name}",);
 
     let (child, _guard) = super::ssh::spawn_via_ssh(host, user, ssh_key_path, &script)
         .map_err(|e| format!("failed to spawn ssh: {e}"))?;
