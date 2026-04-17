@@ -384,6 +384,10 @@ Kill a running agent.
           tool: null,
           toolInput: null,
           output: null,
+          exitCode: null,
+          linesChanged: null,
+          seq: entries.length,
+          epoch: '',
         });
         m.set(sessionId, entries);
         return new Map(m);
