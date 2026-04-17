@@ -372,6 +372,22 @@ Kill a running agent.
     if (e.ctrlKey && e.key === 'c' && text === '') {
       e.preventDefault();
       stopSession(sessionId);
+      journal.update((m) => {
+        const entries = m.get(sessionId) ?? [];
+        entries.push({
+          sessionId: String(sessionId),
+          timestamp: new Date().toISOString(),
+          entryType: 'system',
+          text: 'Sent interrupt signal (Ctrl+C)',
+          thinking: null,
+          thinkingDuration: null,
+          tool: null,
+          toolInput: null,
+          output: null,
+        });
+        m.set(sessionId, entries);
+        return new Map(m);
+      });
       return;
     }
 
