@@ -2,7 +2,7 @@
   import { onMount, createEventDispatcher } from 'svelte';
   import { open } from '@tauri-apps/plugin-dialog';
   import { createSession, getProviders, diagnoseProvider } from '../lib/tauri';
-  import { saveProviderKey, testSsh } from '../lib/tauri/providers';
+  import { saveProviderKey } from '../lib/tauri/providers';
   import { backends as backendsStore, providerCaps, getCaps } from '../lib/stores/providers';
   import type { ProviderDiagnostic } from '../lib/tauri';
   import { generateAgentName } from '../lib/android-names';
@@ -20,28 +20,7 @@
   let apiKeyOverride = '';
   let loading = false;
   let error = '';
-  let diagRunning = false;
   let diag: ProviderDiagnostic | null = null;
-  let sshConnected = false;
-  let sshTestRunning = false;
-  let sshAutoTimer: ReturnType<typeof setTimeout> | null = null;
-  $: sshReady = !sshMode || (diag?.ssh?.ok && diag?.found && diag?.projectDirOk === true);
-
-  // Auto-test SSH when host+user are filled (debounced)
-  $: if (sshMode && sshHost.trim() && sshUser.trim()) {
-    sshConnected = false;
-    diag = null;
-    if (sshAutoTimer) clearTimeout(sshAutoTimer);
-    sshAutoTimer = setTimeout(() => testSshConnection(), 600);
-  } else if (sshMode) {
-    sshConnected = false;
-    diag = null;
-  }
-  // Reset diag (but keep connection) when path changes
-  $: if (sshMode && sshConnected) {
-    void path;
-    diag = null;
-  }
   let agentName = '';
   let projectSuffix = '';
   let generatedAgent = '';
@@ -86,41 +65,6 @@
       ? `${resolvedAgent} · ${resolvedProject}`
       : resolvedAgent || resolvedProject;
 
-  async function testSshConnection() {
-    sshTestRunning = true;
-    error = '';
-    try {
-      const result = await testSsh(sshHost.trim(), sshUser.trim(), sshKeyPath.trim() || undefined);
-      if (result.ok) {
-        sshConnected = true;
-      } else {
-        error = `SSH: ${result.error}`;
-      }
-    } catch (e: any) {
-      error = e?.message ?? String(e);
-    } finally {
-      sshTestRunning = false;
-    }
-  }
-
-  async function runDiag() {
-    diagRunning = true;
-    diag = null;
-    error = '';
-    try {
-      diag = await diagnoseProvider(backendId, {
-        projectPath: path.trim() || undefined,
-        sshHost: sshMode ? sshHost.trim() || undefined : undefined,
-        sshUser: sshMode ? sshUser.trim() || undefined : undefined,
-        sshKeyPath: sshMode ? sshKeyPath.trim() || undefined : undefined,
-      });
-    } catch (e: any) {
-      error = e?.message ?? String(e);
-    } finally {
-      diagRunning = false;
-    }
-  }
-
   async function browse() {
     const sel = await open({ directory: true, multiple: false });
     if (sel && typeof sel === 'string') path = sel;
@@ -156,6 +100,41 @@
       error = `${selectedBackend?.name ?? backendId} CLI not found`;
       return;
     }
+
+    // SSH: verify connection, CLI, and remote path before spawning
+    if (sshMode) {
+      loading = true;
+      error = '';
+      try {
+        const d = await diagnoseProvider(backendId, {
+          projectPath: path.trim(),
+          sshHost: sshHost.trim(),
+          sshUser: sshUser.trim(),
+          sshKeyPath: sshKeyPath.trim() || undefined,
+        });
+        diag = d;
+        if (!d.ssh?.ok) {
+          error = `SSH connection failed: ${d.ssh?.error ?? 'unknown error'}`;
+          loading = false;
+          return;
+        }
+        if (!d.found) {
+          error = `${d.cliName} not found on remote host`;
+          loading = false;
+          return;
+        }
+        if (d.projectDirOk === false) {
+          error = `remote path not found: ${path.trim()}`;
+          loading = false;
+          return;
+        }
+      } catch (e: any) {
+        error = e?.message ?? String(e);
+        loading = false;
+        return;
+      }
+    }
+
     const agent = agentName.trim() || generatedAgent || generateAgentName();
     const project =
       projectSuffix.trim() || generatedProject || path.split(/[/\\]/).filter(Boolean).pop() || '';
@@ -216,32 +195,25 @@
   />
 
   {#if sshMode}
-    <SshFields bind:sshHost bind:sshUser bind:sshKeyPath loading={loading || sshTestRunning} />
-    {#if sshTestRunning}
-      <span class="ssh-status">connecting to {sshHost}…</span>
-    {:else if sshConnected}
-      <span class="ssh-ok">✓ connected to {sshHost}</span>
-    {/if}
+    <SshFields bind:sshHost bind:sshUser bind:sshKeyPath {loading} />
   {/if}
 
-  {#if !sshMode || sshConnected}
-    <div class="field">
-      <label class="label" for="ns-path">{sshMode ? 'remote path' : 'path'}</label>
-      <div class="path-row">
-        <input
-          id="ns-path"
-          class="input"
-          bind:value={path}
-          placeholder={sshMode ? '/home/ubuntu/project' : '/home/user/project'}
-          disabled={loading}
-          on:keydown={(e) => e.key === 'Enter' && prompt && submit()}
-        />
-        {#if !sshMode}
-          <button class="browse" on:click={browse} disabled={loading} title="browse">⌘</button>
-        {/if}
-      </div>
+  <div class="field">
+    <label class="label" for="ns-path">{sshMode ? 'remote path' : 'path'}</label>
+    <div class="path-row">
+      <input
+        id="ns-path"
+        class="input"
+        bind:value={path}
+        placeholder={sshMode ? '/home/ubuntu/project' : '/home/user/project'}
+        disabled={loading}
+        on:keydown={(e) => e.key === 'Enter' && prompt && submit()}
+      />
+      {#if !sshMode}
+        <button class="browse" on:click={browse} disabled={loading} title="browse">⌘</button>
+      {/if}
     </div>
-  {/if}
+  </div>
 
   <div class="field">
     <label class="label" for="ns-prompt">prompt</label>
@@ -339,18 +311,9 @@
   {/if}
 
   <div class="actions">
-    {#if sshMode}
-      <button
-        class="btn ghost"
-        on:click={runDiag}
-        disabled={diagRunning || loading || !sshHost.trim() || !sshUser.trim() || !path.trim()}
-      >
-        {diagRunning ? 'testing...' : '⚙ verify connection'}
-      </button>
-    {/if}
     <button class="btn ghost" on:click={() => dispatch('cancel')} disabled={loading}>cancel</button>
-    <button class="btn primary" on:click={submit} disabled={loading || !path || !sshReady}>
-      {loading ? 'spawning...' : 'start session'}
+    <button class="btn primary" on:click={submit} disabled={loading || !path}>
+      {loading ? (sshMode && !diag ? 'verifying ssh...' : 'spawning...') : 'start session'}
     </button>
   </div>
 </Modal>
@@ -410,17 +373,6 @@
   .browse:hover {
     border-color: var(--bd2);
     color: var(--t0);
-  }
-
-  .ssh-status {
-    font-size: var(--sm);
-    color: var(--t3);
-    margin-top: calc(-1 * var(--sp-3));
-  }
-  .ssh-ok {
-    font-size: var(--sm);
-    color: var(--s-idle);
-    margin-top: calc(-1 * var(--sp-3));
   }
 
   .error {
