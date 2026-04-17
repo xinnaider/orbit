@@ -138,6 +138,10 @@ npm run lint       # ESLint + svelte-check + clippy
 npm run format     # Prettier + rustfmt
 ```
 
+## Inspiration
+
+Orbit was inspired by [Paseo](https://github.com/getpaseo/paseo), a platform for orchestrating coding agents remotely across devices. Paseo's vision of managing multiple AI agents from a unified interface shaped the core ideas behind Orbit.
+
 ## License
 
 MIT © josefernando
