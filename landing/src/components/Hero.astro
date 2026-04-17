@@ -186,16 +186,17 @@
   }
   /* Download toggles */
   .download-group {
-    display: flex; gap: 6px; width: 100%;
+    display: flex; gap: 4px; width: 100%;
   }
   .btn-secondary {
-    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
     border-radius: 4px; font-family: var(--font);
     cursor: pointer; transition: all 0.2s;
     background: rgba(255,255,255,0.03);
     border: 1px solid rgba(255,255,255,0.08);
-    color: #666; padding: 10px 18px; font-size: 12px;
-    letter-spacing: 0.06em; white-space: nowrap; flex: 1;
+    color: #555; padding: 9px 12px; font-size: 11px;
+    letter-spacing: 0.04em; white-space: nowrap; flex: 1;
+    min-width: 0;
   }
   .btn-secondary:hover {
     background: rgba(255,255,255,0.05);
@@ -208,10 +209,10 @@
     color: var(--t0);
   }
   .btn-tag {
-    font-size: 10px; color: var(--t3);
+    font-size: 9px; color: var(--t3);
     border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 3px; padding: 1px 5px;
-    letter-spacing: 0.04em;
+    border-radius: 3px; padding: 1px 4px;
+    letter-spacing: 0.03em;
   }
   .btn-secondary.active .btn-tag { color: var(--t2); border-color: rgba(255,255,255,0.18); }
   /* Install command bar */

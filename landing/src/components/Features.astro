@@ -3,17 +3,27 @@ const features = [
   {
     icon: '⊙',
     title: 'Multi-provider',
-    desc: 'Run <mark>Claude Code, Codex, and OpenCode</mark> sessions side by side across different projects.',
+    desc: 'Run <mark>Claude Code</mark>, <mark>Codex</mark>, and <mark>OpenCode</mark> sessions side by side — each with their own models and configs.',
+  },
+  {
+    icon: '⊞',
+    title: 'Split panes',
+    desc: 'View up to <mark>4 sessions simultaneously</mark> in a 2×2 grid. Drag sessions from the sidebar to split.',
+  },
+  {
+    icon: '⇅',
+    title: 'SSH remote',
+    desc: 'Run sessions on <mark>remote servers via SSH</mark> with any provider. Key-based auth, auto-verified before start.',
   },
   {
     icon: '▸',
     title: 'Real-time feed',
-    desc: 'Streaming JSON displayed as structured entries — thinking blocks, tool calls, responses.',
+    desc: 'Streaming output with <mark>thinking blocks</mark>, tool calls, diffs, and markdown — as it happens.',
   },
   {
-    icon: '⇅',
-    title: 'SSH remote sessions',
-    desc: 'Run sessions on <mark>remote servers via SSH</mark>. Test the connection, pick a provider, and go.',
+    icon: '◇',
+    title: 'Sub-agents monitor',
+    desc: 'Track <mark>spawned sub-agents</mark> in a dedicated tab. Click any agent to inspect its full conversation.',
   },
   {
     icon: '◈',
@@ -22,13 +32,18 @@ const features = [
   },
   {
     icon: '$',
-    title: 'Cost tracking',
-    desc: 'Per-session token usage, context window %, and estimated cost. Always know what each agent is spending.',
+    title: 'Cost & tokens',
+    desc: 'Per-session <mark>token usage</mark>, context window %, rate limit bars, and estimated cost in USD.',
   },
   {
     icon: '/',
     title: 'Slash commands',
-    desc: 'Autocomplete from installed plugins. <mark>/model</mark> and <mark>/effort</mark> to switch on the fly.',
+    desc: '<mark>/model</mark> and <mark>/effort</mark> to switch on the fly. Autocomplete from installed plugins.',
+  },
+  {
+    icon: '@',
+    title: 'File picker',
+    desc: 'Reference files inline with <mark>@filename</mark> — fuzzy search across the project tree.',
   },
 ];
 ---
