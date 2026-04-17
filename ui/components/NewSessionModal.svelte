@@ -22,6 +22,13 @@
   let error = '';
   let diagRunning = false;
   let diag: ProviderDiagnostic | null = null;
+  $: sshReady = !sshMode || (diag?.ssh?.ok && diag?.found && diag?.projectDirOk === true);
+
+  // Reset diag when SSH fields or path change so user must re-verify
+  $: if (sshMode) {
+    void [sshHost, sshUser, sshKeyPath, path];
+    diag = null;
+  }
   let agentName = '';
   let projectSuffix = '';
   let generatedAgent = '';
@@ -299,13 +306,13 @@
       <button
         class="btn ghost"
         on:click={runDiag}
-        disabled={diagRunning || loading || !sshHost.trim() || !sshUser.trim()}
+        disabled={diagRunning || loading || !sshHost.trim() || !sshUser.trim() || !path.trim()}
       >
-        {diagRunning ? 'testing...' : '⚙ diagnose'}
+        {diagRunning ? 'testing...' : '⚙ verify connection'}
       </button>
     {/if}
     <button class="btn ghost" on:click={() => dispatch('cancel')} disabled={loading}>cancel</button>
-    <button class="btn primary" on:click={submit} disabled={loading || !path}>
+    <button class="btn primary" on:click={submit} disabled={loading || !path || !sshReady}>
       {loading ? 'spawning...' : 'start session'}
     </button>
   </div>
