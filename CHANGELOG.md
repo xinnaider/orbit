@@ -5,9 +5,9 @@
 ## April 2026
 
 ### 04/16 · New — Message history navigation
-Press Arrow Up in an empty input to recall previous messages sent in that session,
-and Arrow Down to go back to more recent ones. History is saved per session and
-persists across restarts.
+Press Arrow Up when the cursor is at the start of the input to recall previous messages
+sent in that session, and Arrow Down when the cursor is at the end to go forward.
+History is saved per session and persists across restarts.
 
 ### 04/16 · New — Ctrl+C kills the running agent
 Press Ctrl+C in an empty input to stop the running agent. This works for all
@@ -50,10 +50,6 @@ their full response.
 The orbit-mcp binary (multi-agent orchestration server) is now built automatically
 alongside the app and bundled in the installer. No separate build step needed.
 
-### 04/16 · New — Interactive terminal panel
-Each session now includes a built-in terminal (PowerShell on Windows, bash on Linux/macOS)
-running in the project directory. Access it from the Terminal tab in the session view.
-
 ### 04/16 · New — ACP protocol support
 Orbit can now connect to agents that use the Agent Client Protocol (JSON-RPC over stdio),
 such as Gemini CLI and Copilot CLI. They appear in the provider selector when installed.
@@ -69,10 +65,6 @@ or other Claude instances to delegate tasks. Providers are auto-detected from yo
 ### 04/16 · New — Sub-agent hierarchy
 When an agent spawns sub-agents, they appear nested under the parent session in the sidebar
 with a collapsible tree view and count badge.
-
-### 04/16 · New — Timeline pagination
-Journal entries now carry sequence numbers and epoch markers. A new cursor-based pagination
-endpoint allows loading history in chunks for long sessions.
 
 ### 04/16 · Improvement — Provider detection without diagnose
 The provider selector now shows installed/not-installed status and install instructions
