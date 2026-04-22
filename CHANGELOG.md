@@ -4,6 +4,12 @@
 
 ## April 2026
 
+### 04/22 · Fix — Display model alias instead of raw ID
+When Claude Opus 4.7 is selected, the sidebar and top bar now display "Opus 4.7" instead of the internal model ID. The display name was missing from the frontend lookup table, causing the raw name to leak through.
+
+### 04/22 · Fix — Slash command picker arrow-key navigation
+Scrolling through the option list in `/model` or `/effort` with the keyboard now works properly. Arrow Up and Arrow Down were being overridden by a reactive statement that reset the index on every redraw, rather than only when the filtered list changed.
+
 ### 04/22 · New — Subagent support for all providers
 The agents tab is now visible for every CLI backend, not just Claude Code.
 Subagent spawns are detected dynamically based on each provider's tool names
