@@ -113,50 +113,8 @@
   }
 
   function displayName(s: (typeof $sessions)[0]): string {
-    return s.name ?? s.projectName ?? s.cwd?.split(/[\\/]/).pop() ?? `#${s.id}`;
+    return s.name ?? s.projectName ?? s.cwd?.split(/[/\\]/).pop() ?? `#${s.id}`;
   }
-
-  let collapsedParents: Set<number> = new Set();
-
-  function toggleCollapse(id: number) {
-    if (collapsedParents.has(id)) {
-      collapsedParents.delete(id);
-    } else {
-      collapsedParents.add(id);
-    }
-    collapsedParents = new Set(collapsedParents); // trigger reactivity
-  }
-
-  // Count children per parent
-  $: childCounts = (() => {
-    const counts: Record<number, number> = {};
-    for (const s of $sessions) {
-      if (s.parentSessionId) {
-        counts[s.parentSessionId] = (counts[s.parentSessionId] ?? 0) + 1;
-      }
-    }
-    return counts;
-  })();
-
-  // Group sessions: top-level first, then children nested under parents
-  $: orderedSessions = (() => {
-    const roots = $sessions.filter((s) => !s.parentSessionId);
-    const children = $sessions.filter((s) => s.parentSessionId);
-    const result: (typeof $sessions)[0][] = [];
-    for (const root of roots) {
-      result.push(root);
-      if (!collapsedParents.has(root.id)) {
-        for (const child of children) {
-          if (child.parentSessionId === root.id) result.push(child);
-        }
-      }
-    }
-    // Add orphans (children whose parent isn't loaded)
-    for (const child of children) {
-      if (!roots.some((r) => r.id === child.parentSessionId)) result.push(child);
-    }
-    return result;
-  })();
 </script>
 
 {#if showModal}
@@ -234,15 +192,13 @@
     {#if $sessions.length === 0}
       <p class="empty">no sessions</p>
     {:else}
-      {#each orderedSessions as s (s.id)}
+      {#each $sessions as s (s.id)}
         {@const active = Object.values($workspace.panes).some((p) => p.sessionId === s.id)}
         {@const color = statusColor(s.status)}
         {@const pulsing = isPulsing(s.status)}
-        {@const isChild = !!s.parentSessionId}
         <button
           class="item"
           class:active
-          class:child={isChild}
           draggable="true"
           on:dragstart={(e) => {
             e.dataTransfer?.setData('text/plain', JSON.stringify({ sessionId: s.id }));
@@ -280,18 +236,6 @@
               </span>
             {/if}
             <span class="status" style="color:{color}">{statusLabel(s.status)}</span>
-            {#if childCounts[s.id]}
-              <!-- svelte-ignore a11y_no_static_element_interactions -->
-              <span
-                class="collapse-toggle"
-                on:click|stopPropagation={() => toggleCollapse(s.id)}
-                on:keydown|stopPropagation
-                title={collapsedParents.has(s.id) ? 'Expand sub-agents' : 'Collapse sub-agents'}
-              >
-                <span class="child-count">{childCounts[s.id]}</span>
-                <span class="collapse-arrow" class:collapsed={collapsedParents.has(s.id)}>▾</span>
-              </span>
-            {/if}
           </div>
           <div class="item-meta">
             <span title={s.model ?? ''}>{fmtModel(s.model)}</span>
@@ -442,15 +386,6 @@
     padding-left: var(--sp-5);
   }
 
-  .item.child {
-    padding-left: var(--sp-9);
-    border-left: 2px solid var(--bd);
-  }
-
-  .item.child.active {
-    border-left-color: var(--ac);
-  }
-
   .item-top {
     display: flex;
     align-items: center;
@@ -558,40 +493,6 @@
     font-size: 8px;
     margin-left: var(--sp-2);
     animation: pulse 2s ease-in-out infinite;
-  }
-
-  .collapse-toggle {
-    display: flex;
-    align-items: center;
-    gap: 2px;
-    background: none;
-    border: none;
-    padding: 0 2px;
-    cursor: pointer;
-    color: var(--t3);
-    font-size: 10px;
-    flex-shrink: 0;
-  }
-
-  .collapse-toggle:hover {
-    color: var(--t0);
-  }
-
-  .child-count {
-    background: var(--bg3);
-    border-radius: var(--radius-sm);
-    padding: 0 4px;
-    font-size: 9px;
-    color: var(--t2);
-    line-height: 14px;
-  }
-
-  .collapse-arrow {
-    transition: transform 0.15s;
-  }
-
-  .collapse-arrow.collapsed {
-    transform: rotate(-90deg);
   }
 
   .muted-icon {

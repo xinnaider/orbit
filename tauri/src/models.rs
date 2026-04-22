@@ -180,6 +180,18 @@ pub struct SlashCommand {
     pub category: String,
 }
 
+/// The JSON structure format a provider uses to emit task lists in its stdout.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum TaskFormat {
+    /// Claude Code: assistant→content[].tool_use(name=TodoWrite)
+    ClaudeToolUse,
+    /// OpenCode: tool_use→part.tool=todowrite
+    OpenCodeToolUse,
+    /// Codex: item.completed→item.type=todo_list
+    CodexItemList,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TaskItem {
@@ -195,6 +207,8 @@ pub struct TaskItem {
 /// Map raw model IDs to human-friendly display names.
 pub fn model_display_name(model_id: &str) -> &str {
     match model_id {
+        "claude-opus-4-7" => "Opus 4.7",
+        "claude-opus-4-7[1m]" => "Opus 4.7 (1M)",
         "claude-opus-4-6" => "Opus 4.6",
         "claude-opus-4-6[1m]" => "Opus 4.6 (1M)",
         "claude-sonnet-4-6" => "Sonnet 4.6",
@@ -206,7 +220,7 @@ pub fn model_display_name(model_id: &str) -> &str {
 /// Context window size for a given model ID.
 pub fn context_window(model_id: &str) -> u64 {
     match model_id {
-        "claude-opus-4-6[1m]" => 1_000_000,
+        "claude-opus-4-7[1m]" | "claude-opus-4-6[1m]" => 1_000_000,
         _ => 200_000,
     }
 }

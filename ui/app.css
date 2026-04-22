@@ -74,14 +74,14 @@ select {
 }
 
 ::-webkit-scrollbar {
-  width: 3px;
-  height: 3px;
+  width: 7px;
+  height: 7px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--bd2);
+  background: var(--t3);
   border-radius: 2px;
 }
 ::-webkit-scrollbar-thumb:hover {

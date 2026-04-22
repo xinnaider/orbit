@@ -8,10 +8,9 @@
   export let providerModels: string[] = [];
   export let modelOptions: string[] = [];
   export let supportsEffort: boolean = false;
+  export let effortLevels: string[] = ['low', 'medium', 'high', 'max'];
   export let files: string[] = [];
   export let atQuery: string | null = null;
-
-  const EFFORT_LEVELS = ['low', 'medium', 'high', 'max'];
 
   const dispatch = createEventDispatcher<{
     select: { type: 'cmd' | 'subOption' | 'file'; value: string };
@@ -28,7 +27,7 @@
       return filtered.slice(0, 10);
     } else if (lower.startsWith('/effort ') && supportsEffort) {
       const arg = lower.slice(8);
-      return EFFORT_LEVELS.filter((o) => o.startsWith(arg));
+      return effortLevels.filter((o) => o.startsWith(arg));
     }
     return [];
   })();
@@ -63,14 +62,28 @@
   let subSelIdx = 0;
   let fileSelIdx = 0;
 
+  // Track previous list lengths so we reset the selection only when a list changes,
+  // not on every re-render (which would break arrow-key navigation).
+  let prevSuggestionsLen = -1;
+  let prevSubOptionsLen = -1;
+  let prevFileSuggestionsLen = -1;
+
+  $: if (suggestions.length !== prevSuggestionsLen) {
+    selIdx = 0;
+    prevSuggestionsLen = suggestions.length;
+  }
+  $: if (subOptions.length !== prevSubOptionsLen) {
+    subSelIdx = 0;
+    prevSubOptionsLen = subOptions.length;
+  }
+  $: if (fileSuggestions.length !== prevFileSuggestionsLen) {
+    fileSelIdx = 0;
+    prevFileSuggestionsLen = fileSuggestions.length;
+  }
+
   $: if (selIdx >= suggestions.length) selIdx = 0;
   $: if (subSelIdx >= subOptions.length) subSelIdx = 0;
   $: if (fileSelIdx >= fileSuggestions.length) fileSelIdx = 0;
-
-  // Reset selection indices when the list changes
-  $: if (suggestions.length > 0) selIdx = 0;
-  $: if (subOptions.length > 0) subSelIdx = 0;
-  $: if (fileSuggestions.length > 0) fileSelIdx = 0;
 
   /**
    * Handle keyboard navigation. Returns true if the key was consumed.

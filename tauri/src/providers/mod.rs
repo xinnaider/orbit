@@ -52,8 +52,31 @@ pub trait Provider: Send + Sync {
     /// Whether this provider supports the `effort` parameter.
     fn supports_effort(&self) -> bool;
 
+    /// Effort levels supported for a specific model, or empty slice if effort is not supported.
+    /// For Claude Code, Opus 4.7 supports an extended list (low, medium, high, xhigh, max, auto).
+    fn effort_levels(&self, model: &str) -> &[&str];
+
     /// Whether this provider supports SSH remote sessions.
     fn supports_ssh(&self) -> bool;
+
+    /// Whether this CLI can spawn sub-agents (shown in the agents tab).
+    fn supports_subagents(&self) -> bool;
+
+    /// Tool names that represent a sub-agent spawn.
+    /// When the journal sees a `ToolCall` with one of these names,
+    /// a `session:subagent-created` event is emitted.
+    fn subagent_tool_names(&self) -> &[&str];
+
+    /// Whether this provider can emit task lists (shown in the tasks tab).
+    fn supports_tasks(&self) -> bool;
+
+    /// Tool/structure names that represent a task list emission for this provider.
+    /// Used by the realtime parser to detect task updates in the output stream.
+    fn task_tool_names(&self) -> &[&str];
+
+    /// The JSON structure format this provider uses for task lists.
+    /// Used by get_tasks to select the correct parser.
+    fn task_format(&self) -> crate::models::TaskFormat;
 
     /// Return a fn pointer for parsing JSONL lines in a Send thread.
     /// Needed because `&dyn Provider` is not Send across thread boundaries.
@@ -172,8 +195,30 @@ mod tests {
         fn supports_effort(&self) -> bool {
             self.mock_effort
         }
+        fn effort_levels(&self, _model: &str) -> &[&str] {
+            if self.mock_effort {
+                &["low", "medium", "high", "max"]
+            } else {
+                &[]
+            }
+        }
         fn supports_ssh(&self) -> bool {
             false
+        }
+        fn supports_subagents(&self) -> bool {
+            false
+        }
+        fn subagent_tool_names(&self) -> &[&str] {
+            &[]
+        }
+        fn supports_tasks(&self) -> bool {
+            false
+        }
+        fn task_tool_names(&self) -> &[&str] {
+            &[]
+        }
+        fn task_format(&self) -> crate::models::TaskFormat {
+            crate::models::TaskFormat::ClaudeToolUse
         }
         fn line_processor(&self) -> fn(&mut crate::journal::JournalState, &str) {
             |_, _| {}

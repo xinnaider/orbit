@@ -45,6 +45,8 @@
     border-radius: var(--radius-md);
     overflow-x: auto;
     margin: var(--sp-3) 0;
+    white-space: pre-wrap;
+    word-break: break-word;
   }
   .md :global(pre code) {
     background: none;

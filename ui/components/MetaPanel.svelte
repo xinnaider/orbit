@@ -15,6 +15,7 @@
 
   type Tab = 'stats' | 'tasks' | 'agents';
   let tab: Tab = 'stats';
+  $: if (!caps.supportsTasks && tab === 'tasks') tab = 'stats';
 
   let refreshing = false;
 
@@ -51,14 +52,14 @@
     <button class="tab" class:active={tab === 'stats'} on:click={() => (tab = 'stats')}
       >stats</button
     >
-    <button class="tab" class:active={tab === 'tasks'} on:click={() => (tab = 'tasks')}
-      >tasks</button
-    >
-    {#if caps.supportsSubagents}
-      <button class="tab" class:active={tab === 'agents'} on:click={() => (tab = 'agents')}
-        >agents</button
+    {#if caps.supportsTasks}
+      <button class="tab" class:active={tab === 'tasks'} on:click={() => (tab = 'tasks')}
+        >tasks</button
       >
     {/if}
+    <button class="tab" class:active={tab === 'agents'} on:click={() => (tab = 'agents')}
+      >agents</button
+    >
     <span class="tabs-spacer"></span>
     <button class="collapse-btn" on:click={() => metaPanelVisible.set(false)} title="Hide panel"
       >›</button
@@ -212,6 +213,7 @@
         sessionId={session.id}
         subagents={session.subagents ?? []}
         {refreshing}
+        cwd={session.cwd}
         onRefresh={refreshAgents}
       />
     {/if}

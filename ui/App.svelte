@@ -12,6 +12,7 @@
   import { get } from 'svelte/store';
   import { assignSession, restoreWorkspace, workspace } from './lib/stores/workspace';
   import { journal } from './lib/stores/journal';
+  import { taskUpdateTrigger } from './lib/stores/tasks';
   import { addToast } from './lib/stores/toasts';
   import {
     listSessions,
@@ -24,6 +25,7 @@
     onSessionRunning,
     onSessionError,
     onSessionRateLimit,
+    onSessionTaskUpdate,
     getAppVersion,
     getChangelog,
   } from './lib/tauri';
@@ -168,43 +170,8 @@
       // Rate limit info is shown inline in the chat feed as a System entry
     });
 
-    const u8 = listen<{
-      parentSessionId: number;
-      description: string;
-      tool: string;
-    }>('session:subagent-created', (e) => {
-      const { parentSessionId, description } = e.payload;
-      // Find parent session to inherit provider/cwd
-      const parent = $sessions.find((s) => s.id === parentSessionId);
-      if (!parent) return;
-      // Add a virtual child session to the store
-      const childId = -Date.now(); // negative ID = virtual (not in DB)
-      const child: Session = {
-        id: childId,
-        projectId: parent.projectId,
-        name: description,
-        status: 'running',
-        permissionMode: parent.permissionMode,
-        model: parent.model,
-        provider: parent.provider,
-        pid: null,
-        cwd: parent.cwd,
-        projectName: parent.projectName,
-        gitBranch: parent.gitBranch,
-        worktreePath: null,
-        branchName: null,
-        tokens: null,
-        contextPercent: null,
-        pendingApproval: null,
-        miniLog: null,
-        sshHost: null,
-        sshUser: null,
-        parentSessionId,
-        depth: (parent.depth ?? 0) + 1,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      sessions.update((l) => [child, ...l]);
+    const u8 = onSessionTaskUpdate((id) => {
+      taskUpdateTrigger.set(id);
     });
 
     // Resolve all unlisten functions and store for cleanup

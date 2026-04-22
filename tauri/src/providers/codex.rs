@@ -92,8 +92,26 @@ impl Provider for CodexProvider {
     fn supports_effort(&self) -> bool {
         false
     }
+    fn effort_levels(&self, _model: &str) -> &[&str] {
+        &[]
+    }
     fn supports_ssh(&self) -> bool {
         true
+    }
+    fn supports_subagents(&self) -> bool {
+        true
+    }
+    fn subagent_tool_names(&self) -> &[&str] {
+        &["Task"]
+    }
+    fn supports_tasks(&self) -> bool {
+        true
+    }
+    fn task_tool_names(&self) -> &[&str] {
+        &["todo_list"]
+    }
+    fn task_format(&self) -> crate::models::TaskFormat {
+        crate::models::TaskFormat::CodexItemList
     }
     fn line_processor(&self) -> fn(&mut JournalState, &str) {
         crate::journal::process_line_codex

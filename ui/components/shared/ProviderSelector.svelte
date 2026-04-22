@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { CliBackend, SubProvider } from '../../lib/tauri';
   import { loadProviderKey } from '../../lib/tauri/providers';
+  import SearchSelect from './SearchSelect.svelte';
 
   export let backends: CliBackend[];
   export let backendId: string;
@@ -170,27 +171,12 @@
 {#if currentModels.length > 0}
   <div class="field">
     <label class="label" for="ns-model">model</label>
-    {#if currentModels.length <= 15}
-      <select id="ns-model" class="input select" bind:value={model} disabled={loading}>
-        {#each currentModels as m}
-          <option value={m.id}>{m.name}</option>
-        {/each}
-      </select>
-    {:else}
-      <input
-        id="ns-model"
-        class="input"
-        list="model-list"
-        bind:value={model}
-        placeholder="search models..."
-        disabled={loading}
-      />
-      <datalist id="model-list">
-        {#each currentModels as m}
-          <option value={m.id}>{m.name}</option>
-        {/each}
-      </datalist>
-    {/if}
+    <SearchSelect
+      items={currentModels}
+      bind:value={model}
+      placeholder="select model..."
+      disabled={loading}
+    />
   </div>
 {/if}
 
@@ -245,11 +231,6 @@
   .input:disabled {
     opacity: 0.5;
   }
-  .select {
-    appearance: none;
-    cursor: pointer;
-  }
-
   /* Backend chips */
   .backend-row {
     display: flex;

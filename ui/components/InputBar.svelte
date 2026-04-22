@@ -37,7 +37,22 @@
   const INTERACTIVE_CMDS = new Set(['/mcp', '/login', '/logout', '/init', '/doctor']);
 
   // Model aliases per backend
-  const CLAUDE_MODELS = ['opus', 'opus-1m', 'sonnet', 'haiku'];
+  // Display names shown in the picker; resolved to real IDs before sending
+  const CLAUDE_MODELS = ['Opus 4.7', 'Opus 4.7 (1M)', 'Opus 4.6', 'Sonnet 4.6', 'Haiku 4.5'];
+  const CLAUDE_MODEL_ALIASES: Record<string, string> = {
+    // Versioned short aliases (also accepted if user types them)
+    'opus-4.7': 'claude-opus-4-7',
+    'opus-4.7-1m': 'claude-opus-4-7[1m]',
+    'opus-4.6': 'claude-opus-4-6',
+    'sonnet-4.6': 'claude-sonnet-4-6',
+    'haiku-4.5': 'claude-haiku-4-5-20251001',
+    // Display-name aliases (shown in picker)
+    'Opus 4.7': 'claude-opus-4-7',
+    'Opus 4.7 (1M)': 'claude-opus-4-7[1m]',
+    'Opus 4.6': 'claude-opus-4-6',
+    'Sonnet 4.6': 'claude-sonnet-4-6',
+    'Haiku 4.5': 'claude-haiku-4-5-20251001',
+  };
   const CODEX_MODELS = ['gpt-5.4', 'gpt-5.4-mini', 'gpt-5.3-codex', 'gpt-5.2'];
   $: MODEL_OPTIONS =
     provider === 'claude-code'
@@ -45,7 +60,11 @@
       : provider === 'codex'
         ? CODEX_MODELS
         : providerModels;
-  const EFFORT_LEVELS = ['low', 'medium', 'high', 'max'];
+
+  // Effort levels from provider (model-aware) — falls back to global default
+  $: currentModel = $sessions.find((s) => s.id === sessionId)?.model ?? '';
+  $: effortLevels = caps.effortLevels[currentModel] ??
+    caps.effortLevels['auto'] ?? ['low', 'medium', 'high', 'max'];
 
   // Orbit-native commands — provider-aware
   $: modelHint =
@@ -261,17 +280,21 @@ Kill a running agent.
       }
       text = '';
       if (textarea) textarea.style.height = 'auto';
-      await updateSessionModel(sessionId, arg);
-      sessions.update((l) => updateSessionState(l, sessionId, { model: arg, contextWindow: null }));
-      emitSystemEntry(`Model changed to ${arg}`);
+      // Resolve alias (e.g. "opus") to real model ID ("claude-opus-4-7")
+      const resolved = provider === 'claude-code' ? (CLAUDE_MODEL_ALIASES[arg] ?? arg) : arg;
+      await updateSessionModel(sessionId, resolved);
+      sessions.update((l) =>
+        updateSessionState(l, sessionId, { model: resolved, contextWindow: null })
+      );
+      emitSystemEntry(`Model changed to ${resolved}`);
       return;
     }
 
     // Intercept /effort (Claude Code only)
     if (cmd === '/effort' && caps.supportsEffort) {
       const arg = msg.slice(7).trim().toLowerCase();
-      if (!arg || !EFFORT_LEVELS.includes(arg)) {
-        sendError = `Usage: /effort <level> (${EFFORT_LEVELS.join(', ')})`;
+      if (!arg || !effortLevels.includes(arg)) {
+        sendError = `Usage: /effort <level> (${effortLevels.join(', ')})`;
         setTimeout(() => (sendError = ''), 5000);
         return;
       }
@@ -464,6 +487,7 @@ Kill a running agent.
     {providerModels}
     modelOptions={MODEL_OPTIONS}
     supportsEffort={caps.supportsEffort}
+    {effortLevels}
     {files}
     atQuery={aq}
     on:select={handlePickerSelect}

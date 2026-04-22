@@ -210,6 +210,7 @@
           {entries}
           status={session.status}
           provider={session.provider}
+          cwd={session.cwd}
           on:bottomchange={onFeedBottomChange}
         />
       {/key}

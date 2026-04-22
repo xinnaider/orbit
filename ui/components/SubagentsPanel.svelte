@@ -7,6 +7,7 @@
   export let subagents: SubagentInfo[];
   export let refreshing = false;
   export let onRefresh: (() => void) | null = null;
+  export let cwd: string | null = null;
 
   let modalAgent: SubagentInfo | null = null;
   let modalEntries: JournalEntry[] = [];
@@ -113,7 +114,7 @@
         {:else if modalEntries.length === 0}
           <p class="loading">no log entries</p>
         {:else}
-          <Feed entries={modalEntries} status={modalAgent.status} />
+          <Feed entries={modalEntries} status={modalAgent.status} {cwd} />
         {/if}
       </div>
     </div>

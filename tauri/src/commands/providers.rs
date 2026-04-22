@@ -28,11 +28,18 @@ pub struct CliBackend {
     pub supports_effort: bool,
     pub supports_ssh: bool,
     pub supports_subagents: bool,
+    pub supports_tasks: bool,
     pub has_sub_providers: bool,
     /// Direct models (for claude-code and codex)
     pub models: Vec<ModelInfo>,
     /// Sub-providers (for opencode only)
     pub sub_providers: Vec<SubProvider>,
+    /// Effort levels keyed by model glob; empty when effort not supported.
+    pub effort_levels: std::collections::HashMap<String, Vec<String>>,
+    /// Tool names that trigger task detection for this provider (e.g. ["TodoWrite"]).
+    pub task_tool_names: Vec<String>,
+    /// Format this provider uses to emit tasks.
+    pub task_format: String,
 }
 
 /// Return all CLI backends with their capabilities and models.
@@ -51,12 +58,30 @@ pub fn get_providers(
             .unwrap_or(usize::MAX)
     });
 
-    let opencode_sub_providers = read_opencode_providers().unwrap_or_default();
+    let mut opencode_sub_providers = read_opencode_providers().unwrap_or_default();
+    let jsonc_providers = read_opencode_jsonc_providers().unwrap_or_default();
+    for custom in jsonc_providers {
+        if !opencode_sub_providers.iter().any(|sp| sp.id == custom.id) {
+            opencode_sub_providers.push(custom);
+        }
+    }
+    opencode_sub_providers.sort_by(|a, b| a.name.cmp(&b.name));
 
     providers
         .iter()
         .map(|p| {
             let has_subs = p.id() == "opencode" && !opencode_sub_providers.is_empty();
+            let models = get_provider_models(p.id());
+            let mut effort_levels = std::collections::HashMap::new();
+            for model in &models {
+                let levels = p.effort_levels(&model.id);
+                if !levels.is_empty() {
+                    effort_levels.insert(
+                        model.id.clone(),
+                        levels.iter().map(|s| s.to_string()).collect(),
+                    );
+                }
+            }
             CliBackend {
                 id: p.id().to_string(),
                 name: p.display_name().to_string(),
@@ -65,13 +90,21 @@ pub fn get_providers(
                 install_hint: p.install_hint().to_string(),
                 supports_effort: p.supports_effort(),
                 supports_ssh: p.supports_ssh(),
-                supports_subagents: p.id() == "claude-code", // only Claude has subagents
+                supports_subagents: p.supports_subagents(),
+                supports_tasks: p.supports_tasks(),
                 has_sub_providers: has_subs,
-                models: get_provider_models(p.id()),
+                effort_levels,
+                models,
                 sub_providers: if has_subs {
                     opencode_sub_providers.clone()
                 } else {
                     vec![]
+                },
+                task_tool_names: p.task_tool_names().iter().map(|s| s.to_string()).collect(),
+                task_format: match p.task_format() {
+                    crate::models::TaskFormat::ClaudeToolUse => "claude_tool_use".to_string(),
+                    crate::models::TaskFormat::OpenCodeToolUse => "opencode_tool_use".to_string(),
+                    crate::models::TaskFormat::CodexItemList => "codex_item_list".to_string(),
                 },
             }
         })
@@ -88,6 +121,12 @@ fn get_provider_models(provider_id: &str) -> Vec<ModelInfo> {
                 name: "auto".into(),
                 context: None,
                 output: None,
+            },
+            ModelInfo {
+                id: "claude-opus-4-7".into(),
+                name: "opus-4.7".into(),
+                context: Some(1_000_000),
+                output: Some(128_000),
             },
             ModelInfo {
                 id: "claude-sonnet-4-6".into(),
@@ -376,6 +415,131 @@ fn read_opencode_providers() -> Option<Vec<SubProvider>> {
         .collect();
 
     result.sort_by(|a, b| a.name.cmp(&b.name));
+    Some(result)
+}
+
+fn strip_jsonc_comments(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let chars: Vec<char> = s.chars().collect();
+    let len = chars.len();
+    let mut i = 0;
+    let mut in_string = false;
+    let mut in_line_comment = false;
+    let mut in_block_comment = false;
+
+    while i < len {
+        let c = chars[i];
+        let next = if i + 1 < len {
+            Some(chars[i + 1])
+        } else {
+            None
+        };
+
+        if in_line_comment {
+            if c == '\n' {
+                in_line_comment = false;
+                out.push(c);
+            }
+            i += 1;
+            continue;
+        }
+
+        if in_block_comment {
+            if c == '*' && next == Some('/') {
+                in_block_comment = false;
+                i += 2;
+            } else {
+                if c == '\n' {
+                    out.push(c);
+                }
+                i += 1;
+            }
+            continue;
+        }
+
+        if in_string {
+            out.push(c);
+            if c == '\\' && next.is_some() {
+                i += 1;
+                out.push(chars[i]);
+            } else if c == '"' {
+                in_string = false;
+            }
+            i += 1;
+            continue;
+        }
+
+        if c == '/' && next == Some('/') {
+            in_line_comment = true;
+            i += 2;
+            continue;
+        }
+        if c == '/' && next == Some('*') {
+            in_block_comment = true;
+            i += 2;
+            continue;
+        }
+        if c == '"' {
+            in_string = true;
+        }
+        out.push(c);
+        i += 1;
+    }
+
+    out
+}
+
+fn read_opencode_jsonc_providers() -> Option<Vec<SubProvider>> {
+    let home = dirs::home_dir()?;
+    let path = home.join(".config").join("opencode").join("opencode.jsonc");
+    let raw = std::fs::read_to_string(&path).ok()?;
+    let stripped = strip_jsonc_comments(&raw);
+    let data: serde_json::Value = serde_json::from_str(&stripped).ok()?;
+    let providers_obj = data.get("provider").and_then(|v| v.as_object())?;
+
+    let result = providers_obj
+        .iter()
+        .map(|(id, provider)| {
+            let name = provider
+                .get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or(id)
+                .to_string();
+
+            let configured = provider
+                .pointer("/options/apiKey")
+                .and_then(|v| v.as_str())
+                .is_some_and(|key| !key.is_empty());
+
+            let models: Vec<ModelInfo> = provider
+                .get("models")
+                .and_then(|v| v.as_object())
+                .map(|m| {
+                    m.iter()
+                        .map(|(mid, mval)| ModelInfo {
+                            id: mid.clone(),
+                            name: mval
+                                .get("name")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or(mid)
+                                .to_string(),
+                            context: mval.pointer("/limit/context").and_then(|v| v.as_u64()),
+                            output: mval.pointer("/limit/output").and_then(|v| v.as_u64()),
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+
+            SubProvider {
+                id: id.clone(),
+                name,
+                env: vec![],
+                configured,
+                models,
+            }
+        })
+        .collect();
+
     Some(result)
 }
 

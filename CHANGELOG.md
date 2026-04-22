@@ -4,6 +4,45 @@
 
 ## April 2026
 
+### 04/22 · Improvement — Better scrollbar visibility
+The feed scroller now uses a wider, more visible scrollbar so you can quickly grab and drag it. Scrollbar width increased from 3px to 7px, and the thumb color now clearly contrasts with the background.
+
+### 04/22 · Fix — Markdown code blocks wrap correctly
+User-sent code blocks no longer extend past the chat window. Instead, long lines wrap naturally so everything stays readable without horizontal scrolling.
+
+### 04/22 · Improvement — Copy always copies the full file content
+The copy button on file tool calls (Read, Edit, Write) now reads the actual file from disk and copies its current complete content to the clipboard. Previously, copying an Edit only grabbed the small replacement snippet, leaving most of the file behind. A fallback keeps copying inline data when the file cannot be accessed (for example, in remote SSH sessions).
+
+### 04/22 · New — Copy content from any tool call
+Every tool call in the session feed now has a copy button. Clicking it copies the relevant content to the clipboard instantly. For file edits, it copies the new code; for file writes, it copies the entire file content; for bash commands, it copies the command itself; and for read/grep results, it copies the output. The button appears both inline in the feed and inside the fullscreen modal.
+
+### 04/22 · Fix — Display model alias instead of raw ID
+When Claude Opus 4.7 is selected, the sidebar and top bar now display "Opus 4.7" instead of the internal model ID. The display name was missing from the frontend lookup table, causing the raw name to leak through.
+
+### 04/22 · Fix — Slash command picker arrow-key navigation
+Scrolling through the option list in `/model` or `/effort` with the keyboard now works properly. Arrow Up and Arrow Down were being overridden by a reactive statement that reset the index on every redraw, rather than only when the filtered list changed.
+
+### 04/22 · New — Subagent support for all providers
+The agents tab is now visible for every CLI backend, not just Claude Code.
+Subagent spawns are detected dynamically based on each provider's tool names
+(e.g. "Agent" and "Task" for Claude, "Task" for Codex and ACP), eliminating
+a hardcoded check that previously blocked Codex and OpenCode users from seeing
+sub-agents.
+
+### 04/22 · New — Claude Opus 4.7 with extended effort levels
+Claude Opus 4.7 is now available in the model selector, alongside its 1-million-token context variant. When Opus 4.7 is selected, two additional effort levels appear in the /effort command: `xhigh` and `auto`. Other models continue to offer the classic `low`, `medium`, `high`, and `max` levels.
+The sidebar now displays only real sessions without indented virtual children
+that appeared under their parent. Subagent status is still available in the
+agents tab on the right panel.
+
+### 04/22 · New — Tasks tab gated by provider capability
+The tasks tab is now shown only for providers that can emit todo lists.
+Each provider declares its task support, tool names, and JSON format —
+Claude Code uses `TodoWrite` tool calls, OpenCode uses `todowrite` events,
+and Codex uses `todo_list` items. ACP providers do not show the tab.
+When a running session receives a task list update, the tasks tab refreshes
+immediately via a realtime event instead of waiting for the 3-second poll.
+
 ### 04/16 · New — Message history navigation
 Press Arrow Up when the cursor is at the start of the input to recall previous messages
 sent in that session, and Arrow Down when the cursor is at the end to go forward.

@@ -2,6 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import type { TaskItem } from '../lib/types';
   import { getSessionTasks } from '../lib/tauri';
+  import { taskUpdateTrigger } from '../lib/stores/tasks';
 
   export let sessionId: string;
 
@@ -21,6 +22,12 @@
     timer = setInterval(load, 3000);
   });
   onDestroy(() => clearInterval(timer));
+
+  const unsub = taskUpdateTrigger.subscribe((id) => {
+    if (id === Number(sessionId)) load();
+  });
+  onDestroy(() => unsub());
+
   $: if (sessionId) load();
 
   $: done = tasks.filter((t) => t.status === 'completed').length;
