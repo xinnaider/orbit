@@ -281,10 +281,7 @@ Kill a running agent.
       text = '';
       if (textarea) textarea.style.height = 'auto';
       // Resolve alias (e.g. "opus") to real model ID ("claude-opus-4-7")
-      const resolved =
-        provider === 'claude-code'
-          ? CLAUDE_MODEL_ALIASES[arg] ?? arg
-          : arg;
+      const resolved = provider === 'claude-code' ? (CLAUDE_MODEL_ALIASES[arg] ?? arg) : arg;
       await updateSessionModel(sessionId, resolved);
       sessions.update((l) =>
         updateSessionState(l, sessionId, { model: resolved, contextWindow: null })

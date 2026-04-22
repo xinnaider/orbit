@@ -4,6 +4,9 @@
 
 ## April 2026
 
+### 04/22 · Improvement — Copy always copies the full file content
+The copy button on file tool calls (Read, Edit, Write) now reads the actual file from disk and copies its current complete content to the clipboard. Previously, copying an Edit only grabbed the small replacement snippet, leaving most of the file behind. A fallback keeps copying inline data when the file cannot be accessed (for example, in remote SSH sessions).
+
 ### 04/22 · New — Copy content from any tool call
 Every tool call in the session feed now has a copy button. Clicking it copies the relevant content to the clipboard instantly. For file edits, it copies the new code; for file writes, it copies the entire file content; for bash commands, it copies the command itself; and for read/grep results, it copies the output. The button appears both inline in the feed and inside the fullscreen modal.
 

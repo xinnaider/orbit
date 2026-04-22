@@ -213,6 +213,7 @@
         sessionId={session.id}
         subagents={session.subagents ?? []}
         {refreshing}
+        cwd={session.cwd}
         onRefresh={refreshAgents}
       />
     {/if}

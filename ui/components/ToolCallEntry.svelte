@@ -41,6 +41,8 @@
   hljs.registerLanguage('markdown', markdownLang);
   hljs.registerLanguage('svelte', xml);
 
+  import { readFileContent } from '../lib/tauri/files';
+
   type DiffLine = {
     type: 'add' | 'rem' | 'ctx';
     text: string;
@@ -50,6 +52,7 @@
   export let entry: JournalEntry;
   export let resultEntry: JournalEntry | null = null;
   export let streamingEntries: JournalEntry[] = [];
+  export let cwd: string | null = null;
 
   let modalOpen = false;
   let copied = false;
@@ -60,13 +63,32 @@
     setTimeout(() => (copied = false), 1500);
   }
 
-  function getCopyContent(): string {
-    if (hasEditDiff && entry.toolInput?.new_string)
-      return entry.toolInput.new_string as string;
-    if (hasWriteContent && entry.toolInput?.content)
-      return entry.toolInput.content as string;
-    if (hasBashCommand && entry.toolInput?.command)
-      return entry.toolInput.command as string;
+  async function handleCopy() {
+    copyToClipboard(await getCopyContent());
+  }
+
+  function resolveFilePath(filePath: string, cwd: string | null): string {
+    if (!cwd || filePath.startsWith('/') || /^[A-Za-z]:/.test(filePath)) {
+      return filePath;
+    }
+    const base = cwd.replace(/\\/g, '/').replace(/\/$/, '');
+    const p = filePath.replace(/\\/g, '/').replace(/^\//, '');
+    return `${base}/${p}`;
+  }
+
+  async function getCopyContent(): Promise<string> {
+    const filePath = entry.toolInput?.file_path as string | undefined;
+    if (filePath) {
+      const resolved = resolveFilePath(filePath, cwd);
+      try {
+        return await readFileContent(resolved);
+      } catch {
+        // Fallback to inline content if file cannot be read
+      }
+    }
+    if (hasEditDiff && entry.toolInput?.new_string) return entry.toolInput.new_string as string;
+    if (hasWriteContent && entry.toolInput?.content) return entry.toolInput.content as string;
+    if (hasBashCommand && entry.toolInput?.command) return entry.toolInput.command as string;
     if (resultEntry?.output) {
       if (isReadTool) return stripLineNumbers(resultEntry.output).code;
       return resultEntry.output;
@@ -252,9 +274,9 @@
     {#if hasDetail || resultEntry?.output}
       <button
         class="copy-btn"
-        onclick={(e) => {
+        onclick={async (e) => {
           e.stopPropagation();
-          copyToClipboard(getCopyContent());
+          copyToClipboard(await getCopyContent());
         }}
         title={copied ? 'Copiado!' : 'Copiar conteúdo'}
       >
@@ -363,14 +385,16 @@
           <span class="tool {toolClass}">{entry.tool}</span>
           <span class="target mono">{target}</span>
         </div>
-        <button class="modal-close" onclick={() => (modalOpen = false)}>✕</button>
-        <button
-          class="copy-btn modal-copy-btn"
-          onclick={() => copyToClipboard(getCopyContent())}
-          title={copied ? 'Copiado!' : 'Copiar conteúdo'}
-        >
-          <Copy size={13} />
-        </button>
+        <div class="modal-actions">
+          <button
+            class="copy-btn modal-copy-btn"
+            onclick={async () => copyToClipboard(await getCopyContent())}
+            title={copied ? 'Copiado!' : 'Copiar conteúdo'}
+          >
+            <Copy size={13} />
+          </button>
+          <button class="modal-close" onclick={() => (modalOpen = false)}>✕</button>
+        </div>
       </div>
       <div class="modal-body detail">
         {#if hasEditDiff}
@@ -841,6 +865,12 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+  .modal-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    flex-shrink: 0;
   }
   .modal-close {
     background: none;

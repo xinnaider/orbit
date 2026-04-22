@@ -426,6 +426,11 @@ export async function mockInvoke(cmd: string, args?: Record<string, unknown>): P
     case 'list_project_files':
       return ['src/index.ts', 'src/auth/auth.ts', 'src/api/routes.ts', 'package.json', 'README.md'];
 
+    case 'read_file_content': {
+      const filePath = args?.path as string;
+      return `// Mock file content for: ${filePath}`;
+    }
+
     case 'update_session_model': {
       const id = args?.sessionId as number;
       const model = args?.model as string;

@@ -104,6 +104,7 @@ pub fn run() {
             commands::files::get_subagent_journal,
             commands::plugins::get_slash_commands,
             commands::files::list_project_files,
+            commands::files::read_file_content,
             commands::tasks::get_tasks,
             commands::stats::get_claude_usage_stats,
             commands::stats::get_rate_limits,
