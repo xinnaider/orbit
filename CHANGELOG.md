@@ -17,6 +17,14 @@ The sidebar now displays only real sessions without indented virtual children
 that appeared under their parent. Subagent status is still available in the
 agents tab on the right panel.
 
+### 04/22 · New — Tasks tab gated by provider capability
+The tasks tab is now shown only for providers that can emit todo lists.
+Each provider declares its task support, tool names, and JSON format —
+Claude Code uses `TodoWrite` tool calls, OpenCode uses `todowrite` events,
+and Codex uses `todo_list` items. ACP providers do not show the tab.
+When a running session receives a task list update, the tasks tab refreshes
+immediately via a realtime event instead of waiting for the 3-second poll.
+
 ### 04/16 · New — Message history navigation
 Press Arrow Up when the cursor is at the start of the input to recall previous messages
 sent in that session, and Arrow Down when the cursor is at the end to go forward.

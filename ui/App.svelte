@@ -12,6 +12,7 @@
   import { get } from 'svelte/store';
   import { assignSession, restoreWorkspace, workspace } from './lib/stores/workspace';
   import { journal } from './lib/stores/journal';
+  import { taskUpdateTrigger } from './lib/stores/tasks';
   import { addToast } from './lib/stores/toasts';
   import {
     listSessions,
@@ -24,6 +25,7 @@
     onSessionRunning,
     onSessionError,
     onSessionRateLimit,
+    onSessionTaskUpdate,
     getAppVersion,
     getChangelog,
   } from './lib/tauri';
@@ -168,8 +170,12 @@
       // Rate limit info is shown inline in the chat feed as a System entry
     });
 
+    const u8 = onSessionTaskUpdate((id) => {
+      taskUpdateTrigger.set(id);
+    });
+
     // Resolve all unlisten functions and store for cleanup
-    Promise.all([u1, u2, u3, u4, u5, u6, u7]).then((fns) => {
+    Promise.all([u1, u2, u3, u4, u5, u6, u7, u8]).then((fns) => {
       unlisteners = fns;
     });
 

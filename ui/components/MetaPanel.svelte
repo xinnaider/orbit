@@ -15,6 +15,7 @@
 
   type Tab = 'stats' | 'tasks' | 'agents';
   let tab: Tab = 'stats';
+  $: if (!caps.supportsTasks && tab === 'tasks') tab = 'stats';
 
   let refreshing = false;
 
@@ -51,9 +52,11 @@
     <button class="tab" class:active={tab === 'stats'} on:click={() => (tab = 'stats')}
       >stats</button
     >
-    <button class="tab" class:active={tab === 'tasks'} on:click={() => (tab = 'tasks')}
-      >tasks</button
-    >
+    {#if caps.supportsTasks}
+      <button class="tab" class:active={tab === 'tasks'} on:click={() => (tab = 'tasks')}
+        >tasks</button
+      >
+    {/if}
     <button class="tab" class:active={tab === 'agents'} on:click={() => (tab = 'agents')}
       >agents</button
     >

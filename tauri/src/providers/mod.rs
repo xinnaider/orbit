@@ -67,6 +67,17 @@ pub trait Provider: Send + Sync {
     /// a `session:subagent-created` event is emitted.
     fn subagent_tool_names(&self) -> &[&str];
 
+    /// Whether this provider can emit task lists (shown in the tasks tab).
+    fn supports_tasks(&self) -> bool;
+
+    /// Tool/structure names that represent a task list emission for this provider.
+    /// Used by the realtime parser to detect task updates in the output stream.
+    fn task_tool_names(&self) -> &[&str];
+
+    /// The JSON structure format this provider uses for task lists.
+    /// Used by get_tasks to select the correct parser.
+    fn task_format(&self) -> crate::models::TaskFormat;
+
     /// Return a fn pointer for parsing JSONL lines in a Send thread.
     /// Needed because `&dyn Provider` is not Send across thread boundaries.
     fn line_processor(&self) -> fn(&mut crate::journal::JournalState, &str);
@@ -199,6 +210,15 @@ mod tests {
         }
         fn subagent_tool_names(&self) -> &[&str] {
             &[]
+        }
+        fn supports_tasks(&self) -> bool {
+            false
+        }
+        fn task_tool_names(&self) -> &[&str] {
+            &[]
+        }
+        fn task_format(&self) -> crate::models::TaskFormat {
+            crate::models::TaskFormat::ClaudeToolUse
         }
         fn line_processor(&self) -> fn(&mut crate::journal::JournalState, &str) {
             |_, _| {}

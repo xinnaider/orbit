@@ -110,6 +110,15 @@ impl Provider for OpenCodeProvider {
     fn subagent_tool_names(&self) -> &[&str] {
         &["Task"]
     }
+    fn supports_tasks(&self) -> bool {
+        true
+    }
+    fn task_tool_names(&self) -> &[&str] {
+        &["todowrite"]
+    }
+    fn task_format(&self) -> crate::models::TaskFormat {
+        crate::models::TaskFormat::OpenCodeToolUse
+    }
     fn line_processor(&self) -> fn(&mut JournalState, &str) {
         crate::journal::process_line_opencode
     }

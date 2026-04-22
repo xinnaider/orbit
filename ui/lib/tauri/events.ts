@@ -54,3 +54,7 @@ export function onSessionError(cb: (sessionId: number, error: string) => void) {
 export function onSessionRateLimit(cb: (sessionId: number) => void) {
   return listen<{ sessionId: number }>('session:rate-limit', (e) => cb(e.payload.sessionId));
 }
+
+export function onSessionTaskUpdate(cb: (sessionId: number) => void) {
+  return listen<{ sessionId: number }>('session:task-update', (e) => cb(e.payload.sessionId));
+}

@@ -498,6 +498,11 @@ impl SessionManager {
             .iter()
             .map(|s| s.to_string())
             .collect();
+        let task_tools: Vec<String> = provider
+            .task_tool_names()
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
 
         // 11. Reader loop
         Self::reader_loop(
@@ -509,6 +514,7 @@ impl SessionManager {
             handle.child,
             line_processor,
             subagent_tools,
+            task_tools,
         );
     }
 
@@ -576,6 +582,7 @@ impl SessionManager {
         mut child: std::process::Child,
         line_processor: fn(&mut JournalState, &str),
         subagent_tools: Vec<String>,
+        task_tools: Vec<String>,
     ) {
         use std::io::BufRead;
         let mut reader = std::io::BufReader::new(reader);
@@ -760,6 +767,20 @@ impl SessionManager {
                                             "parentSessionId": session_id,
                                             "description": desc,
                                             "tool": tool,
+                                        }),
+                                    );
+                                }
+                            }
+                        }
+
+                        // Detect task list updates
+                        if e.entry_type == crate::models::JournalEntryType::ToolCall {
+                            if let Some(ref tool) = e.tool {
+                                if task_tools.contains(tool) {
+                                    let _ = app.emit(
+                                        "session:task-update",
+                                        serde_json::json!({
+                                            "sessionId": session_id,
                                         }),
                                     );
                                 }

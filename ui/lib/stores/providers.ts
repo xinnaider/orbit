@@ -7,6 +7,7 @@ export interface ProviderCaps {
   supportsEffort: boolean;
   supportsSsh: boolean;
   supportsSubagents: boolean;
+  supportsTasks: boolean;
   hasSubProviders: boolean;
   effortLevels: Record<string, string[]>;
 }
@@ -15,6 +16,7 @@ const DEFAULT_CAPS: ProviderCaps = {
   supportsEffort: false,
   supportsSsh: false,
   supportsSubagents: false,
+  supportsTasks: false,
   hasSubProviders: false,
   effortLevels: {},
 };
@@ -27,6 +29,7 @@ export const providerCaps = derived(backends, ($backends) => {
       supportsEffort: b.supportsEffort,
       supportsSsh: b.supportsSsh,
       supportsSubagents: b.supportsSubagents,
+      supportsTasks: b.supportsTasks,
       hasSubProviders: b.hasSubProviders,
       effortLevels: b.effortLevels,
     });

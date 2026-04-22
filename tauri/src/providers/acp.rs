@@ -131,6 +131,19 @@ impl Provider for AcpProvider {
         &["Task"]
     }
 
+    fn supports_tasks(&self) -> bool {
+        false
+    }
+
+    fn task_tool_names(&self) -> &[&str] {
+        &[]
+    }
+
+    fn task_format(&self) -> crate::models::TaskFormat {
+        // Fallback — never used because supports_tasks is false
+        crate::models::TaskFormat::ClaudeToolUse
+    }
+
     fn line_processor(&self) -> fn(&mut JournalState, &str) {
         process_acp_line
     }
