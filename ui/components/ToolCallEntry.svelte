@@ -96,6 +96,11 @@
     return '';
   }
 
+  function getBashOutputContent(): string {
+    if (resultEntry?.output) return resultEntry.output;
+    return '';
+  }
+
   $: toolClass = (entry.tool ?? '').toLowerCase();
   $: target = extractTarget(entry);
   $: timeStr = entry.timestamp.slice(11, 16);
@@ -272,16 +277,39 @@
       </span>
     {/if}
     {#if hasDetail || resultEntry?.output}
-      <button
-        class="copy-btn"
-        onclick={async (e) => {
-          e.stopPropagation();
-          copyToClipboard(await getCopyContent());
-        }}
-        title={copied ? 'Copiado!' : 'Copiar conteúdo'}
-      >
-        <Copy size={11} />
-      </button>
+      {#if hasBashCommand && resultEntry?.output}
+        <button
+          class="copy-btn"
+          onclick={(e) => {
+            e.stopPropagation();
+            copyToClipboard(entry.toolInput!.command as string);
+          }}
+          title="Copiar comando"
+        >
+          <Copy size={11} /> command
+        </button>
+        <button
+          class="copy-btn"
+          onclick={(e) => {
+            e.stopPropagation();
+            copyToClipboard(resultEntry.output!);
+          }}
+          title="Copiar output"
+        >
+          <Copy size={11} /> output
+        </button>
+      {:else}
+        <button
+          class="copy-btn"
+          onclick={async (e) => {
+            e.stopPropagation();
+            copyToClipboard(await getCopyContent());
+          }}
+          title="Copiar conteúdo"
+        >
+          <Copy size={11} /> content
+        </button>
+      {/if}
       <button
         class="expand-btn"
         onclick={(e) => {
@@ -386,13 +414,30 @@
           <span class="target mono">{target}</span>
         </div>
         <div class="modal-actions">
-          <button
-            class="copy-btn modal-copy-btn"
-            onclick={async () => copyToClipboard(await getCopyContent())}
-            title={copied ? 'Copiado!' : 'Copiar conteúdo'}
-          >
-            <Copy size={13} />
-          </button>
+          {#if hasBashCommand && resultEntry?.output}
+            <button
+              class="copy-btn modal-copy-btn"
+              onclick={() => copyToClipboard(entry.toolInput!.command as string)}
+              title="Copiar comando"
+            >
+              <Copy size={13} /> command
+            </button>
+            <button
+              class="copy-btn modal-copy-btn"
+              onclick={() => copyToClipboard(resultEntry.output!)}
+              title="Copiar output"
+            >
+              <Copy size={13} /> output
+            </button>
+          {:else}
+            <button
+              class="copy-btn modal-copy-btn"
+              onclick={async () => copyToClipboard(await getCopyContent())}
+              title="Copiar conteúdo"
+            >
+              <Copy size={13} /> content
+            </button>
+          {/if}
           <button class="modal-close" onclick={() => (modalOpen = false)}>✕</button>
         </div>
       </div>
@@ -570,6 +615,9 @@
 
   .copy-btn {
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-1);
     background: var(--bg3);
     border: 1px solid var(--bd1);
     color: var(--t1);
