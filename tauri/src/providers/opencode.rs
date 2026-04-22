@@ -98,6 +98,9 @@ impl Provider for OpenCodeProvider {
     fn supports_effort(&self) -> bool {
         false
     }
+    fn effort_levels(&self, _model: &str) -> &[&str] {
+        &[]
+    }
     fn supports_ssh(&self) -> bool {
         false // SSH not yet supported for OpenCode
     }

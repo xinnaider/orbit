@@ -137,7 +137,7 @@ pub fn send_session_message(
         let arg = trimmed.get(8..).unwrap_or("").trim();
         if arg.is_empty() {
             return Err(IpcError::Other(
-                "Usage: /effort <level> (low, medium, high, max)".to_string(),
+                "Usage: /effort <level>".to_string(),
             ));
         }
         state.write().update_session_effort(session_id, arg)?;

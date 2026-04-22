@@ -115,6 +115,10 @@ impl Provider for AcpProvider {
         false
     }
 
+    fn effort_levels(&self, _model: &str) -> &[&str] {
+        &[]
+    }
+
     fn supports_ssh(&self) -> bool {
         false
     }

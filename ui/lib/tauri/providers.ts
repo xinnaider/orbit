@@ -27,6 +27,7 @@ export interface CliBackend {
   hasSubProviders: boolean;
   models: ModelInfo[];
   subProviders: SubProvider[];
+  effortLevels: Record<string, string[]>;
 }
 
 export interface SshDiagnostic {

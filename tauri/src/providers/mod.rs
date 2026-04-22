@@ -52,6 +52,10 @@ pub trait Provider: Send + Sync {
     /// Whether this provider supports the `effort` parameter.
     fn supports_effort(&self) -> bool;
 
+    /// Effort levels supported for a specific model, or empty slice if effort is not supported.
+    /// For Claude Code, Opus 4.7 supports an extended list (low, medium, high, xhigh, max, auto).
+    fn effort_levels(&self, model: &str) -> &[&str];
+
     /// Whether this provider supports SSH remote sessions.
     fn supports_ssh(&self) -> bool;
 
@@ -179,6 +183,13 @@ mod tests {
 
         fn supports_effort(&self) -> bool {
             self.mock_effort
+        }
+        fn effort_levels(&self, _model: &str) -> &[&str] {
+            if self.mock_effort {
+                &["low", "medium", "high", "max"]
+            } else {
+                &[]
+            }
         }
         fn supports_ssh(&self) -> bool {
             false

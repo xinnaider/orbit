@@ -8,6 +8,7 @@ export interface ProviderCaps {
   supportsSsh: boolean;
   supportsSubagents: boolean;
   hasSubProviders: boolean;
+  effortLevels: Record<string, string[]>;
 }
 
 const DEFAULT_CAPS: ProviderCaps = {
@@ -15,6 +16,7 @@ const DEFAULT_CAPS: ProviderCaps = {
   supportsSsh: false,
   supportsSubagents: false,
   hasSubProviders: false,
+  effortLevels: {},
 };
 
 /** Map of provider ID → capabilities, derived from the backends list. */
@@ -26,6 +28,7 @@ export const providerCaps = derived(backends, ($backends) => {
       supportsSsh: b.supportsSsh,
       supportsSubagents: b.supportsSubagents,
       hasSubProviders: b.hasSubProviders,
+      effortLevels: b.effortLevels,
     });
   }
   return map;

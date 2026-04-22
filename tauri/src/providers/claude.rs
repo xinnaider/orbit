@@ -102,6 +102,13 @@ impl Provider for ClaudeProvider {
     fn supports_effort(&self) -> bool {
         true
     }
+    fn effort_levels(&self, model: &str) -> &[&str] {
+        if model.contains("opus-4-7") {
+            &["low", "medium", "high", "xhigh", "max", "auto"]
+        } else {
+            &["low", "medium", "high", "max"]
+        }
+    }
     fn supports_ssh(&self) -> bool {
         true
     }

@@ -45,7 +45,11 @@
       : provider === 'codex'
         ? CODEX_MODELS
         : providerModels;
-  const EFFORT_LEVELS = ['low', 'medium', 'high', 'max'];
+
+  // Effort levels from provider (model-aware) — falls back to global default
+  $: currentModel = $sessions.find((s) => s.id === sessionId)?.model ?? '';
+  $: effortLevels = caps.effortLevels[currentModel] ??
+    caps.effortLevels['auto'] ?? ['low', 'medium', 'high', 'max'];
 
   // Orbit-native commands — provider-aware
   $: modelHint =
@@ -270,8 +274,8 @@ Kill a running agent.
     // Intercept /effort (Claude Code only)
     if (cmd === '/effort' && caps.supportsEffort) {
       const arg = msg.slice(7).trim().toLowerCase();
-      if (!arg || !EFFORT_LEVELS.includes(arg)) {
-        sendError = `Usage: /effort <level> (${EFFORT_LEVELS.join(', ')})`;
+      if (!arg || !effortLevels.includes(arg)) {
+        sendError = `Usage: /effort <level> (${effortLevels.join(', ')})`;
         setTimeout(() => (sendError = ''), 5000);
         return;
       }
@@ -464,6 +468,7 @@ Kill a running agent.
     {providerModels}
     modelOptions={MODEL_OPTIONS}
     supportsEffort={caps.supportsEffort}
+    {effortLevels}
     {files}
     atQuery={aq}
     on:select={handlePickerSelect}

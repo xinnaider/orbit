@@ -11,7 +11,8 @@ Subagent spawns are detected dynamically based on each provider's tool names
 a hardcoded check that previously blocked Codex and OpenCode users from seeing
 sub-agents.
 
-### 04/22 · New — Sidebar no longer shows virtual subagent sessions
+### 04/22 · New — Claude Opus 4.7 with extended effort levels
+Claude Opus 4.7 is now available in the model selector, alongside its 1-million-token context variant. When Opus 4.7 is selected, two additional effort levels appear in the /effort command: `xhigh` and `auto`. Other models continue to offer the classic `low`, `medium`, `high`, and `max` levels.
 The sidebar now displays only real sessions without indented virtual children
 that appeared under their parent. Subagent status is still available in the
 agents tab on the right panel.

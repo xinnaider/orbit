@@ -33,6 +33,8 @@ pub struct CliBackend {
     pub models: Vec<ModelInfo>,
     /// Sub-providers (for opencode only)
     pub sub_providers: Vec<SubProvider>,
+    /// Effort levels keyed by model glob; empty when effort not supported.
+    pub effort_levels: std::collections::HashMap<String, Vec<String>>,
 }
 
 /// Return all CLI backends with their capabilities and models.
@@ -57,6 +59,17 @@ pub fn get_providers(
         .iter()
         .map(|p| {
             let has_subs = p.id() == "opencode" && !opencode_sub_providers.is_empty();
+            let models = get_provider_models(p.id());
+            let mut effort_levels = std::collections::HashMap::new();
+            for model in &models {
+                let levels = p.effort_levels(&model.id);
+                if !levels.is_empty() {
+                    effort_levels.insert(
+                        model.id.clone(),
+                        levels.iter().map(|s| s.to_string()).collect(),
+                    );
+                }
+            }
             CliBackend {
                 id: p.id().to_string(),
                 name: p.display_name().to_string(),
@@ -67,7 +80,8 @@ pub fn get_providers(
                 supports_ssh: p.supports_ssh(),
                 supports_subagents: p.supports_subagents(),
                 has_sub_providers: has_subs,
-                models: get_provider_models(p.id()),
+                effort_levels,
+                models,
                 sub_providers: if has_subs {
                     opencode_sub_providers.clone()
                 } else {

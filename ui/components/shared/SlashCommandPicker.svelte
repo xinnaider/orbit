@@ -8,10 +8,9 @@
   export let providerModels: string[] = [];
   export let modelOptions: string[] = [];
   export let supportsEffort: boolean = false;
+  export let effortLevels: string[] = ['low', 'medium', 'high', 'max'];
   export let files: string[] = [];
   export let atQuery: string | null = null;
-
-  const EFFORT_LEVELS = ['low', 'medium', 'high', 'max'];
 
   const dispatch = createEventDispatcher<{
     select: { type: 'cmd' | 'subOption' | 'file'; value: string };
@@ -28,7 +27,7 @@
       return filtered.slice(0, 10);
     } else if (lower.startsWith('/effort ') && supportsEffort) {
       const arg = lower.slice(8);
-      return EFFORT_LEVELS.filter((o) => o.startsWith(arg));
+      return effortLevels.filter((o) => o.startsWith(arg));
     }
     return [];
   })();

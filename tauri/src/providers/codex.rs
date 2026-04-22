@@ -92,6 +92,9 @@ impl Provider for CodexProvider {
     fn supports_effort(&self) -> bool {
         false
     }
+    fn effort_levels(&self, _model: &str) -> &[&str] {
+        &[]
+    }
     fn supports_ssh(&self) -> bool {
         true
     }
