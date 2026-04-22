@@ -38,6 +38,12 @@
 
   // Model aliases per backend
   const CLAUDE_MODELS = ['opus', 'opus-1m', 'sonnet', 'haiku'];
+  const CLAUDE_MODEL_ALIASES: Record<string, string> = {
+    opus: 'claude-opus-4-7',
+    'opus-1m': 'claude-opus-4-7[1m]',
+    sonnet: 'claude-sonnet-4-6',
+    haiku: 'claude-haiku-4-5-20251001',
+  };
   const CODEX_MODELS = ['gpt-5.4', 'gpt-5.4-mini', 'gpt-5.3-codex', 'gpt-5.2'];
   $: MODEL_OPTIONS =
     provider === 'claude-code'
@@ -265,9 +271,16 @@ Kill a running agent.
       }
       text = '';
       if (textarea) textarea.style.height = 'auto';
-      await updateSessionModel(sessionId, arg);
-      sessions.update((l) => updateSessionState(l, sessionId, { model: arg, contextWindow: null }));
-      emitSystemEntry(`Model changed to ${arg}`);
+      // Resolve alias (e.g. "opus") to real model ID ("claude-opus-4-7")
+      const resolved =
+        provider === 'claude-code'
+          ? CLAUDE_MODEL_ALIASES[arg] ?? arg
+          : arg;
+      await updateSessionModel(sessionId, resolved);
+      sessions.update((l) =>
+        updateSessionState(l, sessionId, { model: resolved, contextWindow: null })
+      );
+      emitSystemEntry(`Model changed to ${resolved}`);
       return;
     }
 

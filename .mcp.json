@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "orbit": {
-      "command": "tauri/binaries/orbit-mcp-x86_64-pc-windows-msvc.exe"
+      "command": "C:\\Users\\fernandonepen\\Documents\\orbit\\tauri\\target\\debug\\orbit-mcp.exe"
     }
   }
 }
