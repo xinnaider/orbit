@@ -13,6 +13,7 @@
     Wrench,
     Settings,
     Maximize2,
+    Copy,
   } from 'lucide-svelte';
   import hljs from 'highlight.js/lib/core';
   import javascript from 'highlight.js/lib/languages/javascript';
@@ -51,6 +52,27 @@
   export let streamingEntries: JournalEntry[] = [];
 
   let modalOpen = false;
+  let copied = false;
+
+  function copyToClipboard(text: string) {
+    navigator.clipboard.writeText(text);
+    copied = true;
+    setTimeout(() => (copied = false), 1500);
+  }
+
+  function getCopyContent(): string {
+    if (hasEditDiff && entry.toolInput?.new_string)
+      return entry.toolInput.new_string as string;
+    if (hasWriteContent && entry.toolInput?.content)
+      return entry.toolInput.content as string;
+    if (hasBashCommand && entry.toolInput?.command)
+      return entry.toolInput.command as string;
+    if (resultEntry?.output) {
+      if (isReadTool) return stripLineNumbers(resultEntry.output).code;
+      return resultEntry.output;
+    }
+    return '';
+  }
 
   $: toolClass = (entry.tool ?? '').toLowerCase();
   $: target = extractTarget(entry);
@@ -229,6 +251,16 @@
     {/if}
     {#if hasDetail || resultEntry?.output}
       <button
+        class="copy-btn"
+        onclick={(e) => {
+          e.stopPropagation();
+          copyToClipboard(getCopyContent());
+        }}
+        title={copied ? 'Copiado!' : 'Copiar conteúdo'}
+      >
+        <Copy size={11} />
+      </button>
+      <button
         class="expand-btn"
         onclick={(e) => {
           e.stopPropagation();
@@ -332,6 +364,13 @@
           <span class="target mono">{target}</span>
         </div>
         <button class="modal-close" onclick={() => (modalOpen = false)}>✕</button>
+        <button
+          class="copy-btn modal-copy-btn"
+          onclick={() => copyToClipboard(getCopyContent())}
+          title={copied ? 'Copiado!' : 'Copiar conteúdo'}
+        >
+          <Copy size={13} />
+        </button>
       </div>
       <div class="modal-body detail">
         {#if hasEditDiff}
@@ -503,6 +542,29 @@
     background: var(--bg4);
     color: var(--user-fg);
     border-color: var(--user-fg);
+  }
+
+  .copy-btn {
+    flex-shrink: 0;
+    background: var(--bg3);
+    border: 1px solid var(--bd1);
+    color: var(--t1);
+    font-size: 11px;
+    cursor: pointer;
+    padding: var(--sp-1) var(--sp-3);
+    border-radius: var(--radius-md);
+    line-height: 1;
+    transition: all 0.15s;
+  }
+  .copy-btn:hover {
+    background: var(--bg4);
+    color: var(--user-fg);
+    border-color: var(--user-fg);
+  }
+  .copy-btn:active {
+    background: var(--ac-bg, rgba(0, 212, 126, 0.2));
+    color: var(--ac);
+    border-color: var(--ac);
   }
 
   .detail {
@@ -790,6 +852,14 @@
     border-radius: var(--radius-md);
   }
   .modal-close:hover {
+    background: var(--bg3);
+    color: var(--t0);
+  }
+  .modal-copy-btn {
+    padding: var(--sp-2) var(--sp-4);
+    color: var(--t1);
+  }
+  .modal-copy-btn:hover {
     background: var(--bg3);
     color: var(--t0);
   }

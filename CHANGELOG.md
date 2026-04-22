@@ -4,6 +4,9 @@
 
 ## April 2026
 
+### 04/22 · New — Copy content from any tool call
+Every tool call in the session feed now has a copy button. Clicking it copies the relevant content to the clipboard instantly. For file edits, it copies the new code; for file writes, it copies the entire file content; for bash commands, it copies the command itself; and for read/grep results, it copies the output. The button appears both inline in the feed and inside the fullscreen modal.
+
 ### 04/22 · Fix — Display model alias instead of raw ID
 When Claude Opus 4.7 is selected, the sidebar and top bar now display "Opus 4.7" instead of the internal model ID. The display name was missing from the frontend lookup table, causing the raw name to leak through.
 
