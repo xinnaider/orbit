@@ -13,6 +13,7 @@
     Wrench,
     Settings,
     Maximize2,
+    Copy,
   } from 'lucide-svelte';
   import hljs from 'highlight.js/lib/core';
   import javascript from 'highlight.js/lib/languages/javascript';
@@ -40,6 +41,8 @@
   hljs.registerLanguage('markdown', markdownLang);
   hljs.registerLanguage('svelte', xml);
 
+  import { readFileContent } from '../lib/tauri/files';
+
   type DiffLine = {
     type: 'add' | 'rem' | 'ctx';
     text: string;
@@ -49,8 +52,54 @@
   export let entry: JournalEntry;
   export let resultEntry: JournalEntry | null = null;
   export let streamingEntries: JournalEntry[] = [];
+  export let cwd: string | null = null;
 
   let modalOpen = false;
+  let copied = false;
+
+  function copyToClipboard(text: string) {
+    navigator.clipboard.writeText(text);
+    copied = true;
+    setTimeout(() => (copied = false), 1500);
+  }
+
+  async function handleCopy() {
+    copyToClipboard(await getCopyContent());
+  }
+
+  function resolveFilePath(filePath: string, cwd: string | null): string {
+    if (!cwd || filePath.startsWith('/') || /^[A-Za-z]:/.test(filePath)) {
+      return filePath;
+    }
+    const base = cwd.replace(/\\/g, '/').replace(/\/$/, '');
+    const p = filePath.replace(/\\/g, '/').replace(/^\//, '');
+    return `${base}/${p}`;
+  }
+
+  async function getCopyContent(): Promise<string> {
+    const filePath = entry.toolInput?.file_path as string | undefined;
+    if (filePath) {
+      const resolved = resolveFilePath(filePath, cwd);
+      try {
+        return await readFileContent(resolved);
+      } catch {
+        // Fallback to inline content if file cannot be read
+      }
+    }
+    if (hasEditDiff && entry.toolInput?.new_string) return entry.toolInput.new_string as string;
+    if (hasWriteContent && entry.toolInput?.content) return entry.toolInput.content as string;
+    if (hasBashCommand && entry.toolInput?.command) return entry.toolInput.command as string;
+    if (resultEntry?.output) {
+      if (isReadTool) return stripLineNumbers(resultEntry.output).code;
+      return resultEntry.output;
+    }
+    return '';
+  }
+
+  function getBashOutputContent(): string {
+    if (resultEntry?.output) return resultEntry.output;
+    return '';
+  }
 
   $: toolClass = (entry.tool ?? '').toLowerCase();
   $: target = extractTarget(entry);
@@ -228,6 +277,39 @@
       </span>
     {/if}
     {#if hasDetail || resultEntry?.output}
+      {#if hasBashCommand && resultEntry?.output}
+        <button
+          class="copy-btn"
+          onclick={(e) => {
+            e.stopPropagation();
+            copyToClipboard(entry.toolInput!.command as string);
+          }}
+          title="Copiar comando"
+        >
+          <Copy size={11} /> command
+        </button>
+        <button
+          class="copy-btn"
+          onclick={(e) => {
+            e.stopPropagation();
+            copyToClipboard(resultEntry.output!);
+          }}
+          title="Copiar output"
+        >
+          <Copy size={11} /> output
+        </button>
+      {:else}
+        <button
+          class="copy-btn"
+          onclick={async (e) => {
+            e.stopPropagation();
+            copyToClipboard(await getCopyContent());
+          }}
+          title="Copiar conteúdo"
+        >
+          <Copy size={11} /> content
+        </button>
+      {/if}
       <button
         class="expand-btn"
         onclick={(e) => {
@@ -331,7 +413,33 @@
           <span class="tool {toolClass}">{entry.tool}</span>
           <span class="target mono">{target}</span>
         </div>
-        <button class="modal-close" onclick={() => (modalOpen = false)}>✕</button>
+        <div class="modal-actions">
+          {#if hasBashCommand && resultEntry?.output}
+            <button
+              class="copy-btn modal-copy-btn"
+              onclick={() => copyToClipboard(entry.toolInput!.command as string)}
+              title="Copiar comando"
+            >
+              <Copy size={13} /> command
+            </button>
+            <button
+              class="copy-btn modal-copy-btn"
+              onclick={() => copyToClipboard(resultEntry.output!)}
+              title="Copiar output"
+            >
+              <Copy size={13} /> output
+            </button>
+          {:else}
+            <button
+              class="copy-btn modal-copy-btn"
+              onclick={async () => copyToClipboard(await getCopyContent())}
+              title="Copiar conteúdo"
+            >
+              <Copy size={13} /> content
+            </button>
+          {/if}
+          <button class="modal-close" onclick={() => (modalOpen = false)}>✕</button>
+        </div>
       </div>
       <div class="modal-body detail">
         {#if hasEditDiff}
@@ -503,6 +611,32 @@
     background: var(--bg4);
     color: var(--user-fg);
     border-color: var(--user-fg);
+  }
+
+  .copy-btn {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-1);
+    background: var(--bg3);
+    border: 1px solid var(--bd1);
+    color: var(--t1);
+    font-size: 11px;
+    cursor: pointer;
+    padding: var(--sp-1) var(--sp-3);
+    border-radius: var(--radius-md);
+    line-height: 1;
+    transition: all 0.15s;
+  }
+  .copy-btn:hover {
+    background: var(--bg4);
+    color: var(--user-fg);
+    border-color: var(--user-fg);
+  }
+  .copy-btn:active {
+    background: var(--ac-bg, rgba(0, 212, 126, 0.2));
+    color: var(--ac);
+    border-color: var(--ac);
   }
 
   .detail {
@@ -780,6 +914,12 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  .modal-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    flex-shrink: 0;
+  }
   .modal-close {
     background: none;
     border: none;
@@ -790,6 +930,14 @@
     border-radius: var(--radius-md);
   }
   .modal-close:hover {
+    background: var(--bg3);
+    color: var(--t0);
+  }
+  .modal-copy-btn {
+    padding: var(--sp-2) var(--sp-4);
+    color: var(--t1);
+  }
+  .modal-copy-btn:hover {
     background: var(--bg3);
     color: var(--t0);
   }

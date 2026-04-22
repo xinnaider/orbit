@@ -8,6 +8,7 @@
   export let entries: JournalEntry[] = [];
   export let status: string = '';
   export let provider: string = 'claude-code';
+  export let cwd: string | null = null;
 
   $: agentLabel = (() => {
     const direct = $backends.find((b) => b.id === provider);
@@ -264,7 +265,7 @@
       </div>
     {:else if e.entryType === 'toolCall'}
       <div class="row tool">
-        <ToolCallEntry entry={e} resultEntry={r} streamingEntries={s} />
+        <ToolCallEntry entry={e} resultEntry={r} streamingEntries={s} {cwd} />
       </div>
     {:else if e.entryType === 'system'}
       <div class="row system">

@@ -24,9 +24,13 @@ export interface CliBackend {
   supportsEffort: boolean;
   supportsSsh: boolean;
   supportsSubagents: boolean;
+  supportsTasks: boolean;
   hasSubProviders: boolean;
   models: ModelInfo[];
   subProviders: SubProvider[];
+  effortLevels: Record<string, string[]>;
+  taskToolNames: string[];
+  taskFormat: string;
 }
 
 export interface SshDiagnostic {

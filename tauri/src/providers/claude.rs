@@ -102,8 +102,30 @@ impl Provider for ClaudeProvider {
     fn supports_effort(&self) -> bool {
         true
     }
+    fn effort_levels(&self, model: &str) -> &[&str] {
+        if model.contains("opus-4-7") {
+            &["low", "medium", "high", "xhigh", "max", "auto"]
+        } else {
+            &["low", "medium", "high", "max"]
+        }
+    }
     fn supports_ssh(&self) -> bool {
         true
+    }
+    fn supports_subagents(&self) -> bool {
+        true
+    }
+    fn subagent_tool_names(&self) -> &[&str] {
+        &["Agent", "Task"]
+    }
+    fn supports_tasks(&self) -> bool {
+        true
+    }
+    fn task_tool_names(&self) -> &[&str] {
+        &["TodoWrite"]
+    }
+    fn task_format(&self) -> crate::models::TaskFormat {
+        crate::models::TaskFormat::ClaudeToolUse
     }
     fn line_processor(&self) -> fn(&mut JournalState, &str) {
         crate::journal::process_line

@@ -426,6 +426,11 @@ export async function mockInvoke(cmd: string, args?: Record<string, unknown>): P
     case 'list_project_files':
       return ['src/index.ts', 'src/auth/auth.ts', 'src/api/routes.ts', 'package.json', 'README.md'];
 
+    case 'read_file_content': {
+      const filePath = args?.path as string;
+      return `// Mock file content for: ${filePath}`;
+    }
+
     case 'update_session_model': {
       const id = args?.sessionId as number;
       const model = args?.model as string;
@@ -466,13 +471,23 @@ export async function mockInvoke(cmd: string, args?: Record<string, unknown>): P
           supportsEffort: true,
           supportsSsh: true,
           supportsSubagents: true,
+          supportsTasks: true,
           hasSubProviders: false,
           models: [
             { id: 'auto', name: 'auto', context: null, output: null },
+            { id: 'claude-opus-4-7', name: 'opus-4.7', context: 1000000, output: 128000 },
             { id: 'claude-sonnet-4-6', name: 'sonnet-4.6', context: 1000000, output: 64000 },
             { id: 'claude-opus-4-6', name: 'opus-4.6', context: 1000000, output: 128000 },
           ],
           subProviders: [],
+          effortLevels: {
+            'claude-opus-4-7': ['low', 'medium', 'high', 'xhigh', 'max', 'auto'],
+            auto: ['low', 'medium', 'high', 'max'],
+            'claude-opus-4-6': ['low', 'medium', 'high', 'max'],
+            'claude-sonnet-4-6': ['low', 'medium', 'high', 'max'],
+          },
+          taskToolNames: ['TodoWrite'],
+          taskFormat: 'claude_tool_use',
         },
         {
           id: 'codex',
@@ -480,7 +495,8 @@ export async function mockInvoke(cmd: string, args?: Record<string, unknown>): P
           cliAvailable: true,
           supportsEffort: false,
           supportsSsh: true,
-          supportsSubagents: false,
+          supportsSubagents: true,
+          supportsTasks: true,
           hasSubProviders: false,
           models: [
             { id: 'gpt-5.4', name: 'gpt-5.4', context: null, output: null },
@@ -489,6 +505,9 @@ export async function mockInvoke(cmd: string, args?: Record<string, unknown>): P
             { id: 'gpt-5.2', name: 'gpt-5.2', context: null, output: null },
           ],
           subProviders: [],
+          effortLevels: {},
+          taskToolNames: ['todo_list'],
+          taskFormat: 'codex_item_list',
         },
         {
           id: 'opencode',
@@ -497,6 +516,7 @@ export async function mockInvoke(cmd: string, args?: Record<string, unknown>): P
           supportsEffort: false,
           supportsSsh: false,
           supportsSubagents: false,
+          supportsTasks: true,
           hasSubProviders: true,
           models: [],
           subProviders: [
@@ -529,6 +549,9 @@ export async function mockInvoke(cmd: string, args?: Record<string, unknown>): P
               ],
             },
           ],
+          effortLevels: {},
+          taskToolNames: ['todowrite'],
+          taskFormat: 'opencode_tool_use',
         },
       ];
 
