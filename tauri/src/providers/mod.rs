@@ -55,6 +55,14 @@ pub trait Provider: Send + Sync {
     /// Whether this provider supports SSH remote sessions.
     fn supports_ssh(&self) -> bool;
 
+    /// Whether this CLI can spawn sub-agents (shown in the agents tab).
+    fn supports_subagents(&self) -> bool;
+
+    /// Tool names that represent a sub-agent spawn.
+    /// When the journal sees a `ToolCall` with one of these names,
+    /// a `session:subagent-created` event is emitted.
+    fn subagent_tool_names(&self) -> &[&str];
+
     /// Return a fn pointer for parsing JSONL lines in a Send thread.
     /// Needed because `&dyn Provider` is not Send across thread boundaries.
     fn line_processor(&self) -> fn(&mut crate::journal::JournalState, &str);
@@ -174,6 +182,12 @@ mod tests {
         }
         fn supports_ssh(&self) -> bool {
             false
+        }
+        fn supports_subagents(&self) -> bool {
+            false
+        }
+        fn subagent_tool_names(&self) -> &[&str] {
+            &[]
         }
         fn line_processor(&self) -> fn(&mut crate::journal::JournalState, &str) {
             |_, _| {}

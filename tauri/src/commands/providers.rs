@@ -65,7 +65,7 @@ pub fn get_providers(
                 install_hint: p.install_hint().to_string(),
                 supports_effort: p.supports_effort(),
                 supports_ssh: p.supports_ssh(),
-                supports_subagents: p.id() == "claude-code", // only Claude has subagents
+                supports_subagents: p.supports_subagents(),
                 has_sub_providers: has_subs,
                 models: get_provider_models(p.id()),
                 sub_providers: if has_subs {
@@ -88,6 +88,12 @@ fn get_provider_models(provider_id: &str) -> Vec<ModelInfo> {
                 name: "auto".into(),
                 context: None,
                 output: None,
+            },
+            ModelInfo {
+                id: "claude-opus-4-7".into(),
+                name: "opus-4.7".into(),
+                context: Some(1_000_000),
+                output: Some(128_000),
             },
             ModelInfo {
                 id: "claude-sonnet-4-6".into(),

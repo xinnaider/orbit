@@ -4,6 +4,18 @@
 
 ## April 2026
 
+### 04/22 · New — Subagent support for all providers
+The agents tab is now visible for every CLI backend, not just Claude Code.
+Subagent spawns are detected dynamically based on each provider's tool names
+(e.g. "Agent" and "Task" for Claude, "Task" for Codex and ACP), eliminating
+a hardcoded check that previously blocked Codex and OpenCode users from seeing
+sub-agents.
+
+### 04/22 · New — Sidebar no longer shows virtual subagent sessions
+The sidebar now displays only real sessions without indented virtual children
+that appeared under their parent. Subagent status is still available in the
+agents tab on the right panel.
+
 ### 04/16 · New — Message history navigation
 Press Arrow Up when the cursor is at the start of the input to recall previous messages
 sent in that session, and Arrow Down when the cursor is at the end to go forward.

@@ -105,6 +105,12 @@ impl Provider for ClaudeProvider {
     fn supports_ssh(&self) -> bool {
         true
     }
+    fn supports_subagents(&self) -> bool {
+        true
+    }
+    fn subagent_tool_names(&self) -> &[&str] {
+        &["Agent", "Task"]
+    }
     fn line_processor(&self) -> fn(&mut JournalState, &str) {
         crate::journal::process_line
     }

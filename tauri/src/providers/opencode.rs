@@ -101,6 +101,12 @@ impl Provider for OpenCodeProvider {
     fn supports_ssh(&self) -> bool {
         false // SSH not yet supported for OpenCode
     }
+    fn supports_subagents(&self) -> bool {
+        true
+    }
+    fn subagent_tool_names(&self) -> &[&str] {
+        &["Task"]
+    }
     fn line_processor(&self) -> fn(&mut JournalState, &str) {
         crate::journal::process_line_opencode
     }

@@ -119,6 +119,14 @@ impl Provider for AcpProvider {
         false
     }
 
+    fn supports_subagents(&self) -> bool {
+        true
+    }
+
+    fn subagent_tool_names(&self) -> &[&str] {
+        &["Task"]
+    }
+
     fn line_processor(&self) -> fn(&mut JournalState, &str) {
         process_acp_line
     }

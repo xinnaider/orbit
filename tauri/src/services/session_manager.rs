@@ -493,6 +493,11 @@ impl SessionManager {
         // 10. Get line processor fn pointer from the provider trait.
         // Uses fn pointer (not trait object) because threads require Send.
         let line_processor = provider.line_processor();
+        let subagent_tools: Vec<String> = provider
+            .subagent_tool_names()
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
 
         // 11. Reader loop
         Self::reader_loop(
@@ -503,6 +508,7 @@ impl SessionManager {
             db,
             handle.child,
             line_processor,
+            subagent_tools,
         );
     }
 
@@ -560,6 +566,7 @@ impl SessionManager {
     }
 
     /// Read JSON lines from Claude's stdout, parse, emit events.
+    #[allow(clippy::too_many_arguments)]
     fn reader_loop(
         manager: Arc<RwLock<SessionManager>>,
         app: AppHandle,
@@ -568,6 +575,7 @@ impl SessionManager {
         db: Arc<DatabaseService>,
         mut child: std::process::Child,
         line_processor: fn(&mut JournalState, &str),
+        subagent_tools: Vec<String>,
     ) {
         use std::io::BufRead;
         let mut reader = std::io::BufReader::new(reader);
@@ -735,10 +743,10 @@ impl SessionManager {
                         let mut e = entry.clone();
                         e.session_id = session_id.to_string();
 
-                        // Detect sub-agent spawns (Agent/Task tool calls)
+                        // Detect sub-agent spawns
                         if e.entry_type == crate::models::JournalEntryType::ToolCall {
                             if let Some(ref tool) = e.tool {
-                                if tool == "Agent" || tool == "Task" {
+                                if subagent_tools.contains(tool) {
                                     let desc = e
                                         .tool_input
                                         .as_ref()
