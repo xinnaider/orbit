@@ -37,12 +37,13 @@
   const INTERACTIVE_CMDS = new Set(['/mcp', '/login', '/logout', '/init', '/doctor']);
 
   // Model aliases per backend
-  const CLAUDE_MODELS = ['opus', 'opus-1m', 'sonnet', 'haiku'];
+  const CLAUDE_MODELS = ['opus-4.7', 'opus-4.7-1m', 'opus-4.6', 'sonnet-4.6', 'haiku-4.5'];
   const CLAUDE_MODEL_ALIASES: Record<string, string> = {
-    opus: 'claude-opus-4-7',
-    'opus-1m': 'claude-opus-4-7[1m]',
-    sonnet: 'claude-sonnet-4-6',
-    haiku: 'claude-haiku-4-5-20251001',
+    'opus-4.7': 'claude-opus-4-7',
+    'opus-4.7-1m': 'claude-opus-4-7[1m]',
+    'opus-4.6': 'claude-opus-4-6',
+    'sonnet-4.6': 'claude-sonnet-4-6',
+    'haiku-4.5': 'claude-haiku-4-5-20251001',
   };
   const CODEX_MODELS = ['gpt-5.4', 'gpt-5.4-mini', 'gpt-5.3-codex', 'gpt-5.2'];
   $: MODEL_OPTIONS =
