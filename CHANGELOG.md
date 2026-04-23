@@ -4,6 +4,9 @@
 
 ## April 2026
 
+### 04/23 · Fix — Custom OpenCode servers from opencode.jsonc now appear in the provider list
+Providers defined in `~/.config/opencode/opencode.jsonc` (custom endpoints like CrofAI/Ominiroute) were silently ignored because the JSONC parser did not remove trailing commas before parsing. Now any user-defined provider shows up in the OpenCode provider selector, with configured providers listed first.
+
 ### 04/22 · New — MCP server for multi-agent orchestration
 External AI agents can now create, monitor, and manage Orbit sessions through the Model Context Protocol. When an agent like Claude Code calls `orbit_create_agent`, the spawned session appears live in the dashboard with full journal, tokens, and status tracking. Supports all providers (Claude Code, Codex, OpenCode, Gemini CLI, Copilot CLI).
 
