@@ -42,15 +42,11 @@ pub struct CliBackend {
     pub task_format: String,
 }
 
-/// Return all CLI backends with their capabilities and models.
-/// Built dynamically from the provider registry — no hardcoded list.
-#[tauri::command]
-pub fn get_providers(
-    registry: tauri::State<crate::ipc::session::ProviderRegistryState>,
-) -> Vec<CliBackend> {
+/// Build the full provider list — used by both the Tauri command and the MCP handler.
+pub fn build_cli_backends(registry: &crate::providers::ProviderRegistry) -> Vec<CliBackend> {
     // Stable ordering: claude-code first, then codex, then opencode
     let order = ["claude-code", "codex", "opencode"];
-    let mut providers = registry.0.all();
+    let mut providers = registry.all();
     providers.sort_by_key(|p| {
         order
             .iter()
@@ -109,6 +105,15 @@ pub fn get_providers(
             }
         })
         .collect()
+}
+
+/// Return all CLI backends with their capabilities and models.
+/// Built dynamically from the provider registry — no hardcoded list.
+#[tauri::command]
+pub fn get_providers(
+    registry: tauri::State<crate::ipc::session::ProviderRegistryState>,
+) -> Vec<CliBackend> {
+    build_cli_backends(&registry.0)
 }
 
 /// Return the hardcoded model list for a provider.

@@ -3,6 +3,8 @@ pub mod commands;
 pub mod diff_builder;
 pub mod ipc;
 pub mod journal;
+pub mod mcp_proxy;
+pub mod mcp_transport;
 pub mod models;
 pub mod providers;
 pub mod services;
@@ -41,7 +43,7 @@ pub fn run() {
             let db = Arc::new(DatabaseService::open(&db_path).expect("Could not open database"));
 
             let session_manager = Arc::new(RwLock::new(SessionManager::new(db)));
-            app.manage(SessionState(session_manager));
+            app.manage(SessionState(Arc::clone(&session_manager)));
 
             // Provider registry — maps provider IDs to trait implementations
             let mut registry = ProviderRegistry::new();
@@ -60,7 +62,20 @@ pub fn run() {
                 "copilot",
                 &["--acp"],
             )));
-            app.manage(ProviderRegistryState(Arc::new(registry)));
+            let registry = Arc::new(registry);
+            app.manage(ProviderRegistryState(Arc::clone(&registry)));
+
+            // Start embedded MCP server — shares SessionManager and ProviderRegistry
+            let mcp_handler = Arc::new(ipc::mcp::McpHandler::new(
+                Arc::clone(&session_manager),
+                Arc::clone(&registry),
+                app.handle().clone(),
+            ));
+            let handler_fn = {
+                let h = Arc::clone(&mcp_handler);
+                move |request: &str| -> String { h.handle(request) }
+            };
+            let _mcp_transport = mcp_transport::McpTransport::start(Arc::new(handler_fn));
 
             let pty_manager = Arc::new(Mutex::new(PtyManager::new(app.handle().clone())));
             app.manage(PtyManagerState(pty_manager));
