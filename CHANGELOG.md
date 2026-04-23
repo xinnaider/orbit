@@ -4,6 +4,12 @@
 
 ## April 2026
 
+### 04/22 · New — MCP server for multi-agent orchestration
+External AI agents can now create, monitor, and manage Orbit sessions through the Model Context Protocol. When an agent like Claude Code calls `orbit_create_agent`, the spawned session appears live in the dashboard with full journal, tokens, and status tracking. Supports all providers (Claude Code, Codex, OpenCode, Gemini CLI, Copilot CLI).
+
+### 04/22 · New — Subagent tree in sidebar
+Sessions spawned via MCP appear as collapsible mini-cards below their parent session. Each card shows the agent name, model, tokens, and a context usage bar. Cards are clickable to view the feed and draggable to split panes. The parent session automatically detects its children — no manual linking needed.
+
 ### 04/22 · Improvement — Better scrollbar visibility
 The feed scroller now uses a wider, more visible scrollbar so you can quickly grab and drag it. Scrollbar width increased from 3px to 7px, and the thumb color now clearly contrasts with the background.
 

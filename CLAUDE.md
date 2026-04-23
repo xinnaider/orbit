@@ -6,7 +6,7 @@ Guia de referência para o Claude Code trabalhar neste repositório.
 
 ## O que é o Orbit
 
-Orbit é um **dashboard desktop para gerenciar múltiplas sessões do Claude Code em paralelo**, construído com Tauri 2 (Rust + Svelte). Permite criar sessões, acompanhar output em tempo real, visualizar diffs de arquivos, tasks e tokens consumidos.
+Orbit é um **dashboard desktop para gerenciar múltiplas sessões de AI agents em paralelo**, construído com Tauri 2 (Rust + Svelte). Suporta Claude Code, Codex, OpenCode, Gemini CLI e Copilot CLI. Permite criar sessões, acompanhar output em tempo real, visualizar diffs de arquivos, tasks e tokens consumidos. Inclui um **servidor MCP embutido** que permite agentes externos criarem e monitorarem sessões via JSON-RPC.
 
 - Plataformas: **Windows 10 1903+**, **Ubuntu 22.04+** (e outras distros Linux com webkit2gtk 4.1), **macOS** (Intel e Apple Silicon)
 - Identificador: `com.josefernando.orbit`
@@ -45,8 +45,11 @@ agent-dashboard-v2/
 │   │   ├── journal_reader.rs   # Parser JSONL do output do Claude Code (incremental)
 │   │   ├── agent_tree.rs       # Leitura de metadados de subagentes (.meta.json)
 │   │   ├── diff_builder.rs     # Diff de versões de arquivo (Myers LCS)
+│   │   ├── mcp_transport.rs     # Servidor IPC local (named pipe / Unix socket) para MCP
+│   │   ├── mcp_proxy.rs        # Proxy stdio↔IPC + standalone fallback do orbit-mcp
 │   │   ├── ipc/
 │   │   │   ├── session.rs      # Comandos Tauri de sessão (create, stop, list, send_message)
+│   │   │   ├── mcp.rs          # Handler JSON-RPC MCP com 7 tools (embedded no Tauri)
 │   │   │   └── project.rs      # Comandos Tauri de projeto (create, list)
 │   │   └── services/
 │   │       ├── database.rs     # Wrapper SQLite com migrations automáticas
@@ -330,6 +333,51 @@ API keys and SSH passwords are stored AES-256-GCM encrypted in the database (`ap
 - **Iterators over loops** when transforming collections — no intermediate `.collect()` unless needed
 - **`?` for error propagation** — no verbose `match` chains for Result/Option
 - **Comments explain *why***, not *what* — let naming and structure speak for themselves
+
+---
+
+## Architecture Rules — MCP Integration
+
+Orbit embeds an MCP (Model Context Protocol) server inside the Tauri process, allowing external AI agents to create, monitor, and manage sessions via JSON-RPC.
+
+### Architecture
+
+```
+Claude Code (or any MCP client)
+  └── orbit-mcp (sidecar binary)
+        ├── connected mode → IPC socket → Tauri McpHandler (shares SessionManager, DB, ProviderRegistry)
+        └── standalone mode → in-process handler (fallback when Tauri not running)
+```
+
+### Key files
+
+| File | Responsibility |
+|------|---------------|
+| `ipc/mcp.rs` | JSON-RPC handler with 7 tools, thread-local session context |
+| `mcp_transport.rs` | IPC server (named pipe on Windows, Unix socket on Linux/Mac) |
+| `mcp_proxy.rs` | Sidecar binary logic: connected/standalone mode, parent session detection |
+| `bin/orbit_mcp.rs` | Thin entry point calling `mcp_proxy::run()` |
+
+### 7 MCP tools
+
+| Tool | Description |
+|------|------------|
+| `orbit_create_agent` | Create session, optional `parentSessionId` for subagent tree |
+| `orbit_get_status` | Session status, tokens, context %, output, subagents |
+| `orbit_send_message` | Follow-up message (--resume) |
+| `orbit_cancel_agent` | Kill process, mark stopped |
+| `orbit_list_providers` | All providers with capabilities and models |
+| `orbit_list_sessions` | DB sessions with live data |
+| `orbit_get_subagents` | Subagent tree for a session |
+
+### Parent session auto-detection
+
+When Orbit spawns a CLI, it writes `{tmp}/orbit-session-{pid}.id`. The `orbit-mcp` sidecar reads its parent PID (via `CreateToolhelp32Snapshot` on Windows, `getppid()` on Unix), finds the PID file, and injects `parentSessionId` into `orbit_create_agent` calls automatically. Child sessions appear as mini-cards in the sidebar under their parent.
+
+### Subagent display split
+
+- **Sidebar tree**: MCP-spawned child sessions (full sessions, navigable, all providers)
+- **Right bar "agents" tab**: Native Claude Code subagents only (`.meta.json` filesystem)
 
 ---
 
