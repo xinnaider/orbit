@@ -28,8 +28,14 @@
     ? (selectedBackend?.subProviders.find((p) => p.id === subProviderId) ?? null)
     : null;
 
+  // Configured providers first, then alphabetical
+  $: sortedSubProviders = [...(selectedBackend?.subProviders ?? [])].sort((a, b) => {
+    if (a.configured !== b.configured) return a.configured ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
+
   // Filtered sub-providers for search
-  $: filteredSubProviders = (selectedBackend?.subProviders ?? []).filter(
+  $: filteredSubProviders = sortedSubProviders.filter(
     (p) =>
       subProviderSearch === '' ||
       p.name.toLowerCase().includes(subProviderSearch.toLowerCase()) ||
@@ -144,7 +150,7 @@
       disabled={loading}
     />
     <div class="sub-list">
-      {#each subProviderSearch ? filteredSubProviders : (selectedBackend?.subProviders ?? []).slice(0, 20) as p}
+      {#each filteredSubProviders as p}
         <button
           class="sub-item"
           class:active={subProviderId === p.id}

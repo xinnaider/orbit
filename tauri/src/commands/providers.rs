@@ -491,7 +491,53 @@ fn strip_jsonc_comments(s: &str) -> String {
         i += 1;
     }
 
-    out
+    // Second pass: remove trailing commas before `}` or `]`
+    let chars: Vec<char> = out.chars().collect();
+    let len = chars.len();
+    let mut cleaned = String::with_capacity(len);
+    let mut i = 0;
+    let mut in_string = false;
+
+    while i < len {
+        let c = chars[i];
+
+        if in_string {
+            cleaned.push(c);
+            if c == '\\' && i + 1 < len {
+                i += 1;
+                cleaned.push(chars[i]);
+            } else if c == '"' {
+                in_string = false;
+            }
+            i += 1;
+            continue;
+        }
+
+        if c == '"' {
+            in_string = true;
+            cleaned.push(c);
+            i += 1;
+            continue;
+        }
+
+        if c == ',' {
+            // Look ahead past whitespace — if the next non-whitespace char is `}` or `]`,
+            // this is a trailing comma and we drop it
+            let mut j = i + 1;
+            while j < len && chars[j].is_whitespace() {
+                j += 1;
+            }
+            if j < len && (chars[j] == '}' || chars[j] == ']') {
+                i += 1;
+                continue;
+            }
+        }
+
+        cleaned.push(c);
+        i += 1;
+    }
+
+    cleaned
 }
 
 fn read_opencode_jsonc_providers() -> Option<Vec<SubProvider>> {
