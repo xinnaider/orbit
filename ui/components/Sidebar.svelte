@@ -58,6 +58,25 @@
     'Delete'
   );
 
+  let expandedParents: Set<number> = new Set();
+
+  function getChildren(list: typeof $sessions, parentId: number) {
+    return list.filter((s) => s.parentSessionId === parentId);
+  }
+
+  function selectOrToggle(s: (typeof $sessions)[0], hasChildren: boolean) {
+    const ws = get(workspace);
+    if (ws.focusedPaneId) assignSession(ws.focusedPaneId, s.id);
+    if (s.attention?.requiresAttention) clearAttention(s.id);
+    if (hasChildren) {
+      expandedParents = new Set(
+        expandedParents.has(s.id)
+          ? [...expandedParents].filter((id) => id !== s.id)
+          : [...expandedParents, s.id]
+      );
+    }
+  }
+
   // Context menu state
   let ctxMenu: { x: number; y: number; sessionId: number; sessionName: string } | null = null;
   let renameTarget: { id: number; name: string } | null = null;
@@ -192,22 +211,26 @@
     {#if $sessions.length === 0}
       <p class="empty">no sessions</p>
     {:else}
-      {#each $sessions as s (s.id)}
+      {#each $sessions.filter((s) => !s.parentSessionId) as s (s.id)}
         {@const active = Object.values($workspace.panes).some((p) => p.sessionId === s.id)}
         {@const color = statusColor(s.status)}
         {@const pulsing = isPulsing(s.status)}
+        {@const children = getChildren($sessions, s.id)}
+        {@const expanded = expandedParents.has(s.id)}
+        {@const childActive = children.some((c) =>
+          Object.values($workspace.panes).some((p) => p.sessionId === c.id)
+        )}
         <button
           class="item"
           class:active
+          class:child-active={childActive && !active}
+          class:has-children={children.length > 0}
+          class:expanded
           draggable="true"
           on:dragstart={(e) => {
             e.dataTransfer?.setData('text/plain', JSON.stringify({ sessionId: s.id }));
           }}
-          on:click={() => {
-            const ws = get(workspace);
-            if (ws.focusedPaneId) assignSession(ws.focusedPaneId, s.id);
-            if (s.attention?.requiresAttention) clearAttention(s.id);
-          }}
+          on:click={() => selectOrToggle(s, children.length > 0)}
           on:dblclick={() => {
             const ws = get(workspace);
             if (ws.focusedPaneId) splitPane(ws.focusedPaneId, 'horizontal', s.id);
@@ -257,6 +280,34 @@
             {/if}
           </div>
         </button>
+        {#if expanded}
+          {#each children as c (c.id)}
+            {@const cActive = Object.values($workspace.panes).some((p) => p.sessionId === c.id)}
+            {@const cColor = statusColor(c.status)}
+            {@const cPulsing = isPulsing(c.status)}
+            <button
+              class="item child"
+              class:active={cActive}
+              on:click={() => {
+                const ws = get(workspace);
+                if (ws.focusedPaneId) assignSession(ws.focusedPaneId, c.id);
+                if (c.attention?.requiresAttention) clearAttention(c.id);
+              }}
+              on:contextmenu={(e) => onContextMenu(e, c)}
+            >
+              <div class="item-top">
+                <span class="dot" style="color:{cColor}" class:pulse={cPulsing}>●</span>
+                <span class="name">{displayName(c)}</span>
+                <span class="status" style="color:{cColor}">{statusLabel(c.status)}</span>
+              </div>
+              <div class="item-meta">
+                <span title={c.model ?? ''}>{fmtModel(c.model)}</span>
+                <span class="sep">·</span>
+                <span>{fmtTokens(c)}</span>
+              </div>
+            </button>
+          {/each}
+        {/if}
       {/each}
     {/if}
   </div>
@@ -376,6 +427,7 @@
     padding: var(--sp-4) var(--sp-6);
     cursor: pointer;
     transition: background 0.1s;
+    position: relative;
   }
   .item:hover {
     background: var(--bg2);
@@ -384,6 +436,40 @@
     background: var(--ac-d2);
     border-left: 2px solid var(--ac);
     padding-left: var(--sp-5);
+  }
+  .item.child-active {
+    background: color-mix(in srgb, var(--ac-d2), transparent 50%);
+    border-left: 2px solid var(--ac);
+    padding-left: var(--sp-5);
+  }
+  .item.has-children .item-meta::after {
+    content: '▸';
+    font-size: 9px;
+    color: var(--t3);
+    margin-left: auto;
+    transition: transform 0.15s;
+    display: inline-block;
+  }
+  .item.has-children.expanded .item-meta::after {
+    transform: rotate(90deg);
+  }
+  .item.child {
+    padding-left: calc(var(--sp-6) + 16px);
+    background: var(--bg0);
+    border-bottom: none;
+  }
+  .item.child + .item.child {
+    border-top: 1px solid color-mix(in srgb, var(--bd), transparent 50%);
+  }
+  .item.child:last-child {
+    border-bottom: 1px solid var(--bd);
+  }
+  .item.child.active {
+    background: var(--ac-d2);
+    padding-left: calc(var(--sp-5) + 16px);
+  }
+  .item.child .item-meta {
+    padding-left: calc(var(--sp-7) + 4px);
   }
 
   .item-top {

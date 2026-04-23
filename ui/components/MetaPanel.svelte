@@ -171,7 +171,7 @@
             <div class="stat-label">recent tools</div>
             {#each session.miniLog as log}
               <div class="log-row">
-                <span class="log-tool">{log.tool}</span>
+                <span class="log-tool" title={log.tool}>{log.tool}</span>
                 {#if log.target}
                   <span class="log-target">{log.target.slice(0, 24)}</span>
                 {/if}
@@ -370,7 +370,10 @@
   .log-tool {
     color: var(--tool-fg);
     font-weight: 500;
-    flex-shrink: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 130px;
   }
   .log-target {
     color: var(--t2);

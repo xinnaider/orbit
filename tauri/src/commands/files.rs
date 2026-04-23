@@ -9,8 +9,12 @@ pub fn get_subagent_journal(
     subagent_id: String,
     state: State<SessionState>,
 ) -> Vec<JournalEntry> {
-    // Resolve the numeric session ID to the Claude session UUID,
-    // which is used as the directory name under ~/.claude/projects/<project>/
+    // MCP children use their numeric session ID as the subagent ID
+    if let Ok(child_id) = subagent_id.parse::<SessionId>() {
+        return state.write().get_journal(child_id);
+    }
+
+    // Native subagents: read from .jsonl files on disk
     let claude_id = {
         let m = state.read();
         m.db.get_claude_session_id(session_id).ok().flatten()

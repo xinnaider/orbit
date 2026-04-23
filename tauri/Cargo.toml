@@ -40,6 +40,13 @@ rand = "0.8"
 portable-pty = "0.9"
 agent-client-protocol-schema = "0.11"
 tauri-plugin-shell = "2.3.5"
+interprocess = { version = "2", features = ["tokio"] }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Diagnostics_ToolHelp"] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
 
 [dev-dependencies]
 tempfile = "3"

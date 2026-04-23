@@ -211,6 +211,20 @@ impl DatabaseService {
         Ok(conn.last_insert_rowid())
     }
 
+    pub fn set_session_parent(
+        &self,
+        id: SessionId,
+        parent_id: SessionId,
+        depth: i32,
+    ) -> SqlResult<()> {
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+        conn.execute(
+            "UPDATE sessions SET parent_session_id = ?1, depth = ?2 WHERE id = ?3",
+            params![parent_id, depth, id],
+        )?;
+        Ok(())
+    }
+
     pub fn update_session_status(
         &self,
         id: SessionId,

@@ -115,6 +115,8 @@ pub struct SessionManager {
     pub db: Arc<DatabaseService>,
     active: HashMap<SessionId, ActiveSession>,
     pub journal_states: HashMap<SessionId, JournalState>,
+    /// MCP-spawned child sessions grouped by parent session ID.
+    mcp_subagents: HashMap<SessionId, Vec<(SessionId, crate::models::SubagentInfo)>>,
 }
 
 impl SessionManager {
@@ -123,7 +125,42 @@ impl SessionManager {
             db,
             active: HashMap::new(),
             journal_states: HashMap::new(),
+            mcp_subagents: HashMap::new(),
         }
+    }
+
+    pub fn register_mcp_subagent(
+        &mut self,
+        parent_id: SessionId,
+        child_id: SessionId,
+        description: &str,
+        provider: &str,
+    ) {
+        let info = crate::models::SubagentInfo {
+            id: child_id.to_string(),
+            agent_type: format!("mcp:{provider}"),
+            description: description.to_string(),
+            status: "running".to_string(),
+        };
+        self.mcp_subagents
+            .entry(parent_id)
+            .or_default()
+            .push((child_id, info));
+    }
+
+    pub fn update_mcp_subagent_status(&mut self, child_id: SessionId, status: &str) {
+        for children in self.mcp_subagents.values_mut() {
+            if let Some((_, info)) = children.iter_mut().find(|(id, _)| *id == child_id) {
+                info.status = status.to_string();
+            }
+        }
+    }
+
+    pub fn get_mcp_subagents(&self, parent_id: SessionId) -> Vec<crate::models::SubagentInfo> {
+        self.mcp_subagents
+            .get(&parent_id)
+            .map(|children| children.iter().map(|(_, info)| info.clone()).collect())
+            .unwrap_or_default()
     }
 
     /// Phase 1 (fast): create DB record, return Session immediately.
@@ -301,8 +338,11 @@ impl SessionManager {
             let raw_model = a.session.model.clone().unwrap_or_default();
             let pid_str = a.session.provider.clone();
 
-            // API key env vars for opencode providers
             let mut env = vec![];
+            env.push((
+                "ORBIT_SESSION_ID".to_string(),
+                session_id.to_string(),
+            ));
             if let Some(ref key) = a.api_key {
                 let var_name = format!("{}_API_KEY", pid_str.to_uppercase().replace('-', "_"));
                 env.push((var_name, key.clone()));
@@ -528,6 +568,9 @@ impl SessionManager {
         prompt_text: &str,
     ) {
         let _ = db.update_session_pid(session_id, pid);
+        // Write PID file so orbit-mcp can discover its parent session
+        let pid_file = std::env::temp_dir().join(format!("orbit-session-{pid}.id"));
+        let _ = std::fs::write(&pid_file, session_id.to_string());
         {
             let mut m = manager.write().unwrap_or_else(|e| e.into_inner());
             if let Some(a) = m.active.get_mut(&session_id) {
@@ -653,10 +696,11 @@ impl SessionManager {
                             .active
                             .get(&session_id)
                             .and_then(|a| a.claude_session_id.clone());
-                        let subagents = claude_session_id
+                        let mut subagents = claude_session_id
                             .as_deref()
                             .map(crate::agent_tree::read_subagents)
                             .unwrap_or_default();
+                        subagents.extend(m.get_mcp_subagents(session_id));
 
                         let state = m.journal_states.entry(session_id).or_default();
 
@@ -881,6 +925,9 @@ impl SessionManager {
         if let Some(a) = self.active.get(&session_id) {
             if let Some(pid) = a.session.pid {
                 kill_pid(pid as u32);
+                let pid_file =
+                    std::env::temp_dir().join(format!("orbit-session-{pid}.id"));
+                let _ = std::fs::remove_file(pid_file);
             }
         }
         self.active.remove(&session_id);

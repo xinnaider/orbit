@@ -123,7 +123,7 @@ impl Provider for OpenCodeProvider {
         crate::journal::process_line_opencode
     }
     fn format_model(&self, raw_model: &str, provider_id: &str) -> String {
-        if raw_model.starts_with(&format!("{provider_id}/")) {
+        if raw_model.starts_with(&format!("{provider_id}/")) || raw_model.contains('/') {
             raw_model.to_string()
         } else {
             format!("{provider_id}/{raw_model}")
