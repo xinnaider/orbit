@@ -1,6 +1,10 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
+  import { IS_WEB, HAS_TAURI } from './lib/tauri/invoke';
+  import { getStoredToken } from './lib/tauri/web-adapter';
+  import WebLoginScreen from './components/WebLoginScreen.svelte';
+
+  let webAuthenticated = !IS_WEB || !!getStoredToken();
   import {
     sessions,
     selectedSessionId,
@@ -232,58 +236,67 @@
   }
 
   function handleKeydown(e: KeyboardEvent) {
-    if (e.key === 'F12') {
-      // openDevtools() exists at runtime when the devtools Tauri feature is enabled
-      // but is not included in the published TypeScript types
-      (getCurrentWebviewWindow() as unknown as { openDevtools(): void }).openDevtools();
+    if (e.key === 'F12' && HAS_TAURI) {
+      import('@tauri-apps/api/webviewWindow').then(({ getCurrentWebviewWindow }) => {
+        (getCurrentWebviewWindow() as unknown as { openDevtools(): void }).openDevtools();
+      });
     }
   }
 </script>
 
 <svelte:window on:keydown={handleKeydown} />
 
-{#if showChangelog}
-  <ChangelogModal {changelogContent} currentVersion={appVersion} onClose={closeChangelog} />
-{/if}
-
-{#if showNewSessionModal}
-  <NewSessionModal
-    on:done={() => (showNewSessionModal = false)}
-    on:cancel={() => (showNewSessionModal = false)}
+{#if IS_WEB && !webAuthenticated}
+  <WebLoginScreen
+    on:authenticated={() => {
+      webAuthenticated = true;
+      window.location.reload();
+    }}
   />
-{/if}
-
-<div class="layout">
-  {#if $sidebarVisible}
-    <Sidebar onOpenChangelog={openChangelog} />
-  {:else}
-    <button class="sidebar-reopen" on:click={() => sidebarVisible.set(true)} title="Show sidebar"
-      >›</button
-    >
+{:else}
+  {#if showChangelog}
+    <ChangelogModal {changelogContent} currentVersion={appVersion} onClose={closeChangelog} />
   {/if}
-  {#if claudeCheck && !claudeCheck.found}
-    <div class="empty">
-      <div class="claude-warn">
-        <span class="warn-icon">⚠</span>
-        <div>
-          <div class="warn-title">claude CLI not found</div>
-          <div class="warn-hint">
-            {claudeCheck.hint ?? 'npm install -g @anthropic-ai/claude-code'}
+
+  {#if showNewSessionModal}
+    <NewSessionModal
+      on:done={() => (showNewSessionModal = false)}
+      on:cancel={() => (showNewSessionModal = false)}
+    />
+  {/if}
+
+  <div class="layout">
+    {#if $sidebarVisible}
+      <Sidebar onOpenChangelog={openChangelog} />
+    {:else}
+      <button class="sidebar-reopen" on:click={() => sidebarVisible.set(true)} title="Show sidebar"
+        >›</button
+      >
+    {/if}
+    {#if claudeCheck && !claudeCheck.found}
+      <div class="empty">
+        <div class="claude-warn">
+          <span class="warn-icon">⚠</span>
+          <div>
+            <div class="warn-title">claude CLI not found</div>
+            <div class="warn-hint">
+              {claudeCheck.hint ?? 'npm install -g @anthropic-ai/claude-code'}
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  {:else}
-    <WorkspaceContainer />
-  {/if}
-  {#if selected && $metaPanelVisible}
-    <MetaPanel session={selected} />
-  {:else if selected && !$metaPanelVisible}
-    <button class="meta-reopen" on:click={() => metaPanelVisible.set(true)} title="Show panel"
-      >‹</button
-    >
-  {/if}
-</div>
+    {:else}
+      <WorkspaceContainer />
+    {/if}
+    {#if selected && $metaPanelVisible}
+      <MetaPanel session={selected} />
+    {:else if selected && !$metaPanelVisible}
+      <button class="meta-reopen" on:click={() => metaPanelVisible.set(true)} title="Show panel"
+        >‹</button
+      >
+    {/if}
+  </div>
+{/if}
 
 <ToastContainer />
 

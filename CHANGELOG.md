@@ -4,6 +4,12 @@
 
 ## April 2026
 
+### 04/23 · New — HTTP API & web access from any device
+Orbit can now be accessed from a phone, tablet, or any browser on your network. Enable the HTTP server in the sidebar (API button), generate an API key, and scan the QR code to connect instantly. The full Orbit dashboard runs in the browser — create sessions, send messages, and monitor agents just like in the desktop app. Real-time updates stream over WebSocket.
+
+### 04/23 · New — Automatic MCP for SSH remote sessions
+When Orbit spawns an agent on a remote server via SSH, the connection details are now injected automatically. The remote `orbit-mcp` sidecar connects back to Orbit over HTTP — no manual environment variable setup needed.
+
 ### 04/22 · New — MCP server for multi-agent orchestration
 External AI agents can now create, monitor, and manage Orbit sessions through the Model Context Protocol. When an agent like Claude Code calls `orbit_create_agent`, the spawned session appears live in the dashboard with full journal, tokens, and status tracking. Supports all providers (Claude Code, Codex, OpenCode, Gemini CLI, Copilot CLI).
 

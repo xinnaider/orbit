@@ -470,7 +470,7 @@ fn jsonrpc_error(id: Option<Value>, code: i32, message: &str) -> String {
     .to_string()
 }
 
-fn tools_schema() -> Value {
+pub fn tools_schema() -> Value {
     json!([
         {
             "name": "orbit_create_agent",

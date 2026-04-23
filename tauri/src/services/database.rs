@@ -112,6 +112,22 @@ impl DatabaseService {
             )",
         );
 
+        let _ = conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS api_keys (
+                id         TEXT PRIMARY KEY,
+                label      TEXT NOT NULL,
+                key_hash   TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT (datetime('now'))
+            )",
+        );
+
+        let _ = conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS http_settings (
+                key   TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            )",
+        );
+
         conn.execute_batch(
             "
             CREATE TABLE IF NOT EXISTS projects (
@@ -564,6 +580,66 @@ impl DatabaseService {
             .query_map(params![session_id], |row| row.get(0))?
             .collect::<SqlResult<Vec<String>>>()?;
         Ok(rows)
+    }
+
+    // ── API key management ──────────────────────────────────────────
+
+    pub fn create_api_key(&self, id: &str, label: &str, key_hash: &str) -> SqlResult<()> {
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+        conn.execute(
+            "INSERT INTO api_keys (id, label, key_hash) VALUES (?1, ?2, ?3)",
+            params![id, label, key_hash],
+        )?;
+        Ok(())
+    }
+
+    pub fn list_api_keys(&self) -> SqlResult<Vec<(String, String, String)>> {
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+        let mut stmt =
+            conn.prepare("SELECT id, label, created_at FROM api_keys ORDER BY created_at DESC")?;
+        let rows = stmt
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?
+            .collect::<SqlResult<Vec<_>>>()?;
+        Ok(rows)
+    }
+
+    pub fn delete_api_key(&self, id: &str) -> SqlResult<bool> {
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+        let count = conn.execute("DELETE FROM api_keys WHERE id = ?1", params![id])?;
+        Ok(count > 0)
+    }
+
+    pub fn validate_api_key_hash(&self, key_hash: &str) -> SqlResult<bool> {
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+        let exists: bool = conn
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM api_keys WHERE key_hash = ?1)",
+                params![key_hash],
+                |row| row.get(0),
+            )
+            .unwrap_or(false);
+        Ok(exists)
+    }
+
+    // ── HTTP server settings ────────────────────────────────────────
+
+    pub fn get_http_setting(&self, key: &str) -> SqlResult<Option<String>> {
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+        conn.query_row(
+            "SELECT value FROM http_settings WHERE key = ?1",
+            params![key],
+            |row| row.get(0),
+        )
+        .optional()
+    }
+
+    pub fn set_http_setting(&self, key: &str, value: &str) -> SqlResult<()> {
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+        conn.execute(
+            "INSERT OR REPLACE INTO http_settings (key, value) VALUES (?1, ?2)",
+            params![key, value],
+        )?;
+        Ok(())
     }
 }
 

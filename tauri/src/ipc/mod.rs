@@ -1,4 +1,5 @@
 pub mod error;
+pub mod http_api;
 pub mod mcp;
 pub mod project;
 pub mod session;

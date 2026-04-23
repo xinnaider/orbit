@@ -1,6 +1,6 @@
 import { getVersion as _getVersion } from '@tauri-apps/api/app';
 import type { UpdateInfo } from '../types';
-import { invoke, IS_MOCK } from './invoke';
+import { invoke, IS_MOCK, IS_WEB } from './invoke';
 
 export interface ClaudeCheck {
   found: boolean;
@@ -43,7 +43,7 @@ export async function diagnoseSpawn(): Promise<SpawnDiagnostic> {
 }
 
 export async function getAppVersion(): Promise<string> {
-  if (IS_MOCK) return '0.0.0';
+  if (IS_MOCK || IS_WEB) return '0.0.0';
   return _getVersion();
 }
 
