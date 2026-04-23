@@ -474,7 +474,7 @@ fn tools_schema() -> Value {
     json!([
         {
             "name": "orbit_create_agent",
-            "description": "Create a new agent session in the Orbit dashboard. Spawns a CLI provider (Claude Code, Codex, OpenCode, Gemini CLI, Copilot CLI) and returns when the session completes or times out.",
+            "description": "Create a new agent session in the Orbit dashboard. IMPORTANT: Before calling this, call orbit_list_providers to discover available providers and their exact model IDs — do NOT guess model names. With wait=true (default), this blocks until the agent completes or times out and returns the full output. With wait=false, it returns immediately with a sessionId — you MUST then poll orbit_get_status in a loop until status is 'completed', 'stopped', or 'error' to get the result.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -516,7 +516,7 @@ fn tools_schema() -> Value {
         },
         {
             "name": "orbit_get_status",
-            "description": "Get the current status of an agent session, including tokens, context usage, and subagents.",
+            "description": "Get the current status of an agent session, including tokens, context usage, output text, and subagents. Use this to poll a session created with wait=false — keep calling until status is 'completed', 'stopped', or 'error'.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -562,7 +562,7 @@ fn tools_schema() -> Value {
         },
         {
             "name": "orbit_list_providers",
-            "description": "List all available CLI providers with their capabilities, models, and installation status.",
+            "description": "List all available CLI providers with their capabilities, supported models, and installation status. ALWAYS call this before orbit_create_agent to discover valid provider IDs and model IDs. Returns id, name, cliAvailable, models[], subProviders[], effortLevels, and capability flags.",
             "inputSchema": {
                 "type": "object",
                 "properties": {}
