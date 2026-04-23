@@ -105,50 +105,61 @@
 
     const intro = `You have access to Orbit's multi-agent orchestration tools via MCP. Use them to delegate tasks to other AI agents.
 
-## Installed providers
+## IMPORTANT — Always discover providers first
+
+Before creating any agent, call **orbit_list_providers** to get the exact provider IDs, model IDs, and capabilities. Do NOT guess model names.
+
+## Quick reference: installed providers
 ${providerList}${unavailable}
 
-## Available tools
+## Tools
+
+### orbit_list_providers
+Returns all providers with models[], subProviders[], effortLevels, and capabilities. **Call this first.**
 
 ### orbit_create_agent
-Spawn a new agent. Returns the agent's output when done (wait=true) or a sessionId to poll (wait=false).
-- **provider**: one of the installed providers above (default: claude-code)
-- **model**: model ID (optional)
+Spawn a new agent session visible in the Orbit dashboard.
+- **name**: display name in sidebar (optional, e.g. "test runner")
+- **provider**: provider ID from orbit_list_providers (default: claude-code)
+- **model**: exact model ID from orbit_list_providers (optional)
 - **cwd**: working directory (required)
 - **prompt**: task for the agent (required)
-- **wait**: block until done (default: true)
-- **timeoutSecs**: max wait time (default: 300)
+- **wait**: true = block until done and return output (default). false = return sessionId immediately, then you MUST poll orbit_get_status until status is "completed", "stopped", or "error"
+- **timeoutSecs**: max wait seconds (default: 300)
 
 ### orbit_get_status
-Check if a background agent (wait=false) has finished. Returns status + output so far.
-- **sessionId**: from orbit_create_agent
+Get session status, tokens, output, context %. Use to poll wait=false sessions — keep calling until terminal status.
 
 ### orbit_send_message
-Send a follow-up message to an existing Claude agent session (uses --resume).
-- **sessionId**: agent to message
-- **message**: follow-up text
+Send a follow-up message to an existing session (uses --resume).
 
 ### orbit_cancel_agent
 Kill a running agent.
-- **sessionId**: agent to cancel
+
+### orbit_list_sessions
+List all dashboard sessions, optionally filtered by status.
+
+### orbit_get_subagents
+Get subagent tree for a session.
 
 ## Example workflows
 
 **Delegate to another Claude:**
-\`orbit_create_agent(cwd="/project", prompt="Write tests for auth module")\`
+\`orbit_create_agent(name="auth tests", cwd="/project", prompt="Write tests for auth module")\`
 
-**Use Codex for a subtask:**
-\`orbit_create_agent(provider="codex", cwd="/project", prompt="Refactor database layer")\`
+**Use a specific model from another provider:**
+1. \`orbit_list_providers()\` → find opencode has "ollama-cloud/glm-5.1"
+2. \`orbit_create_agent(provider="opencode", model="ollama-cloud/glm-5.1", cwd="/project", prompt="Task")\`
 
 **Fan-out pattern (parallel agents):**
-1. \`orbit_create_agent(wait=false, prompt="Task A")\` → sessionId 1
-2. \`orbit_create_agent(wait=false, prompt="Task B")\` → sessionId 2
-3. Poll both with \`orbit_get_status\` until done
+1. \`orbit_create_agent(wait=false, name="task-a", prompt="Task A")\` → sessionId 1
+2. \`orbit_create_agent(wait=false, name="task-b", prompt="Task B")\` → sessionId 2
+3. Poll both with \`orbit_get_status\` until done, then combine results
 
 **Worker + reviewer loop:**
 1. Create worker agent → get output
 2. Create reviewer agent with worker's output → get feedback
-3. If feedback has issues, send_message to worker with corrections`;
+3. If feedback has issues, orbit_send_message to worker with corrections`;
 
     const providerHint = preferredProvider
       ? `\n\n**Use provider "${preferredProvider}" for this task.**`
