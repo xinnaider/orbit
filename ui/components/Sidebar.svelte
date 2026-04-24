@@ -333,11 +333,7 @@
   <footer class="footer">
     <span>{$sessions.length} session{$sessions.length !== 1 ? 's' : ''}</span>
     <div class="footer-actions">
-      <button
-        class="footer-btn"
-        on:click={() => (showHttpSettings = true)}
-        title="Connect phone"
-      >
+      <button class="footer-btn" on:click={() => (showHttpSettings = true)} title="Connect phone">
         Phone
       </button>
       <button class="collapse-btn" on:click={() => sidebarVisible.set(false)} title="Hide sidebar"

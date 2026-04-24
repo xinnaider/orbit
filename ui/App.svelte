@@ -283,17 +283,25 @@
   <div class="layout" class:mobile={isMobile}>
     {#if isMobile}
       <div class="mobile-topbar">
-        <button class="hamburger-btn" on:click={() => sidebarVisible.set(true)} aria-label="Open sidebar">
+        <button
+          class="hamburger-btn"
+          on:click={() => sidebarVisible.set(true)}
+          aria-label="Open sidebar"
+        >
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-            <rect x="2" y="4" width="16" height="2" rx="1" fill="currentColor"/>
-            <rect x="2" y="9" width="16" height="2" rx="1" fill="currentColor"/>
-            <rect x="2" y="14" width="16" height="2" rx="1" fill="currentColor"/>
+            <rect x="2" y="4" width="16" height="2" rx="1" fill="currentColor" />
+            <rect x="2" y="9" width="16" height="2" rx="1" fill="currentColor" />
+            <rect x="2" y="14" width="16" height="2" rx="1" fill="currentColor" />
           </svg>
         </button>
         <span class="mobile-title">orbit</span>
       </div>
       {#if $sidebarVisible}
-        <button class="sidebar-overlay" on:click={() => sidebarVisible.set(false)} aria-label="Close sidebar"></button>
+        <button
+          class="sidebar-overlay"
+          on:click={() => sidebarVisible.set(false)}
+          aria-label="Close sidebar"
+        ></button>
         <Sidebar onOpenChangelog={openChangelog} />
       {/if}
     {:else if $sidebarVisible}

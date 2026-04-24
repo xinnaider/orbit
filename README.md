@@ -24,13 +24,14 @@
 - **Multi-provider** — run Claude Code, Codex, and OpenCode sessions side by side
 - **Split panes** — view multiple sessions simultaneously with drag-and-drop layout
 - **SSH remote sessions** — run sessions on remote servers via SSH with any provider, key-based auth
+- **Web access** — open the Orbit dashboard from a phone, tablet, or browser on your local network
 - **Git worktree** — isolate each session in its own branch, works locally and via SSH
 - **MCP orchestrator** — built-in MCP server lets any agent spawn other agents across providers
 - **Sub-agents monitor** — track spawned sub-agents and inspect their full conversations
 - **Real-time feed** — streaming output with thinking blocks, tool calls, diffs, and markdown
 - **Persistent history** — SQLite-backed sessions survive app restarts; conversations resume automatically
 - **Cost tracking** — per-session token usage, context window %, rate limit bars, and estimated cost in USD
-- **`/model` & `/effort`** — switch models and thinking effort on the fly
+- **`/model` & `/effort`** — switch models and provider-specific thinking effort on the fly
 - **Slash commands** — `/` autocomplete from installed plugins
 - **@ file picker** — reference files inline with `@filename` fuzzy search
 - **Agent control** — Ctrl+C to interrupt, Arrow keys for message history
@@ -46,6 +47,8 @@ At least one CLI backend installed:
 - **[Claude Code](https://github.com/anthropics/claude-code)** — `npm install -g @anthropic-ai/claude-code && claude login`
 - **[Codex](https://github.com/openai/codex)** — `npm install -g @openai/codex`
 - **[OpenCode](https://github.com/opencode-ai/opencode)** — `go install github.com/opencode-ai/opencode@latest`
+
+Orbit also reads custom OpenCode providers from `~/.config/opencode/opencode.jsonc` or `~/.config/opencode/opencode.json` and shows them in the OpenCode provider selector.
 
 ---
 
@@ -107,6 +110,14 @@ Orbit ships with `orbit-mcp`, a built-in MCP server that enables multi-agent orc
 
 The MCP server is configured automatically when a session starts — no setup needed.
 
+For SSH remote sessions, Orbit injects the HTTP connection details automatically so the remote `orbit-mcp` sidecar can connect back to the desktop app without manual environment variable setup.
+
+## Web Access
+
+Orbit includes an HTTP API and browser UI for accessing the same dashboard from another device on your local network. Open the sidebar **Phone** control, enable web access, create an access key, and scan the QR code from your phone or tablet.
+
+The browser UI can create sessions, send messages, monitor agents, and receive live updates over WebSocket. Access keys can be rotated from the desktop app.
+
 ## Contributing
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
@@ -131,11 +142,15 @@ npm test           # Frontend (Vitest)
 npm run test:rust  # Backend (cargo test)
 ```
 
-### Linting & formatting
+### Quality checks
 
 ```bash
-npm run lint       # ESLint + svelte-check + clippy
-npm run format     # Prettier + rustfmt
+npm run format:check  # Prettier + rustfmt check
+npm run check         # Svelte type checks
+npm run lint          # ESLint + svelte-check + clippy
+npm test              # Frontend tests
+npm run test:rust     # Backend tests
+cd landing && npm run build  # Landing pipeline check
 ```
 
 ## Inspiration

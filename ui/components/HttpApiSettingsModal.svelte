@@ -136,7 +136,9 @@
 
   <div class="beta-banner">
     <span class="beta-pill">mobile beta</span>
-    <p>Phone access is still being tested. Some screens and actions may not work as expected yet.</p>
+    <p>
+      Phone access is still being tested. Some screens and actions may not work as expected yet.
+    </p>
   </div>
 
   <div class="flow-grid">
@@ -145,7 +147,9 @@
         <span class="step-number">1</span>
         <div>
           <div class="card-title">Enable web access</div>
-          <p class="card-copy">Orbit needs its web server enabled before another device can join.</p>
+          <p class="card-copy">
+            Orbit needs its web server enabled before another device can join.
+          </p>
         </div>
       </div>
 
@@ -188,7 +192,9 @@
         <span class="step-number">2</span>
         <div>
           <div class="card-title">Generate a phone link</div>
-          <p class="card-copy">Create a fresh access link, then scan the QR code on the same network.</p>
+          <p class="card-copy">
+            Create a fresh access link, then scan the QR code on the same network.
+          </p>
         </div>
       </div>
 
@@ -210,9 +216,15 @@
       {:else}
         <div class="quick-actions">
           <button class="btn primary" on:click={createPhoneLink} disabled={generatingKey}>
-            {generatingKey ? 'preparing...' : justCreatedKey ? 'generate another link' : 'prepare phone link'}
+            {generatingKey
+              ? 'preparing...'
+              : justCreatedKey
+                ? 'generate another link'
+                : 'prepare phone link'}
           </button>
-          <span class="subtle">QR code and access key open in a separate modal after generation.</span>
+          <span class="subtle"
+            >QR code and access key open in a separate modal after generation.</span
+          >
         </div>
 
         {#if justCreatedKey}
@@ -221,7 +233,9 @@
               <strong>Phone link ready.</strong>
               <span>Open the QR modal to scan, copy the key, or rotate the link.</span>
             </div>
-            <button class="btn small" on:click={() => (showPhoneLinkModal = true)}>open QR modal</button>
+            <button class="btn small" on:click={() => (showPhoneLinkModal = true)}
+              >open QR modal</button
+            >
           </div>
         {/if}
       {/if}
@@ -308,8 +322,8 @@
 
   {#if showPhoneLinkModal && justCreatedKey && accessUrl}
     <PhoneLinkModal
-      baseUrl={baseUrl}
-      accessUrl={accessUrl}
+      {baseUrl}
+      {accessUrl}
       apiKey={justCreatedKey.key}
       {qrSvg}
       generating={generatingKey}
