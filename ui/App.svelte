@@ -5,6 +5,7 @@
   import WebLoginScreen from './components/WebLoginScreen.svelte';
 
   let webAuthenticated = !IS_WEB || !!getStoredToken();
+  const isMobile = IS_WEB && window.innerWidth < 768;
   import {
     sessions,
     selectedSessionId,
@@ -89,6 +90,13 @@
   }
 
   onMount(async () => {
+    if (IS_WEB && !webAuthenticated) return;
+
+    if (isMobile) {
+      sidebarVisible.set(false);
+      metaPanelVisible.set(false);
+    }
+
     const [existing, check, version, changelog, providerList] = await Promise.all([
       listSessions(),
       checkClaude(),
@@ -265,8 +273,30 @@
     />
   {/if}
 
-  <div class="layout">
-    {#if $sidebarVisible}
+  {#if isMobile}
+    <div class="mobile-beta-banner">
+      <span class="mobile-beta-pill">mobile beta</span>
+      <p>Phone access is in testing. Some screens and actions may not work as expected yet.</p>
+    </div>
+  {/if}
+
+  <div class="layout" class:mobile={isMobile}>
+    {#if isMobile}
+      <div class="mobile-topbar">
+        <button class="hamburger-btn" on:click={() => sidebarVisible.set(true)} aria-label="Open sidebar">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <rect x="2" y="4" width="16" height="2" rx="1" fill="currentColor"/>
+            <rect x="2" y="9" width="16" height="2" rx="1" fill="currentColor"/>
+            <rect x="2" y="14" width="16" height="2" rx="1" fill="currentColor"/>
+          </svg>
+        </button>
+        <span class="mobile-title">orbit</span>
+      </div>
+      {#if $sidebarVisible}
+        <button class="sidebar-overlay" on:click={() => sidebarVisible.set(false)} aria-label="Close sidebar"></button>
+        <Sidebar onOpenChangelog={openChangelog} />
+      {/if}
+    {:else if $sidebarVisible}
       <Sidebar onOpenChangelog={openChangelog} />
     {:else}
       <button class="sidebar-reopen" on:click={() => sidebarVisible.set(true)} title="Show sidebar"
@@ -301,6 +331,32 @@
 <ToastContainer />
 
 <style>
+  .mobile-beta-banner {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    margin: 10px 10px 0;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(245, 166, 35, 0.28);
+    background: rgba(245, 166, 35, 0.08);
+  }
+  .mobile-beta-banner p {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--t1);
+  }
+  .mobile-beta-pill {
+    flex-shrink: 0;
+    padding: 4px 7px;
+    border-radius: 999px;
+    background: rgba(245, 166, 35, 0.14);
+    color: var(--warning, #f5a623);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
   .layout {
     display: flex;
     flex: 1;
@@ -381,5 +437,75 @@
   .meta-reopen:hover {
     color: var(--t0);
     background: var(--bg2);
+  }
+
+  /* ── Mobile ──────────────────────────────────────────────── */
+  .sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 90;
+    border: none;
+    cursor: default;
+  }
+
+  .layout.mobile :global(.sidebar) {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 100;
+    width: 260px;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4);
+  }
+
+  .mobile-topbar {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+    padding: var(--sp-3) var(--sp-5);
+    background: var(--bg1);
+    border-bottom: 1px solid var(--bd);
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+
+  .hamburger-btn {
+    background: none;
+    border: none;
+    color: var(--t1);
+    padding: var(--sp-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  .hamburger-btn:hover {
+    color: var(--t0);
+  }
+
+  .mobile-title {
+    font-size: var(--md);
+    color: var(--t2);
+    letter-spacing: 0.08em;
+    font-weight: 500;
+  }
+
+  .layout.mobile {
+    flex-direction: column;
+  }
+
+  .layout.mobile .sidebar-reopen {
+    display: none;
+  }
+
+  .layout.mobile .meta-reopen {
+    display: none;
+  }
+
+  .layout.mobile :global(.copy-btn) {
+    display: none !important;
   }
 </style>

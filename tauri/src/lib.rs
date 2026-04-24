@@ -128,17 +128,27 @@ pub fn run() {
                     let frontend_dir = {
                         let exe = std::env::current_exe().unwrap_or_default();
                         let exe_dir = exe.parent().unwrap_or(std::path::Path::new("."));
-                        // In dev: project_root/build, In prod: next to exe
                         let candidates = [
+                            // Prod: next to exe
                             exe_dir.join("build"),
-                            exe_dir.join("../build"),
+                            // Dev: exe is in tauri/target/debug/
+                            exe_dir.join("../../../build"),
                             exe_dir.join("../../build"),
+                            exe_dir.join("../build"),
+                            // CWD-relative fallback
                             std::path::PathBuf::from("build"),
                         ];
-                        candidates
+                        let found = candidates
                             .iter()
                             .find(|p| p.join("index.html").exists())
-                            .cloned()
+                            .cloned();
+                        if found.is_none() {
+                            eprintln!(
+                                "[orbit:http] WARNING: no build/ dir found (exe={})",
+                                exe.display()
+                            );
+                        }
+                        found
                     };
 
                     if let Some(ref dir) = frontend_dir {

@@ -54,11 +54,12 @@
   }
   .md :global(ul),
   .md :global(ol) {
-    margin: var(--sp-2) 0;
-    padding-left: var(--sp-9);
+    margin: var(--sp-3) 0;
+    padding-left: 2.2em;
   }
   .md :global(li) {
-    margin: var(--sp-1) 0;
+    margin: var(--sp-2) 0;
+    padding-left: var(--sp-2);
   }
   .md :global(h1),
   .md :global(h2),

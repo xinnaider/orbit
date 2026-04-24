@@ -25,9 +25,15 @@ function headers(): Record<string, string> {
   };
 }
 
+function handleUnauthorized(): never {
+  clearStoredToken();
+  window.location.reload();
+  throw new Error('UNAUTHORIZED');
+}
+
 async function apiGet<T>(path: string): Promise<T> {
   const res = await fetch(`/api${path}`, { headers: headers() });
-  if (res.status === 401) throw new Error('UNAUTHORIZED');
+  if (res.status === 401) handleUnauthorized();
   if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
   return res.json();
 }
@@ -38,7 +44,7 @@ async function apiPost<T>(path: string, body?: unknown): Promise<T> {
     headers: headers(),
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
-  if (res.status === 401) throw new Error('UNAUTHORIZED');
+  if (res.status === 401) handleUnauthorized();
   if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
   return res.json();
 }
@@ -48,7 +54,7 @@ async function apiDelete<T>(path: string): Promise<T> {
     method: 'DELETE',
     headers: headers(),
   });
-  if (res.status === 401) throw new Error('UNAUTHORIZED');
+  if (res.status === 401) handleUnauthorized();
   if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
   return res.json();
 }
@@ -112,7 +118,7 @@ export async function webInvoke<T>(cmd: string, args?: Args): Promise<T> {
 
     // ── Health / system ───────────────────────────────────────
     case 'check_claude':
-      return apiGet('/health').then(() => ({ available: true })) as Promise<T>;
+      return apiGet('/health').then(() => ({ found: true, path: null })) as Promise<T>;
 
     case 'get_changelog':
       return '' as unknown as T;

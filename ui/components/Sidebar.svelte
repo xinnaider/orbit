@@ -336,9 +336,9 @@
       <button
         class="footer-btn"
         on:click={() => (showHttpSettings = true)}
-        title="HTTP API settings"
+        title="Connect phone"
       >
-        API
+        Phone
       </button>
       <button class="collapse-btn" on:click={() => sidebarVisible.set(false)} title="Hide sidebar"
         >‹</button

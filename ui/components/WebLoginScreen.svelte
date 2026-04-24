@@ -43,6 +43,11 @@
 
 <div class="login-screen">
   <div class="login-card">
+    <div class="beta-banner">
+      <span class="beta-pill">mobile beta</span>
+      <p>Phone access is in testing. Some screens and actions may not work as expected yet.</p>
+    </div>
+
     <div class="logo">
       <svg width="32" height="32" viewBox="0 0 100 100" fill="none">
         <circle cx="50" cy="50" r="45" stroke="var(--ac)" stroke-width="3" fill="none"></circle>
@@ -52,7 +57,7 @@
       <span class="logo-text">orbit</span>
     </div>
 
-    <p class="subtitle">paste your API key to connect</p>
+    <p class="subtitle">paste your access key to connect</p>
 
     <form on:submit|preventDefault={submit}>
       <input
@@ -73,7 +78,7 @@
       </button>
     </form>
 
-    <p class="hint">generate a key in Orbit desktop: sidebar footer &rarr; API &rarr; generate</p>
+    <p class="hint">generate a key in Orbit desktop: sidebar footer &rarr; Phone &rarr; Advanced</p>
   </div>
 </div>
 
@@ -93,6 +98,33 @@
     gap: 20px;
     max-width: 380px;
     width: 100%;
+  }
+  .beta-banner {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(245, 166, 35, 0.28);
+    background: rgba(245, 166, 35, 0.08);
+  }
+  .beta-banner p {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--t1, #d0d0d0);
+  }
+  .beta-pill {
+    flex-shrink: 0;
+    padding: 4px 7px;
+    border-radius: 999px;
+    background: rgba(245, 166, 35, 0.14);
+    color: var(--warning, #f5a623);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
   }
   .logo {
     display: flex;

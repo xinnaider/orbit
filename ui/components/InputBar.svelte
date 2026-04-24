@@ -623,4 +623,21 @@ Get subagent tree for a session.
     font-size: 10px;
     flex-shrink: 0;
   }
+
+  @media (max-width: 768px) {
+    .input-row {
+      padding: var(--sp-5) var(--sp-5) var(--sp-4);
+    }
+    textarea {
+      font-size: 16px;
+      max-height: 160px;
+    }
+    .send-btn {
+      font-size: 20px;
+      padding: var(--sp-3) var(--sp-4);
+    }
+    .hint-bar {
+      display: none;
+    }
+  }
 </style>

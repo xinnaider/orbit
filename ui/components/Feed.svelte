@@ -448,4 +448,19 @@
     color: var(--t2);
     letter-spacing: 0.06em;
   }
+
+  @media (max-width: 768px) {
+    .row {
+      padding: var(--sp-4) var(--sp-5);
+    }
+    .system {
+      padding: var(--sp-2) var(--sp-5);
+    }
+    .typing-row {
+      padding: var(--sp-4) var(--sp-5);
+    }
+    .think-body {
+      max-height: 180px;
+    }
+  }
 </style>
