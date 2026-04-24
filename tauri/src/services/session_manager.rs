@@ -111,6 +111,23 @@ struct ActiveSession {
     pub stdin: Option<Arc<std::sync::Mutex<Box<dyn std::io::Write + Send>>>>,
 }
 
+pub(crate) fn resolve_context_metrics(
+    provider_id: &str,
+    model: Option<&str>,
+    state: &JournalState,
+) -> (Option<u64>, f64) {
+    let window = crate::commands::providers::resolve_context_window(
+        provider_id,
+        model,
+        state.context_window,
+    );
+    let percent = window
+        .filter(|window| *window > 0)
+        .map(|window| (state.input_tokens as f64 / window as f64) * 100.0)
+        .unwrap_or(0.0);
+    (window, percent)
+}
+
 pub struct SessionManager {
     pub db: Arc<DatabaseService>,
     active: HashMap<SessionId, ActiveSession>,
@@ -688,6 +705,15 @@ impl SessionManager {
                             .active
                             .get(&session_id)
                             .and_then(|a| a.session.cwd.clone());
+                        let provider_id = m
+                            .active
+                            .get(&session_id)
+                            .map(|a| a.session.provider.clone())
+                            .unwrap_or_else(|| DEFAULT_PROVIDER.to_string());
+                        let session_model = m
+                            .active
+                            .get(&session_id)
+                            .and_then(|a| a.session.model.clone());
                         let git_branch = cwd.as_deref().and_then(detect_git_branch);
                         let claude_session_id = m
                             .active
@@ -719,18 +745,9 @@ impl SessionManager {
                             None
                         };
 
-                        // Context window: use the value from the stream if
-                        // available, fall back to model lookup only for Claude
-                        // (which reports cumulative tokens). For Codex/OpenCode
-                        // the window stays None → context % stays 0 → UI hides it.
-                        let window = state.context_window.unwrap_or_else(|| {
-                            state
-                                .model
-                                .as_deref()
-                                .map(crate::models::context_window)
-                                .unwrap_or(0)
-                        });
-                        let total = state.input_tokens;
+                        let resolved_model = state.model.as_deref().or(session_model.as_deref());
+                        let (window, context_percent) =
+                            resolve_context_metrics(&provider_id, resolved_model, state);
 
                         let status_str = match state.status {
                             AgentStatus::Working => "working",
@@ -749,17 +766,13 @@ impl SessionManager {
                                 cache_read: state.cache_read,
                                 cache_write: state.cache_write,
                             },
-                            context_percent: if window > 0 {
-                                (total as f64 / window as f64) * 100.0
-                            } else {
-                                0.0
-                            },
+                            context_percent,
                             pending_approval: state.pending_approval.clone(),
                             mini_log: state.mini_log.clone(),
                             git_branch,
                             subagents,
                             model: state.model.clone(),
-                            context_window: state.context_window.or(Some(window)),
+                            context_window: window,
                             attention: state.attention.clone(),
                             rate_limit: state.rate_limit.clone(),
                             cost_usd: state.cost_usd,
@@ -937,25 +950,16 @@ impl SessionManager {
         for s in &mut sessions {
             self.load_session_journal(s.id);
             if let Some(state) = self.journal_states.get(&s.id) {
-                let window = state.context_window.unwrap_or_else(|| {
-                    state
-                        .model
-                        .as_deref()
-                        .map(crate::models::context_window)
-                        .unwrap_or(0)
-                });
-                let total = state.input_tokens;
+                let resolved_model = state.model.as_deref().or(s.model.as_deref());
+                let (_window, context_percent) =
+                    resolve_context_metrics(&s.provider, resolved_model, state);
                 s.tokens = Some(TokenUsage {
                     input: state.input_tokens,
                     output: state.output_tokens,
                     cache_read: state.cache_read,
                     cache_write: state.cache_write,
                 });
-                s.context_percent = Some(if window > 0 {
-                    (total as f64 / window as f64) * 100.0
-                } else {
-                    0.0
-                });
+                s.context_percent = Some(context_percent);
                 s.pending_approval = state.pending_approval.clone();
                 s.mini_log = Some(state.mini_log.clone());
             }

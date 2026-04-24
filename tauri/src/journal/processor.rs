@@ -68,6 +68,50 @@ pub(super) fn truncate_output(text: &str, max: usize) -> String {
     }
 }
 
+fn push_mini_log_entry(
+    state: &mut JournalState,
+    tool: &str,
+    target: String,
+    success: Option<bool>,
+) {
+    if state.mini_log.len() >= 4 {
+        state.mini_log.remove(0);
+    }
+    state.mini_log.push(MiniLogEntry {
+        tool: tool.to_string(),
+        target,
+        result: None,
+        success,
+    });
+}
+
+fn summarize_target(target: &str, max: usize) -> String {
+    if target.len() > max {
+        format!("{}...", char_boundary(target, max))
+    } else {
+        target.to_string()
+    }
+}
+
+fn snapshot_file(path: &str) -> Option<String> {
+    std::fs::read_to_string(path).ok()
+}
+
+fn count_changed_lines(old_text: &str, new_text: &str) -> LinesChanged {
+    let old_lines: Vec<&str> = old_text.lines().collect();
+    let new_lines: Vec<&str> = new_text.lines().collect();
+    let shared = old_lines
+        .iter()
+        .zip(new_lines.iter())
+        .take_while(|(old, new)| old == new)
+        .count();
+
+    LinesChanged {
+        added: new_lines.len().saturating_sub(shared) as u32,
+        removed: old_lines.len().saturating_sub(shared) as u32,
+    }
+}
+
 /// Process a single raw JSONL line from PTY stdout and update state.
 /// This is the real-time counterpart to parse_journal (which reads files).
 pub fn process_line(state: &mut JournalState, line: &str) {
@@ -737,21 +781,137 @@ pub fn process_line_codex(state: &mut JournalState, line: &str) {
                             });
                         }
 
-                        let target = if command.len() > 60 {
-                            format!("{}...", &command[..60])
-                        } else {
-                            command.to_string()
+                        push_mini_log_entry(
+                            state,
+                            "Bash",
+                            summarize_target(&command, 60),
+                            exit_code.map(|c| c == 0),
+                        );
+                    }
+                }
+                "file_change" => {
+                    let status = val
+                        .pointer("/item/status")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("");
+                    let changes = match val.pointer("/item/changes").and_then(|v| v.as_array()) {
+                        Some(changes) => changes,
+                        None => return,
+                    };
+
+                    if event_type == "item.started" || status == "in_progress" {
+                        for change in changes {
+                            let path = change
+                                .get("path")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("")
+                                .to_string();
+                            if !path.is_empty() {
+                                state
+                                    .pending_file_changes
+                                    .insert(path.clone(), snapshot_file(&path));
+                            }
+                        }
+                        return;
+                    }
+
+                    if status != "completed" {
+                        return;
+                    }
+
+                    for change in changes {
+                        let path = change
+                            .get("path")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .to_string();
+                        if path.is_empty() {
+                            continue;
+                        }
+
+                        let kind = change
+                            .get("kind")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("update");
+                        let old_content = state.pending_file_changes.remove(&path).flatten();
+                        let new_content = snapshot_file(&path);
+
+                        let (tool_name, tool_input, lines_changed) = match kind {
+                            "create" => {
+                                let content = new_content.clone().unwrap_or_default();
+                                let file_path = path.clone();
+                                (
+                                    "Write",
+                                    serde_json::json!({
+                                        "file_path": file_path,
+                                        "content": content.clone(),
+                                    }),
+                                    Some(count_changed_lines("", &content)),
+                                )
+                            }
+                            "delete" => {
+                                let old_text = old_content.clone().unwrap_or_default();
+                                let file_path = path.clone();
+                                (
+                                    "Edit",
+                                    serde_json::json!({
+                                        "file_path": file_path,
+                                        "old_string": old_text.clone(),
+                                        "new_string": "",
+                                    }),
+                                    Some(count_changed_lines(&old_text, "")),
+                                )
+                            }
+                            _ => {
+                                let old_text = old_content.clone().unwrap_or_default();
+                                let new_text = new_content.clone().unwrap_or_default();
+                                let tool_name = if old_content.is_some() {
+                                    "Edit"
+                                } else {
+                                    "Write"
+                                };
+                                let tool_input = if old_content.is_some() {
+                                    let file_path = path.clone();
+                                    serde_json::json!({
+                                        "file_path": file_path,
+                                        "old_string": old_text.clone(),
+                                        "new_string": new_text.clone(),
+                                    })
+                                } else {
+                                    let file_path = path.clone();
+                                    serde_json::json!({
+                                        "file_path": file_path,
+                                        "content": new_text.clone(),
+                                    })
+                                };
+                                (
+                                    tool_name,
+                                    tool_input,
+                                    Some(count_changed_lines(&old_text, &new_text)),
+                                )
+                            }
                         };
 
-                        if state.mini_log.len() >= 4 {
-                            state.mini_log.remove(0);
-                        }
-                        state.mini_log.push(MiniLogEntry {
-                            tool: "Bash".to_string(),
-                            target,
-                            result: None,
-                            success: exit_code.map(|c| c == 0),
+                        state.entries.push(JournalEntry {
+                            entry_type: JournalEntryType::ToolCall,
+                            tool: Some(tool_name.to_string()),
+                            tool_input: Some(tool_input),
+                            lines_changed,
+                            ..JournalEntry::default()
                         });
+
+                        state.entries.push(JournalEntry {
+                            entry_type: JournalEntryType::ToolResult,
+                            output: Some(format!("{kind}d {path}")),
+                            ..JournalEntry::default()
+                        });
+
+                        push_mini_log_entry(
+                            state,
+                            tool_name,
+                            summarize_target(&path, 60),
+                            Some(true),
+                        );
                     }
                 }
                 _ => {}
@@ -1199,6 +1359,66 @@ mod helper_tests {
         let result = truncate_output("short text", 2000);
         t.phase("Assert");
         t.eq("unchanged", result.as_str(), "short text");
+    }
+
+    #[test]
+    fn should_create_edit_entry_from_codex_file_change() {
+        let mut t = TestCase::new("should_create_edit_entry_from_codex_file_change");
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("note.txt");
+        std::fs::write(&path, "hello\n").expect("seed file");
+        let path_str = path.to_string_lossy().to_string();
+
+        let started = serde_json::json!({
+            "type": "item.started",
+            "item": {
+                "id": "item_1",
+                "type": "file_change",
+                "status": "in_progress",
+                "changes": [{ "path": path_str, "kind": "update" }]
+            }
+        });
+
+        let mut state = JournalState::default();
+        t.phase("Act -- snapshot old file");
+        process_line_codex(&mut state, &started.to_string());
+
+        std::fs::write(&path, "hi\n").expect("update file");
+        let completed = serde_json::json!({
+            "type": "item.completed",
+            "item": {
+                "id": "item_1",
+                "type": "file_change",
+                "status": "completed",
+                "changes": [{ "path": path.to_string_lossy(), "kind": "update" }]
+            }
+        });
+        process_line_codex(&mut state, &completed.to_string());
+
+        t.phase("Assert");
+        let edit = state
+            .entries
+            .iter()
+            .find(|entry| entry.entry_type == JournalEntryType::ToolCall)
+            .expect("missing tool call");
+        t.eq("tool type", edit.tool.as_deref(), Some("Edit"));
+        t.eq(
+            "old string captured",
+            edit.tool_input
+                .as_ref()
+                .and_then(|input| input.get("old_string"))
+                .and_then(|value| value.as_str()),
+            Some("hello\n"),
+        );
+        t.eq(
+            "new string captured",
+            edit.tool_input
+                .as_ref()
+                .and_then(|input| input.get("new_string"))
+                .and_then(|value| value.as_str()),
+            Some("hi\n"),
+        );
+        t.eq("mini log created", state.mini_log.len(), 1usize);
     }
 
     #[test]

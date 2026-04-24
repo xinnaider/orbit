@@ -317,10 +317,15 @@ pub struct CodexConfig {
     pub session_id: crate::models::SessionId,
     pub cwd: PathBuf,
     pub model: String,
+    pub effort: Option<String>,
     pub prompt: String,
     /// Codex session (thread) ID for follow-ups
     pub codex_session_id: Option<String>,
     pub skip_permissions: bool,
+}
+
+pub(crate) fn prompt_requires_stdin(prompt: &str) -> bool {
+    cfg!(windows) || prompt.contains('\n')
 }
 
 /// Spawn opencode in non-interactive JSON mode.
@@ -331,7 +336,7 @@ pub fn spawn_opencode(config: OpenCodeConfig) -> Result<SpawnHandle, String> {
     // On Windows, .cmd wrappers reject arguments containing newlines ("batch file
     // arguments are invalid").  Always pipe the prompt via stdin to avoid this.
     let prompt = config.prompt.clone();
-    let use_stdin = cfg!(windows) || prompt.contains('\n');
+    let use_stdin = prompt_requires_stdin(&prompt);
 
     let mut cmd = std::process::Command::new(&opencode);
     cmd.args(["run", "--format", "json"]);
@@ -404,6 +409,8 @@ pub fn spawn_codex(config: CodexConfig) -> Result<SpawnHandle, String> {
     let codex = find_codex()
         .ok_or_else(|| "codex not found — install with: npm i -g @openai/codex".to_string())?;
 
+    let prompt = config.prompt.clone();
+    let use_stdin = prompt_requires_stdin(&prompt);
     let mut cmd = std::process::Command::new(&codex);
 
     if let Some(ref sid) = config.codex_session_id {
@@ -411,20 +418,39 @@ pub fn spawn_codex(config: CodexConfig) -> Result<SpawnHandle, String> {
         if config.skip_permissions {
             cmd.arg("--dangerously-bypass-approvals-and-sandbox");
         }
+        if let Some(ref effort) = config.effort {
+            cmd.args(["--config", &format!("model_reasoning_effort=\"{effort}\"")]);
+        }
         cmd.args(["-m", &config.model]);
         cmd.arg(sid);
-        cmd.arg(&config.prompt);
+        if use_stdin {
+            cmd.arg("-");
+        } else {
+            cmd.arg(&prompt);
+        }
     } else {
         cmd.args(["exec", "--json"]);
         if config.skip_permissions {
             cmd.arg("--dangerously-bypass-approvals-and-sandbox");
         }
+        if let Some(ref effort) = config.effort {
+            cmd.args(["--config", &format!("model_reasoning_effort=\"{effort}\"")]);
+        }
         cmd.args(["-m", &config.model]);
-        cmd.arg(&config.prompt);
+        if use_stdin {
+            cmd.arg("-");
+        } else {
+            cmd.arg(&prompt);
+        }
     }
 
     cmd.current_dir(&config.cwd);
     cmd.env("PATH", extended_path());
+    if use_stdin {
+        cmd.stdin(std::process::Stdio::piped());
+    } else {
+        cmd.stdin(std::process::Stdio::null());
+    }
 
     cmd.stdout(std::process::Stdio::piped());
     cmd.stderr(std::process::Stdio::piped());
@@ -439,6 +465,15 @@ pub fn spawn_codex(config: CodexConfig) -> Result<SpawnHandle, String> {
     let mut child = cmd
         .spawn()
         .map_err(|e| format!("spawn codex failed: {e}"))?;
+
+    if use_stdin {
+        use std::io::Write;
+        let mut stdin_pipe = child.stdin.take().ok_or("no stdin")?;
+        stdin_pipe
+            .write_all(prompt.as_bytes())
+            .map_err(|e| format!("write prompt to stdin: {e}"))?;
+        drop(stdin_pipe);
+    }
 
     let pid = child.id();
     let stdout = child.stdout.take().ok_or("no stdout")?;
@@ -458,6 +493,28 @@ pub fn spawn_codex(config: CodexConfig) -> Result<SpawnHandle, String> {
 mod tests {
     use super::*;
     use crate::test_utils::TestCase;
+
+    #[test]
+    fn prompt_requires_stdin_should_return_true_when_prompt_is_multiline() {
+        let mut t =
+            TestCase::new("prompt_requires_stdin_should_return_true_when_prompt_is_multiline");
+        t.phase("Act");
+        let result = prompt_requires_stdin("line 1\nline 2");
+        t.phase("Assert");
+        t.ok("multiline prompts require stdin", result);
+    }
+
+    #[test]
+    #[cfg(not(windows))]
+    fn prompt_requires_stdin_should_return_false_for_single_line_prompt_on_non_windows() {
+        let mut t = TestCase::new(
+            "prompt_requires_stdin_should_return_false_for_single_line_prompt_on_non_windows",
+        );
+        t.phase("Act");
+        let result = prompt_requires_stdin("single line");
+        t.phase("Assert");
+        t.ok("single line prompt does not require stdin", !result);
+    }
 
     #[test]
     fn should_include_current_path_in_extended_path() {

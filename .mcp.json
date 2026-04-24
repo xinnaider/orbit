@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "orbit": {
-      "command": "C:\\Users\\fernandonepen\\AppData\\Local\\Orbit\\orbit-mcp.exe"
+      "command": "C:\\Users\\fernandonepen\\Documents\\orbit\\tauri\\target\\debug\\orbit-mcp.exe"
     }
   }
 }

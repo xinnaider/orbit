@@ -147,9 +147,7 @@ pub fn run() {
                 eprintln!("[orbit-mcp] IPC unavailable — connecting via HTTP to {url}");
                 http_connected_mode(&url);
             } else {
-                eprintln!(
-                    "[orbit-mcp] Orbit app not running — MCP operating in standalone mode"
-                );
+                eprintln!("[orbit-mcp] Orbit app not running — MCP operating in standalone mode");
                 standalone::run();
             }
         }
@@ -197,12 +195,12 @@ fn http_jsonrpc_request(base_url: &str, token: &str, request: &str) -> String {
         Err(_) => return String::new(),
     };
 
-    let method = parsed
-        .get("method")
-        .and_then(|m| m.as_str())
-        .unwrap_or("");
+    let method = parsed.get("method").and_then(|m| m.as_str()).unwrap_or("");
     let id = parsed.get("id").cloned();
-    let params = parsed.get("params").cloned().unwrap_or(serde_json::json!({}));
+    let params = parsed
+        .get("params")
+        .cloned()
+        .unwrap_or(serde_json::json!({}));
 
     match method {
         "initialize" => {
@@ -229,10 +227,7 @@ fn http_jsonrpc_request(base_url: &str, token: &str, request: &str) -> String {
             .to_string()
         }
         "tools/call" => {
-            let name = params
-                .get("name")
-                .and_then(|n| n.as_str())
-                .unwrap_or("");
+            let name = params.get("name").and_then(|n| n.as_str()).unwrap_or("");
             let args = params
                 .get("arguments")
                 .cloned()
@@ -247,14 +242,12 @@ fn http_jsonrpc_request(base_url: &str, token: &str, request: &str) -> String {
             })
             .to_string()
         }
-        _ => {
-            serde_json::json!({
-                "jsonrpc": "2.0",
-                "id": id,
-                "error": { "code": -32601, "message": format!("Method not found: {method}") }
-            })
-            .to_string()
-        }
+        _ => serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": id,
+            "error": { "code": -32601, "message": format!("Method not found: {method}") }
+        })
+        .to_string(),
     }
 }
 
@@ -277,17 +270,11 @@ fn dispatch_http_tool(
             http_post(&format!("{base_url}/api/sessions"), token, &body)
         }
         "orbit_get_status" => {
-            let sid = args
-                .get("sessionId")
-                .and_then(|v| v.as_i64())
-                .unwrap_or(0);
+            let sid = args.get("sessionId").and_then(|v| v.as_i64()).unwrap_or(0);
             http_get(&format!("{base_url}/api/sessions/{sid}"), token)
         }
         "orbit_send_message" => {
-            let sid = args
-                .get("sessionId")
-                .and_then(|v| v.as_i64())
-                .unwrap_or(0);
+            let sid = args.get("sessionId").and_then(|v| v.as_i64()).unwrap_or(0);
             let body = serde_json::json!({
                 "message": args.get("message").and_then(|v| v.as_str()).unwrap_or("")
             });
@@ -298,10 +285,7 @@ fn dispatch_http_tool(
             )
         }
         "orbit_cancel_agent" => {
-            let sid = args
-                .get("sessionId")
-                .and_then(|v| v.as_i64())
-                .unwrap_or(0);
+            let sid = args.get("sessionId").and_then(|v| v.as_i64()).unwrap_or(0);
             http_post(
                 &format!("{base_url}/api/sessions/{sid}/cancel"),
                 token,
@@ -318,24 +302,16 @@ fn dispatch_http_tool(
             http_get(&url, token)
         }
         "orbit_get_subagents" => {
-            let sid = args
-                .get("sessionId")
-                .and_then(|v| v.as_i64())
-                .unwrap_or(0);
+            let sid = args.get("sessionId").and_then(|v| v.as_i64()).unwrap_or(0);
             http_get(&format!("{base_url}/api/sessions/{sid}/subagents"), token)
         }
-        _ => format!("{{\"error\": \"Unknown tool: {tool_name}\"}}")
+        _ => format!("{{\"error\": \"Unknown tool: {tool_name}\"}}"),
     }
 }
 
 fn http_get(url: &str, token: &str) -> String {
     let output = std::process::Command::new("curl")
-        .args([
-            "-s",
-            "-H",
-            &format!("Authorization: Bearer {token}"),
-            url,
-        ])
+        .args(["-s", "-H", &format!("Authorization: Bearer {token}"), url])
         .output();
 
     match output {
@@ -637,7 +613,8 @@ pub mod standalone {
 
         let args = build_spawn_args(provider, model, prompt);
 
-        let use_stdin = provider == "opencode" && (cfg!(windows) || prompt.contains('\n'));
+        let use_stdin = matches!(provider, "opencode" | "codex")
+            && crate::services::spawn_manager::prompt_requires_stdin(prompt);
 
         let mut cmd = Command::new(&cli_path);
         if use_stdin {

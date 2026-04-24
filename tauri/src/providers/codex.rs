@@ -6,6 +6,8 @@ use crate::services::ssh::{self, SpawnMode};
 
 pub struct CodexProvider;
 
+const CODEX_EFFORT_LEVELS: &[&str] = &["none", "minimal", "low", "medium", "high", "xhigh"];
+
 impl Provider for CodexProvider {
     fn id(&self) -> &str {
         "codex"
@@ -21,6 +23,7 @@ impl Provider for CodexProvider {
                 session_id: config.session_id,
                 cwd: config.cwd,
                 model: config.model,
+                effort: config.effort,
                 prompt: config.prompt,
                 codex_session_id: config.resume_id,
                 skip_permissions: config.skip_permissions,
@@ -36,6 +39,12 @@ impl Provider for CodexProvider {
                     if config.skip_permissions {
                         parts.push("--dangerously-bypass-approvals-and-sandbox".to_string());
                     }
+                    if let Some(ref effort) = config.effort {
+                        parts.push("--config".to_string());
+                        parts.push(ssh::posix_escape(&format!(
+                            "model_reasoning_effort=\"{effort}\""
+                        )));
+                    }
                     parts.extend([
                         "-m".to_string(),
                         ssh::posix_escape(&config.model),
@@ -46,6 +55,12 @@ impl Provider for CodexProvider {
                     parts.extend(["exec".to_string(), "--json".to_string()]);
                     if config.skip_permissions {
                         parts.push("--dangerously-bypass-approvals-and-sandbox".to_string());
+                    }
+                    if let Some(ref effort) = config.effort {
+                        parts.push("--config".to_string());
+                        parts.push(ssh::posix_escape(&format!(
+                            "model_reasoning_effort=\"{effort}\""
+                        )));
                     }
                     parts.extend([
                         "-m".to_string(),
@@ -82,7 +97,8 @@ impl Provider for CodexProvider {
     }
 
     fn context_window(&self, model: &str) -> Option<u64> {
-        Some(crate::commands::providers::codex_context_window(model))
+        let _ = model;
+        None
     }
 
     fn slash_commands(&self) -> Vec<SlashCommand> {
@@ -90,10 +106,10 @@ impl Provider for CodexProvider {
     }
 
     fn supports_effort(&self) -> bool {
-        false
+        true
     }
     fn effort_levels(&self, _model: &str) -> &[&str] {
-        &[]
+        CODEX_EFFORT_LEVELS
     }
     fn supports_ssh(&self) -> bool {
         true
@@ -145,23 +161,27 @@ mod tests {
     }
 
     #[test]
-    fn should_not_support_effort() {
-        let mut t = TestCase::new("should_not_support_effort");
+    fn should_support_effort() {
+        let mut t = TestCase::new("should_support_effort");
         let provider = CodexProvider;
 
         t.phase("Assert");
-        t.ok("supports_effort is false", !provider.supports_effort());
+        t.ok("supports_effort is true", provider.supports_effort());
+        t.eq(
+            "xhigh is exposed for codex",
+            provider.effort_levels("gpt-5.5")[5],
+            "xhigh",
+        );
     }
 
     #[test]
-    fn should_return_context_window_for_gpt54() {
-        let mut t = TestCase::new("should_return_context_window_for_gpt54");
+    fn should_not_report_runtime_context_window_for_gpt54() {
+        let mut t = TestCase::new("should_not_report_runtime_context_window_for_gpt54");
         let provider = CodexProvider;
 
         t.phase("Assert");
         let window = provider.context_window("gpt-5.4");
-        t.some("context_window for gpt-5.4 is Some", &window);
-        t.eq("context_window value", window.unwrap(), 200_000);
+        t.none("runtime context window is unknown for codex", &window);
     }
 
     #[test]

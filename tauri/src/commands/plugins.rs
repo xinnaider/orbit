@@ -186,7 +186,11 @@ pub fn get_codex_commands() -> Vec<SlashCommand> {
     let mut result: Vec<SlashCommand> = Vec::new();
 
     // Codex built-in commands
-    let builtins = [("/model", "Switch model"), ("/help", "Show help")];
+    let builtins = [
+        ("/model", "Choose model and reasoning effort"),
+        ("/fast", "Toggle Fast mode for faster inference"),
+        ("/help", "Show help"),
+    ];
     for (cmd, desc) in builtins {
         result.push(SlashCommand {
             cmd: cmd.to_string(),

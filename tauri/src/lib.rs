@@ -116,11 +116,9 @@ pub fn run() {
                     // Auto-generate a key for SSH sessions if none exists
                     {
                         use crate::services::http_server::hash_api_key;
-                        let key =
-                            format!("orbit_ssh_{}", uuid::Uuid::new_v4().simple());
+                        let key = format!("orbit_ssh_{}", uuid::Uuid::new_v4().simple());
                         let key_hash = hash_api_key(&key);
-                        let _ =
-                            db_ref.create_api_key("ssh-auto", "SSH auto-generated", &key_hash);
+                        let _ = db_ref.create_api_key("ssh-auto", "SSH auto-generated", &key_hash);
                         std::env::set_var("_ORBIT_HTTP_SSH_KEY", &key);
                     }
 
@@ -169,7 +167,8 @@ pub fn run() {
                             .enable_all()
                             .build()
                             .expect("tokio runtime");
-                        if let Err(e) = rt.block_on(services::http_server::start(state, &host, port))
+                        if let Err(e) =
+                            rt.block_on(services::http_server::start(state, &host, port))
                         {
                             eprintln!("[orbit:http] server error: {e}");
                         }
@@ -196,10 +195,8 @@ pub fn run() {
                     app.listen(event_name, move |event| {
                         let payload_str = event.payload();
                         if let Ok(data) = serde_json::from_str::<serde_json::Value>(payload_str) {
-                            let session_id = data
-                                .get("sessionId")
-                                .and_then(|v| v.as_i64())
-                                .unwrap_or(0);
+                            let session_id =
+                                data.get("sessionId").and_then(|v| v.as_i64()).unwrap_or(0);
                             let _ = tx.send(StreamEvent {
                                 session_id,
                                 event_type: name.clone(),

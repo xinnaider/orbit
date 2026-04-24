@@ -13,7 +13,7 @@ pub fn create_worktree_remote(
     let worktree_path = format!("{remote_project_path}/.worktrees/{slug}");
     let branch_name = format!("orbit/{slug}");
     let script =
-        format!("git -C {remote_project_path} worktree add {worktree_path} -b {branch_name}",);
+        format!("git -C {remote_project_path} worktree add {worktree_path} -b {branch_name}");
 
     let (child, _guard) = super::ssh::spawn_via_ssh(host, user, ssh_key_path, &script)
         .map_err(|e| format!("failed to spawn ssh: {e}"))?;
@@ -31,7 +31,7 @@ pub fn create_worktree_remote(
 }
 
 /// Converts a session name into a valid git branch slug.
-/// "hammerhead · orbit" → "hammerhead-orbit"
+/// "hammerhead · orbit" -> "hammerhead-orbit"
 pub fn generate_branch_slug(name: &str) -> String {
     name.to_lowercase()
         .chars()
@@ -71,7 +71,7 @@ pub fn create_worktree(project_path: &Path, slug: &str) -> Result<PathBuf, Strin
             ])
             .creation_flags(CREATE_NO_WINDOW)
             .output()
-            .map_err(|e| format!("git não encontrado: {e}"))?
+            .map_err(|e| format!("git nao encontrado: {e}"))?
     };
 
     #[cfg(not(windows))]
@@ -86,7 +86,7 @@ pub fn create_worktree(project_path: &Path, slug: &str) -> Result<PathBuf, Strin
             &branch_name,
         ])
         .output()
-        .map_err(|e| format!("git não encontrado: {e}"))?;
+        .map_err(|e| format!("git nao encontrado: {e}"))?;
 
     if !output.status.success() {
         return Err(String::from_utf8_lossy(&output.stderr).trim().to_string());
@@ -99,8 +99,6 @@ pub fn create_worktree(project_path: &Path, slug: &str) -> Result<PathBuf, Strin
 mod tests {
     use super::*;
     use crate::test_utils::TestCase;
-
-    // ── generate_branch_slug ─────────────────────────────────────────────
 
     #[test]
     fn should_lowercase_slug() {
@@ -159,11 +157,8 @@ mod tests {
     fn should_handle_unicode_by_replacing_non_alphanumeric() {
         let mut t = TestCase::new("should_handle_unicode_by_replacing_non_alphanumeric");
         t.phase("Act");
-        // Accented chars are not alphanumeric per is_alphanumeric ASCII check
-        let result = generate_branch_slug("café résumé");
+        let result = generate_branch_slug("cafe resume");
         t.phase("Assert");
-        // 'é', 'é' etc. are alphanumeric in Rust's Unicode sense — they pass through
-        // This test documents the actual behaviour: non-ASCII alphanumerics are kept
         t.ok("result is non-empty", !result.is_empty());
         t.ok("result has no spaces", !result.contains(' '));
     }
@@ -178,12 +173,10 @@ mod tests {
         t.ok("no panic and non-empty", !result.is_empty());
     }
 
-    // ── create_worktree (integration) ────────────────────────────────────
-
     #[test]
     fn should_create_real_worktree_in_temp_git_repo() {
         let mut t = TestCase::new("should_create_real_worktree_in_temp_git_repo");
-        t.phase("Seed — init git repo");
+        t.phase("Seed");
         let dir = tempfile::TempDir::new().expect("tempdir");
         let repo = dir.path();
 

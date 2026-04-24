@@ -91,9 +91,8 @@ pub fn build_router(state: HttpState) -> Router {
         .with_state(state);
 
     if let Some(dir) = frontend_dir {
-        let serve = ServeDir::new(&dir).fallback(tower_http::services::ServeFile::new(
-            dir.join("index.html"),
-        ));
+        let serve = ServeDir::new(&dir)
+            .fallback(tower_http::services::ServeFile::new(dir.join("index.html")));
         api.fallback_service(serve)
     } else {
         api
@@ -128,10 +127,7 @@ async fn health(
     if let Some(auth) = headers.get("authorization").and_then(|v| v.to_str().ok()) {
         if let Some(token) = auth.strip_prefix("Bearer ") {
             let hash = hash_api_key(token);
-            let valid = state
-                .db
-                .validate_api_key_hash(&hash)
-                .unwrap_or(false);
+            let valid = state.db.validate_api_key_hash(&hash).unwrap_or(false);
             return Ok(Json(
                 json!({ "status": "ok", "version": env!("CARGO_PKG_VERSION"), "authenticated": valid }),
             ));
@@ -180,8 +176,12 @@ async fn create_session(
 
     if let Some(pid) = provider_id {
         if state.registry.get(pid).is_none() {
-            let available: Vec<String> =
-                state.registry.all().iter().map(|p| p.id().to_string()).collect();
+            let available: Vec<String> = state
+                .registry
+                .all()
+                .iter()
+                .map(|p| p.id().to_string())
+                .collect();
             return Ok(Json(json!({
                 "error": format!("Unknown provider \"{pid}\". Available: {}", available.join(", "))
             })));
@@ -263,20 +263,18 @@ async fn get_session_status(
         .read()
         .unwrap_or_else(|e| e.into_inner());
 
-    let session = m
-        .db
-        .get_session(id)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        .ok_or(StatusCode::NOT_FOUND)?;
+    let session =
+        m.db.get_session(id)
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+            .ok_or(StatusCode::NOT_FOUND)?;
 
     let (tokens, context_percent, mini_log) = if let Some(js) = m.journal_states.get(&id) {
-        let window = js.context_window.unwrap_or(200_000);
-        let total = js.input_tokens + js.cache_read;
-        let pct = if window > 0 {
-            (total as f64 / window as f64) * 100.0
-        } else {
-            0.0
-        };
+        let resolved_model = js.model.as_deref().or(session.model.as_deref());
+        let (_window, pct) = crate::services::session_manager::resolve_context_metrics(
+            &session.provider,
+            resolved_model,
+            js,
+        );
         (
             json!({
                 "input": js.input_tokens,
@@ -453,12 +451,11 @@ async fn get_subagents(
         .session_manager
         .read()
         .unwrap_or_else(|e| e.into_inner());
-    let claude_sid = m
-        .db
-        .get_claude_session_id(id)
-        .ok()
-        .flatten()
-        .ok_or(StatusCode::NOT_FOUND)?;
+    let claude_sid =
+        m.db.get_claude_session_id(id)
+            .ok()
+            .flatten()
+            .ok_or(StatusCode::NOT_FOUND)?;
     drop(m);
 
     let subagents = agent_tree::read_subagents(&claude_sid);

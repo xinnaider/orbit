@@ -295,13 +295,13 @@ mod tests {
         t.phase("Seed");
         let mut registry = ProviderRegistry::new();
         registry.register(Box::new(MockProvider::new("claude", "Claude Code", true)));
-        registry.register(Box::new(MockProvider::new("codex", "Codex CLI", false)));
+        registry.register(Box::new(MockProvider::new("codex", "Codex CLI", true)));
 
         t.phase("Assert");
         let claude = registry.get("claude").unwrap();
         t.ok("claude supports effort", claude.supports_effort());
 
         let codex = registry.get("codex").unwrap();
-        t.ok("codex does not support effort", !codex.supports_effort());
+        t.ok("codex supports effort", codex.supports_effort());
     }
 }

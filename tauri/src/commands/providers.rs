@@ -154,28 +154,34 @@ fn get_provider_models(provider_id: &str) -> Vec<ModelInfo> {
         ],
         "codex" => vec![
             ModelInfo {
+                id: "gpt-5.5".into(),
+                name: "gpt-5.5".into(),
+                context: Some(1_000_000),
+                output: Some(128_000),
+            },
+            ModelInfo {
                 id: "gpt-5.4".into(),
                 name: "gpt-5.4".into(),
-                context: None,
-                output: None,
+                context: Some(1_050_000),
+                output: Some(128_000),
             },
             ModelInfo {
                 id: "gpt-5.4-mini".into(),
                 name: "gpt-5.4-mini".into(),
-                context: None,
-                output: None,
+                context: Some(400_000),
+                output: Some(128_000),
             },
             ModelInfo {
                 id: "gpt-5.3-codex".into(),
                 name: "gpt-5.3-codex".into(),
-                context: None,
-                output: None,
+                context: Some(400_000),
+                output: Some(128_000),
             },
             ModelInfo {
                 id: "gpt-5.2".into(),
                 name: "gpt-5.2".into(),
-                context: None,
-                output: None,
+                context: Some(400_000),
+                output: Some(128_000),
             },
         ],
         _ => vec![], // OpenCode models come from sub-providers
@@ -367,60 +373,7 @@ fn read_opencode_providers() -> Option<Vec<SubProvider>> {
     let path = home.join(".cache").join("opencode").join("models.json");
     let content = std::fs::read_to_string(&path).ok()?;
     let data: serde_json::Value = serde_json::from_str(&content).ok()?;
-    let obj = data.as_object()?;
-
-    let mut result: Vec<SubProvider> = obj
-        .iter()
-        .map(|(id, provider)| {
-            let env_vars: Vec<String> = provider
-                .get("env")
-                .and_then(|v| v.as_array())
-                .map(|arr| {
-                    arr.iter()
-                        .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                        .collect()
-                })
-                .unwrap_or_default();
-
-            let configured = env_vars.iter().all(|var| std::env::var(var).is_ok());
-
-            let name = provider
-                .get("name")
-                .and_then(|v| v.as_str())
-                .unwrap_or(id)
-                .to_string();
-
-            let models: Vec<ModelInfo> = provider
-                .get("models")
-                .and_then(|v| v.as_object())
-                .map(|m| {
-                    m.iter()
-                        .map(|(mid, mval)| ModelInfo {
-                            id: mid.clone(),
-                            name: mval
-                                .get("name")
-                                .and_then(|v| v.as_str())
-                                .unwrap_or(mid)
-                                .to_string(),
-                            context: mval.pointer("/limit/context").and_then(|v| v.as_u64()),
-                            output: mval.pointer("/limit/output").and_then(|v| v.as_u64()),
-                        })
-                        .collect()
-                })
-                .unwrap_or_default();
-
-            SubProvider {
-                id: id.clone(),
-                name,
-                env: env_vars,
-                configured,
-                models,
-            }
-        })
-        .collect();
-
-    result.sort_by(|a, b| a.name.cmp(&b.name));
-    Some(result)
+    parse_cache_subproviders(&data)
 }
 
 fn strip_jsonc_comments(s: &str) -> String {
@@ -496,56 +449,28 @@ fn strip_jsonc_comments(s: &str) -> String {
 
 fn read_opencode_jsonc_providers() -> Option<Vec<SubProvider>> {
     let home = dirs::home_dir()?;
-    let path = home.join(".config").join("opencode").join("opencode.jsonc");
-    let raw = std::fs::read_to_string(&path).ok()?;
-    let stripped = strip_jsonc_comments(&raw);
-    let data: serde_json::Value = serde_json::from_str(&stripped).ok()?;
-    let providers_obj = data.get("provider").and_then(|v| v.as_object())?;
+    let dir = home.join(".config").join("opencode");
+    let mut merged = Vec::new();
 
-    let result = providers_obj
-        .iter()
-        .map(|(id, provider)| {
-            let name = provider
-                .get("name")
-                .and_then(|v| v.as_str())
-                .unwrap_or(id)
-                .to_string();
+    for path in [dir.join("opencode.jsonc"), dir.join("opencode.json")] {
+        let raw = match std::fs::read_to_string(&path) {
+            Ok(raw) => raw,
+            Err(_) => continue,
+        };
+        let stripped = strip_jsonc_comments(&raw);
+        let data: serde_json::Value = match serde_json::from_str(&stripped) {
+            Ok(data) => data,
+            Err(_) => continue,
+        };
+        let providers = parse_config_subproviders(&data).unwrap_or_default();
+        merge_subproviders(&mut merged, providers);
+    }
 
-            let configured = provider
-                .pointer("/options/apiKey")
-                .and_then(|v| v.as_str())
-                .is_some_and(|key| !key.is_empty());
-
-            let models: Vec<ModelInfo> = provider
-                .get("models")
-                .and_then(|v| v.as_object())
-                .map(|m| {
-                    m.iter()
-                        .map(|(mid, mval)| ModelInfo {
-                            id: mid.clone(),
-                            name: mval
-                                .get("name")
-                                .and_then(|v| v.as_str())
-                                .unwrap_or(mid)
-                                .to_string(),
-                            context: mval.pointer("/limit/context").and_then(|v| v.as_u64()),
-                            output: mval.pointer("/limit/output").and_then(|v| v.as_u64()),
-                        })
-                        .collect()
-                })
-                .unwrap_or_default();
-
-            SubProvider {
-                id: id.clone(),
-                name,
-                env: vec![],
-                configured,
-                models,
-            }
-        })
-        .collect();
-
-    Some(result)
+    if merged.is_empty() {
+        None
+    } else {
+        Some(merged)
+    }
 }
 
 /// Look up the context window for a model from models.json.
@@ -556,16 +481,237 @@ pub fn lookup_context_window(provider: &str, model: &str) -> Option<u64> {
     let path = home.join(".cache").join("opencode").join("models.json");
     let content = std::fs::read_to_string(&path).ok()?;
     let data: serde_json::Value = serde_json::from_str(&content).ok()?;
-    data.pointer(&format!("/{provider}/models/{model}/limit/context"))
-        .and_then(|v| v.as_u64())
+    lookup_context_window_in_value(&data, provider, model).or_else(|| {
+        read_opencode_jsonc_providers().and_then(|providers| {
+            providers
+                .iter()
+                .find(|sub| sub.id == provider)
+                .and_then(|sub| sub.models.iter().find(|m| m.id == model))
+                .and_then(|model| model.context)
+        })
+    })
+}
+
+pub fn resolve_context_window(
+    provider_id: &str,
+    model: Option<&str>,
+    explicit: Option<u64>,
+) -> Option<u64> {
+    if explicit.is_some() {
+        return explicit;
+    }
+
+    let model = model?;
+    match provider_id {
+        "claude-code" => Some(crate::models::context_window(model)),
+        "codex" => None,
+        "opencode" => resolve_opencode_model_context(model),
+        custom => {
+            lookup_context_window(custom, model).or_else(|| resolve_opencode_model_context(model))
+        }
+    }
 }
 
 /// Context window for Codex models (hardcoded — not in models.json).
 pub fn codex_context_window(model: &str) -> u64 {
     match model {
-        "gpt-5.4" | "gpt-5.4-mini" => 200_000,
-        "gpt-5.3-codex" => 200_000,
-        "gpt-5.2" => 200_000,
-        _ => 200_000,
+        "gpt-5.5" => 1_000_000,
+        "gpt-5.4" => 1_050_000,
+        "gpt-5.4-mini" => 400_000,
+        "gpt-5.3-codex" => 400_000,
+        "gpt-5.2" => 400_000,
+        _ => 400_000,
+    }
+}
+
+fn parse_cache_subproviders(data: &serde_json::Value) -> Option<Vec<SubProvider>> {
+    let obj = data.as_object()?;
+    let mut result: Vec<SubProvider> = obj
+        .iter()
+        .map(|(id, provider)| {
+            let env_vars: Vec<String> = provider
+                .get("env")
+                .and_then(|v| v.as_array())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                        .collect()
+                })
+                .unwrap_or_default();
+
+            let configured = env_vars.iter().all(|var| std::env::var(var).is_ok());
+
+            SubProvider {
+                id: id.clone(),
+                name: provider
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or(id)
+                    .to_string(),
+                env: env_vars,
+                configured,
+                models: parse_models(provider),
+            }
+        })
+        .collect();
+
+    result.sort_by(|a, b| a.name.cmp(&b.name));
+    Some(result)
+}
+
+fn parse_config_subproviders(data: &serde_json::Value) -> Option<Vec<SubProvider>> {
+    let providers_obj = data.get("provider").and_then(|v| v.as_object())?;
+    let mut result: Vec<SubProvider> = providers_obj
+        .iter()
+        .map(|(id, provider)| SubProvider {
+            id: id.clone(),
+            name: provider
+                .get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or(id)
+                .to_string(),
+            env: vec![],
+            configured: provider
+                .pointer("/options/apiKey")
+                .and_then(|v| v.as_str())
+                .is_some_and(|key| !key.is_empty()),
+            models: parse_models(provider),
+        })
+        .collect();
+
+    result.sort_by(|a, b| a.name.cmp(&b.name));
+    Some(result)
+}
+
+fn parse_models(provider: &serde_json::Value) -> Vec<ModelInfo> {
+    provider
+        .get("models")
+        .and_then(|v| v.as_object())
+        .map(|models| {
+            models
+                .iter()
+                .map(|(id, value)| ModelInfo {
+                    id: id.clone(),
+                    name: value
+                        .get("name")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or(id)
+                        .to_string(),
+                    context: value.pointer("/limit/context").and_then(|v| v.as_u64()),
+                    output: value.pointer("/limit/output").and_then(|v| v.as_u64()),
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn merge_subproviders(target: &mut Vec<SubProvider>, incoming: Vec<SubProvider>) {
+    for provider in incoming {
+        if let Some(existing) = target.iter_mut().find(|sub| sub.id == provider.id) {
+            *existing = provider;
+        } else {
+            target.push(provider);
+        }
+    }
+    target.sort_by(|a, b| a.name.cmp(&b.name));
+}
+
+fn lookup_context_window_in_value(
+    data: &serde_json::Value,
+    provider: &str,
+    model: &str,
+) -> Option<u64> {
+    data.pointer(&format!("/{provider}/models/{model}/limit/context"))
+        .and_then(|v| v.as_u64())
+}
+
+fn resolve_opencode_model_context(model: &str) -> Option<u64> {
+    let (provider, model_id) = model.split_once('/')?;
+    lookup_context_window(provider, model_id)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_utils::TestCase;
+
+    #[test]
+    fn should_parse_custom_provider_from_jsonc_config() {
+        let mut t = TestCase::new("should_parse_custom_provider_from_jsonc_config");
+        let raw = r#"
+        {
+          // custom route
+          "provider": {
+            "omniroute": {
+              "name": "Omniroute",
+              "options": { "apiKey": "secret" },
+              "models": {
+                "gpt-4.1": {
+                  "name": "GPT 4.1",
+                  "limit": { "context": 123456, "output": 4096 }
+                }
+              }
+            }
+          }
+        }
+        "#;
+
+        t.phase("Act");
+        let stripped = strip_jsonc_comments(raw);
+        let parsed: serde_json::Value = serde_json::from_str(&stripped).expect("valid json");
+        let providers = parse_config_subproviders(&parsed).expect("providers");
+
+        t.phase("Assert");
+        t.len("one provider", &providers, 1);
+        t.eq("provider id", providers[0].id.as_str(), "omniroute");
+        t.eq("provider configured", providers[0].configured, true);
+        t.len("one model", &providers[0].models, 1);
+        t.eq(
+            "context limit",
+            providers[0].models[0].context,
+            Some(123456),
+        );
+    }
+
+    #[test]
+    fn should_resolve_context_window_for_custom_provider_models() {
+        let mut t = TestCase::new("should_resolve_context_window_for_custom_provider_models");
+        let data = serde_json::json!({
+            "omniroute": {
+                "models": {
+                    "gpt-4.1": {
+                        "limit": { "context": 654321 }
+                    }
+                }
+            }
+        });
+
+        t.phase("Assert");
+        t.eq(
+            "context limit from provider/model map",
+            lookup_context_window_in_value(&data, "omniroute", "gpt-4.1"),
+            Some(654321),
+        );
+    }
+
+    #[test]
+    fn should_resolve_context_window_from_prefixed_opencode_model() {
+        let mut t = TestCase::new("should_resolve_context_window_from_prefixed_opencode_model");
+
+        t.phase("Assert");
+        t.eq(
+            "claude fallback stays hardcoded",
+            resolve_context_window("claude-code", Some("claude-opus-4-7[1m]"), None),
+            Some(1_000_000),
+        );
+        t.eq(
+            "codex fallback stays hardcoded",
+            resolve_context_window("codex", Some("gpt-5.4"), None),
+            None,
+        );
+        t.none(
+            "unknown provider without metadata should not fabricate 200k",
+            &resolve_context_window("gemini-cli", Some("gemini-2.5-pro"), None),
+        );
     }
 }
