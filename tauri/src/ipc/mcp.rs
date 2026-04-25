@@ -214,12 +214,11 @@ impl McpHandler {
                 .read()
                 .unwrap_or_else(|e| e.into_inner());
 
-            let status =
-                m.db.get_session(session_id)
-                    .ok()
-                    .flatten()
-                    .map(|s| s.status)
-                    .unwrap_or(SessionStatus::Error);
+            let session = m.db.get_session(session_id).ok().flatten();
+            let status = session
+                .as_ref()
+                .map(|s| s.status.clone())
+                .unwrap_or(SessionStatus::Error);
 
             let is_terminal = matches!(
                 status,
@@ -227,13 +226,19 @@ impl McpHandler {
             );
 
             let (tokens, context_percent) = if let Some(js) = m.journal_states.get(&session_id) {
-                let window = js.context_window.unwrap_or(200_000);
-                let total = js.input_tokens + js.cache_read;
-                let pct = if window > 0 {
-                    (total as f64 / window as f64) * 100.0
-                } else {
-                    0.0
-                };
+                let resolved_model = js
+                    .model
+                    .as_deref()
+                    .or_else(|| session.as_ref().and_then(|s| s.model.as_deref()));
+                let provider_id = session
+                    .as_ref()
+                    .map(|s| s.provider.as_str())
+                    .unwrap_or("claude-code");
+                let (_window, pct) = crate::services::session_manager::resolve_context_metrics(
+                    provider_id,
+                    resolved_model,
+                    js,
+                );
                 (
                     json!({
                         "input": js.input_tokens,
@@ -307,13 +312,12 @@ impl McpHandler {
 
         let (tokens, context_percent, mini_log) =
             if let Some(js) = m.journal_states.get(&session_id) {
-                let window = js.context_window.unwrap_or(200_000);
-                let total = js.input_tokens + js.cache_read;
-                let pct = if window > 0 {
-                    (total as f64 / window as f64) * 100.0
-                } else {
-                    0.0
-                };
+                let resolved_model = js.model.as_deref().or(session.model.as_deref());
+                let (_window, pct) = crate::services::session_manager::resolve_context_metrics(
+                    &session.provider,
+                    resolved_model,
+                    js,
+                );
                 (
                     json!({
                         "input": js.input_tokens,
@@ -470,7 +474,7 @@ fn jsonrpc_error(id: Option<Value>, code: i32, message: &str) -> String {
     .to_string()
 }
 
-fn tools_schema() -> Value {
+pub fn tools_schema() -> Value {
     json!([
         {
             "name": "orbit_create_agent",

@@ -1,6 +1,11 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
+  import { IS_WEB, HAS_TAURI } from './lib/tauri/invoke';
+  import { getStoredToken } from './lib/tauri/web-adapter';
+  import WebLoginScreen from './components/WebLoginScreen.svelte';
+
+  let webAuthenticated = !IS_WEB || !!getStoredToken();
+  const isMobile = IS_WEB && window.innerWidth < 768;
   import {
     sessions,
     selectedSessionId,
@@ -33,6 +38,7 @@
   import type { ClaudeCheck } from './lib/tauri';
   import ChangelogModal from './components/ChangelogModal.svelte';
   import ToastContainer from './components/ToastContainer.svelte';
+  import Modal from './components/shared/Modal.svelte';
   import { checkUpdate } from './lib/tauri';
   import { installUpdate } from './lib/tauri';
   import type { UpdateInfo } from './lib/types';
@@ -54,6 +60,7 @@
   let appVersion = '';
   let pendingUpdate: UpdateInfo | null = null;
   let updateToastId: string | null = null;
+  let showMobileBetaModal = false;
 
   const CHANGELOG_VERSION_KEY = 'orbit:lastSeenChangelogVersion';
 
@@ -85,6 +92,13 @@
   }
 
   onMount(async () => {
+    if (IS_WEB && !webAuthenticated) return;
+
+    if (isMobile) {
+      sidebarVisible.set(false);
+      metaPanelVisible.set(false);
+    }
+
     const [existing, check, version, changelog, providerList] = await Promise.all([
       listSessions(),
       checkClaude(),
@@ -232,62 +246,158 @@
   }
 
   function handleKeydown(e: KeyboardEvent) {
-    if (e.key === 'F12') {
-      // openDevtools() exists at runtime when the devtools Tauri feature is enabled
-      // but is not included in the published TypeScript types
-      (getCurrentWebviewWindow() as unknown as { openDevtools(): void }).openDevtools();
+    if (e.key === 'F12' && HAS_TAURI) {
+      import('@tauri-apps/api/webviewWindow').then(({ getCurrentWebviewWindow }) => {
+        (getCurrentWebviewWindow() as unknown as { openDevtools(): void }).openDevtools();
+      });
     }
   }
 </script>
 
 <svelte:window on:keydown={handleKeydown} />
 
-{#if showChangelog}
-  <ChangelogModal {changelogContent} currentVersion={appVersion} onClose={closeChangelog} />
-{/if}
-
-{#if showNewSessionModal}
-  <NewSessionModal
-    on:done={() => (showNewSessionModal = false)}
-    on:cancel={() => (showNewSessionModal = false)}
+{#if IS_WEB && !webAuthenticated}
+  <WebLoginScreen
+    on:authenticated={() => {
+      webAuthenticated = true;
+      window.location.reload();
+    }}
   />
-{/if}
-
-<div class="layout">
-  {#if $sidebarVisible}
-    <Sidebar onOpenChangelog={openChangelog} />
-  {:else}
-    <button class="sidebar-reopen" on:click={() => sidebarVisible.set(true)} title="Show sidebar"
-      >›</button
-    >
+{:else}
+  {#if showChangelog}
+    <ChangelogModal {changelogContent} currentVersion={appVersion} onClose={closeChangelog} />
   {/if}
-  {#if claudeCheck && !claudeCheck.found}
-    <div class="empty">
-      <div class="claude-warn">
-        <span class="warn-icon">⚠</span>
-        <div>
-          <div class="warn-title">claude CLI not found</div>
-          <div class="warn-hint">
-            {claudeCheck.hint ?? 'npm install -g @anthropic-ai/claude-code'}
+
+  {#if showNewSessionModal}
+    <NewSessionModal
+      on:done={() => (showNewSessionModal = false)}
+      on:cancel={() => (showNewSessionModal = false)}
+    />
+  {/if}
+
+  {#if isMobile && showMobileBetaModal}
+    <Modal
+      title="Mobile Beta"
+      width="360px"
+      zIndex={260}
+      on:close={() => (showMobileBetaModal = false)}
+    >
+      <div class="mobile-beta-modal">
+        <span class="mobile-beta-pill">mobile beta</span>
+        <p>Phone access is in testing. Some screens and actions may not work as expected yet.</p>
+      </div>
+    </Modal>
+  {/if}
+
+  <div class="layout" class:mobile={isMobile}>
+    {#if isMobile}
+      <div class="mobile-topbar">
+        <button
+          class="hamburger-btn"
+          on:click={() => sidebarVisible.set(true)}
+          aria-label="Open sidebar"
+        >
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <rect x="2" y="4" width="16" height="2" rx="1" fill="currentColor" />
+            <rect x="2" y="9" width="16" height="2" rx="1" fill="currentColor" />
+            <rect x="2" y="14" width="16" height="2" rx="1" fill="currentColor" />
+          </svg>
+        </button>
+        <span class="mobile-title">orbit</span>
+        <button
+          class="mobile-beta-badge"
+          on:click={() => (showMobileBetaModal = true)}
+          aria-label="Show mobile beta notice"
+        >
+          mobile beta
+        </button>
+      </div>
+      {#if $sidebarVisible}
+        <button
+          class="sidebar-overlay"
+          on:click={() => sidebarVisible.set(false)}
+          aria-label="Close sidebar"
+        ></button>
+        <Sidebar onOpenChangelog={openChangelog} />
+      {/if}
+    {:else if $sidebarVisible}
+      <Sidebar onOpenChangelog={openChangelog} />
+    {:else}
+      <button class="sidebar-reopen" on:click={() => sidebarVisible.set(true)} title="Show sidebar"
+        >›</button
+      >
+    {/if}
+    {#if claudeCheck && !claudeCheck.found}
+      <div class="empty">
+        <div class="claude-warn">
+          <span class="warn-icon">⚠</span>
+          <div>
+            <div class="warn-title">claude CLI not found</div>
+            <div class="warn-hint">
+              {claudeCheck.hint ?? 'npm install -g @anthropic-ai/claude-code'}
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  {:else}
-    <WorkspaceContainer />
-  {/if}
-  {#if selected && $metaPanelVisible}
-    <MetaPanel session={selected} />
-  {:else if selected && !$metaPanelVisible}
-    <button class="meta-reopen" on:click={() => metaPanelVisible.set(true)} title="Show panel"
-      >‹</button
-    >
-  {/if}
-</div>
+    {:else}
+      <WorkspaceContainer />
+    {/if}
+    {#if selected && $metaPanelVisible}
+      <MetaPanel session={selected} />
+    {:else if selected && !$metaPanelVisible}
+      <button class="meta-reopen" on:click={() => metaPanelVisible.set(true)} title="Show panel"
+        >‹</button
+      >
+    {/if}
+  </div>
+{/if}
 
 <ToastContainer />
 
 <style>
+  .mobile-beta-modal {
+    display: flex;
+    gap: var(--sp-4);
+    align-items: flex-start;
+    padding: var(--sp-4) var(--sp-5);
+    border: 1px solid rgba(245, 166, 35, 0.24);
+    border-radius: var(--radius-md);
+    background: rgba(245, 166, 35, 0.08);
+  }
+  .mobile-beta-modal p {
+    margin: 0;
+    font-size: var(--sm);
+    line-height: 1.5;
+    color: var(--t1);
+  }
+  .mobile-beta-pill {
+    flex-shrink: 0;
+    padding: 4px 7px;
+    border-radius: 999px;
+    background: rgba(245, 166, 35, 0.14);
+    color: var(--warning, #f5a623);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .mobile-beta-badge {
+    flex-shrink: 0;
+    margin-left: auto;
+    border: 1px solid rgba(245, 166, 35, 0.24);
+    border-radius: 999px;
+    background: rgba(245, 166, 35, 0.08);
+    color: var(--warning, #f5a623);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    line-height: 1;
+    text-transform: uppercase;
+    padding: 6px 8px;
+    cursor: pointer;
+  }
+  .mobile-beta-badge:hover {
+    background: rgba(245, 166, 35, 0.14);
+    border-color: rgba(245, 166, 35, 0.36);
+  }
   .layout {
     display: flex;
     flex: 1;
@@ -368,5 +478,75 @@
   .meta-reopen:hover {
     color: var(--t0);
     background: var(--bg2);
+  }
+
+  /* ── Mobile ──────────────────────────────────────────────── */
+  .sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 90;
+    border: none;
+    cursor: default;
+  }
+
+  .layout.mobile :global(.sidebar) {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 100;
+    width: 260px;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4);
+  }
+
+  .mobile-topbar {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+    padding: var(--sp-3) var(--sp-5);
+    background: var(--bg1);
+    border-bottom: 1px solid var(--bd);
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+
+  .hamburger-btn {
+    background: none;
+    border: none;
+    color: var(--t1);
+    padding: var(--sp-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  .hamburger-btn:hover {
+    color: var(--t0);
+  }
+
+  .mobile-title {
+    font-size: var(--md);
+    color: var(--t2);
+    letter-spacing: 0.08em;
+    font-weight: 500;
+  }
+
+  .layout.mobile {
+    flex-direction: column;
+  }
+
+  .layout.mobile .sidebar-reopen {
+    display: none;
+  }
+
+  .layout.mobile .meta-reopen {
+    display: none;
+  }
+
+  .layout.mobile :global(.copy-btn) {
+    display: none !important;
   }
 </style>

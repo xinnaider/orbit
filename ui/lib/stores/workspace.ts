@@ -24,7 +24,10 @@ export interface WorkspaceState {
 // ── Helpers ────────────────────────────────────────────────────────────
 
 function newPaneId(): string {
-  return crypto.randomUUID().slice(0, 8);
+  if (crypto.randomUUID) return crypto.randomUUID().slice(0, 8);
+  return Array.from(crypto.getRandomValues(new Uint8Array(4)), (b) =>
+    b.toString(16).padStart(2, '0')
+  ).join('');
 }
 
 function defaultState(): WorkspaceState {

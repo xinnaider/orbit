@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, createEventDispatcher } from 'svelte';
-  import { open } from '@tauri-apps/plugin-dialog';
+  import { HAS_TAURI } from '../lib/tauri/invoke';
   import { createSession, getProviders, diagnoseProvider } from '../lib/tauri';
   import { saveProviderKey } from '../lib/tauri/providers';
   import { backends as backendsStore, providerCaps, getCaps } from '../lib/stores/providers';
@@ -66,6 +66,8 @@
       : resolvedAgent || resolvedProject;
 
   async function browse() {
+    if (!HAS_TAURI) return;
+    const { open } = await import('@tauri-apps/plugin-dialog');
     const sel = await open({ directory: true, multiple: false });
     if (sel && typeof sel === 'string') path = sel;
   }
@@ -221,14 +223,14 @@
 
   <!-- Session name -->
   <div class="field">
-    <label class="label" for="ns-agent">apelido</label>
+    <label class="label" for="ns-agent">nickname</label>
     <div class="nickname-row">
       <input
         id="ns-agent"
         class="input"
         bind:value={agentName}
         placeholder={generatedAgent || '—'}
-        title="nome do agente"
+        title="agent name"
         disabled={loading}
       />
       <span class="nick-sep">·</span>
@@ -236,8 +238,8 @@
         id="ns-project"
         class="input"
         bind:value={projectSuffix}
-        placeholder={generatedProject || 'projeto'}
-        title="sufixo do projeto"
+        placeholder={generatedProject || 'project'}
+        title="project suffix"
         disabled={loading}
       />
     </div>
@@ -248,7 +250,7 @@
 
   <label class="toggle-row">
     <input type="checkbox" bind:checked={useWorktree} disabled={loading} />
-    <span class="toggle-label">criar git worktree</span>
+    <span class="toggle-label">create git worktree</span>
   </label>
 
   <label class="toggle-row">

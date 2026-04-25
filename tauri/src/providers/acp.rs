@@ -391,20 +391,97 @@ fn process_session_update(
                 ..JournalEntry::default()
             });
         }
-        "usage" => {
-            if let Some(usage) = update.get("usage") {
-                let input_tokens = usage
-                    .get("inputTokens")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(0);
-                let output_tokens = usage
-                    .get("outputTokens")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(0);
+        "usage" | "usageUpdate" | "usage_update" => {
+            let usage = update.get("usage").unwrap_or(update);
+            if let Some(input_tokens) = usage_u64(usage, &["inputTokens", "input_tokens", "input"])
+            {
                 state.input_tokens = input_tokens;
+            }
+            if let Some(output_tokens) =
+                usage_u64(usage, &["outputTokens", "output_tokens", "output"])
+            {
                 state.output_tokens = output_tokens;
+            }
+            if let Some(cache_read) = usage_u64(
+                usage,
+                &[
+                    "cacheReadInputTokens",
+                    "cache_read_input_tokens",
+                    "cacheRead",
+                    "cache_read",
+                ],
+            ) {
+                state.cache_read = cache_read;
+            }
+            if let Some(cache_write) = usage_u64(
+                usage,
+                &[
+                    "cacheWriteInputTokens",
+                    "cache_write_input_tokens",
+                    "cacheWrite",
+                    "cache_write",
+                    "cacheCreationInputTokens",
+                    "cache_creation_input_tokens",
+                ],
+            ) {
+                state.cache_write = cache_write;
+            }
+            if let Some(context_window) = usage_u64(
+                usage,
+                &["contextWindow", "context_window", "window", "contextLimit"],
+            ) {
+                state.context_window = Some(context_window);
+            }
+            if let Some(model) = usage
+                .get("model")
+                .or_else(|| update.get("model"))
+                .and_then(|v| v.as_str())
+            {
+                state.model = Some(model.to_string());
             }
         }
         _ => {}
+    }
+}
+
+fn usage_u64(usage: &serde_json::Value, keys: &[&str]) -> Option<u64> {
+    keys.iter()
+        .find_map(|key| usage.get(key).and_then(|value| value.as_u64()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_utils::TestCase;
+
+    #[test]
+    fn should_capture_usage_update_fields_from_acp() {
+        let mut t = TestCase::new("should_capture_usage_update_fields_from_acp");
+        let mut state = JournalState::default();
+        let line = serde_json::json!({
+            "jsonrpc": "2.0",
+            "method": "session/update",
+            "params": {
+                "update": {
+                    "kind": "usage_update",
+                    "input_tokens": 1200,
+                    "output_tokens": 45,
+                    "cache_read_input_tokens": 300,
+                    "context_window": 200000,
+                    "model": "gpt-4.1"
+                }
+            }
+        })
+        .to_string();
+
+        t.phase("Act");
+        process_acp_line(&mut state, &line);
+
+        t.phase("Assert");
+        t.eq("input tokens", state.input_tokens, 1200u64);
+        t.eq("output tokens", state.output_tokens, 45u64);
+        t.eq("cache read", state.cache_read, 300u64);
+        t.eq("context window", state.context_window, Some(200000));
+        t.eq("model", state.model.as_deref(), Some("gpt-4.1"));
     }
 }

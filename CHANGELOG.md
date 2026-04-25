@@ -4,6 +4,18 @@
 
 ## April 2026
 
+### 04/24 · Fix — Codex effort changes use the Codex CLI reasoning config
+Changing `/effort` in a Codex session now passes `model_reasoning_effort` through `codex exec --config`, including resumed sessions and the `auto` model path. This avoids relying on a nonexistent `--effort` flag and keeps Codex effort levels aligned with the CLI-supported `low`, `medium`, `high`, and `xhigh` values.
+
+### 04/24 · Improvement — OpenCode provider selector copy and custom-provider tip
+The provider selector now uses consistent backend/provider separation and shows a compact tip under the OpenCode provider list explaining that custom providers from `~/.config/opencode` can also be used.
+
+### 04/23 · New — HTTP API & web access from any device
+Orbit can now be accessed from a phone, tablet, or any browser on your network. Enable the HTTP server in the sidebar (API button), generate an API key, and scan the QR code to connect instantly. The full Orbit dashboard runs in the browser — create sessions, send messages, and monitor agents just like in the desktop app. Real-time updates stream over WebSocket.
+
+### 04/23 · New — Automatic MCP for SSH remote sessions
+When Orbit spawns an agent on a remote server via SSH, the connection details are now injected automatically. The remote `orbit-mcp` sidecar connects back to Orbit over HTTP — no manual environment variable setup needed.
+
 ### 04/23 · Fix — Custom OpenCode servers from opencode.jsonc now appear in the provider list
 Providers defined in `~/.config/opencode/opencode.jsonc` (custom endpoints like CrofAI/Ominiroute) were silently ignored because the JSONC parser did not remove trailing commas before parsing. Now any user-defined provider shows up in the OpenCode provider selector, with configured providers listed first.
 

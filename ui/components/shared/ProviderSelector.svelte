@@ -83,6 +83,20 @@
     subProviderId = p.id;
     subProviderSearch = '';
   }
+
+  function isOpenCodeBackend(b: CliBackend | null | undefined): boolean {
+    if (!b) return false;
+    return (
+      b.id.toLowerCase().includes('opencode') ||
+      b.name.toLowerCase().includes('opencode') ||
+      b.cliName.toLowerCase().includes('opencode') ||
+      b.hasSubProviders
+    );
+  }
+
+  function selectBackend(b: CliBackend) {
+    backendId = b.id;
+  }
 </script>
 
 <!-- SSH mode toggle -->
@@ -126,7 +140,7 @@
         class:active={backendId === b.id}
         class:unavailable={!b.cliAvailable}
         disabled={loading || !b.cliAvailable}
-        on:click={() => (backendId = b.id)}
+        on:click={() => selectBackend(b)}
         title={b.cliAvailable ? b.name : `${b.name} (not installed — ${b.installHint})`}
       >
         <span class="chip-dot" style="color:{b.cliAvailable ? 'var(--s-working)' : 'var(--t3)'}"
@@ -136,6 +150,8 @@
       </button>
     {/each}
   </div>
+
+  <div class="details-divider" aria-hidden="true"></div>
 </div>
 
 <!-- OpenCode: sub-provider selector -->
@@ -170,6 +186,15 @@
         <div class="no-results">no providers match "{subProviderSearch}"</div>
       {/if}
     </div>
+    {#if isOpenCodeBackend(selectedBackend)}
+      <div class="provider-tip">
+        <span class="tip-label">tip</span>
+        <span>
+          You can also use custom OpenCode providers configured in
+          <code>~/.config/opencode</code>.
+        </span>
+      </div>
+    {/if}
   </div>
 {/if}
 
@@ -277,6 +302,33 @@
   .chip-dot {
     font-size: 8px;
     line-height: 1;
+  }
+
+  .provider-tip {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-2);
+    color: var(--t2);
+    font-size: var(--xs);
+    line-height: 1.35;
+    padding: 0;
+  }
+  .tip-label {
+    color: var(--ac);
+    font-weight: 600;
+    flex: 0 0 auto;
+  }
+  .provider-tip code {
+    color: var(--t0);
+    background: var(--bg3);
+    border: 1px solid var(--bd);
+    border-radius: 4px;
+    padding: 1px 4px;
+  }
+  .details-divider {
+    height: 1px;
+    background: var(--bd1);
+    margin: 0;
   }
 
   /* Sub-provider list */

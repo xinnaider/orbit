@@ -87,9 +87,9 @@
     color: var(--ac);
     margin-bottom: var(--sp-7);
   }
-  /* Sobrescreve estilos do Markdown.svelte dentro do modal */
+  /* Override Markdown.svelte styles inside the modal */
   .modal-body :global(h1) {
-    display: none; /* esconde "# Changelog" do cabeçalho do arquivo */
+    display: none; /* hide "# Changelog" from the file heading */
   }
   .modal-body :global(h2) {
     font-size: 10px;

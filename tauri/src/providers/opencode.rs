@@ -123,7 +123,7 @@ impl Provider for OpenCodeProvider {
         crate::journal::process_line_opencode
     }
     fn format_model(&self, raw_model: &str, provider_id: &str) -> String {
-        if raw_model.starts_with(&format!("{provider_id}/")) || raw_model.contains('/') {
+        if raw_model.starts_with(&format!("{provider_id}/")) {
             raw_model.to_string()
         } else {
             format!("{provider_id}/{raw_model}")
@@ -190,6 +190,23 @@ mod tests {
             "entry type is Assistant",
             state.entries[0].entry_type,
             crate::models::JournalEntryType::Assistant,
+        );
+    }
+
+    #[test]
+    fn should_prefix_custom_provider_even_when_model_id_contains_slashes() {
+        let mut t =
+            TestCase::new("should_prefix_custom_provider_even_when_model_id_contains_slashes");
+        let provider = OpenCodeProvider;
+
+        t.phase("Act");
+        let formatted = provider.format_model("crof/glm-5.1", "omniroute");
+
+        t.phase("Assert");
+        t.eq(
+            "custom provider is prefixed to raw model id",
+            formatted.as_str(),
+            "omniroute/crof/glm-5.1",
         );
     }
 }

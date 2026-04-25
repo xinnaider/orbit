@@ -143,9 +143,203 @@ pub fn run() {
     match try_connect() {
         Some(stream) => connected_mode(stream),
         None => {
-            eprintln!("[orbit-mcp] Orbit app not running — MCP operating in standalone mode");
-            standalone::run();
+            if let Ok(url) = std::env::var("ORBIT_HTTP_URL") {
+                eprintln!("[orbit-mcp] IPC unavailable — connecting via HTTP to {url}");
+                http_connected_mode(&url);
+            } else {
+                eprintln!("[orbit-mcp] Orbit app not running — MCP operating in standalone mode");
+                standalone::run();
+            }
         }
+    }
+}
+
+fn http_connected_mode(base_url: &str) {
+    let token = std::env::var("ORBIT_API_KEY").unwrap_or_default();
+    let stdin = std::io::stdin();
+    let base = base_url.trim_end_matches('/').to_string();
+
+    let stdin = stdin.lock();
+    let stdout = std::io::stdout();
+    let mut stdout = stdout.lock();
+    let mut reader = std::io::BufReader::new(stdin);
+    let mut line = String::new();
+
+    let orbit_sid = parent_session_id();
+
+    loop {
+        line.clear();
+        match reader.read_line(&mut line) {
+            Ok(0) | Err(_) => break,
+            Ok(_) => {
+                let trimmed = line.trim();
+                if trimmed.is_empty() {
+                    continue;
+                }
+
+                let patched = inject_orbit_context(trimmed, orbit_sid);
+
+                let response = http_jsonrpc_request(&base, &token, &patched);
+
+                let _ = stdout.write_all(response.as_bytes());
+                let _ = stdout.write_all(b"\n");
+                let _ = stdout.flush();
+            }
+        }
+    }
+}
+
+fn http_jsonrpc_request(base_url: &str, token: &str, request: &str) -> String {
+    let parsed: serde_json::Value = match serde_json::from_str(request) {
+        Ok(v) => v,
+        Err(_) => return String::new(),
+    };
+
+    let method = parsed.get("method").and_then(|m| m.as_str()).unwrap_or("");
+    let id = parsed.get("id").cloned();
+    let params = parsed
+        .get("params")
+        .cloned()
+        .unwrap_or(serde_json::json!({}));
+
+    match method {
+        "initialize" => {
+            let result = serde_json::json!({
+                "protocolVersion": "2024-11-05",
+                "capabilities": { "tools": {} },
+                "serverInfo": {
+                    "name": "orbit-mcp-http",
+                    "version": env!("CARGO_PKG_VERSION"),
+                }
+            });
+            serde_json::json!({ "jsonrpc": "2.0", "id": id, "result": result }).to_string()
+        }
+        "notifications/initialized" => String::new(),
+        "tools/list" => {
+            let url = format!("{base_url}/api/health");
+            let _ = http_get(&url, token);
+            let tools = crate::ipc::mcp::tools_schema();
+            serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": id,
+                "result": { "tools": tools }
+            })
+            .to_string()
+        }
+        "tools/call" => {
+            let name = params.get("name").and_then(|n| n.as_str()).unwrap_or("");
+            let args = params
+                .get("arguments")
+                .cloned()
+                .unwrap_or(serde_json::json!({}));
+            let result = dispatch_http_tool(base_url, token, name, &args);
+            serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": id,
+                "result": {
+                    "content": [{ "type": "text", "text": result }]
+                }
+            })
+            .to_string()
+        }
+        _ => serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": id,
+            "error": { "code": -32601, "message": format!("Method not found: {method}") }
+        })
+        .to_string(),
+    }
+}
+
+fn dispatch_http_tool(
+    base_url: &str,
+    token: &str,
+    tool_name: &str,
+    args: &serde_json::Value,
+) -> String {
+    match tool_name {
+        "orbit_create_agent" => {
+            let body = serde_json::json!({
+                "cwd": args.get("cwd").and_then(|v| v.as_str()).unwrap_or("."),
+                "prompt": args.get("prompt").and_then(|v| v.as_str()).unwrap_or(""),
+                "provider": args.get("provider"),
+                "model": args.get("model"),
+                "name": args.get("name"),
+                "parentSessionId": args.get("parentSessionId"),
+            });
+            http_post(&format!("{base_url}/api/sessions"), token, &body)
+        }
+        "orbit_get_status" => {
+            let sid = args.get("sessionId").and_then(|v| v.as_i64()).unwrap_or(0);
+            http_get(&format!("{base_url}/api/sessions/{sid}"), token)
+        }
+        "orbit_send_message" => {
+            let sid = args.get("sessionId").and_then(|v| v.as_i64()).unwrap_or(0);
+            let body = serde_json::json!({
+                "message": args.get("message").and_then(|v| v.as_str()).unwrap_or("")
+            });
+            http_post(
+                &format!("{base_url}/api/sessions/{sid}/message"),
+                token,
+                &body,
+            )
+        }
+        "orbit_cancel_agent" => {
+            let sid = args.get("sessionId").and_then(|v| v.as_i64()).unwrap_or(0);
+            http_post(
+                &format!("{base_url}/api/sessions/{sid}/cancel"),
+                token,
+                &serde_json::json!({}),
+            )
+        }
+        "orbit_list_providers" => http_get(&format!("{base_url}/api/providers"), token),
+        "orbit_list_sessions" => {
+            let status = args.get("status").and_then(|v| v.as_str());
+            let url = match status {
+                Some(s) => format!("{base_url}/api/sessions?status={s}"),
+                None => format!("{base_url}/api/sessions"),
+            };
+            http_get(&url, token)
+        }
+        "orbit_get_subagents" => {
+            let sid = args.get("sessionId").and_then(|v| v.as_i64()).unwrap_or(0);
+            http_get(&format!("{base_url}/api/sessions/{sid}/subagents"), token)
+        }
+        _ => format!("{{\"error\": \"Unknown tool: {tool_name}\"}}"),
+    }
+}
+
+fn http_get(url: &str, token: &str) -> String {
+    let output = std::process::Command::new("curl")
+        .args(["-s", "-H", &format!("Authorization: Bearer {token}"), url])
+        .output();
+
+    match output {
+        Ok(o) => String::from_utf8_lossy(&o.stdout).to_string(),
+        Err(e) => format!("{{\"error\": \"HTTP request failed: {e}\"}}"),
+    }
+}
+
+fn http_post(url: &str, token: &str, body: &serde_json::Value) -> String {
+    let body_str = body.to_string();
+    let output = std::process::Command::new("curl")
+        .args([
+            "-s",
+            "-X",
+            "POST",
+            "-H",
+            &format!("Authorization: Bearer {token}"),
+            "-H",
+            "Content-Type: application/json",
+            "-d",
+            &body_str,
+            url,
+        ])
+        .output();
+
+    match output {
+        Ok(o) => String::from_utf8_lossy(&o.stdout).to_string(),
+        Err(e) => format!("{{\"error\": \"HTTP request failed: {e}\"}}"),
     }
 }
 
@@ -419,7 +613,8 @@ pub mod standalone {
 
         let args = build_spawn_args(provider, model, prompt);
 
-        let use_stdin = provider == "opencode" && (cfg!(windows) || prompt.contains('\n'));
+        let use_stdin = matches!(provider, "opencode" | "codex")
+            && crate::services::spawn_manager::prompt_requires_stdin(prompt);
 
         let mut cmd = Command::new(&cli_path);
         if use_stdin {

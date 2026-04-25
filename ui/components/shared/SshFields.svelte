@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { open } from '@tauri-apps/plugin-dialog';
+  import { HAS_TAURI } from '../../lib/tauri/invoke';
 
   export let sshHost: string;
   export let sshUser: string;
@@ -7,6 +7,8 @@
   export let loading: boolean;
 
   async function browseKey() {
+    if (!HAS_TAURI) return;
+    const { open } = await import('@tauri-apps/plugin-dialog');
     const sel = await open({
       multiple: false,
       filters: [

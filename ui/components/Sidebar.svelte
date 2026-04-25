@@ -12,6 +12,9 @@
   import { modelShortName } from '../lib/status';
   import { onMount } from 'svelte';
   import { clearAttention } from '../lib/tauri/attention';
+  import HttpApiSettingsModal from './HttpApiSettingsModal.svelte';
+
+  let showHttpSettings = false;
 
   function attentionColor(reason: string | null): string {
     switch (reason) {
@@ -329,10 +332,19 @@
 
   <footer class="footer">
     <span>{$sessions.length} session{$sessions.length !== 1 ? 's' : ''}</span>
-    <button class="collapse-btn" on:click={() => sidebarVisible.set(false)} title="Hide sidebar"
-      >‹</button
-    >
+    <div class="footer-actions">
+      <button class="footer-btn" on:click={() => (showHttpSettings = true)} title="Connect phone">
+        Phone
+      </button>
+      <button class="collapse-btn" on:click={() => sidebarVisible.set(false)} title="Hide sidebar"
+        >‹</button
+      >
+    </div>
   </footer>
+
+  {#if showHttpSettings}
+    <HttpApiSettingsModal on:close={() => (showHttpSettings = false)} />
+  {/if}
 </aside>
 
 <style>
@@ -673,6 +685,27 @@
     align-items: center;
     justify-content: space-between;
     flex-shrink: 0;
+  }
+  .footer-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+  }
+  .footer-btn {
+    background: none;
+    border: 1px solid var(--bd);
+    border-radius: var(--radius-sm);
+    color: var(--t2);
+    font-size: 9px;
+    font-family: var(--mono);
+    letter-spacing: 0.05em;
+    padding: 2px 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .footer-btn:hover {
+    border-color: var(--ac);
+    color: var(--ac);
   }
   .collapse-btn {
     background: none;

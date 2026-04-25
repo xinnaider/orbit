@@ -13,7 +13,7 @@ pub struct ProviderSpawnConfig {
     pub prompt: String,
     pub resume_id: Option<String>,
     pub extra_env: Vec<(String, String)>,
-    /// Effort level for thinking (low, medium, high, max). Only used by Claude Code.
+    /// Effort level for thinking. Only used by providers that support it.
     pub effort: Option<String>,
     /// How to spawn: locally or via SSH tunnel.
     pub spawn_mode: crate::services::ssh::SpawnMode,
@@ -295,13 +295,13 @@ mod tests {
         t.phase("Seed");
         let mut registry = ProviderRegistry::new();
         registry.register(Box::new(MockProvider::new("claude", "Claude Code", true)));
-        registry.register(Box::new(MockProvider::new("codex", "Codex CLI", false)));
+        registry.register(Box::new(MockProvider::new("codex", "Codex CLI", true)));
 
         t.phase("Assert");
         let claude = registry.get("claude").unwrap();
         t.ok("claude supports effort", claude.supports_effort());
 
         let codex = registry.get("codex").unwrap();
-        t.ok("codex does not support effort", !codex.supports_effort());
+        t.ok("codex supports effort", codex.supports_effort());
     }
 }

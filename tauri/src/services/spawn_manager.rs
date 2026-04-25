@@ -317,10 +317,30 @@ pub struct CodexConfig {
     pub session_id: crate::models::SessionId,
     pub cwd: PathBuf,
     pub model: String,
+    pub effort: Option<String>,
     pub prompt: String,
     /// Codex session (thread) ID for follow-ups
     pub codex_session_id: Option<String>,
     pub skip_permissions: bool,
+}
+
+pub(crate) fn codex_model_args(model: &str) -> Option<[String; 2]> {
+    if model.is_empty() || model == "auto" {
+        None
+    } else {
+        Some(["-m".to_string(), model.to_string()])
+    }
+}
+
+pub(crate) fn codex_effort_config_args(effort: &str) -> [String; 2] {
+    [
+        "--config".to_string(),
+        format!("model_reasoning_effort=\"{}\"", effort.replace('"', "\\\"")),
+    ]
+}
+
+pub(crate) fn prompt_requires_stdin(prompt: &str) -> bool {
+    cfg!(windows) || prompt.contains('\n')
 }
 
 /// Spawn opencode in non-interactive JSON mode.
@@ -331,7 +351,7 @@ pub fn spawn_opencode(config: OpenCodeConfig) -> Result<SpawnHandle, String> {
     // On Windows, .cmd wrappers reject arguments containing newlines ("batch file
     // arguments are invalid").  Always pipe the prompt via stdin to avoid this.
     let prompt = config.prompt.clone();
-    let use_stdin = cfg!(windows) || prompt.contains('\n');
+    let use_stdin = prompt_requires_stdin(&prompt);
 
     let mut cmd = std::process::Command::new(&opencode);
     cmd.args(["run", "--format", "json"]);
@@ -404,6 +424,8 @@ pub fn spawn_codex(config: CodexConfig) -> Result<SpawnHandle, String> {
     let codex = find_codex()
         .ok_or_else(|| "codex not found — install with: npm i -g @openai/codex".to_string())?;
 
+    let prompt = config.prompt.clone();
+    let use_stdin = prompt_requires_stdin(&prompt);
     let mut cmd = std::process::Command::new(&codex);
 
     if let Some(ref sid) = config.codex_session_id {
@@ -411,20 +433,43 @@ pub fn spawn_codex(config: CodexConfig) -> Result<SpawnHandle, String> {
         if config.skip_permissions {
             cmd.arg("--dangerously-bypass-approvals-and-sandbox");
         }
-        cmd.args(["-m", &config.model]);
+        if let Some(ref effort) = config.effort {
+            cmd.args(codex_effort_config_args(effort));
+        }
+        if let Some(args) = codex_model_args(&config.model) {
+            cmd.args(args);
+        }
         cmd.arg(sid);
-        cmd.arg(&config.prompt);
+        if use_stdin {
+            cmd.arg("-");
+        } else {
+            cmd.arg(&prompt);
+        }
     } else {
         cmd.args(["exec", "--json"]);
         if config.skip_permissions {
             cmd.arg("--dangerously-bypass-approvals-and-sandbox");
         }
-        cmd.args(["-m", &config.model]);
-        cmd.arg(&config.prompt);
+        if let Some(ref effort) = config.effort {
+            cmd.args(codex_effort_config_args(effort));
+        }
+        if let Some(args) = codex_model_args(&config.model) {
+            cmd.args(args);
+        }
+        if use_stdin {
+            cmd.arg("-");
+        } else {
+            cmd.arg(&prompt);
+        }
     }
 
     cmd.current_dir(&config.cwd);
     cmd.env("PATH", extended_path());
+    if use_stdin {
+        cmd.stdin(std::process::Stdio::piped());
+    } else {
+        cmd.stdin(std::process::Stdio::null());
+    }
 
     cmd.stdout(std::process::Stdio::piped());
     cmd.stderr(std::process::Stdio::piped());
@@ -439,6 +484,15 @@ pub fn spawn_codex(config: CodexConfig) -> Result<SpawnHandle, String> {
     let mut child = cmd
         .spawn()
         .map_err(|e| format!("spawn codex failed: {e}"))?;
+
+    if use_stdin {
+        use std::io::Write;
+        let mut stdin_pipe = child.stdin.take().ok_or("no stdin")?;
+        stdin_pipe
+            .write_all(prompt.as_bytes())
+            .map_err(|e| format!("write prompt to stdin: {e}"))?;
+        drop(stdin_pipe);
+    }
 
     let pid = child.id();
     let stdout = child.stdout.take().ok_or("no stdout")?;
@@ -458,6 +512,65 @@ pub fn spawn_codex(config: CodexConfig) -> Result<SpawnHandle, String> {
 mod tests {
     use super::*;
     use crate::test_utils::TestCase;
+
+    #[test]
+    fn prompt_requires_stdin_should_return_true_when_prompt_is_multiline() {
+        let mut t =
+            TestCase::new("prompt_requires_stdin_should_return_true_when_prompt_is_multiline");
+        t.phase("Act");
+        let result = prompt_requires_stdin("line 1\nline 2");
+        t.phase("Assert");
+        t.ok("multiline prompts require stdin", result);
+    }
+
+    #[test]
+    fn codex_model_args_should_skip_auto_and_empty_models() {
+        let mut t = TestCase::new("codex_model_args_should_skip_auto_and_empty_models");
+
+        t.phase("Assert");
+        t.none("empty model skips -m", &codex_model_args(""));
+        t.none("auto model skips -m", &codex_model_args("auto"));
+    }
+
+    #[test]
+    fn codex_model_args_should_emit_model_flag_for_explicit_model() {
+        let mut t = TestCase::new("codex_model_args_should_emit_model_flag_for_explicit_model");
+
+        t.phase("Act");
+        let args = codex_model_args("gpt-5.4").expect("args");
+
+        t.phase("Assert");
+        t.eq("flag", args[0].as_str(), "-m");
+        t.eq("model", args[1].as_str(), "gpt-5.4");
+    }
+
+    #[test]
+    fn codex_effort_config_args_should_set_model_reasoning_effort() {
+        let mut t = TestCase::new("codex_effort_config_args_should_set_model_reasoning_effort");
+
+        t.phase("Act");
+        let args = codex_effort_config_args("xhigh");
+
+        t.phase("Assert");
+        t.eq("flag", args[0].as_str(), "--config");
+        t.eq(
+            "config",
+            args[1].as_str(),
+            "model_reasoning_effort=\"xhigh\"",
+        );
+    }
+
+    #[test]
+    #[cfg(not(windows))]
+    fn prompt_requires_stdin_should_return_false_for_single_line_prompt_on_non_windows() {
+        let mut t = TestCase::new(
+            "prompt_requires_stdin_should_return_false_for_single_line_prompt_on_non_windows",
+        );
+        t.phase("Act");
+        let result = prompt_requires_stdin("single line");
+        t.phase("Assert");
+        t.ok("single line prompt does not require stdin", !result);
+    }
 
     #[test]
     fn should_include_current_path_in_extended_path() {

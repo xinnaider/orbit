@@ -1,5 +1,6 @@
 use serde::Deserialize;
 use serde_json::Value;
+use std::collections::HashMap;
 
 use crate::models::*;
 
@@ -25,6 +26,7 @@ pub struct JournalState {
     pub file_size: u64,
     pub rate_limit: Vec<crate::models::RateLimitInfo>,
     pub cost_usd: Option<f64>,
+    pub pending_file_changes: HashMap<String, Option<String>>,
 }
 
 impl Default for JournalState {
@@ -52,6 +54,7 @@ impl Default for JournalState {
             file_size: 0,
             rate_limit: Vec::new(),
             cost_usd: None,
+            pending_file_changes: HashMap::new(),
         }
     }
 }

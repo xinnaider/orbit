@@ -53,7 +53,7 @@
     'Sonnet 4.6': 'claude-sonnet-4-6',
     'Haiku 4.5': 'claude-haiku-4-5-20251001',
   };
-  const CODEX_MODELS = ['gpt-5.4', 'gpt-5.4-mini', 'gpt-5.3-codex', 'gpt-5.2'];
+  const CODEX_MODELS = ['gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.3-codex', 'gpt-5.2'];
   $: MODEL_OPTIONS =
     provider === 'claude-code'
       ? CLAUDE_MODELS
@@ -62,7 +62,7 @@
         : providerModels;
 
   // Effort levels from provider (model-aware) — falls back to global default
-  $: currentModel = $sessions.find((s) => s.id === sessionId)?.model ?? '';
+  $: currentModel = $sessions.find((s) => s.id === sessionId)?.model ?? 'auto';
   $: effortLevels = caps.effortLevels[currentModel] ??
     caps.effortLevels['auto'] ?? ['low', 'medium', 'high', 'max'];
 
@@ -71,7 +71,7 @@
     provider === 'claude-code'
       ? 'Switch model (opus, sonnet, haiku)'
       : provider === 'codex'
-        ? 'Switch model (gpt-5.4, gpt-5.4-mini, ...)'
+        ? 'Switch model (gpt-5.5, gpt-5.4, ...)'
         : 'Switch model (type model ID)';
 
   $: effectiveCommands = (() => {
@@ -79,7 +79,7 @@
     if (caps.supportsEffort) {
       cmds.push({
         cmd: '/effort',
-        desc: 'Set thinking effort (low, medium, high, max)',
+        desc: `Set thinking effort (${effortLevels.join(', ')})`,
         category: 'orbit',
       });
     }
@@ -301,7 +301,7 @@ Get subagent tree for a session.
       return;
     }
 
-    // Intercept /effort (Claude Code only)
+    // Intercept /effort for providers that expose reasoning effort.
     if (cmd === '/effort' && caps.supportsEffort) {
       const arg = msg.slice(7).trim().toLowerCase();
       if (!arg || !effortLevels.includes(arg)) {
@@ -622,5 +622,22 @@ Get subagent tree for a session.
     color: var(--ac);
     font-size: 10px;
     flex-shrink: 0;
+  }
+
+  @media (max-width: 768px) {
+    .input-row {
+      padding: var(--sp-5) var(--sp-5) var(--sp-4);
+    }
+    textarea {
+      font-size: 16px;
+      max-height: 160px;
+    }
+    .send-btn {
+      font-size: 20px;
+      padding: var(--sp-3) var(--sp-4);
+    }
+    .hint-bar {
+      display: none;
+    }
   }
 </style>

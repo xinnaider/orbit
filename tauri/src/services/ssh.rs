@@ -282,6 +282,39 @@ pub fn test_ssh_connection(host: &str, user: &str, ssh_key_path: Option<&str>) -
     }
 }
 
+// ── HTTP env var injection for SSH ─────────────────────────────────────────────
+
+fn detect_lan_ip() -> String {
+    std::net::UdpSocket::bind("0.0.0.0:0")
+        .and_then(|s| {
+            s.connect("8.8.8.8:80")?;
+            s.local_addr()
+        })
+        .map(|addr| addr.ip().to_string())
+        .unwrap_or_else(|_| "127.0.0.1".to_string())
+}
+
+fn inject_http_env_vars(remote_script: &str) -> String {
+    // Read HTTP server settings from the global OnceLock if available
+    let enabled = std::env::var("_ORBIT_HTTP_ENABLED").unwrap_or_default() == "true";
+    if !enabled {
+        return remote_script.to_string();
+    }
+
+    let port = std::env::var("_ORBIT_HTTP_PORT").unwrap_or_else(|_| "9999".to_string());
+    let api_key = std::env::var("_ORBIT_HTTP_SSH_KEY").unwrap_or_default();
+    let lan_ip = detect_lan_ip();
+
+    if api_key.is_empty() {
+        return remote_script.to_string();
+    }
+
+    format!(
+        "ORBIT_HTTP_URL=http://{}:{} ORBIT_API_KEY={} {}",
+        lan_ip, port, api_key, remote_script
+    )
+}
+
 // ── spawn_via_ssh ─────────────────────────────────────────────────────────────
 
 /// Spawns `remote_script` on `host` as `user` through an SSH tunnel. Returns
@@ -319,13 +352,17 @@ pub fn spawn_via_ssh(
 
     args.push(format!("{}@{}", user, host));
 
+    // Auto-inject ORBIT_HTTP_URL and ORBIT_API_KEY if the HTTP server is enabled.
+    // This allows orbit-mcp on the remote host to connect back via HTTP.
+    let script_with_http = inject_http_env_vars(remote_script);
+
     // Wrap in bash -lc so the remote login profile is loaded (PATH includes
     // ~/.local/bin, nvm, npm globals, etc.). Without -l, user-installed CLIs
     // like claude/codex won't be found.
     // Use double quotes for the outer layer — the script has no pre-escaped
     // single quotes (providers pass raw values, no posix_escape).
     // Escape only $ ` \ " inside the script to prevent remote shell expansion.
-    let safe = remote_script
+    let safe = script_with_http
         .replace('\\', "\\\\")
         .replace('"', "\\\"")
         .replace('$', "\\$")

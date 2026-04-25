@@ -94,3 +94,14 @@ select {
 ::selection {
   background: var(--ac-d);
 }
+
+/* ── Mobile responsiveness ─────────────────────────────────── */
+
+@media (max-width: 768px) {
+  :root {
+    --xs: 11px;
+    --sm: 12px;
+    --md: 13px;
+    --base: 14px;
+  }
+}

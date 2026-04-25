@@ -40,7 +40,7 @@
 
 <Modal title="rename session" width="400px" zIndex={200} on:close={() => dispatch('cancel')}>
   <div class="field">
-    <label class="label" for="rn-prefix">apelido</label>
+    <label class="label" for="rn-prefix">nickname</label>
     <div class="nickname-row">
       <input
         id="rn-prefix"
