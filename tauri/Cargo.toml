@@ -28,6 +28,7 @@ tauri-plugin-dialog = "2"
 tauri-plugin-updater = "2"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+toml_edit = "0.25"
 dirs = "6"
 chrono = "0.4"
 tokio = { version = "1", features = ["full"] }
@@ -55,4 +56,3 @@ libc = "0.2"
 
 [dev-dependencies]
 tempfile = "3"
-

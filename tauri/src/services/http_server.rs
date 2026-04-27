@@ -16,7 +16,7 @@ use tower_http::cors::CorsLayer;
 use tower_http::services::ServeDir;
 
 use crate::agent_tree;
-use crate::commands::providers::build_cli_backends;
+use crate::commands::providers::{build_cli_backends, normalize_session_provider_model};
 use crate::models::{JournalEntryType, SessionId};
 use crate::providers::ProviderRegistry;
 use crate::services::database::DatabaseService;
@@ -172,23 +172,16 @@ async fn create_session(
 ) -> Result<Json<Value>, StatusCode> {
     validate_bearer(&state.db, &headers)?;
 
-    let provider_id = body.provider.as_deref();
+    let (provider_id, model) = match normalize_session_provider_model(
+        state.registry.as_ref(),
+        body.provider.as_deref(),
+        body.model.as_deref(),
+    ) {
+        Ok(resolved) => resolved,
+        Err(error) => return Ok(Json(json!({ "error": error }))),
+    };
 
-    if let Some(pid) = provider_id {
-        if state.registry.get(pid).is_none() {
-            let available: Vec<String> = state
-                .registry
-                .all()
-                .iter()
-                .map(|p| p.id().to_string())
-                .collect();
-            return Ok(Json(json!({
-                "error": format!("Unknown provider \"{pid}\". Available: {}", available.join(", "))
-            })));
-        }
-    }
-
-    let session = {
+    let mut session = {
         let mut m = state
             .session_manager
             .write()
@@ -197,9 +190,9 @@ async fn create_session(
             &body.cwd,
             body.name.as_deref(),
             "ignore",
-            body.model.as_deref(),
+            model.as_deref(),
             false,
-            provider_id,
+            provider_id.as_deref(),
             None,
             None,
             None,
@@ -215,13 +208,15 @@ async fn create_session(
         } else {
             body.prompt.clone()
         };
-        let prov = provider_id.unwrap_or("claude-code");
+        let prov = provider_id.as_deref().unwrap_or("claude-code");
         let mut m = state
             .session_manager
             .write()
             .unwrap_or_else(|e| e.into_inner());
         let _ = m.db.set_session_parent(session_id, parent_id, 1);
         m.register_mcp_subagent(parent_id, session_id, &desc, prov);
+        session.parent_session_id = Some(parent_id);
+        session.depth = 1;
     }
 
     let _ = state.app.emit("session:created", &session);

@@ -5,7 +5,7 @@ use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter};
 
 use crate::agent_tree;
-use crate::commands::providers::build_cli_backends;
+use crate::commands::providers::{build_cli_backends, normalize_session_provider_model};
 use crate::models::{JournalEntryType, SessionId, SessionStatus};
 use crate::providers::ProviderRegistry;
 use crate::services::session_manager::SessionManager;
@@ -124,6 +124,8 @@ impl McpHandler {
             .ok_or("Missing required parameter: prompt")?;
         let provider_id = args.get("provider").and_then(|v| v.as_str());
         let model = args.get("model").and_then(|v| v.as_str());
+        let (provider_id, model) =
+            normalize_session_provider_model(self.registry.as_ref(), provider_id, model)?;
         let session_name = args.get("name").and_then(|v| v.as_str());
         let wait = args.get("wait").and_then(|v| v.as_bool()).unwrap_or(true);
         let timeout_secs = args
@@ -135,21 +137,6 @@ impl McpHandler {
             .and_then(|v| v.as_i64())
             .or_else(|| CONNECTION_ORBIT_SESSION.with(|c| c.get()));
 
-        if let Some(pid) = provider_id {
-            if self.registry.get(pid).is_none() {
-                let available: Vec<String> = self
-                    .registry
-                    .all()
-                    .iter()
-                    .map(|p| p.id().to_string())
-                    .collect();
-                return Err(format!(
-                    "Unknown provider \"{pid}\". Available: {}",
-                    available.join(", ")
-                ));
-            }
-        }
-
         let mut session = {
             let mut m = self
                 .session_manager
@@ -159,9 +146,9 @@ impl McpHandler {
                 cwd,
                 session_name,
                 "ignore",
-                model,
+                model.as_deref(),
                 false,
-                provider_id,
+                provider_id.as_deref(),
                 None,
                 None,
                 None,
@@ -176,7 +163,7 @@ impl McpHandler {
             } else {
                 prompt.to_string()
             };
-            let prov = provider_id.unwrap_or("claude-code");
+            let prov = provider_id.as_deref().unwrap_or("claude-code");
             let mut m = self
                 .session_manager
                 .write()
@@ -496,11 +483,11 @@ pub fn tools_schema() -> Value {
                     },
                     "provider": {
                         "type": "string",
-                        "description": "Provider ID (e.g. 'claude-code', 'codex', 'opencode'). Defaults to 'claude-code'."
+                        "description": "Provider ID (e.g. 'claude-code', 'codex') or OpenCode subProviders[].id (e.g. 'ollama-cloud', 'openrouter'). Defaults to 'claude-code'."
                     },
                     "model": {
                         "type": "string",
-                        "description": "Model ID to use (e.g. 'claude-sonnet-4-6'). Uses provider default if omitted."
+                        "description": "Model ID to use. For OpenCode, use the exact model under the chosen subProvider; prefixed forms like 'ollama-cloud/kimi-k2.6:cloud' are accepted."
                     },
                     "wait": {
                         "type": "boolean",
@@ -566,7 +553,7 @@ pub fn tools_schema() -> Value {
         },
         {
             "name": "orbit_list_providers",
-            "description": "List all available CLI providers with their capabilities, supported models, and installation status. ALWAYS call this before orbit_create_agent to discover valid provider IDs and model IDs. Returns id, name, cliAvailable, models[], subProviders[], effortLevels, and capability flags.",
+            "description": "List all available CLI providers with their capabilities, supported models, OpenCode subProviders, and installation status. ALWAYS call this before orbit_create_agent to discover valid provider IDs, subProviders[].id values, and exact model IDs. Returns id, name, cliAvailable, models[], subProviders[], effortLevels, and capability flags.",
             "inputSchema": {
                 "type": "object",
                 "properties": {}

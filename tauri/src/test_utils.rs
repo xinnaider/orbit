@@ -1,40 +1,39 @@
-/// Pretty test reporter for Orbit's Rust tests.
-///
-/// Prints a formatted header on start, labels each assertion with ✓ or ✗,
-/// and prints a final PASSED / FAILED summary on drop.
-///
-/// # Usage
-///
-/// ```rust
-/// use crate::test_utils::TestCase;
-///
-/// #[test]
-/// fn should_create_project_with_correct_name() {
-///     let mut t = TestCase::new("should_create_project_with_correct_name");
-///
-///     t.phase("Seed");
-///     let db = make_db();
-///
-///     t.phase("Act");
-///     let project = db.create_project("my-app", "/tmp/my-app").unwrap();
-///
-///     t.phase("Assert");
-///     t.eq("project.name", &project.name, &"my-app".to_string());
-///     t.ok("project.id is positive", project.id > 0);
-/// }
-/// ```
-///
-/// Output with `cargo test -- --nocapture`:
-///
-/// ```text
-/// ┌──────── should_create_project_with_correct_name ────────┐
-///   ▸ Seed
-///   ▸ Act
-///   ▸ Assert
-///   ✓ project.name
-///   ✓ project.id is positive
-///   └─ PASSED (2 checks)
-/// ```
+//! Pretty test reporter for Orbit's Rust tests.
+//!
+//! Prints a formatted header on start, labels each assertion with ✓ or ✗,
+//! and prints a final PASSED / FAILED summary on drop.
+//!
+//! # Usage
+//!
+//! ```rust,ignore
+//! use crate::test_utils::TestCase;
+//!
+//! fn should_create_project_with_correct_name() {
+//!     let mut t = TestCase::new("should_create_project_with_correct_name");
+//!
+//!     t.phase("Seed");
+//!     let db = make_db();
+//!
+//!     t.phase("Act");
+//!     let project = db.create_project("my-app", "/tmp/my-app").unwrap();
+//!
+//!     t.phase("Assert");
+//!     t.eq("project.name", &project.name, &"my-app".to_string());
+//!     t.ok("project.id is positive", project.id > 0);
+//! }
+//! ```
+//!
+//! Output with `cargo test -- --nocapture`:
+//!
+//! ```text
+//! ┌──────── should_create_project_with_correct_name ────────┐
+//!   ▸ Seed
+//!   ▸ Act
+//!   ▸ Assert
+//!   ✓ project.name
+//!   ✓ project.id is positive
+//!   └─ PASSED (2 checks)
+//! ```
 
 // ANSI escape codes
 const RESET: &str = "\x1b[0m";

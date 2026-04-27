@@ -1,6 +1,7 @@
 use std::sync::{Arc, RwLock};
 use tauri::{AppHandle, State};
 
+use crate::commands::providers::normalize_session_provider_model;
 use crate::ipc::IpcError;
 use crate::models::{JournalEntry, Session, SessionId};
 use crate::providers::ProviderRegistry;
@@ -44,6 +45,11 @@ pub fn create_session(
     app: AppHandle,
 ) -> Result<Session, IpcError> {
     let mode = permission_mode.unwrap_or_else(|| "ignore".to_string());
+    let (provider, model) = normalize_session_provider_model(
+        registry.0.as_ref(),
+        provider.as_deref(),
+        model.as_deref(),
+    )?;
 
     let session = {
         let mut m = state.write();

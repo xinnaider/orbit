@@ -1262,8 +1262,10 @@ mod process_line_tests {
     fn should_set_idle_on_stop_hook_summary() {
         let mut t = TestCase::new("should_set_idle_on_stop_hook_summary");
         t.phase("Seed");
-        let mut state = JournalState::default();
-        state.status = AgentStatus::Working;
+        let mut state = JournalState {
+            status: AgentStatus::Working,
+            ..Default::default()
+        };
         t.phase("Act");
         process_line(&mut state, system_stop_hook());
         t.phase("Assert");

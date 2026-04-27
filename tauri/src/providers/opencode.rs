@@ -123,7 +123,43 @@ impl Provider for OpenCodeProvider {
         crate::journal::process_line_opencode
     }
     fn format_model(&self, raw_model: &str, provider_id: &str) -> String {
-        if raw_model.starts_with(&format!("{provider_id}/")) {
+        if provider_id == "opencode" {
+            if let Some(model) = crate::commands::providers::resolve_opencode_request(
+                Some(provider_id),
+                Some(raw_model),
+            )
+            .and_then(|resolved| resolved.model)
+            {
+                return model;
+            }
+
+            if raw_model
+                .split_once('/')
+                .is_some_and(|(provider, _)| provider != "opencode")
+            {
+                return raw_model.to_string();
+            }
+            if raw_model.starts_with("opencode/") {
+                return raw_model.to_string();
+            }
+        } else if raw_model.starts_with(&format!("{provider_id}/")) {
+            return raw_model.to_string();
+        } else if !raw_model.contains('/') {
+            if let Some(model) = crate::commands::providers::resolve_opencode_request(
+                Some(provider_id),
+                Some(raw_model),
+            )
+            .and_then(|resolved| resolved.model)
+            {
+                return model;
+            }
+        }
+
+        if raw_model.split_once('/').is_some_and(|(provider, _)| {
+            crate::commands::providers::opencode_subproviders()
+                .iter()
+                .any(|sub| sub.id == provider)
+        }) {
             raw_model.to_string()
         } else {
             format!("{provider_id}/{raw_model}")
@@ -207,6 +243,22 @@ mod tests {
             "custom provider is prefixed to raw model id",
             formatted.as_str(),
             "omniroute/crof/glm-5.1",
+        );
+    }
+
+    #[test]
+    fn should_keep_prefixed_model_when_provider_is_top_level_opencode() {
+        let mut t = TestCase::new("should_keep_prefixed_model_when_provider_is_top_level_opencode");
+        let provider = OpenCodeProvider;
+
+        t.phase("Act");
+        let formatted = provider.format_model("ollama-cloud/kimi-k2.6:cloud", "opencode");
+
+        t.phase("Assert");
+        t.eq(
+            "full OpenCode provider/model is kept",
+            formatted.as_str(),
+            "ollama-cloud/kimi-k2.6:cloud",
         );
     }
 }

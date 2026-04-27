@@ -1,6 +1,7 @@
 pub mod crypto;
 pub mod database;
 pub mod http_server;
+pub mod mcp_config;
 pub mod pty_manager;
 pub mod session_manager;
 pub mod spawn_manager;

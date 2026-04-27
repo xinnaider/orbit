@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::io::Write;
-use std::path::Path;
 use std::sync::{Arc, RwLock};
 
 use tauri::{AppHandle, Emitter};
@@ -11,61 +10,19 @@ use crate::models::{AgentStatus, Session, SessionId, TokenUsage};
 /// Default provider ID when none is specified.
 const DEFAULT_PROVIDER: &str = "claude-code";
 use crate::providers::{ProviderRegistry, ProviderSpawnConfig};
-use crate::services::database::DatabaseService;
+use crate::services::{database::DatabaseService, mcp_config};
+
+/// Write provider-specific MCP configs in the project directory so agents can use orbit-mcp tools.
+fn ensure_mcp_config(cwd: &str) {
+    let mcp_bin = mcp_config::find_orbit_mcp().unwrap_or_else(|| "orbit-mcp".to_string());
+    if let Err(e) = mcp_config::write_orbit_mcp_configs(std::path::Path::new(cwd), &mcp_bin) {
+        eprintln!("[orbit:mcp] failed to write provider MCP configs: {e}");
+    }
+}
 
 /// Reads `.git/HEAD` to detect the current branch without spawning a subprocess.
-/// Write `.mcp.json` in the project directory so agents can use orbit-mcp tools.
-/// Skips if the file already exists (user may have customized it).
-fn ensure_mcp_config(cwd: &str) {
-    let config_path = Path::new(cwd).join(".mcp.json");
-    let mcp_bin = find_orbit_mcp().unwrap_or_else(|| "orbit-mcp".to_string());
-
-    // Read existing config and merge — preserve user-added MCP servers
-    let mut config: serde_json::Value = if config_path.exists() {
-        std::fs::read_to_string(&config_path)
-            .ok()
-            .and_then(|s| serde_json::from_str(&s).ok())
-            .unwrap_or_else(|| serde_json::json!({ "mcpServers": {} }))
-    } else {
-        serde_json::json!({ "mcpServers": {} })
-    };
-
-    // Always update orbit server path (may have changed between dev/prod installs)
-    config["mcpServers"]["orbit"] = serde_json::json!({ "command": mcp_bin });
-
-    if let Ok(content) = serde_json::to_string_pretty(&config) {
-        let _ = std::fs::write(&config_path, content);
-    }
-}
-
-/// Find the orbit-mcp binary: next to current exe (with or without target triple), or in PATH.
-fn find_orbit_mcp() -> Option<String> {
-    if let Ok(exe) = std::env::current_exe() {
-        if let Some(dir) = exe.parent() {
-            let ext = if cfg!(windows) { ".exe" } else { "" };
-            // Tauri sidecar: orbit-mcp-<triple>[.exe]
-            let triple = current_target_triple();
-            let sidecar_name = format!("orbit-mcp-{triple}{ext}");
-            let sidecar = dir.join(&sidecar_name);
-            if sidecar.is_file() {
-                return Some(sidecar.to_string_lossy().into_owned());
-            }
-            // Dev build: orbit-mcp[.exe]
-            let plain = dir.join(format!("orbit-mcp{ext}"));
-            if plain.is_file() {
-                return Some(plain.to_string_lossy().into_owned());
-            }
-        }
-    }
-    crate::services::spawn_manager::find_cli_in_path("orbit-mcp")
-}
-
-fn current_target_triple() -> &'static str {
-    env!("TARGET_TRIPLE")
-}
-
 fn detect_git_branch(cwd: &str) -> Option<String> {
-    let head = std::fs::read_to_string(Path::new(cwd).join(".git/HEAD")).ok()?;
+    let head = std::fs::read_to_string(std::path::Path::new(cwd).join(".git/HEAD")).ok()?;
     head.trim()
         .strip_prefix("ref: refs/heads/")
         .map(|b| b.to_string())

@@ -42,6 +42,12 @@ pub struct CliBackend {
     pub task_format: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResolvedOpenCodeRequest {
+    pub provider_id: String,
+    pub model: Option<String>,
+}
+
 /// Build the full provider list — used by both the Tauri command and the MCP handler.
 pub fn build_cli_backends(registry: &crate::providers::ProviderRegistry) -> Vec<CliBackend> {
     // Stable ordering: claude-code first, then codex, then opencode
@@ -54,14 +60,7 @@ pub fn build_cli_backends(registry: &crate::providers::ProviderRegistry) -> Vec<
             .unwrap_or(usize::MAX)
     });
 
-    let mut opencode_sub_providers = read_opencode_providers().unwrap_or_default();
-    let jsonc_providers = read_opencode_jsonc_providers().unwrap_or_default();
-    for custom in jsonc_providers {
-        if !opencode_sub_providers.iter().any(|sp| sp.id == custom.id) {
-            opencode_sub_providers.push(custom);
-        }
-    }
-    opencode_sub_providers.sort_by(|a, b| a.name.cmp(&b.name));
+    let opencode_sub_providers = opencode_subproviders();
 
     providers
         .iter()
@@ -112,6 +111,338 @@ pub fn build_cli_backends(registry: &crate::providers::ProviderRegistry) -> Vec<
             }
         })
         .collect()
+}
+
+pub fn opencode_subproviders() -> Vec<SubProvider> {
+    let mut opencode_sub_providers = read_opencode_providers().unwrap_or_default();
+    let jsonc_providers = read_opencode_jsonc_providers().unwrap_or_default();
+    for custom in jsonc_providers {
+        if !opencode_sub_providers.iter().any(|sp| sp.id == custom.id) {
+            opencode_sub_providers.push(custom);
+        }
+    }
+    opencode_sub_providers.sort_by(|a, b| a.name.cmp(&b.name));
+    opencode_sub_providers
+}
+
+pub fn normalize_session_provider_model(
+    registry: &crate::providers::ProviderRegistry,
+    provider_id: Option<&str>,
+    model: Option<&str>,
+) -> Result<(Option<String>, Option<String>), String> {
+    let subproviders = opencode_subproviders();
+    let mut normalized_provider = nonempty(provider_id).map(ToString::to_string);
+    let mut normalized_model = nonempty(model).map(ToString::to_string);
+
+    if should_try_opencode_resolution(
+        registry,
+        normalized_provider.as_deref(),
+        normalized_model.as_deref(),
+        &subproviders,
+    ) {
+        if let Some(resolved) = resolve_opencode_request_from_subproviders(
+            &subproviders,
+            normalized_provider.as_deref(),
+            normalized_model.as_deref(),
+        ) {
+            normalized_provider = Some(resolved.provider_id);
+            normalized_model = resolved.model;
+        }
+    }
+
+    if let Some(pid) = normalized_provider.as_deref() {
+        let is_registered = registry.get(pid).is_some();
+        let is_opencode_subprovider = subproviders.iter().any(|sub| sub.id == pid);
+        if !is_registered && !is_opencode_subprovider {
+            return Err(format_unknown_provider(pid, registry, &subproviders));
+        }
+    }
+
+    Ok((normalized_provider, normalized_model))
+}
+
+pub fn resolve_opencode_request(
+    provider_id: Option<&str>,
+    model: Option<&str>,
+) -> Option<ResolvedOpenCodeRequest> {
+    let subproviders = opencode_subproviders();
+    resolve_opencode_request_from_subproviders(&subproviders, provider_id, model)
+}
+
+fn nonempty(value: Option<&str>) -> Option<&str> {
+    value.map(str::trim).filter(|value| !value.is_empty())
+}
+
+fn should_try_opencode_resolution(
+    registry: &crate::providers::ProviderRegistry,
+    provider_id: Option<&str>,
+    model: Option<&str>,
+    subproviders: &[SubProvider],
+) -> bool {
+    if let Some(pid) = provider_id {
+        return pid.eq_ignore_ascii_case("opencode") || registry.get(pid).is_none();
+    }
+
+    model
+        .and_then(|raw| raw.split_once('/').map(|(provider, _)| provider.trim()))
+        .is_some_and(|provider| {
+            provider.eq_ignore_ascii_case("opencode")
+                || subproviders.iter().any(|sub| sub.id == provider)
+        })
+}
+
+fn resolve_opencode_request_from_subproviders(
+    subproviders: &[SubProvider],
+    provider_id: Option<&str>,
+    model: Option<&str>,
+) -> Option<ResolvedOpenCodeRequest> {
+    if subproviders.is_empty() {
+        return None;
+    }
+
+    let mut provider_hint = nonempty(provider_id)
+        .filter(|provider| !provider.eq_ignore_ascii_case("opencode"))
+        .map(ToString::to_string);
+    let mut model_query = nonempty(model).map(ToString::to_string);
+
+    if let Some(raw_model) = nonempty(model) {
+        if let Some((provider, model_id)) = raw_model.split_once('/') {
+            let provider = provider.trim();
+            let model_id = model_id.trim();
+            if !provider.is_empty() && !provider.eq_ignore_ascii_case("opencode") {
+                provider_hint = Some(provider.to_string());
+            }
+            if !model_id.is_empty() {
+                model_query = Some(model_id.to_string());
+            }
+        }
+    }
+
+    let model_query = match model_query {
+        Some(query) => query,
+        None => {
+            let provider = best_opencode_provider(subproviders, provider_hint.as_deref()?)?;
+            return Some(ResolvedOpenCodeRequest {
+                provider_id: provider.id.clone(),
+                model: None,
+            });
+        }
+    };
+
+    let mut best: Option<(i64, &SubProvider, &ModelInfo)> = None;
+    for subprovider in subproviders {
+        let provider_score = match provider_hint.as_deref() {
+            Some(hint) => provider_match_score(subprovider, hint),
+            None => 0,
+        };
+        if provider_hint.is_some() && provider_score <= 0 {
+            continue;
+        }
+
+        for model in &subprovider.models {
+            let model_score = model_match_score(subprovider, model, &model_query);
+            if model_score <= 0 {
+                continue;
+            }
+
+            let score = provider_score + model_score;
+            let should_replace = match best {
+                Some((best_score, best_provider, best_model)) => {
+                    score > best_score
+                        || (score == best_score
+                            && candidate_tie_breaker(subprovider, model)
+                                < candidate_tie_breaker(best_provider, best_model))
+                }
+                None => true,
+            };
+
+            if should_replace {
+                best = Some((score, subprovider, model));
+            }
+        }
+    }
+
+    let (_, subprovider, model) = best?;
+    Some(ResolvedOpenCodeRequest {
+        provider_id: subprovider.id.clone(),
+        model: Some(format!("{}/{}", subprovider.id, model.id)),
+    })
+}
+
+fn best_opencode_provider<'a>(
+    subproviders: &'a [SubProvider],
+    provider_hint: &str,
+) -> Option<&'a SubProvider> {
+    let mut best: Option<(i64, &SubProvider)> = None;
+    for subprovider in subproviders {
+        let score = provider_match_score(subprovider, provider_hint);
+        if score <= 0 {
+            continue;
+        }
+        let should_replace = match best {
+            Some((best_score, best_provider)) => {
+                score > best_score
+                    || (score == best_score
+                        && provider_tie_breaker(subprovider) < provider_tie_breaker(best_provider))
+            }
+            None => true,
+        };
+        if should_replace {
+            best = Some((score, subprovider));
+        }
+    }
+    best.map(|(_, provider)| provider)
+}
+
+fn provider_match_score(provider: &SubProvider, query: &str) -> i64 {
+    let query = query.trim();
+    if query.is_empty() {
+        return 0;
+    }
+
+    if provider.id.eq_ignore_ascii_case(query) || provider.name.eq_ignore_ascii_case(query) {
+        return 100_000;
+    }
+
+    let normalized_query = normalize_search_key(query);
+    let normalized_id = normalize_search_key(&provider.id);
+    let normalized_name = normalize_search_key(&provider.name);
+    if normalized_id == normalized_query || normalized_name == normalized_query {
+        return 90_000;
+    }
+    if normalized_id.contains(&normalized_query)
+        || normalized_query.contains(&normalized_id)
+        || normalized_name.contains(&normalized_query)
+        || normalized_query.contains(&normalized_name)
+    {
+        return 70_000;
+    }
+
+    if tokens_match(
+        &search_tokens(query),
+        &format!("{} {}", provider.id, provider.name),
+    ) {
+        return 60_000;
+    }
+
+    0
+}
+
+fn model_match_score(provider: &SubProvider, model: &ModelInfo, query: &str) -> i64 {
+    let query = query.trim();
+    if query.is_empty() {
+        return 0;
+    }
+
+    if model.id.eq_ignore_ascii_case(query) || model.name.eq_ignore_ascii_case(query) {
+        return 1_000_000;
+    }
+
+    let normalized_query = normalize_search_key(query);
+    let normalized_id = normalize_search_key(&model.id);
+    let normalized_name = normalize_search_key(&model.name);
+    if normalized_id == normalized_query || normalized_name == normalized_query {
+        return 900_000;
+    }
+
+    let candidate_text = format!(
+        "{} {} {} {}",
+        provider.id, provider.name, model.id, model.name
+    );
+    if candidate_text
+        .to_ascii_lowercase()
+        .contains(&query.to_ascii_lowercase())
+    {
+        return 700_000;
+    }
+
+    let tokens = search_tokens(query);
+    if tokens_match(&tokens, &candidate_text) {
+        let specificity = tokens.iter().map(String::len).sum::<usize>() as i64;
+        return 500_000 + specificity;
+    }
+
+    let normalized_candidate = normalize_search_key(&candidate_text);
+    let partial = tokens
+        .iter()
+        .filter(|token| normalized_candidate.contains(token.as_str()))
+        .count();
+    if partial > 0 {
+        return partial as i64 * 1_000;
+    }
+
+    0
+}
+
+fn tokens_match(tokens: &[String], candidate: &str) -> bool {
+    if tokens.is_empty() {
+        return false;
+    }
+    let normalized_candidate = normalize_search_key(candidate);
+    tokens
+        .iter()
+        .all(|token| normalized_candidate.contains(token.as_str()))
+}
+
+fn search_tokens(query: &str) -> Vec<String> {
+    query
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .filter_map(|token| {
+            let token = token.trim();
+            if token.is_empty() {
+                None
+            } else {
+                Some(normalize_search_key(token))
+            }
+        })
+        .collect()
+}
+
+fn normalize_search_key(value: &str) -> String {
+    value
+        .to_ascii_lowercase()
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric())
+        .collect()
+}
+
+fn provider_tie_breaker(provider: &SubProvider) -> (bool, usize, &str) {
+    (
+        !provider.configured,
+        provider.id.len(),
+        provider.id.as_str(),
+    )
+}
+
+fn candidate_tie_breaker<'a>(
+    provider: &'a SubProvider,
+    model: &'a ModelInfo,
+) -> (bool, usize, &'a str, &'a str) {
+    (
+        !provider.configured,
+        model.id.len(),
+        provider.id.as_str(),
+        model.id.as_str(),
+    )
+}
+
+fn format_unknown_provider(
+    provider_id: &str,
+    registry: &crate::providers::ProviderRegistry,
+    subproviders: &[SubProvider],
+) -> String {
+    let mut available: Vec<String> = registry
+        .all()
+        .into_iter()
+        .map(|p| p.id().to_string())
+        .collect();
+    available.extend(subproviders.iter().map(|sub| sub.id.clone()));
+    available.sort();
+    available.dedup();
+    format!(
+        "Unknown provider \"{provider_id}\". Available: {}",
+        available.join(", ")
+    )
 }
 
 /// Return all CLI backends with their capabilities and models.
@@ -688,6 +1019,43 @@ mod tests {
     use super::*;
     use crate::test_utils::TestCase;
 
+    fn sample_opencode_subproviders() -> Vec<SubProvider> {
+        vec![
+            SubProvider {
+                id: "ollama-cloud".to_string(),
+                name: "Ollama Cloud".to_string(),
+                env: vec![],
+                configured: true,
+                models: vec![
+                    ModelInfo {
+                        id: "kimi-k2.5".to_string(),
+                        name: "Kimi K2.5".to_string(),
+                        context: Some(200_000),
+                        output: Some(32_000),
+                    },
+                    ModelInfo {
+                        id: "kimi-k2.6:cloud".to_string(),
+                        name: "Kimi K2.6 Cloud".to_string(),
+                        context: Some(256_000),
+                        output: Some(32_000),
+                    },
+                ],
+            },
+            SubProvider {
+                id: "openrouter".to_string(),
+                name: "OpenRouter".to_string(),
+                env: vec![],
+                configured: false,
+                models: vec![ModelInfo {
+                    id: "anthropic/claude-sonnet-4.5".to_string(),
+                    name: "Claude Sonnet 4.5".to_string(),
+                    context: Some(200_000),
+                    output: Some(64_000),
+                }],
+            },
+        ]
+    }
+
     #[test]
     fn should_parse_custom_provider_from_jsonc_config() {
         let mut t = TestCase::new("should_parse_custom_provider_from_jsonc_config");
@@ -765,6 +1133,94 @@ mod tests {
         t.none(
             "unknown provider without metadata should not fabricate 200k",
             &resolve_context_window("gemini-cli", Some("gemini-2.5-pro"), None),
+        );
+    }
+
+    #[test]
+    fn should_resolve_opencode_prefix_to_real_subprovider_model() {
+        let mut t = TestCase::new("should_resolve_opencode_prefix_to_real_subprovider_model");
+        let providers = sample_opencode_subproviders();
+
+        t.phase("Act");
+        let resolved = resolve_opencode_request_from_subproviders(
+            &providers,
+            Some("opencode"),
+            Some("opencode/kimi-k2.6:cloud"),
+        )
+        .expect("resolved opencode model");
+
+        t.phase("Assert");
+        t.eq("provider", resolved.provider_id.as_str(), "ollama-cloud");
+        t.eq(
+            "model",
+            resolved.model.as_deref(),
+            Some("ollama-cloud/kimi-k2.6:cloud"),
+        );
+    }
+
+    #[test]
+    fn should_resolve_fuzzy_ollama_kimi_request() {
+        let mut t = TestCase::new("should_resolve_fuzzy_ollama_kimi_request");
+        let providers = sample_opencode_subproviders();
+
+        t.phase("Act");
+        let resolved = resolve_opencode_request_from_subproviders(
+            &providers,
+            Some("ollama"),
+            Some("kimi 2.6"),
+        )
+        .expect("resolved fuzzy opencode model");
+
+        t.phase("Assert");
+        t.eq("provider", resolved.provider_id.as_str(), "ollama-cloud");
+        t.eq(
+            "model",
+            resolved.model.as_deref(),
+            Some("ollama-cloud/kimi-k2.6:cloud"),
+        );
+    }
+
+    #[test]
+    fn should_keep_exact_subprovider_and_prefix_model_for_opencode() {
+        let mut t = TestCase::new("should_keep_exact_subprovider_and_prefix_model_for_opencode");
+        let providers = sample_opencode_subproviders();
+
+        t.phase("Act");
+        let resolved = resolve_opencode_request_from_subproviders(
+            &providers,
+            Some("ollama-cloud"),
+            Some("kimi-k2.6:cloud"),
+        )
+        .expect("resolved exact subprovider model");
+
+        t.phase("Assert");
+        t.eq("provider", resolved.provider_id.as_str(), "ollama-cloud");
+        t.eq(
+            "model",
+            resolved.model.as_deref(),
+            Some("ollama-cloud/kimi-k2.6:cloud"),
+        );
+    }
+
+    #[test]
+    fn should_resolve_provider_from_prefixed_model_without_provider() {
+        let mut t = TestCase::new("should_resolve_provider_from_prefixed_model_without_provider");
+        let providers = sample_opencode_subproviders();
+
+        t.phase("Act");
+        let resolved = resolve_opencode_request_from_subproviders(
+            &providers,
+            None,
+            Some("ollama-cloud/kimi-k2.6:cloud"),
+        )
+        .expect("resolved prefixed model");
+
+        t.phase("Assert");
+        t.eq("provider", resolved.provider_id.as_str(), "ollama-cloud");
+        t.eq(
+            "model",
+            resolved.model.as_deref(),
+            Some("ollama-cloud/kimi-k2.6:cloud"),
         );
     }
 }

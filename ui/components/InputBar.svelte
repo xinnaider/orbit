@@ -88,8 +88,55 @@
       desc: '/orchestrate [provider] [task] — delegate to another agent',
       category: 'orbit',
     });
+    cmds.push({
+      cmd: '/create-agent',
+      desc: '/create-agent [provider] [role/task] - create a named agent session',
+      category: 'orbit',
+    });
     return cmds;
   })();
+
+  function parseProviderPrefix(rest: string): { chosenProvider: string; userGoal: string } {
+    const knownAliases: Record<string, string> = {};
+    const aliasCounts: Record<string, number> = {};
+    const addAlias = (alias: string, providerId: string) => {
+      const key = alias.toLowerCase();
+      if (!key) return;
+      if (knownAliases[key] === providerId) return;
+      knownAliases[key] = providerId;
+      aliasCounts[key] = (aliasCounts[key] ?? 0) + 1;
+    };
+
+    for (const b of $backendsStore) {
+      addAlias(b.cliName, b.id);
+      addAlias(b.id, b.id);
+      for (const sub of b.subProviders ?? []) {
+        addAlias(sub.id, sub.id);
+        addAlias(sub.name, sub.id);
+        addAlias(sub.id.split(/[-_]/)[0], sub.id);
+      }
+    }
+
+    const firstWord = rest.split(/\s/)[0]?.toLowerCase() ?? '';
+    if (firstWord && knownAliases[firstWord] && aliasCounts[firstWord] === 1) {
+      return {
+        chosenProvider: knownAliases[firstWord],
+        userGoal: rest.slice(firstWord.length).trim(),
+      };
+    }
+
+    return { chosenProvider: '', userGoal: rest };
+  }
+
+  function providerIsUnavailable(providerId: string): boolean {
+    if (!providerId) return false;
+    const backend = $backendsStore.find((b) => b.id === providerId);
+    if (backend) return !backend.cliAvailable;
+    const parent = $backendsStore.find((b) =>
+      (b.subProviders ?? []).some((sub) => sub.id === providerId)
+    );
+    return parent ? !parent.cliAvailable : true;
+  }
 
   function buildOrchestratePrompt(userGoal: string, preferredProvider?: string): string {
     const installed = $backendsStore
@@ -149,7 +196,7 @@ Get subagent tree for a session.
 
 **Use a specific model from another provider:**
 1. \`orbit_list_providers()\` → find opencode has "ollama-cloud/glm-5.1"
-2. \`orbit_create_agent(provider="opencode", model="ollama-cloud/glm-5.1", cwd="/project", prompt="Task")\`
+2. \`orbit_create_agent(provider="ollama-cloud", model="ollama-cloud/glm-5.1", cwd="/project", prompt="Task")\`
 
 **Fan-out pattern (parallel agents):**
 1. \`orbit_create_agent(wait=false, name="task-a", prompt="Task A")\` → sessionId 1
@@ -172,6 +219,91 @@ Get subagent tree for a session.
       return `${intro}${providerHint}\n\nReady to orchestrate with ${preferredProvider}. What should I delegate?`;
     }
     return `${intro}\n\nReady to orchestrate. What would you like me to delegate?`;
+  }
+
+  function buildCreateAgentPrompt(userGoal: string, preferredProvider?: string): string {
+    const installed = $backendsStore
+      .filter((b) => b.cliAvailable)
+      .map((b) => `${b.id} (${b.cliName})`)
+      .join(', ');
+    const providerList = installed || 'none detected';
+    const workspacePath = cwd || '(current workspace path unavailable)';
+    const currentSessionId = sessionId;
+    const providerHint = preferredProvider
+      ? `\n- Use provider "${preferredProvider}" if orbit_list_providers reports it as a provider id or OpenCode subProviders[].id.`
+      : `\n- Prefer the current provider "${provider}" if it is available; otherwise pick the best installed provider.`;
+
+    const intro = `You are Orbit's agent factory. Your job is to create a new named agent session in the current workspace, not to do the requested work yourself.
+
+## Current workspace
+Use this exact cwd for the new agent:
+\`${workspacePath}\`
+
+## Parent session
+This factory prompt is running inside Orbit session ${currentSessionId}. Every agent you create must be a child of this session.
+Always pass parentSessionId: ${currentSessionId} to orbit_create_agent so the new agent appears under the current session in the Orbit tree.
+
+## Provider discovery
+Always call orbit_list_providers first. Do not guess provider IDs or model IDs.
+Installed providers snapshot from Orbit UI: ${providerList}${providerHint}
+
+## OpenCode model rules
+- orbit_list_providers returns OpenCode options under subProviders[].
+- If the user names a subprovider such as "ollama", choose the subProviders[].id/name that matches it, for example "ollama-cloud".
+- For OpenCode agents, pass provider as the matching subProviders[].id, not "opencode", when a subprovider is known.
+- Match user model words against exact model IDs/names from that subprovider. For example, "kimi 2.6" should match a model like "kimi-k2.6:cloud" if listed.
+
+## Creation rule
+Create exactly one agent unless the user explicitly asks for multiple agents.
+Use orbit_create_agent with:
+- name: the explicit agent name from the user. If no name is explicit, infer a short role name such as "CEO", "Backend", "Frontend", "Developer", "Reviewer", or "QA".
+- cwd: the current workspace path above.
+- prompt: a complete role prompt built from the requested agent type and mission.
+- parentSessionId: ${currentSessionId}.
+- wait: false, unless the user explicitly asks you to wait for the result.
+
+After creating the agent, report the sessionId, name, provider, and the mission you gave it.
+
+## Agent prompt template
+The prompt you pass to orbit_create_agent must include:
+
+1. Identity
+You are <agent name>, an Orbit agent working in this repository.
+
+2. Mission
+A concise mission derived from the user's request.
+
+3. Operating rules
+- Read the relevant code/context before acting.
+- Keep scope tight and preserve unrelated user changes.
+- Follow existing repo patterns and local instructions.
+- Ask only when blocked by missing information that cannot be inferred safely.
+- If editing code, verify with the narrowest useful test/check and report what ran.
+- Final answer must include changed files, verification, blockers, and next recommended handoff.
+
+4. Role-specific rules
+- CEO / Orchestrator: define strategy, priorities, ownership, milestones, and delegation. Do not edit code unless explicitly asked.
+- Developer: implement end-to-end, keep changes cohesive, and verify behavior.
+- Backend: focus APIs, data models, services, migrations, security, and tests.
+- Frontend: focus UI behavior, accessibility, responsive polish, and state flow.
+- Reviewer: inspect risks, regressions, missing tests, and concrete file/line findings.
+- QA: build a focused test plan, run checks when possible, and document reproduction steps.
+- Research: map the problem, sources, tradeoffs, and recommended execution path.
+
+## Naming rules
+- If the user says "agent CEO", use "CEO" unless they provide a more specific name.
+- If the user says "chamado X", "nome X", or "agent X", use X as the session name.
+- Keep names under 32 characters.
+- Do not add project suffixes; Orbit already knows the workspace.
+
+## If the request is incomplete
+If the user provides a role/name but no detailed mission, create a bootstrap agent for that role. For example, "agent CEO" should create a CEO agent whose mission is to understand the workspace, define operating strategy, propose the first org chart, and recommend the next agents to create.
+If the user provides neither role nor name nor mission, ask one concise question instead of creating a generic session.`;
+
+    if (userGoal) {
+      return `${intro}\n\n## User request\n${userGoal}`;
+    }
+    return `${intro}\n\nNo agent request was provided. Ask the user what role/name and mission this new agent should have.`;
   }
 
   function emitSystemEntry(msg: string) {
@@ -320,24 +452,9 @@ Get subagent tree for a session.
     // Intercept /orchestrate [provider] [prompt]
     if (cmd === '/orchestrate') {
       const rest = msg.slice('/orchestrate'.length).trim();
-      const knownIds = $backendsStore.map((b) => b.id);
-      const knownAliases: Record<string, string> = {};
-      for (const b of $backendsStore) {
-        knownAliases[b.cliName] = b.id;
-        knownAliases[b.id] = b.id;
-      }
+      const { chosenProvider, userGoal } = parseProviderPrefix(rest);
 
-      let chosenProvider = '';
-      let userGoal = rest;
-
-      // Check if first word is a provider name/alias
-      const firstWord = rest.split(/\s/)[0]?.toLowerCase() ?? '';
-      if (firstWord && knownAliases[firstWord]) {
-        chosenProvider = knownAliases[firstWord];
-        userGoal = rest.slice(firstWord.length).trim();
-      }
-
-      if (chosenProvider && !$backendsStore.find((b) => b.id === chosenProvider)?.cliAvailable) {
+      if (providerIsUnavailable(chosenProvider)) {
         sendError = `${chosenProvider} is not installed`;
         setTimeout(() => (sendError = ''), 5000);
         return;
@@ -354,6 +471,35 @@ Get subagent tree for a session.
       pendingMessages.add(orchestratePrompt);
       try {
         await sendSessionMessage(sessionId, orchestratePrompt);
+      } catch (e: any) {
+        sendError = e?.message ?? String(e);
+        setTimeout(() => (sendError = ''), 4000);
+      }
+      return;
+    }
+
+    // Intercept /create-agent [provider] [role/task]
+    if (cmd === '/create-agent') {
+      const rest = msg.slice('/create-agent'.length).trim();
+      const { chosenProvider, userGoal } = parseProviderPrefix(rest);
+
+      if (providerIsUnavailable(chosenProvider)) {
+        sendError = `${chosenProvider} is not installed`;
+        setTimeout(() => (sendError = ''), 5000);
+        return;
+      }
+
+      text = '';
+      if (textarea) textarea.style.height = 'auto';
+
+      const createAgentPrompt = buildCreateAgentPrompt(userGoal, chosenProvider);
+      const label = chosenProvider
+        ? `Agent factory ready with ${chosenProvider}`
+        : 'Agent factory ready';
+      emitSystemEntry(label);
+      pendingMessages.add(createAgentPrompt);
+      try {
+        await sendSessionMessage(sessionId, createAgentPrompt);
       } catch (e: any) {
         sendError = e?.message ?? String(e);
         setTimeout(() => (sendError = ''), 4000);
