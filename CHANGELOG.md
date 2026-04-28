@@ -4,6 +4,11 @@
 
 ## April 2026
 
+### 04/27 · New — Glass theme with semi-transparent background
+A new Glass theme is now available in the theme picker. It uses semi-transparent
+backgrounds with a dark frosted-glass effect, letting the desktop wallpaper peek
+through the application window. Activate it from the palette icon in the sidebar.
+
 ### 04/24 · Fix — Codex effort changes use the Codex CLI reasoning config
 Changing `/effort` in a Codex session now passes `model_reasoning_effort` through `codex exec --config`, including resumed sessions and the `auto` model path. This avoids relying on a nonexistent `--effort` flag and keeps Codex effort levels aligned with the CLI-supported `low`, `medium`, `high`, and `xhigh` values.
 

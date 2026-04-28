@@ -1,6 +1,6 @@
 import { writable } from 'svelte/store';
 
-export const THEME_OPTIONS = ['dark', 'light', 'nord', 'dracula', 'catppuccin'] as const;
+export const THEME_OPTIONS = ['dark', 'light', 'nord', 'dracula', 'catppuccin', 'glass'] as const;
 export type Theme = (typeof THEME_OPTIONS)[number];
 
 export const THEME_LABELS: Record<Theme, string> = {
@@ -9,6 +9,7 @@ export const THEME_LABELS: Record<Theme, string> = {
   nord: 'Nord',
   dracula: 'Dracula',
   catppuccin: 'Catppuccin',
+  glass: 'Glass (transparente)',
 };
 
 function applyTheme(value: Theme) {

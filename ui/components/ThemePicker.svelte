@@ -132,4 +132,8 @@
   .swatch[data-theme-preview='catppuccin'] {
     background: #1e1e2e;
   }
+  .swatch[data-theme-preview='glass'] {
+    background: rgba(28, 28, 28, 0.88);
+    border-color: rgba(100, 100, 100, 0.55);
+  }
 </style>

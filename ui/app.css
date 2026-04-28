@@ -42,10 +42,15 @@ html,
 body {
   height: 100%;
   overflow: hidden;
-  background: var(--bg);
+  background: transparent;
   transition:
     background-color 0.15s ease,
     color 0.15s ease;
+}
+
+[data-theme] html,
+[data-theme] body {
+  background: var(--bg);
 }
 
 body {
