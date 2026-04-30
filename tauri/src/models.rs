@@ -394,3 +394,124 @@ pub struct CreateSessionRequest {
     pub use_worktree: bool,
     pub session_name: Option<String>,
 }
+
+// ── Mesh types ────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Skill {
+    pub slug: String,
+    pub name: String,
+    pub description: String,
+    pub path: String,
+    pub content: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Floor {
+    pub id: i64,
+    pub name: String,
+    pub position: i64,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentTemplate {
+    pub id: i64,
+    pub floor_id: i64,
+    pub name: String,
+    pub pre_prompt: String,
+    pub model: Option<String>,
+    pub provider: String,
+    pub use_worktree: bool,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Graph {
+    pub id: i64,
+    pub floor_id: i64,
+    pub name: String,
+    pub entry_node_id: Option<i64>,
+    pub provider: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GraphNode {
+    pub id: i64,
+    pub graph_id: i64,
+    pub template_id: i64,
+    pub display_name: String,
+    pub x: f64,
+    pub y: f64,
+    pub width: Option<f64>,
+    pub height: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GraphEdge {
+    pub id: i64,
+    pub graph_id: i64,
+    pub from_node_id: i64,
+    pub to_node_id: i64,
+    pub from_handle: Option<String>,
+    pub to_handle: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MeshNote {
+    pub node_id: i64,
+    pub graph_id: i64,
+    pub name: String,
+    pub content: String,
+    pub x: f64,
+    pub y: f64,
+    pub width: Option<f64>,
+    pub height: Option<f64>,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CanvasAnnotation {
+    pub id: i64,
+    pub graph_id: i64,
+    pub kind: String,
+    pub payload: String,
+    pub z_index: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Run {
+    pub id: i64,
+    pub graph_id: i64,
+    pub entry_node_id: i64,
+    pub initial_prompt: Option<String>,
+    pub status: String,
+    pub max_depth: i64,
+    pub timeout_secs: i64,
+    pub max_loop_count: i64,
+    pub ombro_enabled: bool,
+    pub started_at: Option<String>,
+    pub finished_at: Option<String>,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RunSession {
+    pub id: i64,
+    pub run_id: i64,
+    pub node_id: i64,
+    pub session_id: i64,
+}

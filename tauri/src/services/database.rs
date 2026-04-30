@@ -89,6 +89,28 @@ impl DatabaseService {
     fn migrate(&self) -> SqlResult<()> {
         let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         conn.execute_batch("PRAGMA journal_mode=WAL;")?;
+        // Mesh requires ON DELETE CASCADE (graph_nodes, graph_edges, annotations).
+        // SQLite does not enforce foreign keys by default; enable per-connection.
+        conn.execute_batch("PRAGMA foreign_keys=ON;")?;
+        // Mesh: persist per-node width/height set via NodeResizer.
+        let _ = conn.execute_batch("ALTER TABLE graph_nodes ADD COLUMN width REAL");
+        let _ = conn.execute_batch("ALTER TABLE graph_nodes ADD COLUMN height REAL");
+        // Mesh: persist which handle (top/right/bottom/left) each edge attaches to.
+        let _ = conn.execute_batch("ALTER TABLE graph_edges ADD COLUMN from_handle TEXT");
+        let _ = conn.execute_batch("ALTER TABLE graph_edges ADD COLUMN to_handle TEXT");
+        // Mesh: per-graph LLM provider — one team of roles, swappable backend.
+        let _ = conn.execute_batch(
+            "ALTER TABLE graphs ADD COLUMN provider TEXT NOT NULL DEFAULT 'claude-code'",
+        );
+        // Mesh: per-graph notes — markdown content keyed 1:1 with graph_nodes.
+        let _ = conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS mesh_note_contents (
+                node_id    INTEGER PRIMARY KEY REFERENCES graph_nodes(id) ON DELETE CASCADE,
+                name       TEXT NOT NULL,
+                content    TEXT NOT NULL DEFAULT '',
+                updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+            )",
+        );
         // Run schema migrations (errors ignored — column may already exist)
         let _ = conn.execute_batch("ALTER TABLE sessions ADD COLUMN claude_session_id TEXT");
         let _ = conn.execute_batch("ALTER TABLE sessions ADD COLUMN cwd TEXT");
@@ -156,7 +178,106 @@ impl DatabaseService {
                 ON session_outputs(session_id);
         ",
         )?;
+
+        // Mesh tables — multi-agent canvas feature
+        conn.execute_batch(
+            "
+            CREATE TABLE IF NOT EXISTS floors (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                name        TEXT NOT NULL,
+                position    INTEGER NOT NULL DEFAULT 0,
+                created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+
+            CREATE TABLE IF NOT EXISTS agent_templates (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                floor_id     INTEGER NOT NULL REFERENCES floors(id) ON DELETE CASCADE,
+                name         TEXT NOT NULL,
+                pre_prompt   TEXT NOT NULL,
+                model        TEXT,
+                provider     TEXT NOT NULL DEFAULT 'claude-code',
+                use_worktree INTEGER NOT NULL DEFAULT 1,
+                created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+                updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+
+            CREATE TABLE IF NOT EXISTS graphs (
+                id             INTEGER PRIMARY KEY AUTOINCREMENT,
+                floor_id       INTEGER NOT NULL REFERENCES floors(id) ON DELETE CASCADE,
+                name           TEXT NOT NULL,
+                entry_node_id  INTEGER,
+                provider       TEXT NOT NULL DEFAULT 'claude-code',
+                created_at     TEXT NOT NULL DEFAULT (datetime('now')),
+                updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+
+            CREATE TABLE IF NOT EXISTS graph_nodes (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                graph_id      INTEGER NOT NULL REFERENCES graphs(id) ON DELETE CASCADE,
+                template_id   INTEGER NOT NULL REFERENCES agent_templates(id),
+                display_name  TEXT NOT NULL,
+                x             REAL NOT NULL,
+                y             REAL NOT NULL,
+                width         REAL,
+                height        REAL,
+                UNIQUE(graph_id, display_name)
+            );
+
+            CREATE TABLE IF NOT EXISTS graph_edges (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                graph_id      INTEGER NOT NULL REFERENCES graphs(id) ON DELETE CASCADE,
+                from_node_id  INTEGER NOT NULL REFERENCES graph_nodes(id) ON DELETE CASCADE,
+                to_node_id    INTEGER NOT NULL REFERENCES graph_nodes(id) ON DELETE CASCADE,
+                from_handle   TEXT,
+                to_handle     TEXT,
+                UNIQUE(graph_id, from_node_id, to_node_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS canvas_annotations (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                graph_id   INTEGER NOT NULL REFERENCES graphs(id) ON DELETE CASCADE,
+                kind       TEXT NOT NULL,
+                payload    TEXT NOT NULL,
+                z_index    INTEGER NOT NULL DEFAULT 0
+            );
+
+            CREATE TABLE IF NOT EXISTS runs (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                graph_id        INTEGER NOT NULL REFERENCES graphs(id),
+                entry_node_id   INTEGER NOT NULL REFERENCES graph_nodes(id),
+                initial_prompt  TEXT,
+                status          TEXT NOT NULL DEFAULT 'pending',
+                max_depth       INTEGER NOT NULL DEFAULT 5,
+                timeout_secs    INTEGER NOT NULL DEFAULT 300,
+                max_loop_count  INTEGER NOT NULL DEFAULT 5,
+                ombro_enabled   INTEGER NOT NULL DEFAULT 1,
+                started_at      TEXT,
+                finished_at     TEXT,
+                created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+
+            CREATE TABLE IF NOT EXISTS run_sessions (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                run_id      INTEGER NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+                node_id     INTEGER NOT NULL REFERENCES graph_nodes(id),
+                session_id  INTEGER NOT NULL REFERENCES sessions(id),
+                UNIQUE(run_id, node_id)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_graph_nodes_graph_id ON graph_nodes(graph_id);
+            CREATE INDEX IF NOT EXISTS idx_graph_edges_graph_id ON graph_edges(graph_id);
+            CREATE INDEX IF NOT EXISTS idx_graph_edges_from_node ON graph_edges(from_node_id);
+            CREATE INDEX IF NOT EXISTS idx_canvas_annotations_graph_id ON canvas_annotations(graph_id);
+            CREATE INDEX IF NOT EXISTS idx_run_sessions_run_id ON run_sessions(run_id);
+        ",
+        )?;
+
         Ok(())
+    }
+
+    /// Acquire the shared SQLite connection lock for multi-statement transactions.
+    pub(crate) fn conn(&self) -> std::sync::MutexGuard<'_, Connection> {
+        self.conn.lock().unwrap_or_else(|e| e.into_inner())
     }
 
     pub fn create_project(&self, name: &str, path: &str) -> SqlResult<Project> {
