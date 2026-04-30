@@ -38,11 +38,14 @@
   import type { UpdateInfo } from './lib/types';
   import Sidebar from './components/Sidebar.svelte';
   import WorkspaceContainer from './components/workspace/WorkspaceContainer.svelte';
+  import MeshView from './components/mesh/MeshView.svelte';
+  import { activeView } from './lib/stores/mesh/view';
   import NewSessionModal from './components/NewSessionModal.svelte';
   import MetaPanel from './components/MetaPanel.svelte';
   import { metaPanelVisible, sidebarVisible } from './lib/stores/preferences';
   import { mutedSessions } from './lib/stores/ui';
   import { backends } from './lib/stores/providers';
+  import { isMeshSessionName } from './lib/stores/mesh/constants';
 
   let prevStatuses: Record<number, string> = {};
   let audioCtx: AudioContext | null = null;
@@ -102,14 +105,18 @@
 
     claudeCheck = check;
     sessions.set(existing);
-    restoreWorkspace(new Set(existing.map((s) => s.id)));
+    // Mesh sessions live in the canvas — exclude them from workspace panes.
+    const nonMesh = existing.filter((s) => !isMeshSessionName(s.name));
+    restoreWorkspace(new Set(nonMesh.map((s) => s.id)));
     if (existing.length > 0 && !$selectedSessionId) {
+      const firstNonMesh = nonMesh[0];
       const ws = get(workspace);
-      if (ws.focusedPaneId) assignSession(ws.focusedPaneId, existing[0].id);
+      if (ws.focusedPaneId && firstNonMesh) assignSession(ws.focusedPaneId, firstNonMesh.id);
     }
 
     const u1 = onSessionCreated((s) => {
       sessions.update((l) => upsertSession(l, s));
+      if (isMeshSessionName(s.name)) return;
       if (!$selectedSessionId) {
         const ws = get(workspace);
         if (ws.focusedPaneId) assignSession(ws.focusedPaneId, s.id);
@@ -253,41 +260,91 @@
   />
 {/if}
 
+<div class="view-switcher">
+  <button
+    class="switch-btn"
+    class:active={$activeView === 'sessions'}
+    on:click={() => activeView.set('sessions')}
+  >
+    Sessions
+  </button>
+  <button
+    class="switch-btn"
+    class:active={$activeView === 'mesh'}
+    on:click={() => activeView.set('mesh')}
+  >
+    Mesh
+  </button>
+</div>
+
 <div class="layout">
-  {#if $sidebarVisible}
-    <Sidebar onOpenChangelog={openChangelog} />
+  {#if $activeView === 'mesh'}
+    <MeshView />
   {:else}
-    <button class="sidebar-reopen" on:click={() => sidebarVisible.set(true)} title="Show sidebar"
-      >›</button
-    >
-  {/if}
-  {#if claudeCheck && !claudeCheck.found}
-    <div class="empty">
-      <div class="claude-warn">
-        <span class="warn-icon">⚠</span>
-        <div>
-          <div class="warn-title">claude CLI not found</div>
-          <div class="warn-hint">
-            {claudeCheck.hint ?? 'npm install -g @anthropic-ai/claude-code'}
+    {#if $sidebarVisible}
+      <Sidebar onOpenChangelog={openChangelog} />
+    {:else}
+      <button class="sidebar-reopen" on:click={() => sidebarVisible.set(true)} title="Show sidebar"
+        >›</button
+      >
+    {/if}
+    {#if claudeCheck && !claudeCheck.found}
+      <div class="empty">
+        <div class="claude-warn">
+          <span class="warn-icon">⚠</span>
+          <div>
+            <div class="warn-title">claude CLI not found</div>
+            <div class="warn-hint">
+              {claudeCheck.hint ?? 'npm install -g @anthropic-ai/claude-code'}
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  {:else}
-    <WorkspaceContainer />
-  {/if}
-  {#if selected && $metaPanelVisible}
-    <MetaPanel session={selected} />
-  {:else if selected && !$metaPanelVisible}
-    <button class="meta-reopen" on:click={() => metaPanelVisible.set(true)} title="Show panel"
-      >‹</button
-    >
+    {:else}
+      <WorkspaceContainer />
+    {/if}
+    {#if selected && $metaPanelVisible}
+      <MetaPanel session={selected} />
+    {:else if selected && !$metaPanelVisible}
+      <button class="meta-reopen" on:click={() => metaPanelVisible.set(true)} title="Show panel"
+        >‹</button
+      >
+    {/if}
   {/if}
 </div>
 
 <ToastContainer />
 
 <style>
+  .view-switcher {
+    display: flex;
+    gap: var(--sp-2);
+    padding: var(--sp-3) var(--sp-5);
+    background: var(--bg1);
+    border-bottom: 1px solid var(--bd);
+  }
+  .switch-btn {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--t1);
+    padding: var(--sp-2) var(--sp-7);
+    font-size: var(--sm);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    text-transform: lowercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+    font-family: inherit;
+  }
+  .switch-btn:hover {
+    background: var(--bg3);
+    color: var(--t0);
+  }
+  .switch-btn.active {
+    background: var(--ac-d);
+    border-color: var(--ac);
+    color: var(--ac);
+  }
   .layout {
     display: flex;
     flex: 1;

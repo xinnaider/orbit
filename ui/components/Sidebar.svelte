@@ -1,7 +1,12 @@
 <script lang="ts">
   import { sessions, updateSessionState } from '../lib/stores/sessions';
   import { workspace, assignSession, splitPane } from '../lib/stores/workspace';
-  import { get } from 'svelte/store';
+  import { derived, get } from 'svelte/store';
+  import { isMeshSessionName } from '../lib/stores/mesh/constants';
+
+  // Sessions created by the Mesh pipeline are owned by the canvas — hide them
+  // from the regular Sessions sidebar.
+  const visibleSessions = derived(sessions, ($s) => $s.filter((x) => !isMeshSessionName(x.name)));
   import { statusColor, statusLabel, isPulsing } from '../lib/status';
   import NewSessionModal from './NewSessionModal.svelte';
   import ContextMenu from './ContextMenu.svelte';
@@ -189,10 +194,10 @@
   </header>
 
   <div class="list">
-    {#if $sessions.length === 0}
+    {#if $visibleSessions.length === 0}
       <p class="empty">no sessions</p>
     {:else}
-      {#each $sessions as s (s.id)}
+      {#each $visibleSessions as s (s.id)}
         {@const active = Object.values($workspace.panes).some((p) => p.sessionId === s.id)}
         {@const color = statusColor(s.status)}
         {@const pulsing = isPulsing(s.status)}
@@ -262,7 +267,7 @@
   </div>
 
   <footer class="footer">
-    <span>{$sessions.length} session{$sessions.length !== 1 ? 's' : ''}</span>
+    <span>{$visibleSessions.length} session{$visibleSessions.length !== 1 ? 's' : ''}</span>
     <button class="collapse-btn" on:click={() => sidebarVisible.set(false)} title="Hide sidebar"
       >‹</button
     >
