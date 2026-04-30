@@ -101,3 +101,110 @@ export interface UpdateInfo {
   body: string;
   currentVersion: string;
 }
+
+// ── Mesh types ─────────────────────────────────────────────
+
+export type Floor = {
+  id: number;
+  name: string;
+  position: number;
+  createdAt: string;
+};
+
+export type AgentTemplate = {
+  id: number;
+  floorId: number;
+  name: string;
+  prePrompt: string;
+  model: string | null;
+  provider: string;
+  useWorktree: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type Graph = {
+  id: number;
+  floorId: number;
+  name: string;
+  entryNodeId: number | null;
+  provider: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type GraphNode = {
+  id: number;
+  graphId: number;
+  templateId: number;
+  displayName: string;
+  x: number;
+  y: number;
+  width?: number | null;
+  height?: number | null;
+};
+
+export type GraphEdge = {
+  id: number;
+  graphId: number;
+  fromNodeId: number;
+  toNodeId: number;
+  fromHandle?: string | null;
+  toHandle?: string | null;
+};
+
+export type MeshNote = {
+  nodeId: number;
+  graphId: number;
+  name: string;
+  content: string;
+  x: number;
+  y: number;
+  width?: number | null;
+  height?: number | null;
+  updatedAt: string;
+};
+
+export type CanvasAnnotation = {
+  id: number;
+  graphId: number;
+  kind: 'path' | 'sticky' | 'arrow';
+  payload: string;
+  zIndex: number;
+};
+
+export type NewAnnotation = {
+  kind: 'path' | 'sticky' | 'arrow';
+  payload: string;
+  zIndex: number;
+};
+
+export type Skill = {
+  slug: string;
+  name: string;
+  description: string;
+  path: string;
+  content: string;
+};
+
+export type Run = {
+  id: number;
+  graphId: number;
+  entryNodeId: number;
+  initialPrompt: string | null;
+  status: 'pending' | 'running' | 'completed' | 'stopped' | 'error';
+  maxDepth: number;
+  timeoutSecs: number;
+  maxLoopCount: number;
+  ombroEnabled: boolean;
+  startedAt: string | null;
+  finishedAt: string | null;
+  createdAt: string;
+};
+
+export type RunSession = {
+  id: number;
+  runId: number;
+  nodeId: number;
+  sessionId: number;
+};
