@@ -3,14 +3,23 @@
   import { Terminal } from '@xterm/xterm';
   import { FitAddon } from '@xterm/addon-fit';
   import { ptyCreate, ptyWrite, ptyResize, ptyKill, onPtyOutput } from '../lib/tauri/terminal';
+  import PanelHeader from './workspace/PanelHeader.svelte';
   import '@xterm/xterm/css/xterm.css';
 
   let {
     sessionId = 0,
     terminalId = '',
+    cwd = '.',
+    paneId = '',
+    focused = true,
+    onClose = null,
   }: {
     sessionId?: number;
     terminalId?: string;
+    cwd?: string;
+    paneId?: string;
+    focused?: boolean;
+    onClose?: (() => void) | null;
   } = $props();
 
   let container: HTMLDivElement | undefined = $state();
@@ -45,8 +54,6 @@
   async function spawnPty(term: Terminal, fit: FitAddon): Promise<void> {
     const isWindows = navigator.platform.startsWith('Win');
     const shell = isWindows ? 'powershell.exe' : '/bin/bash';
-    const cwd = '.';
-
     // Get current terminal dimensions before spawning
     fit.fit();
     const rows = term.rows || 24;
@@ -148,52 +155,46 @@
   });
 </script>
 
-{#if loading}
-  <div class="terminal-overlay">
-    <span class="terminal-status">Starting shell…</span>
-  </div>
-{:else if error}
-  <div class="terminal-overlay">
-    <span class="terminal-status error">{error}</span>
-    <button
-      class="retry-btn"
-      onclick={() => {
-        terminal?.dispose();
-        terminal = undefined;
-        initTerminal();
-      }}>Retry</button
-    >
-  </div>
-{/if}
+<section class="terminal-shell">
+  <PanelHeader
+    title="Terminal"
+    status={cwd}
+    dragPayload={JSON.stringify({ sourcePaneId: paneId, target: { kind: 'terminal', terminalId, cwd } })}
+    {onClose}
+    {focused}
+  />
 
-<div class="terminal-panel" bind:this={container} class:hidden={!!error || loading}></div>
+  <div class="terminal-body">
+    {#if loading}
+      <div class="terminal-overlay">
+        <span class="terminal-status">Starting shell...</span>
+      </div>
+    {:else if error}
+      <div class="terminal-overlay">
+        <span class="terminal-status error">{error}</span>
+        <button
+          class="retry-btn"
+          onclick={() => {
+            terminal?.dispose();
+            terminal = undefined;
+            initTerminal();
+          }}>Retry</button
+        >
+      </div>
+    {/if}
+
+    <div class="terminal-panel" bind:this={container} class:hidden={!!error || loading}></div>
+  </div>
+</section>
 
 <style>
-  .terminal-panel {
-    width: 100%;
-    height: 100%;
-    min-height: 200px;
-  }
-
-  .terminal-panel.hidden {
-    display: none;
-  }
-
-  .terminal-panel :global(.xterm) {
-    height: 100%;
-  }
-
-  .terminal-overlay {
+  .terminal-shell {
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
-    min-height: 200px;
-    gap: 12px;
-    background: #1a1a1a;
-    color: #d4d4d4;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    background: var(--bg);
+    color: var(--t0);
   }
 
   .terminal-status {
@@ -203,21 +204,25 @@
   }
 
   .terminal-status.error {
-    color: #f48771;
+    color: var(--s-error);
     opacity: 1;
   }
 
   .retry-btn {
     padding: 4px 14px;
-    background: #2a2a2a;
-    border: 1px solid #444;
+    background: var(--bg3);
+    border: 1px solid var(--bd1);
     border-radius: 4px;
-    color: #d4d4d4;
-    font-size: 12px;
+    color: var(--t0);
+    font-size: var(--base);
     cursor: pointer;
+    transition:
+      background 0.15s,
+      border-color 0.15s;
   }
 
   .retry-btn:hover {
-    background: #333;
+    background: var(--bg4);
+    border-color: color-mix(in srgb, var(--ac), transparent 60%);
   }
 </style>

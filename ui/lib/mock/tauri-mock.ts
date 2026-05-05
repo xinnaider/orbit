@@ -632,6 +632,126 @@ export async function mockInvoke(cmd: string, args?: Record<string, unknown>): P
       return MOCK_SUBAGENT_JOURNAL[`${sessionId}:${subagentId}`] ?? [];
     }
 
+    case 'git_overview': {
+      const cwd = (args?.cwd as string) ?? '';
+      return {
+        cwd,
+        branch: 'feat/improve-feed-ui',
+        upstream: 'origin/feat/improve-feed-ui',
+        ahead: 3,
+        behind: 0,
+        files: [
+          {
+            id: 'staged:src/components/GitPanel.svelte',
+            path: 'src/components/GitPanel.svelte',
+            fileName: 'GitPanel.svelte',
+            group: 'staged',
+            status: 'modified',
+            staged: true,
+            untracked: false,
+            oldPath: null,
+            additions: 200,
+            deletions: 0,
+          },
+          {
+            id: 'unstaged:src/components/GitPanel.svelte',
+            path: 'src/components/GitPanel.svelte',
+            fileName: 'GitPanel.svelte',
+            group: 'unstaged',
+            status: 'modified',
+            staged: false,
+            untracked: false,
+            oldPath: null,
+            additions: 15,
+            deletions: 3,
+          },
+          {
+            id: 'unstaged:tauri/src/commands/git.rs',
+            path: 'tauri/src/commands/git.rs',
+            fileName: 'git.rs',
+            group: 'unstaged',
+            status: 'added',
+            staged: false,
+            untracked: false,
+            oldPath: null,
+            additions: 280,
+            deletions: 0,
+          },
+          {
+            id: 'untracked:ui/lib/git-tree.ts',
+            path: 'ui/lib/git-tree.ts',
+            fileName: 'git-tree.ts',
+            group: 'untracked',
+            status: 'untracked',
+            staged: false,
+            untracked: true,
+            oldPath: null,
+            additions: null,
+            deletions: null,
+          },
+          {
+            id: 'untracked:ui/lib/git-tags.ts',
+            path: 'ui/lib/git-tags.ts',
+            fileName: 'git-tags.ts',
+            group: 'untracked',
+            status: 'untracked',
+            staged: false,
+            untracked: true,
+            oldPath: null,
+            additions: null,
+            deletions: null,
+          },
+          {
+            id: 'staged:package.json',
+            path: 'package.json',
+            fileName: 'package.json',
+            group: 'staged',
+            status: 'modified',
+            staged: true,
+            untracked: false,
+            oldPath: null,
+            additions: 3,
+            deletions: 0,
+          },
+        ],
+        branches: [
+          { name: 'feat/improve-feed-ui', fullName: 'refs/heads/feat/improve-feed-ui', kind: 'local', current: true, upstream: 'origin/feat/improve-feed-ui', ahead: 3, behind: 0 },
+          { name: 'master', fullName: 'refs/heads/master', kind: 'local', current: false, upstream: 'origin/master', ahead: 0, behind: 1 },
+          { name: 'origin/feat/improve-feed-ui', fullName: 'refs/remotes/origin/feat/improve-feed-ui', kind: 'remote', current: false, upstream: null, ahead: 0, behind: 0 },
+          { name: 'origin/master', fullName: 'refs/remotes/origin/master', kind: 'remote', current: false, upstream: null, ahead: 0, behind: 0 },
+        ],
+      };
+    }
+
+    case 'git_diff_file': {
+      const path = (args?.path as string) ?? '';
+      const group = (args?.group as string) ?? 'unstaged';
+      let original = '';
+      let modified = '';
+
+      if (path.includes('GitPanel.svelte') || path.includes('git-tree.ts')) {
+        original = `<script>\n  import { onMount } from 'svelte';\n  export let cwd: string;\n</script>\n\n<div class="placeholder">\n  Git panel placeholder\n</div>\n\n<style>\n  .placeholder {\n    color: #6b7f75;\n  }\n</style>\n`;
+        modified = `<script lang="ts">\n  import { onMount } from 'svelte';\n  import { GitBranch, RefreshCw, X } from 'lucide-svelte';\n  import { gitOverview } from '../lib/tauri/git';\n  import { buildGitTree } from '../lib/git-tree';\n\n  export let cwd: string;\n  export let onClose: (() => void) | null = null;\n\n  let overview: GitOverview | null = null;\n  let loading = false;\n\n  onMount(async () => {\n    loading = true;\n    overview = await gitOverview(cwd);\n    loading = false;\n  });\n</script>\n\n<section class="git-panel">\n  <header class="git-header">\n    <GitBranch size={13} />\n    <span>Git Overview</span>\n    <button type="button" on:click={onClose}><X size={13} /></button>\n  </header>\n  ...\n</section>\n`;
+      } else if (path.includes('git-tags.ts')) {
+        original = '';
+        modified = `import type { GitFileChange } from './tauri/git';\n\nexport const FIXED_GIT_TAGS = ['ready', 'needs review', 'docs', 'risky', 'generated'] as const;\nexport type FixedGitTag = (typeof FIXED_GIT_TAGS)[number];\n\nexport function tagKey(file: { path: string; group: string }): string {\n  return \`\${file.group}:\${file.path}\`;\n}\n\nexport function loadGitTags(repoPath: string): Record<string, string[]> {\n  try {\n    const raw = localStorage.getItem(\`orbit:git-file-tags:\${repoPath}\`);\n    return raw ? JSON.parse(raw) : {};\n  } catch { return {}; }\n}\n`;
+      } else {
+        original = '{\n  "name": "orbit",\n  "version": "1.0.0",\n  "private": true\n}\n';
+        modified = '{\n  "name": "orbit",\n  "version": "1.0.0",\n  "private": true,\n  "dependencies": {\n    "monaco-editor": "^0.55.0"\n  }\n}\n';
+      }
+
+      const langMap: Record<string, string> = {
+        svelte: 'html',
+        ts: 'typescript',
+        rs: 'rust',
+        json: 'json',
+      };
+      const ext = path.split('.').pop() ?? '';
+      const language = langMap[ext] ?? 'plaintext';
+
+      return { id: `${group}:${path}`, path, group, language, binary: false, original, modified };
+    }
+
     case 'get_changelog':
       return '# Changelog\n\n## April 2026\n\n### 04/07 · New — In-app changelog\nYou can now view the history of Orbit updates directly inside the app.';
 

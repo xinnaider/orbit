@@ -1,5 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
+  import { Plus } from 'lucide-svelte';
   import type { Tab } from '../../lib/stores/workspace';
   import { setActiveTab, closeTab, reorderTab } from '../../lib/stores/workspace';
   import TabItem from './TabItem.svelte';
@@ -8,9 +9,10 @@
   export let paneId: string;
   export let tabs: Tab[];
   export let activeTabId: string | null;
+  export let focused: boolean = true;
 
   const dispatch = createEventDispatcher<{
-    addaction: { action: 'terminal' | 'session' | 'open' };
+    addaction: { action: 'terminal' | 'session' | 'open' | 'git' };
   }>();
 
   let menuOpen = false;
@@ -35,7 +37,7 @@
     menuOpen = true;
   }
 
-  function handleMenuSelect(e: CustomEvent<{ action: 'terminal' | 'session' | 'open' }>) {
+  function handleMenuSelect(e: CustomEvent<{ action: 'terminal' | 'session' | 'open' | 'git' }>) {
     dispatch('addaction', { action: e.detail.action });
   }
 
@@ -98,6 +100,7 @@
             {tab}
             active={tab.id === activeTabId}
             {paneId}
+            {focused}
             on:close={(e) => handleTabClose(e.detail.tabId)}
           />
         </button>
@@ -116,7 +119,7 @@
   </div>
 
   <button class="add-button" on:click={handleAddClick} aria-label="Add tab" title="Add tab">
-    +
+    <Plus size={15} />
   </button>
 </div>
 
@@ -127,20 +130,23 @@
 <style>
   .tab-bar {
     display: flex;
-    align-items: stretch;
-    background: var(--bg1);
+    align-items: center;
+    height: 36px;
+    padding: 0 6px;
+    gap: 3px;
     border-bottom: 1px solid var(--bd);
-    height: 33px;
+    background: var(--bg1);
     flex-shrink: 0;
     overflow: hidden;
   }
 
   .tab-list {
     display: flex;
-    align-items: stretch;
+    align-items: center;
     flex: 1;
     overflow-x: auto;
     scrollbar-width: none;
+    gap: 3px;
   }
 
   .tab-list::-webkit-scrollbar {
@@ -149,7 +155,7 @@
 
   .drop-zone {
     display: flex;
-    align-items: stretch;
+    align-items: center;
     position: relative;
     flex-shrink: 0;
   }
@@ -163,8 +169,8 @@
     content: '';
     position: absolute;
     left: 0;
-    top: 4px;
-    bottom: 4px;
+    top: 5px;
+    bottom: 5px;
     width: 2px;
     background: var(--ac);
     border-radius: 1px;
@@ -184,24 +190,19 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
-    border: none;
+    width: 22px;
+    height: 22px;
+    border: 1px dashed var(--bd1);
     background: transparent;
-    color: var(--t2);
-    font-size: var(--md);
+    color: var(--t3);
     cursor: pointer;
     flex-shrink: 0;
     border-radius: var(--radius-sm);
-    transition:
-      background 0.1s,
-      color 0.1s;
-    align-self: center;
-    margin: 0 var(--sp-2);
+    transition: all 0.12s;
   }
 
   .add-button:hover {
-    background: var(--bg2);
-    color: var(--t0);
+    border-color: var(--ac);
+    color: var(--ac);
   }
 </style>

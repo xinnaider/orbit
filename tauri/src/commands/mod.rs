@@ -1,6 +1,7 @@
 pub mod agents;
 pub mod diff;
 pub mod files;
+pub mod git;
 pub mod orchestration;
 pub mod plugins;
 pub mod providers;

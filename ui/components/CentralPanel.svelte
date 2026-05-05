@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Session } from '../lib/stores/sessions';
+  import { GitBranch, Volume2, VolumeX } from 'lucide-svelte';
   import { journal, pendingMessages } from '../lib/stores/journal';
   import { getSessionJournal } from '../lib/tauri';
   import { backends as backendsStore } from '../lib/stores/providers';
@@ -8,11 +9,13 @@
   import { mutedSessions, toggleMute } from '../lib/stores/ui';
   import Feed from './Feed.svelte';
   import InputBar from './InputBar.svelte';
+  import PanelHeader from './workspace/PanelHeader.svelte';
   import PermissionDialog from './PermissionDialog.svelte'; // TODO: re-enable when auto-deny error is fixed
 
   export let session: Session;
   export let onClose: (() => void) | null = null;
   export let paneId: string = '';
+  export let focused: boolean = true;
 
   let feedComponent: Feed;
   let atBottom = true;
@@ -85,112 +88,64 @@
 </script>
 
 <div class="panel">
-  <!-- Header — draggable to create splits -->
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div
-    class="header"
-    draggable="true"
-    on:dragstart={(e) => {
-      if (e.dataTransfer) {
-        e.dataTransfer.setData(
-          'text/plain',
-          JSON.stringify({ sessionId: session.id, sourcePaneId: paneId })
-        );
-        e.dataTransfer.effectAllowed = 'move';
-      }
-    }}
+  <PanelHeader
+    title={session.name ?? session.projectName ?? session.cwd?.split(/[\\/]/).pop() ?? `#${session.id}`}
+    status={statusStr}
+    dragPayload={JSON.stringify({ sessionId: session.id, sourcePaneId: paneId })}
+    {onClose}
+    {focused}
   >
-    <div class="header-left">
-      <span class="dot" style="color:{statusClr}" class:pulse={pulsing}>●</span>
-      <span
-        class="session-name"
-        title={session.name ??
-          session.projectName ??
-          session.cwd?.split(/[\\/]/).pop() ??
-          `#${session.id}`}
-      >
-        {session.name ??
-          session.projectName ??
-          session.cwd?.split(/[\\/]/).pop() ??
-          `#${session.id}`}
-      </span>
-      <span class="status" style="color:{statusClr}">{statusStr}</span>
-    </div>
-    <div class="header-right">
-      {#if session.tokens}
-        <span class="meta">
-          {formatTokens(session.tokens.input + session.tokens.output)}
-        </span>
-        {#if (session.contextPercent ?? 0) > 0}
-          <span class="ctx">
-            <span class="ctx-bar">
-              <span
-                class="ctx-fill"
-                style="width:{Math.min(session.contextPercent ?? 0, 100)}%;
-                background:{(session.contextPercent ?? 0) > 85
-                  ? 'var(--s-error)'
-                  : (session.contextPercent ?? 0) > 65
-                    ? 'var(--s-input)'
-                    : 'var(--ac)'}"
-              >
-              </span>
-            </span>
-            <span class="ctx-pct">{Math.round(session.contextPercent ?? 0)}%</span>
+    <span slot="leading" class="dot" style="color:{statusClr}" class:pulse={pulsing}></span>
+      <div slot="meta" class="header-right">
+        {#if session.tokens}
+          <span class="meta">
+            {formatTokens(session.tokens.input + session.tokens.output)}
           </span>
-        {/if}
-      {/if}
-      <span class="model" title={session.model ?? ''}>{fmtModel(session.model)}</span>
-      <div class="header-actions">
-        <button
-          class="action-btn mute-btn"
-          class:muted
-          title={muted ? 'Unmute session' : 'Mute session'}
-          on:click={() => toggleMute(String(session.id))}
-        >
-          {#if muted}
-            <svg
-              width="11"
-              height="11"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-              <line x1="23" y1="9" x2="17" y2="15"></line>
-              <line x1="17" y1="9" x2="23" y2="15"></line>
-            </svg>
-          {:else}
-            <svg
-              width="11"
-              height="11"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-              <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
-            </svg>
+          {#if (session.contextPercent ?? 0) > 0}
+            <div class="hdr-divider"></div>
+            <span class="ctx">
+              <span class="ctx-bar">
+                <span
+                  class="ctx-fill"
+                  style="width:{Math.min(session.contextPercent ?? 0, 100)}%;
+                  background:{(session.contextPercent ?? 0) > 85
+                    ? 'var(--s-error)'
+                    : (session.contextPercent ?? 0) > 65
+                      ? 'var(--s-input)'
+                      : 'var(--ac)'}"
+                >
+                </span>
+              </span>
+              <span class="ctx-pct">{Math.round(session.contextPercent ?? 0)}%</span>
+            </span>
           {/if}
-        </button>
-        {#if onClose}
-          <button class="action-btn close-action" title="Close pane" on:click={onClose}>×</button>
+          <div class="hdr-divider"></div>
         {/if}
+        <span class="model-pill" title={session.model ?? ''}>
+          {fmtModel(session.model)}
+        </span>
       </div>
-    </div>
-  </div>
+    <button
+      slot="actions"
+      class="action-btn mute-btn"
+      class:muted
+      title={muted ? 'Unmute session' : 'Mute session'}
+      aria-label={muted ? 'Unmute session' : 'Mute session'}
+      on:click={() => toggleMute(String(session.id))}
+    >
+      {#if muted}
+        <VolumeX size={12} />
+      {:else}
+        <Volume2 size={12} />
+      {/if}
+    </button>
+  </PanelHeader>
 
   <!-- Branch strip -->
   {#if session.branchName ?? session.gitBranch}
     {@const branchLabel = session.branchName ?? session.gitBranch ?? ''}
     <div class="branch-strip" title={branchLabel}>
-      <span class="branch-icon">⎇</span>
+      <span class="branch-icon" aria-hidden="true"><GitBranch size={12} /></span>
       <span class="branch-text">{branchLabel}</span>
     </div>
   {/if}
@@ -249,26 +204,13 @@
     background: var(--bg);
   }
 
-  .header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: var(--sp-4) var(--sp-7);
-    border-bottom: 1px solid var(--bd);
-    flex-shrink: 0;
-    background: var(--bg1);
-  }
-  .header-left {
-    display: flex;
-    align-items: center;
-    gap: var(--sp-4);
-    min-width: 0;
-    flex: 1;
-    overflow: hidden;
-  }
   .dot {
-    font-size: 8px;
-    line-height: 1;
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 2px;
+    background: currentColor;
+    flex-shrink: 0;
   }
   .dot.pulse {
     animation: pulse 2s ease-in-out infinite;
@@ -282,66 +224,53 @@
       opacity: 0.25;
     }
   }
-  .session-name {
-    font-size: var(--md);
-    font-weight: 500;
-    color: var(--t0);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    min-width: 0;
-  }
   .branch-strip {
     display: flex;
     align-items: center;
-    gap: var(--sp-3);
-    padding: var(--sp-1) var(--sp-7);
-    border-bottom: 1px solid var(--bd);
-    background: var(--bg1);
+    gap: 6px;
+    padding: 0 10px;
+    height: 20px;
+    border-bottom: 1px solid var(--ac-border);
+    background: var(--ac-d2);
     flex-shrink: 0;
     min-width: 0;
     overflow: hidden;
   }
   .branch-icon {
-    font-size: 10px;
-    color: var(--t3);
+    display: flex;
+    color: var(--ac);
     flex-shrink: 0;
   }
   .branch-text {
-    font-size: var(--xs);
-    color: var(--t3);
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--ac);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .status {
-    font-size: var(--xs);
-    color: var(--t2);
-    letter-spacing: 0.04em;
-    flex-shrink: 0;
-  }
-
   .header-right {
     display: flex;
     align-items: center;
-    gap: var(--sp-5);
+    gap: 6px;
     flex-shrink: 0;
-    padding-left: var(--sp-6);
   }
   .meta {
-    font-size: var(--xs);
+    font-family: var(--mono);
+    font-size: 9.5px;
     color: var(--t2);
+    font-variant-numeric: tabular-nums;
   }
   .ctx {
     display: flex;
     align-items: center;
-    gap: var(--sp-3);
+    gap: 4px;
   }
   .ctx-bar {
-    width: 40px;
+    width: 32px;
     height: 3px;
     background: var(--bg3);
-    border-radius: var(--radius-sm);
+    border-radius: 2px;
     overflow: hidden;
   }
   .ctx-fill {
@@ -350,12 +279,31 @@
     transition: width 0.3s;
   }
   .ctx-pct {
-    font-size: var(--xs);
+    font-family: var(--mono);
+    font-size: 9.5px;
     color: var(--t2);
+    font-variant-numeric: tabular-nums;
   }
-  .model {
-    font-size: var(--xs);
+  .model-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    height: 18px;
+    padding: 0 6px;
+    border-radius: 3px;
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 500;
+    background: var(--bg3);
     color: var(--t2);
+    border: 1px solid var(--bd);
+    white-space: nowrap;
+  }
+  .hdr-divider {
+    width: 1px;
+    height: 12px;
+    background: var(--bd);
+    flex-shrink: 0;
   }
 
   /* approval banner CSS removed — TODO: re-enable when auto-deny error is fixed */
@@ -368,34 +316,24 @@
     flex-direction: column;
   }
 
-  .header-actions {
-    display: flex;
-    align-items: center;
-    gap: var(--sp-2);
-    margin-left: var(--sp-2);
-  }
-
   .action-btn {
-    background: var(--bg3);
-    border: 1px solid var(--bd1);
-    color: var(--t2);
-    width: 18px;
-    height: 18px;
-    border-radius: var(--radius-sm);
-    font-size: 11px;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: var(--radius-sm);
+    border: none;
+    background: transparent;
+    color: var(--t3);
     cursor: pointer;
     flex-shrink: 0;
-    transition:
-      border-color 0.15s,
-      color 0.15s;
+    transition: background 0.1s, color 0.1s;
   }
 
   .action-btn:hover {
-    border-color: var(--ac);
-    color: var(--ac);
+    background: var(--bg3);
+    color: var(--t1);
   }
 
   .mute-btn {
@@ -405,12 +343,10 @@
   }
 
   .mute-btn.muted {
-    border-color: var(--t3);
     color: var(--t3);
   }
 
   .mute-btn.muted:hover {
-    border-color: var(--ac);
     color: var(--ac);
   }
   .feed-empty {

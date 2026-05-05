@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Orbit Tabs + Git Tree Brainstorm</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #030504;
+      color: #d9f7e8;
+      font-family: 'JetBrains Mono', Consolas, monospace;
+      padding: 22px;
+    }
+    h1 { margin: 0 0 6px; font-size: 17px; letter-spacing: -0.02em; }
+    .sub { margin: 0 0 18px; color: #6b7f75; font-size: 12px; }
+    .grid { display: grid; grid-template-columns: repeat(3, minmax(310px, 1fr)); gap: 14px; }
+    .choice {
+      border: 1px solid rgba(0, 212, 126, 0.13);
+      border-radius: 12px;
+      background: #050706;
+      padding: 12px;
+      cursor: pointer;
+      transition: border-color .14s, transform .14s, box-shadow .14s;
+    }
+    .choice:hover { border-color: rgba(0, 212, 126, 0.33); transform: translateY(-1px); }
+    .choice.selected { border-color: #00d47e; box-shadow: 0 0 0 1px rgba(0, 212, 126, 0.18), 0 20px 70px rgba(0,0,0,.35); }
+    .choice-title { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+    .choice-title strong { font-size: 12px; }
+    .badge { font-size: 10px; color: #86d8b2; border: 1px solid rgba(0,212,126,.22); border-radius:999px; padding: 2px 7px; background: rgba(0,212,126,.045); }
+    .app {
+      height: 520px;
+      display: grid;
+      grid-template-columns: 108px 1fr 236px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,.055);
+      border-radius: 9px;
+      background: #050706;
+    }
+    .sidebar { background:#070908; border-right:1px solid rgba(255,255,255,.045); padding:9px 7px; }
+    .brand { font-weight:600; font-size:12px; margin-bottom:10px; }
+    .side-item { height:26px; display:flex; align-items:center; gap:6px; color:#6b7f75; font-size:10px; border-radius:5px; padding:0 6px; margin-bottom:4px; }
+    .side-item.active { color:#d9f7e8; background:rgba(0,212,126,.055); box-shadow: inset 2px 0 0 #00d47e; }
+    .dot { width:6px; height:6px; border-radius:50%; background:#00d47e; }
+    .main, .right { min-width:0; display:flex; flex-direction:column; }
+    .right { border-left:1px solid rgba(255,255,255,.045); }
+    .tabs { height:34px; display:flex; align-items:flex-start; gap:3px; padding:3px 5px 0; background:#050706; border-bottom:1px solid rgba(0,212,126,.1); }
+    .tab { height:29px; display:flex; align-items:center; gap:5px; min-width:82px; padding:0 7px; font-size:10px; border-radius:6px 6px 0 0; color:#6b7f75; border:1px solid rgba(255,255,255,.045); background:#070908; }
+    .tab.active { color:#d9f7e8; border-color:rgba(0,212,126,.28); border-bottom-color:#050706; background:linear-gradient(180deg,rgba(0,212,126,.11),rgba(0,212,126,.045)); }
+    .tab .x { margin-left:auto; opacity:.55; }
+    .add { margin-left:auto; width:26px; height:26px; display:grid; place-items:center; border-radius:6px; border:1px solid rgba(0,212,126,.11); color:#6b7f75; }
+    .hdr { height:36px; display:flex; align-items:center; gap:8px; padding:0 10px; background:#070908; border-bottom:1px solid rgba(0,212,126,.085); }
+    .hdr-title { font-size:11px; font-weight:600; color:#cfe9dc; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .pill { font-size:9px; border:1px solid rgba(0,212,126,.16); color:#86d8b2; background:rgba(0,212,126,.035); border-radius:999px; padding:1px 6px; }
+    .hdr-spacer { flex:1; }
+    .metric { font-size:9px; color:#6b7f75; }
+    .body { flex:1; display:grid; grid-template-rows: 1fr 38px; min-height:0; }
+    .feed { padding:12px; color:#7f9188; font-size:10px; line-height:1.7; overflow:hidden; }
+    .bubble { border-left:2px solid rgba(0,212,126,.34); padding-left:9px; margin:0 0 12px; color:#b8d5c7; }
+    .input { border-top:1px solid rgba(255,255,255,.045); display:flex; align-items:center; padding:0 10px; color:#52645b; font-size:10px; background:#050706; }
+    .git-body { flex:1; display:grid; grid-template-columns: 128px 1fr; min-height:0; }
+    .tree { background:#060806; border-right:1px solid rgba(255,255,255,.045); padding:8px 6px; overflow:hidden; }
+    .search { height:22px; border:1px solid rgba(255,255,255,.05); border-radius:5px; color:#52645b; font-size:9px; padding:4px 6px; margin-bottom:7px; }
+    .group { color:#d9f7e8; font-size:10px; height:21px; display:flex; align-items:center; gap:4px; }
+    .file { height:21px; display:flex; align-items:center; gap:4px; color:#6b7f75; font-size:9px; border-radius:4px; padding-left:11px; }
+    .file.sel { color:#d9f7e8; background:rgba(0,212,126,.065); box-shadow: inset 2px 0 0 #00d47e; }
+    .diff { display:flex; flex-direction:column; min-width:0; }
+    .diff-head { height:34px; display:flex; align-items:center; gap:6px; padding:0 9px; border-bottom:1px solid rgba(255,255,255,.045); font-size:10px; color:#d9f7e8; }
+    .code { flex:1; padding:10px; font-size:9px; line-height:1.6; color:#6b7f75; background:repeating-linear-gradient(#050706,#050706 20px,#060a07 21px); }
+    .b .tabs, .b .hdr { background:#0b0d10; border-bottom-color:rgba(119,153,184,.14); }
+    .b .tab.active { background:#10151a; border-color:rgba(119,153,184,.35); color:#e4eef6; box-shadow: inset 0 -1px 0 #7db7df; }
+    .b .pill { border-color:rgba(125,183,223,.22); color:#a6cfe7; background:rgba(125,183,223,.045); }
+    .c .tabs { padding-left:8px; gap:5px; }
+    .c .tab { border-radius:3px; background:#060806; border-color:rgba(0,212,126,.09); }
+    .c .tab.active { border-color:#00d47e; background:#07110c; box-shadow:0 0 14px rgba(0,212,126,.08); }
+    .c .tree { background:#040604; }
+    .c .file { border:1px solid transparent; }
+    .c .file.sel { border-color:rgba(0,212,126,.18); background:rgba(0,212,126,.045); }
+    @media (max-width: 1100px) { .grid { grid-template-columns: 1fr; } .app { height: 460px; } }
+  </style>
+</head>
+<body>
+  <h1>Orbit tabs, panel header, and Git tree redesign</h1>
+  <p class="sub">Replica visual do Orbit para escolher a direção base antes de escrever nova spec. Clique em uma opção e responda no terminal.</p>
+  <div class="grid">
+    <div class="choice selected" data-choice="a" onclick="toggleSelect(this)">
+      <div class="choice-title"><strong>A. Precision Terminal</strong><span class="badge">Recommended</span></div>
+      <div class="app">
+        <div class="sidebar"><div class="brand">orbit</div><div class="side-item active"><span class="dot"></span>marlin</div><div class="side-item">orca</div><div class="side-item">ledger</div></div>
+        <div class="main"><div class="tabs"><div class="tab active">mar marlin <span class="x">×</span></div><div class="tab">▱ Terminal</div><div class="add">+</div></div><div class="hdr"><span class="dot"></span><div class="hdr-title">marlin</div><span class="pill">running</span><span class="hdr-spacer"></span><span class="metric">12.4k</span><span class="pill">sonnet</span></div><div class="body"><div class="feed"><div class="bubble">Working through the Git panel diff structure...</div><div>Read ui/components/GitPanel.svelte</div><div>Updated tree grouping and inline diff.</div></div><div class="input">message marlin...</div></div></div>
+        <div class="right"><div class="tabs"><div class="tab active">G Git</div></div><div class="hdr"><div class="hdr-title">Git Overview</div><span class="pill">6 changes</span><span class="hdr-spacer"></span><span class="metric">refresh</span></div><div class="git-body"><div class="tree"><div class="search">Search files...</div><div class="group">⌄ Staged 2</div><div class="file sel">□ PanelHeader</div><div class="file">□ package.json</div><div class="group">⌄ Unstaged 2</div><div class="file">□ git.rs</div><div class="group">› Untracked 2</div></div><div class="diff"><div class="diff-head">PanelHeader.svelte <span class="pill">staged</span></div><div class="code">- old header<br>+ compact cockpit header<br>+ green-tinted active chrome</div></div></div></div>
+      </div>
+    </div>
+    <div class="choice b" data-choice="b" onclick="toggleSelect(this)">
+      <div class="choice-title"><strong>B. VS Code Hardened</strong><span class="badge">flatter</span></div>
+      <div class="app">
+        <div class="sidebar"><div class="brand">orbit</div><div class="side-item active"><span class="dot"></span>marlin</div><div class="side-item">orca</div><div class="side-item">ledger</div></div>
+        <div class="main"><div class="tabs"><div class="tab active">marlin <span class="x">×</span></div><div class="tab">Terminal</div><div class="add">+</div></div><div class="hdr"><span class="dot"></span><div class="hdr-title">marlin</div><span class="pill">running</span><span class="hdr-spacer"></span><span class="metric">12.4k</span></div><div class="body"><div class="feed"><div class="bubble">More rectangular, calmer, closer to editor chrome.</div><div>Less glow, stronger separator logic.</div></div><div class="input">message marlin...</div></div></div>
+        <div class="right"><div class="tabs"><div class="tab active">Git</div></div><div class="hdr"><div class="hdr-title">Git Overview</div><span class="pill">6 changes</span></div><div class="git-body"><div class="tree"><div class="search">Search files...</div><div class="group">⌄ Staged</div><div class="file sel">PanelHeader</div><div class="file">package.json</div><div class="group">⌄ Unstaged</div><div class="file">git.rs</div></div><div class="diff"><div class="diff-head">PanelHeader.svelte</div><div class="code">Editor-like review surface<br>lower contrast<br>blue-gray accent</div></div></div></div>
+      </div>
+    </div>
+    <div class="choice c" data-choice="c" onclick="toggleSelect(this)">
+      <div class="choice-title"><strong>C. Ledger Review</strong><span class="badge">Git-first</span></div>
+      <div class="app">
+        <div class="sidebar"><div class="brand">orbit</div><div class="side-item active"><span class="dot"></span>marlin</div><div class="side-item">orca</div><div class="side-item">ledger</div></div>
+        <div class="main"><div class="tabs"><div class="tab active">marlin</div><div class="tab">Terminal</div><div class="add">+</div></div><div class="hdr"><span class="dot"></span><div class="hdr-title">marlin</div><span class="pill">running</span></div><div class="body"><div class="feed"><div class="bubble">Sharper tabs, more technical, less soft.</div><div>Designed around review density.</div></div><div class="input">message marlin...</div></div></div>
+        <div class="right"><div class="tabs"><div class="tab active">Git</div></div><div class="hdr"><div class="hdr-title">Git Overview</div><span class="pill">review</span></div><div class="git-body"><div class="tree"><div class="search">tag:path</div><div class="group">⌄ Staged</div><div class="file sel">☑ PanelHeader</div><div class="file">☐ package.json</div><div class="group">⌄ Unstaged</div><div class="file">☐ git.rs</div></div><div class="diff"><div class="diff-head">PanelHeader.svelte <span class="pill">ready</span></div><div class="code">Review-led layout<br>strong selected row<br>more file-list density</div></div></div></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    function toggleSelect(el) {
+      document.querySelectorAll('.choice').forEach(c => c.classList.remove('selected'));
+      el.classList.add('selected');
+    }
+  </script>
+</body>
+</html>

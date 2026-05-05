@@ -2,6 +2,13 @@
 
 ---
 
+## May 2026
+
+### 05/05 · New — Compact workspace tabs, inline panel headers, and Git tree panel
+Workspace tabs are now pill-style with monospace labels and green active state — no borders or overlap. Panel headers use a single-row layout with title, separator, info pills, and flat action buttons. A new Git panel shows file changes in a tree view with search, tags, and a Monaco diff viewer. Sidebar tabs and branch strips also adopt the compact look.
+
+---
+
 ## April 2026
 
 ### 04/24 · Fix — Codex effort changes use the Codex CLI reasoning config

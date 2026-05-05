@@ -246,6 +246,8 @@ pub fn run() {
             commands::agents::get_subagents,
             commands::diff::get_diff,
             commands::diff::get_file_versions,
+            commands::git::git_overview,
+            commands::git::git_diff_file,
             commands::files::get_subagent_journal,
             commands::plugins::get_slash_commands,
             commands::files::list_project_files,

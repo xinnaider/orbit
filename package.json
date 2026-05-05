@@ -43,6 +43,7 @@
     "highlight.js": "^11.11.1",
     "lucide-svelte": "^1.0.1",
     "marked": "^17.0.5",
+    "monaco-editor": "^0.55.1",
     "qrcode": "^1.5.4"
   },
   "devDependencies": {

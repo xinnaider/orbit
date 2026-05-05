@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Orbit — Tabs & Header v3</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'JetBrains Mono', Consolas, monospace;
+    background: #080808; color: #e0e0e0;
+    padding: 24px;
+  }
+  h1 { font-size: 14px; margin-bottom: 2px; letter-spacing: -0.01em; }
+  .sub { color: #666; font-size: 11px; margin-bottom: 18px; }
+
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px; }
+  @media (max-width: 1100px) { .grid { grid-template-columns: 1fr; } }
+
+  .card { border: 1px solid #1a1a1a; border-radius: 10px; overflow: hidden; cursor: pointer; transition: border-color .15s, box-shadow .15s; background: #0d0d0d; }
+  .card:hover { border-color: #333; }
+  .card.selected { border-color: #00d47e; box-shadow: 0 0 0 1px rgba(0,212,126,.15), 0 0 60px rgba(0,212,126,.04); }
+  .card-head { display: flex; align-items: center; justify-content: space-between; padding: 9px 10px; border-bottom: 1px solid #1a1a1a; }
+  .card-head strong { font-size: 11px; }
+  .badge { font-size: 9px; color: #00d47e; border: 1px solid rgba(0,212,126,.2); border-radius: 999px; padding: 1px 6px; background: rgba(0,212,126,.04); }
+  .card-body { padding: 14px; }
+
+  .orbit { height: 460px; display: flex; flex-direction: column; border: 1px solid #181818; border-radius: 7px; overflow: hidden; background: #080808; }
+
+  .pane-row { display: flex; gap: 0; flex: 1; min-height: 0; }
+  .pane { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .pane + .pane { border-left: 1px solid #181818; }
+
+  /* ===== STYLE COMMON ===== */
+  .feed { flex: 1; padding: 10px; color: #666; font-size: 9.5px; line-height: 1.7; overflow: hidden; }
+  .bubble { border-left: 2px solid #00d47e; padding-left: 8px; margin-bottom: 10px; color: #888; }
+  .inputbar { height: 34px; border-top: 1px solid #181818; display: flex; align-items: center; padding: 0 10px; color: #444; font-size: 9.5px; background: #080808; flex-shrink: 0; }
+  .ftr { height: 20px; display: flex; align-items: center; justify-content: center; font-size: 8px; color: #333; border-top: 1px solid #181818; flex-shrink: 0; }
+
+  /* ===== A. Glass Tier ===== */
+  .glass .tabbar { height: 36px; display: flex; align-items: center; gap: 2px; padding: 0 8px; background: rgba(255,255,255,.015); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,.035); }
+  .glass .tab { height: 26px; display: flex; align-items: center; gap: 5px; padding: 0 8px 0 6px; font-size: 9.5px; border-radius: 6px; background: transparent; color: rgba(255,255,255,.3); cursor: default; transition: all .12s; }
+  .glass .tab.active { background: rgba(0,212,126,.08); color: #e0e0e0; box-shadow: 0 0 0 1px rgba(0,212,126,.12), inset 0 0 20px rgba(0,212,126,.02); }
+  .glass .tab:hover:not(.active) { color: rgba(255,255,255,.5); }
+  .glass .add { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 6px; color: rgba(255,255,255,.15); margin-left: auto; }
+  .glass .hdr { height: 34px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border-bottom: 1px solid rgba(255,255,255,.03); background: rgba(255,255,255,.01); }
+  .glass .hdr-title { font-size: 10px; font-weight: 500; color: rgba(255,255,255,.55); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .glass .pill { font-size: 8.5px; border: 1px solid rgba(0,212,126,.13); color: rgba(0,212,126,.6); background: rgba(0,212,126,.03); border-radius: 999px; padding: 0 5px; }
+  .glass .dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+  .glass .git-body { flex:1; display:grid; grid-template-columns: 120px 1fr; }
+  .glass .tree { padding: 6px; background: rgba(255,255,255,.008); border-right: 1px solid rgba(255,255,255,.025); }
+  .glass .file { height: 20px; display:flex; align-items:center; gap:3px; color: rgba(255,255,255,.2); font-size:8.5px; border-radius: 4px; padding:0 4px; }
+  .glass .file.sel { color: rgba(255,255,255,.5); background: rgba(0,212,126,.06); }
+  .glass .group { color: rgba(255,255,255,.35); font-size:9px; height:20px; display:flex; align-items:center; }
+  .glass .diff-head { height:30px; display:flex; align-items:center; gap:5px; padding:0 8px; border-bottom:1px solid rgba(255,255,255,.03); font-size:9px; color:rgba(255,255,255,.45); }
+  .glass .code { flex:1; padding:8px; font-size:8.5px; color:rgba(255,255,255,.2); }
+
+  /* ===== B. Slate Pro ===== */
+  .slate .tabbar { height: 32px; display: flex; align-items: stretch; gap: 0; padding: 0; background: #0a0a0f; border-bottom: 1px solid #1a1a24; }
+  .slate .tab { display: flex; align-items: center; gap: 5px; padding: 0 10px; font-size: 9.5px; color: #555a6e; background: transparent; cursor: default; border-bottom: 2px solid transparent; transition: all .12s; }
+  .slate .tab.active { color: #e0e4f0; background: #08080d; border-bottom-color: #7c8df0; }
+  .slate .tab:hover:not(.active) { color: #888da8; }
+  .slate .add { width: 28px; display: grid; place-items: center; color: #555a6e; }
+  .slate .hdr { height: 32px; display: flex; align-items: center; gap: 8px; padding: 0 10px; background: #08080d; border-bottom: 1px solid #14141e; }
+  .slate .hdr-title { font-size: 10px; font-weight: 500; color: #c8ccdc; }
+  .slate .pill { font-size: 8.5px; border: 1px solid #2a2a3a; color: #8a8ea8; border-radius: 999px; padding: 0 5px; }
+  .slate .dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+  .slate .git-body { flex:1; display:grid; grid-template-columns: 120px 1fr; }
+  .slate .tree { padding: 6px; background: #06060b; border-right: 1px solid #14141e; }
+  .slate .file { height: 20px; display:flex; align-items:center; gap:3px; color: #555a6e; font-size:8.5px; border-radius: 3px; padding:0 4px; }
+  .slate .file.sel { color: #c8ccdc; background: #141430; }
+  .slate .group { color: #787d94; font-size:9px; height:20px; display:flex; align-items:center; }
+  .slate .diff-head { height:28px; display:flex; align-items:center; gap:5px; padding:0 8px; border-bottom:1px solid #14141e; font-size:9px; color:#c8ccdc; }
+  .slate .code { flex:1; padding:8px; font-size:8.5px; color:#555a6e; }
+
+  /* ===== C. Carbon Edge ===== */
+  .carbon .tabbar { height: 34px; display: flex; align-items: stretch; gap: 3px; padding: 3px 6px 0; background: #0a0a0a; border-bottom: 1px solid #1c1c1c; }
+  .carbon .tab { display: flex; align-items: center; gap: 5px; padding: 0 9px 0 7px; font-size: 9.5px; border-radius: 5px 5px 0 0; background: #0e0e0e; color: #555; cursor: default; border: 1px solid #1a1a1a; border-bottom-color: transparent; transition: all .12s; }
+  .carbon .tab.active { color: #f0f0f0; background: #080808; border-color: #2a2a2a; border-bottom-color: #080808; box-shadow: inset 0 1px 0 rgba(255,255,255,.03); }
+  .carbon .tab:hover:not(.active) { background: #121212; color: #777; }
+  .carbon .add { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 5px 5px 0 0; color: #444; margin-left: auto; border: 1px solid transparent; align-self: flex-end; }
+  .carbon .hdr { height: 34px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border-bottom: 1px solid #1c1c1c; background: #0a0a0a; }
+  .carbon .hdr-title { font-size: 10.5px; font-weight: 450; color: #ccc; }
+  .carbon .pill { font-size: 8.5px; border: 1px solid #282828; color: #777; border-radius: 999px; padding: 0 5px; background: #0e0e0e; }
+  .carbon .dot { width: 6px; height: 6px; border-radius: 2px; flex-shrink: 0; }
+  .carbon .git-body { flex:1; display:grid; grid-template-columns: 120px 1fr; }
+  .carbon .tree { padding: 6px; background: #0c0c0c; border-right: 1px solid #1a1a1a; }
+  .carbon .file { height: 20px; display:flex; align-items:center; gap:3px; color: #555; font-size:8.5px; border-radius: 3px; padding:0 4px; }
+  .carbon .file.sel { color: #ddd; background: #181818; }
+  .carbon .group { color: #888; font-size:9px; height:20px; display:flex; align-items:center; }
+  .carbon .diff-head { height:28px; display:flex; align-items:center; gap:5px; padding:0 8px; border-bottom:1px solid #1a1a1a; font-size:9px; color:#ccc; background:#0c0c0c; }
+  .carbon .code { flex:1; padding:8px; font-size:8.5px; color:#555; background:repeating-linear-gradient(#080808,#080808 19px,#0c0c0c 20px); }
+
+  .icon { width:12px; height:12px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; }
+  .icon-xs { width:10px; height:10px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; }
+</style>
+</head>
+<body>
+
+<h1>Orbit — direções modernas para tabs + header</h1>
+<p class="sub">Três direções que casam com o ecossistema. Clique na que preferir.</p>
+
+<div class="grid">
+
+  <!-- A ──-->
+  <div class="card selected" onclick="pick(this)">
+    <div class="card-head"><strong>A. Glass Tier</strong> <span class="badge">translúcido</span></div>
+    <div class="card-body glass">
+      <div class="orbit">
+        <div class="pane-row">
+          <!-- Main -->
+          <div class="pane">
+            <div class="tabbar">
+              <div class="tab active">
+                <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                marlin
+              </div>
+              <div class="tab">
+                <svg class="icon" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                terminal
+              </div>
+              <div class="add">
+                <svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              </div>
+            </div>
+            <div class="hdr">
+              <span class="dot" style="background:#00d47e"></span>
+              <span class="hdr-title">marlin</span>
+              <span class="pill">running</span>
+              <div style="flex:1"></div>
+              <span style="font-size:8.5px;color:rgba(255,255,255,.2)">12.4k</span>
+            </div>
+            <div class="feed">
+              <div class="bubble">Working on the Git panel diff viewer, grouping files by status.</div>
+              <div>Read GitPanel.svelte, updated tree.</div>
+              <div style="color:rgba(255,255,255,.06);margin-top:6px">───</div>
+            </div>
+            <div class="inputbar">message marlin…</div>
+          </div>
+          <!-- Git -->
+          <div class="pane">
+            <div class="tabbar">
+              <div class="tab active">
+                <svg class="icon" viewBox="0 0 24 24"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+                git
+              </div>
+            </div>
+            <div class="hdr">
+              <span class="hdr-title">git overview</span>
+              <span class="pill">6 changes</span>
+              <div style="flex:1"></div>
+              <svg class="icon" style="color:rgba(255,255,255,.15)" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            </div>
+            <div class="git-body">
+              <div class="tree">
+                <div class="file sel">
+                  <svg class="icon-xs" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                  PanelHeader
+                </div>
+                <div class="group">
+                  <svg class="icon-xs" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+                  staged 2
+                </div>
+              </div>
+              <div class="diff">
+                <div class="diff-head">PanelHeader.svelte</div>
+                <div class="code">+ &.hdr { background: rgba…<br>+   backdrop-filter: blur</div>
+              </div>
+            </div>
+            <div class="ftr">frost · blur · neutral green</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- B ──-->
+  <div class="card" onclick="pick(this)">
+    <div class="card-head"><strong>B. Slate Pro</strong> <span class="badge">azul-acizentado</span></div>
+    <div class="card-body slate">
+      <div class="orbit">
+        <div class="pane-row">
+          <div class="pane">
+            <div class="tabbar">
+              <div class="tab active">
+                <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                marlin
+              </div>
+              <div class="tab">
+                <svg class="icon" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                terminal
+              </div>
+              <div class="add">
+                <svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              </div>
+            </div>
+            <div class="hdr">
+              <span class="dot" style="background:#7c8df0"></span>
+              <span class="hdr-title">marlin</span>
+              <span class="pill">running</span>
+              <div style="flex:1"></div>
+              <span style="font-size:8.5px;color:#555a6e">12.4k</span>
+            </div>
+            <div class="feed">
+              <div class="bubble" style="border-left-color:#7c8df0">Refactoring the Git tree into collapsible groups.</div>
+              <div>Updated workspace.ts, replaced flat list.</div>
+              <div style="color:#1e1e2e;margin-top:6px">────</div>
+            </div>
+            <div class="inputbar">message marlin…</div>
+          </div>
+          <div class="pane">
+            <div class="tabbar">
+              <div class="tab active">
+                <svg class="icon" viewBox="0 0 24 24"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+                git
+              </div>
+            </div>
+            <div class="hdr">
+              <span class="hdr-title">git overview</span>
+              <span class="pill">6 changes</span>
+              <div style="flex:1"></div>
+              <svg class="icon" style="color:#555a6e" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            </div>
+            <div class="git-body">
+              <div class="tree">
+                <div class="file sel">
+                  <svg class="icon-xs" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                  PanelHeader
+                </div>
+                <div class="group">
+                  <svg class="icon-xs" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+                  staged 2
+                </div>
+              </div>
+              <div class="diff">
+                <div class="diff-head">PanelHeader.svelte</div>
+                <div class="code">+ white-space: nowrap<br>+ overflow: hidden</div>
+              </div>
+            </div>
+            <div class="ftr">indigo · low glow · editor-like</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- C ──-->
+  <div class="card" onclick="pick(this)">
+    <div class="card-head"><strong>C. Carbon Edge</strong> <span class="badge">industrial</span></div>
+    <div class="card-body carbon">
+      <div class="orbit">
+        <div class="pane-row">
+          <div class="pane">
+            <div class="tabbar">
+              <div class="tab active">
+                <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                marlin
+              </div>
+              <div class="tab">
+                <svg class="icon" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                terminal
+              </div>
+              <div class="add">
+                <svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              </div>
+            </div>
+            <div class="hdr">
+              <span class="dot" style="background:#00d47e"></span>
+              <span class="hdr-title">marlin</span>
+              <span class="pill" style="color:#00d47e;border-color:rgba(0,212,126,.15)">running</span>
+              <div style="flex:1"></div>
+              <span style="font-size:8.5px;color:#555">12.4k</span>
+            </div>
+            <div class="feed">
+              <div class="bubble">Finalizing the inline diff viewer with syntax highlight mapping.</div>
+              <div>Mapping rust, ts, svelte tokenizers.</div>
+              <div style="color:#1c1c1c;margin-top:6px">────</div>
+            </div>
+            <div class="inputbar">message marlin…</div>
+          </div>
+          <div class="pane">
+            <div class="tabbar">
+              <div class="tab active">
+                <svg class="icon" viewBox="0 0 24 24"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+                git
+              </div>
+            </div>
+            <div class="hdr">
+              <span class="hdr-title">Git Overview</span>
+              <span class="pill" style="color:#e8a030;border-color:rgba(232,160,48,.15)">6 changes</span>
+              <div style="flex:1"></div>
+              <svg class="icon" style="color:#555" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            </div>
+            <div class="git-body">
+              <div class="tree">
+                <div class="file sel">
+                  <svg class="icon-xs" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                  PanelHeader
+                </div>
+                <div class="group">
+                  <svg class="icon-xs" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+                  staged 2
+                </div>
+              </div>
+              <div class="diff">
+                <div class="diff-head">PanelHeader.svelte</div>
+                <div class="code"><span style="color:#00d47e">+ &.hdr { border-radius: 0 }</span><br><span style="color:#e04848">- .hdr { border-radius: 4px }</span></div>
+              </div>
+            </div>
+            <div class="ftr">gray · sharp · high density</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<p style="color:#444;font-size:10px;">Aberta em novo arquivo. Diga qual direção prefere (A, B ou C) e se quer ajustes.</p>
+
+<script>
+function pick(el) {
+  document.querySelectorAll('.card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+}
+</script>
+</body>
+</html>

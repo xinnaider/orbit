@@ -215,13 +215,17 @@
       <p class="empty">no sessions</p>
     {:else}
       {#each $sessions.filter((s) => !s.parentSessionId) as s (s.id)}
-        {@const active = Object.values($workspace.panes).some((p) => p.sessionId === s.id)}
+        {@const active = Object.values($workspace.panes).some((p) =>
+          p.tabs.some((tab) => tab.target.kind === 'agent' && tab.target.sessionId === s.id)
+        )}
         {@const color = statusColor(s.status)}
         {@const pulsing = isPulsing(s.status)}
         {@const children = getChildren($sessions, s.id)}
         {@const expanded = expandedParents.has(s.id)}
         {@const childActive = children.some((c) =>
-          Object.values($workspace.panes).some((p) => p.sessionId === c.id)
+          Object.values($workspace.panes).some((p) =>
+            p.tabs.some((tab) => tab.target.kind === 'agent' && tab.target.sessionId === c.id)
+          )
         )}
         <button
           class="item"
@@ -286,7 +290,9 @@
         {#if expanded && children.length > 0}
           <div class="cards">
             {#each children as c (c.id)}
-              {@const cActive = Object.values($workspace.panes).some((p) => p.sessionId === c.id)}
+              {@const cActive = Object.values($workspace.panes).some((p) =>
+                p.tabs.some((tab) => tab.target.kind === 'agent' && tab.target.sessionId === c.id)
+              )}
               {@const cColor = statusColor(c.status)}
               {@const cPulsing = isPulsing(c.status)}
               {@const pct = c.contextPercent ?? 0}

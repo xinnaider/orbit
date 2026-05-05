@@ -233,8 +233,10 @@
   $: selected = (() => {
     const ws = $workspace;
     const focusedPane = ws.focusedPaneId ? ws.panes[ws.focusedPaneId] : null;
-    if (focusedPane?.sessionId) {
-      return getSelectedSession($sessions, focusedPane.sessionId);
+    const activeTab =
+      focusedPane?.tabs.find((tab) => tab.id === focusedPane.activeTabId) ?? focusedPane?.tabs[0];
+    if (activeTab?.target.kind === 'agent') {
+      return getSelectedSession($sessions, activeTab.target.sessionId);
     }
     return null;
   })();

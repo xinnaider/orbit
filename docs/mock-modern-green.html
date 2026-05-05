@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Orbit — Modern Green</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #080808;
+    --bg1: #0d0d0d;
+    --bg2: #121212;
+    --bg3: #181818;
+    --bg4: #1e1e1e;
+    --bd: #1a1a1a;
+    --bd1: #242424;
+    --bd2: #2e2e2e;
+    --t0: #e0e0e0;
+    --t1: #888;
+    --t2: #666;
+    --t3: #444;
+    --ac: #00d47e;
+    --ac-d: rgba(0, 212, 126, 0.1);
+    --ac-d2: rgba(0, 212, 126, 0.05);
+    --ac-border: rgba(0, 212, 126, 0.25);
+    --s-working: #00d47e;
+    --s-input: #e8a030;
+    --s-idle: #404040;
+    --s-error: #e04848;
+    --s-init: #4888e0;
+    --user-fg: #7eb8f7;
+    --user-bg: rgba(126, 184, 247, 0.05);
+    --think-fg: #9980d4;
+    --think-bg: rgba(153, 128, 212, 0.06);
+    --tool-fg: #e8a030;
+    --tool-bg: rgba(232, 160, 48, 0.05);
+    --radius: 6px;
+    --radius-sm: 4px;
+    --mono: 'JetBrains Mono', monospace;
+    --ui: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    font-family: var(--ui);
+    color: var(--t0);
+    padding: 32px 40px;
+    display: flex; flex-direction: column; gap: 40px;
+  }
+
+  h2 {
+    font-size: 12px; font-weight: 500; color: var(--t2);
+    text-transform: uppercase; letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--bd);
+    padding-bottom: 8px; margin-bottom: 16px;
+  }
+
+  /* ============================================= */
+  /*  LAYOUT                                       */
+  /* ============================================= */
+  .layout {
+    display: flex;
+    border: 1px solid var(--bd1);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 6px 32px rgba(0,0,0,0.5);
+  }
+
+  /* ============================================= */
+  /*  SIDEBAR — Orbit's actual sidebar design       */
+  /* ============================================= */
+  .sidebar {
+    width: 240px; flex-shrink: 0;
+    background: var(--bg2);
+    border-right: 1px solid var(--bd);
+    display: flex; flex-direction: column;
+  }
+
+  .sb-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--bd);
+    flex-shrink: 0;
+  }
+  .sb-logo {
+    width: 20px; height: 20px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .sb-logo svg { color: var(--ac); }
+  .sb-title {
+    font-family: var(--mono); font-size: 13px; font-weight: 600;
+    color: var(--t0); letter-spacing: -0.02em;
+  }
+  .sb-title span { color: var(--ac); }
+  .sb-badge {
+    margin-left: auto;
+    font-size: 9px; color: var(--t2);
+    padding: 1px 5px; border: 1px solid var(--bd1);
+    border-radius: 3px;
+  }
+
+  .sb-search {
+    margin: 6px 8px;
+    padding: 5px 8px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--bd);
+    background: var(--bg1);
+    color: var(--t2); font-size: 10.5px;
+    font-family: var(--mono);
+    display: flex; align-items: center; gap: 5px;
+  }
+
+  .sb-sessions {
+    flex: 1; min-height: 0;
+    overflow-y: auto;
+    padding: 4px 0;
+  }
+
+  .sb-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 12px;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: background 0.1s;
+  }
+  .sb-item:hover { background: var(--bg3); }
+  .sb-item.active {
+    background: var(--ac-d2);
+    border-left-color: var(--ac);
+  }
+
+  .sb-dot {
+    width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+  }
+  .sb-dot.green { background: var(--s-working); }
+  .sb-dot.amber { background: var(--s-input); }
+
+  .sb-item-info {
+    min-width: 0; flex: 1;
+  }
+  .sb-item-name {
+    font-family: var(--mono); font-size: 10.5px;
+    color: var(--t0); font-weight: 450;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .sb-item-sub {
+    font-size: 9px; color: var(--t2);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  .sb-item-badge {
+    font-size: 8px; color: var(--t3);
+    font-family: var(--mono);
+    flex-shrink: 0;
+  }
+
+  .sb-new {
+    display: flex; align-items: center; gap: 6px;
+    padding: 8px 12px;
+    border-top: 1px solid var(--bd);
+    color: var(--ac); font-size: 10.5px;
+    cursor: pointer; font-family: var(--mono);
+    transition: background 0.1s;
+    flex-shrink: 0;
+  }
+  .sb-new:hover { background: var(--ac-d2); }
+
+  .sb-footer {
+    display: flex; align-items: center;
+    padding: 6px 12px;
+    border-top: 1px solid var(--bd);
+    font-size: 9px; color: var(--t3);
+    flex-shrink: 0; gap: 8px;
+  }
+  .sb-footer a { color: var(--t2); text-decoration: none; }
+  .sb-footer a:hover { color: var(--t1); }
+
+  /* ============================================= */
+  /*  PANE                                          */
+  /* ============================================= */
+  .pane {
+    flex: 1; min-width: 0;
+    display: flex; flex-direction: column;
+    background: var(--bg);
+  }
+  .pane + .pane { border-left: 1px solid var(--bd); }
+
+  /* ============================================= */
+  /*  TAB BAR — pill-style, minimal                */
+  /* ============================================= */
+  .tab-bar {
+    display: flex; align-items: center;
+    height: 36px;
+    padding: 0 6px;
+    gap: 3px;
+    background: var(--bg1);
+    border-bottom: 1px solid var(--bd);
+    flex-shrink: 0;
+  }
+
+  .tab {
+    display: flex; align-items: center; gap: 5px;
+    height: 26px; padding: 0 8px;
+    border-radius: var(--radius-sm);
+    cursor: pointer; user-select: none;
+    font-family: var(--mono); font-size: 10.5px;
+    color: var(--t2);
+    border: none; background: transparent;
+    transition: background 0.1s, color 0.1s;
+  }
+  .tab:hover { background: var(--bg3); color: var(--t1); }
+  .tab.active {
+    background: var(--ac-d2);
+    color: var(--ac);
+    font-weight: 500;
+  }
+  .tab-icon { display: flex; color: inherit; opacity: 0.5; }
+  .tab.active .tab-icon { opacity: 1; }
+
+  .tab-close {
+    display: flex; align-items: center; justify-content: center;
+    width: 14px; height: 14px; border-radius: 2px;
+    border: none; background: transparent; cursor: pointer;
+    color: var(--t3); padding: 0;
+    opacity: 0; transition: opacity 0.1s;
+  }
+  .tab:hover .tab-close { opacity: 0.5; }
+  .tab-close:hover { opacity: 1 !important; color: var(--t0); background: var(--bg4); }
+
+  .tab-spacer { flex: 1; }
+
+  .tab-add {
+    width: 22px; height: 22px;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px dashed var(--bd1); border-radius: var(--radius-sm);
+    background: transparent; color: var(--t3);
+    cursor: pointer; transition: all 0.12s;
+  }
+  .tab-add:hover { border-color: var(--ac); color: var(--ac); }
+
+  /* ============================================= */
+  /*  PANEL HEADER — clean inline                   */
+  /* ============================================= */
+  .panel-header {
+    display: flex; align-items: center;
+    gap: 7px;
+    height: 34px; padding: 0 10px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--bd);
+    flex-shrink: 0;
+  }
+
+  .hdr-dot {
+    width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+  }
+  .hdr-dot.green { background: var(--s-working); }
+
+  .hdr-title {
+    font-family: var(--mono); font-size: 11px; font-weight: 500;
+    color: var(--t0); letter-spacing: -0.01em;
+    white-space: nowrap;
+  }
+  .hdr-sep { color: var(--t3); font-size: 10px; }
+  .hdr-sub {
+    font-family: var(--mono); font-size: 10px;
+    color: var(--t2);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  .hdr-right {
+    margin-left: auto;
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  .hdr-stat {
+    font-family: var(--mono); font-size: 9.5px;
+    color: var(--t2); font-variant-numeric: tabular-nums;
+  }
+  .hdr-stat strong { color: var(--t1); font-weight: 500; }
+
+  .hdr-divider {
+    width: 1px; height: 12px;
+    background: var(--bd); flex-shrink: 0;
+  }
+
+  .hdr-action {
+    width: 20px; height: 20px; border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    border: none; background: transparent; color: var(--t3);
+    cursor: pointer; transition: all 0.1s;
+  }
+  .hdr-action:hover { background: var(--bg3); color: var(--t1); }
+
+  .hdr-pill {
+    height: 18px; padding: 0 6px; border-radius: 3px;
+    display: flex; align-items: center; gap: 3px;
+    font-family: var(--mono); font-size: 9px; font-weight: 500;
+    background: var(--bg3); color: var(--t2);
+    border: 1px solid var(--bd);
+    white-space: nowrap;
+  }
+
+  /* ============================================= */
+  /*  BRANCH STRIP                                  */
+  /* ============================================= */
+  .branch-strip {
+    display: flex; align-items: center; gap: 6px;
+    height: 20px; padding: 0 10px;
+    background: var(--ac-d2);
+    border-bottom: 1px solid var(--ac-border);
+    color: var(--ac); font-family: var(--mono); font-size: 9px;
+    flex-shrink: 0;
+  }
+
+  /* ============================================= */
+  /*  CHAT FEED                                     */
+  /* ============================================= */
+  .feed {
+    flex: 1; min-height: 0;
+    overflow-y: auto;
+    display: flex; flex-direction: column;
+  }
+
+  .entry {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--bd1);
+    font-family: var(--mono);
+    font-size: 11px; line-height: 1.6; color: var(--t0);
+  }
+  .entry:last-child { border-bottom: none; }
+
+  .entry-label {
+    font-size: 9px; font-weight: 500;
+    letter-spacing: 0.3px; text-transform: uppercase;
+    display: flex; align-items: center; gap: 5px;
+    margin-bottom: 4px;
+  }
+  .entry.user .entry-label { color: var(--user-fg); }
+  .entry.model .entry-label { color: var(--ac); }
+  .entry.think .entry-label { color: var(--think-fg); }
+
+  .think-dots {
+    display: flex; gap: 3px; align-items: center;
+  }
+  .think-dots span {
+    width: 4px; height: 4px; border-radius: 50%;
+    background: var(--think-fg); opacity: 0.45;
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  .think-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .think-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.25; }
+    50% { opacity: 0.8; }
+  }
+
+  .tool-call {
+    margin: 6px 0;
+    border: 1px solid var(--bd);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+  }
+  .tool-call-hd {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 8px;
+    background: var(--bg3);
+    border-bottom: 1px solid var(--bd);
+    color: var(--tool-fg); font-size: 10px; font-weight: 500;
+    cursor: pointer;
+  }
+  .tool-call-body {
+    padding: 8px;
+    background: var(--bg1);
+    font-size: 10px; line-height: 1.5;
+  }
+  .tool-call-body pre {
+    margin: 4px 0; padding: 6px 8px;
+    background: var(--bg2);
+    border: 1px solid var(--bd);
+    border-radius: 3px;
+    overflow-x: auto;
+    font-family: var(--mono); font-size: 10px; color: var(--t0);
+  }
+
+  .bash-block {
+    margin: 6px 0;
+    border: 1px solid var(--bd);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+  }
+  .bash-hd {
+    display: flex; align-items: center; gap: 6px;
+    padding: 3px 8px;
+    background: var(--bg3);
+    border-bottom: 1px solid var(--bd);
+    color: var(--t2); font-size: 9px;
+  }
+  .bash-out {
+    padding: 6px 8px;
+    font-size: 10px; color: var(--t1); white-space: pre-wrap; line-height: 1.3;
+  }
+
+  .entry-foot {
+    display: flex; align-items: center; gap: 8px;
+    margin-top: 4px; padding-top: 4px;
+    border-top: 1px solid var(--bd);
+    font-size: 8.5px; color: var(--t3);
+  }
+
+  /* ============================================= */
+  /*  GIT PANEL — tree + diff (library-style)       */
+  /* ============================================= */
+  .git-body {
+    flex: 1; min-height: 0;
+    display: flex;
+  }
+  .git-tree {
+    width: 220px; flex-shrink: 0;
+    padding: 4px 0;
+    border-right: 1px solid var(--bd);
+    overflow-y: auto;
+  }
+  .grp-label {
+    font-family: var(--mono); font-size: 8.5px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.4px;
+    color: var(--t3);
+    padding: 6px 10px 3px;
+  }
+  .grp-item {
+    display: flex; align-items: center; gap: 6px;
+    padding: 3px 10px; cursor: pointer;
+    font-family: var(--mono); font-size: 10px; color: var(--t1);
+    border-radius: 0;
+    transition: background 0.1s;
+  }
+  .grp-item:hover { background: var(--bg3); color: var(--t0); }
+  .grp-item.sel { background: var(--ac-d2); color: var(--ac); }
+  .grp-item .chg {
+    margin-left: auto; font-size: 9px; font-variant-numeric: tabular-nums;
+  }
+  .grp-item .chg.add { color: var(--ac); }
+  .grp-item .chg.del { color: var(--s-error); }
+
+  .git-diff {
+    flex: 1; min-width: 0;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+
+  .diff-toolbar {
+    display: flex; align-items: center;
+    gap: 8px; padding: 4px 10px;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--bd);
+    font-family: var(--mono); font-size: 10px;
+    flex-shrink: 0;
+  }
+  .diff-toolbar .path { color: var(--ac); font-weight: 500; }
+  .diff-toolbar .stats { margin-left: auto; color: var(--t2); }
+  .diff-toolbar .action {
+    width: 18px; height: 18px;
+    display: flex; align-items: center; justify-content: center;
+    border: none; background: transparent; color: var(--t3);
+    cursor: pointer; border-radius: 3px;
+  }
+  .diff-toolbar .action:hover { background: var(--bg4); color: var(--t1); }
+
+  .diff-viewport {
+    flex: 1; min-height: 0;
+    overflow-y: auto;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    line-height: 1.6;
+  }
+
+  /* Library-style diff: gutter + line numbers + content */
+  .diff-line {
+    display: flex;
+  }
+  .diff-gutter {
+    width: 40px; flex-shrink: 0;
+    text-align: right; padding-right: 8px;
+    color: var(--t3); user-select: none;
+  }
+  .diff-gutter.left { background: var(--bg1); border-right: 1px solid var(--bd); }
+  .diff-gutter.right { border-right: 1px solid var(--bd); }
+  .diff-gutter.add { background: rgba(0,212,126,0.08); }
+  .diff-gutter.rem { background: rgba(224,72,72,0.08); }
+
+  .diff-content {
+    flex: 1; padding-left: 10px;
+    white-space: pre;
+  }
+  .diff-content.add { background: rgba(0,212,126,0.05); }
+  .diff-content.rem { background: rgba(224,72,72,0.05); }
+  .diff-content.add-sign::before { content: '+'; color: var(--ac); margin-right: 4px; }
+  .diff-content.rem-sign::before { content: '-'; color: var(--s-error); margin-right: 4px; }
+
+  .diff-hunk {
+    display: flex;
+    padding: 0 10px;
+    background: var(--bg2);
+    color: var(--t2);
+    font-size: 9.5px;
+    border-bottom: 1px solid var(--bd);
+  }
+</style>
+
+<body>
+
+<h2>
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ac)" stroke-width="2" style="vertical-align:-2px;margin-right:6px;"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+  Orbit — proposta modern-minimal
+</h2>
+
+<div class="layout">
+
+  <!-- ====== SIDEBAR ====== -->
+  <div class="sidebar">
+    <div class="sb-header">
+      <div class="sb-logo">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </div>
+      <div class="sb-title">orbit<span>.</span></div>
+      <span class="sb-badge">v2.6</span>
+    </div>
+
+    <div class="sb-search">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <span style="color:var(--t3);">sessions</span>
+    </div>
+
+    <div class="sb-sessions">
+      <div class="sb-item active">
+        <span class="sb-dot green"></span>
+        <div class="sb-item-info">
+          <div class="sb-item-name">my-app</div>
+          <div class="sb-item-sub">claude-code · 1.2k↑ 567↓</div>
+        </div>
+        <span class="sb-item-badge">4m</span>
+      </div>
+      <div class="sb-item">
+        <span class="sb-dot green"></span>
+        <div class="sb-item-info">
+          <div class="sb-item-name">api-refactor</div>
+          <div class="sb-item-sub">codex · 8.4k↑ 2.1k↓</div>
+        </div>
+        <span class="sb-item-badge">12m</span>
+      </div>
+      <div class="sb-item">
+        <span class="sb-dot amber"></span>
+        <div class="sb-item-info">
+          <div class="sb-item-name">fix-auth-flow</div>
+          <div class="sb-item-sub">claude-code · waiting</div>
+        </div>
+        <span class="sb-item-badge">3m</span>
+      </div>
+      <div class="sb-item">
+        <span class="sb-dot" style="background:var(--s-idle);"></span>
+        <div class="sb-item-info">
+          <div class="sb-item-name">db-migration</div>
+          <div class="sb-item-sub">opencode · completed</div>
+        </div>
+        <span class="sb-item-badge">2h</span>
+      </div>
+    </div>
+
+    <div class="sb-new">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      New session
+    </div>
+
+    <div class="sb-footer">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
+      <a href="#">settings</a>
+      <span style="margin-left:auto;">v2.6.0</span>
+    </div>
+  </div>
+
+  <!-- ====== LEFT PANE — Agent ====== -->
+  <div class="pane">
+
+    <div class="tab-bar">
+      <div class="tab active">
+        <svg class="tab-icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        my-app · claude-code
+        <button class="tab-close">
+          <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="tab">
+        <svg class="tab-icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4,17 10,11 4,5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+        Terminal
+        <button class="tab-close">
+          <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="tab-spacer"></div>
+      <button class="tab-add">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+    </div>
+
+    <div class="panel-header">
+      <span class="hdr-dot green"></span>
+      <span class="hdr-title">my-app</span>
+      <span class="hdr-sep">/</span>
+      <span class="hdr-sub">C:\projects\my-app</span>
+      <div class="hdr-right">
+        <span class="hdr-stat"><strong>1.2k</strong>↑ · <strong>567</strong>↓</span>
+        <div class="hdr-divider"></div>
+        <span class="hdr-stat"><strong>34%</strong> ctx</span>
+        <div class="hdr-divider"></div>
+        <span class="hdr-pill">
+          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+          claude-3.5
+        </span>
+        <button class="hdr-action">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11,5 6,9 2,9 2,15 6,15 11,19"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+        </button>
+        <button class="hdr-action">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="branch-strip">
+      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+      feat/workspace-tabs
+    </div>
+
+    <div class="feed">
+      <div class="entry user">
+        <div class="entry-label">
+          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          You
+        </div>
+        <div>Refactor the authentication module to use JWT tokens with refresh flow</div>
+      </div>
+      <div class="entry think">
+        <div class="entry-label">
+          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v1a2.5 2.5 0 0 1-2.5 2.5h-1A2.5 2.5 0 0 1 6 5.5v-1A2.5 2.5 0 0 1 8.5 2z"/><path d="M12 4.5h5.5A2.5 2.5 0 0 1 20 7v.5"/><path d="M4 12v5.5A2.5 2.5 0 0 0 6.5 20H7"/><path d="M15 20h5.5a2.5 2.5 0 0 0 2.5-2.5V12"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/></svg>
+          Thinking
+        </div>
+        <div class="think-dots" style="display:flex;gap:4px;align-items:center;margin-top:2px;">
+          <div class="think-dots"><span></span><span></span><span></span></div>
+          <span style="font-size:10px;color:var(--t2);font-style:italic;">analyzing structure…</span>
+        </div>
+      </div>
+      <div class="entry model">
+        <div class="entry-label">
+          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          claude-code
+        </div>
+        <div class="tool-call">
+          <div class="tool-call-hd">
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+            Write — src/auth/jwt.ts
+          </div>
+          <div class="tool-call-body">
+            <pre>import jwt from 'jsonwebtoken';
+const SECRET = process.env.JWT_SECRET!;
+
+export function signAccess(payload: Record&lt;string, unknown&gt;) {
+  return jwt.sign(payload, SECRET, { expiresIn: '15m' });
+}</pre>
+          </div>
+        </div>
+        <div class="bash-block">
+          <div class="bash-hd">
+            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4,17 10,11 4,5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+            bash — exit 0
+          </div>
+          <div class="bash-out">$ npx tsc --noEmit
+TypeScript compilation passed.</div>
+        </div>
+        <div class="entry-foot">
+          <span>1,234↑ · 567↓ tokens</span>
+          <span>·</span>
+          <span>34% context</span>
+          <span>·</span>
+          <span>$0.042</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== RIGHT PANE — Git ====== -->
+  <div class="pane">
+
+    <div class="tab-bar">
+      <div class="tab active">
+        <svg class="tab-icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+        Git
+        <button class="tab-close">
+          <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="tab">
+        <svg class="tab-icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4,17 10,11 4,5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+        Terminal
+        <button class="tab-close">
+          <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="panel-header">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--t1)" stroke-width="2"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+      <span class="hdr-title">Git</span>
+      <span class="hdr-sep">/</span>
+      <span class="hdr-sub">main</span>
+      <div class="hdr-right">
+        <span class="hdr-stat"><strong>4</strong> files changed</span>
+        <div class="hdr-divider"></div>
+        <span class="hdr-stat" style="color:var(--ac);"><strong>+12</strong></span>
+        <span class="hdr-stat" style="color:var(--s-error);"><strong>-3</strong></span>
+        <button class="hdr-action">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23,4 23,10 17,10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        </button>
+        <button class="hdr-action">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="git-body">
+      <!-- Tree -->
+      <div class="git-tree">
+        <div class="grp-label" style="color:var(--ac);">Staged</div>
+        <div class="grp-item">
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+          src/auth/jwt.ts
+          <span class="chg add">+4</span>
+        </div>
+        <div class="grp-label">Unstaged</div>
+        <div class="grp-item">
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+          src/middleware/refresh.ts
+          <span class="chg add">+8</span>
+        </div>
+        <div class="grp-item sel">
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+          src/routes/auth.ts
+          <span class="chg del">-3</span>
+        </div>
+        <div class="grp-label">Untracked</div>
+        <div class="grp-item">
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+          src/types/auth.d.ts
+          <span class="chg" style="color:var(--t2);">+12</span>
+        </div>
+      </div>
+
+      <!-- Diff — library-style -->
+      <div class="git-diff">
+        <div class="diff-toolbar">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+          <span class="path">src/routes/auth.ts</span>
+          <span class="stats">-3 / +0</span>
+          <button class="action">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          </button>
+        </div>
+        <div class="diff-viewport">
+          <div class="diff-hunk">
+            <span style="color:var(--t2);">@@ -42,7 +42,4 @@ export function login(req, res) {</span>
+          </div>
+          <div class="diff-line">
+            <div class="diff-gutter left rem">42</div>
+            <div class="diff-gutter right rem"></div>
+            <div class="diff-content rem rem-sign">import { oldAuth, verifyLegacy } from './legacy/auth';</div>
+          </div>
+          <div class="diff-line">
+            <div class="diff-gutter left"></div>
+            <div class="diff-gutter right add"></div>
+            <div class="diff-content add add-sign">import { signAccess, verify } from './auth/jwt';</div>
+          </div>
+          <div class="diff-line">
+            <div class="diff-gutter left">43</div>
+            <div class="diff-gutter right">43</div>
+            <div class="diff-content">export function login(req, res) {</div>
+          </div>
+          <div class="diff-line">
+            <div class="diff-gutter left rem">44</div>
+            <div class="diff-gutter right rem"></div>
+            <div class="diff-content rem rem-sign">const token = oldAuth(req.body);</div>
+          </div>
+          <div class="diff-line">
+            <div class="diff-gutter left"></div>
+            <div class="diff-gutter right add">44</div>
+            <div class="diff-content add add-sign">const token = signAccess({ userId: req.user.id });</div>
+          </div>
+          <div class="diff-line">
+            <div class="diff-gutter left">45</div>
+            <div class="diff-gutter right">45</div>
+            <div class="diff-content">res.json({ token });</div>
+          </div>
+          <div class="diff-line">
+            <div class="diff-gutter left rem">46</div>
+            <div class="diff-gutter right rem"></div>
+            <div class="diff-content rem rem-sign">res.setHeader('X-Auth', 'legacy');</div>
+          </div>
+          <div class="diff-line">
+            <div class="diff-gutter left">47</div>
+            <div class="diff-gutter right">46</div>
+            <div class="diff-content">}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
