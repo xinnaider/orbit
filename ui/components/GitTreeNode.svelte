@@ -10,6 +10,7 @@
   } from 'lucide-svelte';
   import type { GitFileChange } from '../lib/tauri/git';
   import type { GitTreeNode as TreeNodeType } from '../lib/git-tree';
+  import { TAG_COLORS } from '../lib/git-tags';
   import TreeNode from './GitTreeNode.svelte';
 
   export let node: TreeNodeType;
@@ -85,7 +86,11 @@
     <FileText size={14} />
     <span class="node-name">{node.name}</span>
     {#if fileTags[node.change.id]?.length}
-      <span class="tag-dot" title={fileTags[node.change.id].join(', ')}></span>
+      <span class="tag-dots" title={fileTags[node.change.id].join(', ')}>
+        {#each fileTags[node.change.id] as t}
+          <span class="tag-dot" style="background:{TAG_COLORS[t] ?? '#666'}"></span>
+        {/each}
+      </span>
     {/if}
   </div>
 {/if}
@@ -151,12 +156,17 @@
     padding-right: 4px;
   }
 
+  .tag-dots {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
   .tag-dot {
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: var(--ac, #00d47e);
     flex-shrink: 0;
-    margin-right: 4px;
   }
 </style>

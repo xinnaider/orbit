@@ -1,7 +1,28 @@
 import type { GitFileChange } from './tauri/git';
 
-export const FIXED_GIT_TAGS = ['ready', 'needs review', 'docs', 'risky', 'generated'] as const;
+export const FIXED_GIT_TAGS = [
+  'ready',
+  'needs review',
+  'docs',
+  'risky',
+  'generated',
+  'wip',
+  'bug',
+  'refactor',
+] as const;
 export type FixedGitTag = (typeof FIXED_GIT_TAGS)[number];
+
+/** Distinct colors for each tag, readable against dark backgrounds. */
+export const TAG_COLORS: Record<string, string> = {
+  ready: '#00d47e',
+  'needs review': '#e8a030',
+  docs: '#4888e0',
+  risky: '#e04848',
+  generated: '#888',
+  wip: '#a855f7',
+  bug: '#f97316',
+  refactor: '#06b6d4',
+};
 
 const STORAGE_PREFIX = 'orbit:git-file-tags:';
 
@@ -86,6 +107,29 @@ export function applyTagToFiles(
       }
     } else {
       next[key] = [tag];
+    }
+  }
+
+  return next;
+}
+
+/** Remove a tag from a set of files (toggle-off). */
+export function removeTagFromFiles(
+  tags: Record<string, string[]>,
+  files: GitFileChange[],
+  tag: string,
+): Record<string, string[]> {
+  const next: Record<string, string[]> = { ...tags };
+
+  for (const file of files) {
+    const key = tagKey(file);
+    const current = next[key];
+    if (!current) continue;
+    const filtered = current.filter((t) => t !== tag);
+    if (filtered.length === 0) {
+      delete next[key];
+    } else {
+      next[key] = filtered;
     }
   }
 

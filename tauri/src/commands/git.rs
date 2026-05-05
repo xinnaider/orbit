@@ -282,6 +282,16 @@ fn language_for(path: &str) -> String {
     .to_string()
 }
 
+/// Fast git branch detection — reads .git/HEAD without spawning git.
+/// Returns `null` if not a git repo.
+#[tauri::command]
+pub fn git_branch(cwd: String) -> Option<String> {
+    let head = std::fs::read_to_string(std::path::Path::new(&cwd).join(".git/HEAD")).ok()?;
+    head.trim()
+        .strip_prefix("ref: refs/heads/")
+        .map(|b| b.to_string())
+}
+
 #[tauri::command]
 pub fn git_overview(cwd: String) -> Result<GitOverview, String> {
     run_git(&cwd, &["rev-parse", "--is-inside-work-tree"])?;

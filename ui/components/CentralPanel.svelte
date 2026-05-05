@@ -4,6 +4,8 @@
   import { journal, pendingMessages } from '../lib/stores/journal';
   import { getSessionJournal } from '../lib/tauri';
   import { backends as backendsStore } from '../lib/stores/providers';
+  import { invoke } from '../lib/tauri/invoke';
+  import { updateSessionState, sessions } from '../lib/stores/sessions';
   import { statusColor, statusLabel, isPulsing, modelShortName } from '../lib/status';
   import { formatTokens } from '../lib/cost';
   import { mutedSessions, toggleMute } from '../lib/stores/ui';
@@ -31,10 +33,24 @@
     }
   }
 
+  // Auto-detect git branch if not set yet
+  async function fetchBranch() {
+    if (!session.cwd) return;
+    try {
+      const branch = await invoke<string | null>('git_branch', { cwd: session.cwd });
+      if (branch && (session.gitBranch ?? null) !== branch) {
+        sessions.update((l) => updateSessionState(l, session.id, { gitBranch: branch }));
+      }
+    } catch {
+      /* not a git repo — no-op */
+    }
+  }
+
   let loadedId: number | null = null;
   $: if (session?.id != null && session.id !== loadedId) {
     loadedId = session.id;
     loadHistory(session.id);
+    fetchBranch();
   }
 
   // Clear pending only when assistant responds (not on user entry echo)

@@ -5,17 +5,32 @@
     ChevronRight,
     FileDiff,
     GitBranch,
+    PanelLeftClose,
+    PanelLeftOpen,
+    Pencil,
     RefreshCw,
+    Save,
     Tag,
+    Timer,
+    TimerOff,
   } from 'lucide-svelte';
   import MonacoDiffViewer from './MonacoDiffViewer.svelte';
   import PanelHeader from './workspace/PanelHeader.svelte';
   import TreeNode from './GitTreeNode.svelte';
-  import { gitDiffFile, gitOverview, type GitDiffFile, type GitFileChange, type GitOverview } from '../lib/tauri/git';
+  import {
+    gitDiffFile,
+    gitOverview,
+    writeFileContent,
+    type GitDiffFile,
+    type GitFileChange,
+    type GitOverview,
+  } from '../lib/tauri/git';
   import { buildGitTree, filterGitFiles } from '../lib/git-tree';
   import {
     applyTagToFiles,
+    removeTagFromFiles,
     FIXED_GIT_TAGS,
+    TAG_COLORS,
     loadGitTags,
     saveGitTags,
     tagKey,
@@ -39,6 +54,13 @@
   let diff: GitDiffFile | null = null;
   let diffLoading = false;
   let diffError = '';
+  let editMode = false;
+  let treeCollapsed = false;
+  let saving = false;
+  let saveMessage = '';
+  let dirtyAfterSave = false;
+  let diffViewer: any = undefined;
+  let autoSave = false;
 
   $: files = overview?.files ?? [];
   $: fileTags = tagsByFileId(files, tags);
@@ -99,12 +121,70 @@
     selectedIds = next;
   }
 
+  async function handleSave(e: CustomEvent<{ content: string; auto: boolean }>) {
+    if (!selectedFile || !diff) return;
+    const filePath = `${cwd}/${selectedFile.path}`;
+    saving = true;
+    saveMessage = e.detail.auto ? 'Auto-saving...' : 'Saving...';
+    try {
+      await writeFileContent(filePath, e.detail.content);
+      saveMessage = e.detail.auto ? 'Auto-saved' : 'Saved';
+      dirtyAfterSave = false;
+      diffViewer?.markSaved();
+      // Update diff so original matches saved content — diff shows no changes
+      diff = { ...diff, original: e.detail.content, modified: e.detail.content };
+      setTimeout(() => (saveMessage = ''), 2000);
+    } catch (err) {
+      saveMessage = `Error: ${err instanceof Error ? err.message : String(err)}`;
+      setTimeout(() => (saveMessage = ''), 4000);
+    } finally {
+      saving = false;
+    }
+  }
+
+  function handleDirty(e: CustomEvent<{ dirty: boolean }>) {
+    dirtyAfterSave = e.detail.dirty;
+  }
+
+  function toggleTree() {
+    treeCollapsed = !treeCollapsed;
+  }
+
   function tagSelected(tag: FixedGitTag) {
     const selectedFiles = files.filter((file) => selectedIds.has(file.id));
     const targetFiles = selectedFiles.length > 0 ? selectedFiles : selectedFile ? [selectedFile] : [];
     if (targetFiles.length === 0) return;
-    tags = applyTagToFiles(tags, targetFiles, tag);
+
+    // Toggle: if ALL target files already have this tag, remove it instead
+    const allHaveTag = targetFiles.every((f) => (tags[tagKey(f)] ?? []).includes(tag));
+    if (allHaveTag && targetFiles.length > 0) {
+      tags = removeTagFromFiles(tags, targetFiles, tag);
+    } else {
+      tags = applyTagToFiles(tags, targetFiles, tag);
+    }
     saveGitTags(cwd, tags);
+  }
+
+  function clearSelection() {
+    // Clear tags from selected (checked) files, or from the current file if none checked
+    const checkedFiles = files.filter((file) => selectedIds.has(file.id));
+    const targetFiles = checkedFiles.length > 0 ? checkedFiles : selectedFile ? [selectedFile] : [];
+    if (targetFiles.length > 0) {
+      let changed = false;
+      for (const file of targetFiles) {
+        const key = tagKey(file);
+        if (tags[key]) {
+          delete tags[key];
+          changed = true;
+        }
+      }
+      if (changed) {
+        tags = { ...tags };
+        saveGitTags(cwd, tags);
+      }
+    }
+    // Clear checkbox selection
+    selectedIds = new Set();
   }
 
   onMount(() => {
@@ -129,9 +209,18 @@
       <span class="hdr-stat add">+{files.filter(f => f.group === 'staged' || f.path.endsWith('.ts')).length}</span>
       <span class="hdr-stat del">-{files.filter(f => f.group === 'unstaged' && !f.path.endsWith('.ts')).length}</span>
     </div>
-    <button slot="actions" type="button" class="hdr-action" aria-label="Refresh Git status" on:click={refresh}>
-      <RefreshCw size={11} />
-    </button>
+    <div slot="actions">
+      <button type="button" class="hdr-action" aria-label="Toggle file tree" on:click={toggleTree}>
+        {#if treeCollapsed}
+          <PanelLeftOpen size={11} />
+        {:else}
+          <PanelLeftClose size={11} />
+        {/if}
+      </button>
+      <button type="button" class="hdr-action" aria-label="Refresh Git status" on:click={refresh}>
+        <RefreshCw size={11} />
+      </button>
+    </div>
   </PanelHeader>
 
   {#if loading}
@@ -139,21 +228,22 @@
   {:else if error}
     <div class="state error">{error}</div>
   {:else}
-    <div class="git-body">
-      <aside class="tree-pane">
+    <div class="git-body" class:tree-hidden={treeCollapsed}>
+      <aside class="tree-pane" class:hidden={treeCollapsed}>
         <div class="tree-tools">
           <input bind:value={query} placeholder="Search files or tags..." aria-label="Search Git files or tags" />
           <div class="tag-actions">
             <Tag size={12} />
             {#each FIXED_GIT_TAGS as tag}
-              <button type="button" on:click={() => tagSelected(tag)}>{tag}</button>
+              {@const color = TAG_COLORS[tag] ?? '#666'}
+              <button type="button" style="--tag-color:{color}" on:click={() => tagSelected(tag)}>{tag}</button>
             {/each}
           </div>
         </div>
 
         <div class="selection-bar">
           <span>{selectedIds.size} selected</span>
-          <button type="button" on:click={() => (selectedIds = new Set())}>Clear</button>
+          <button type="button" on:click={clearSelection}>Clear</button>
         </div>
 
         <div class="tree" aria-label="Changed files">
@@ -200,8 +290,43 @@
             <span class="pill">{selectedFile.group}</span>
           {/if}
           {#each selectedFile ? tags[tagKey(selectedFile)] ?? [] : [] as tag}
-            <span class="tag-pill">{tag}</span>
+            {@const color = TAG_COLORS[tag] ?? '#666'}
+            <span class="tag-pill" style="--tag-color:{color}">{tag}</span>
           {/each}
+          {#if selectedFile && diff && !diff.binary}
+            <div class="diff-header-actions">
+              <button
+                type="button"
+                class="hdr-action"
+                class:active={autoSave}
+                title={autoSave ? 'Auto-save is on' : 'Enable auto-save (saves 1.5s after last change)'}
+                on:click={() => (autoSave = !autoSave)}
+              >
+                {#if autoSave}
+                  <Timer size={11} />
+                {:else}
+                  <TimerOff size={11} />
+                {/if}
+              </button>
+              <button
+                type="button"
+                class="hdr-action"
+                class:edit-toggle={true}
+                class:active={editMode}
+                title={editMode ? 'Disable editing (Ctrl+S to save)' : 'Enable editing'}
+                on:click={() => (editMode = !editMode)}
+              >
+                <Pencil size={11} />
+              </button>
+              {#if editMode && dirtyAfterSave && !autoSave}
+                <span class="save-status dirty">Unsaved changes</span>
+              {:else if saving}
+                <span class="save-status">{saveMessage}</span>
+              {:else if saveMessage}
+                <span class="save-status ok">{saveMessage}</span>
+              {/if}
+            </div>
+          {/if}
         </div>
         <div class="diff-body">
           {#if diffLoading}
@@ -211,7 +336,16 @@
           {:else if diff?.binary}
             <div class="state">Binary diff is not available.</div>
           {:else if diff}
-            <MonacoDiffViewer original={diff.original} modified={diff.modified} language={diff.language} />
+            <MonacoDiffViewer
+              bind:this={diffViewer}
+              original={diff.original}
+              modified={diff.modified}
+              language={diff.language}
+              editable={editMode}
+              {autoSave}
+              on:save={handleSave}
+              on:dirty={handleDirty}
+            />
           {:else}
             <div class="state">Select a file to view its diff.</div>
           {/if}
@@ -304,12 +438,41 @@
     min-height: 0;
   }
 
+  .git-body.tree-hidden {
+    grid-template-columns: 0fr minmax(0, 1fr);
+  }
+
+  .git-body.tree-hidden .tree-pane {
+    overflow: hidden;
+    width: 0;
+    min-width: 0;
+    border-right: none;
+  }
+
+  /* Narrow screens: stack tree on top of diff */
+  @media (max-width: 500px) {
+    .git-body {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+    .git-body .tree-pane {
+      max-height: 40%;
+      border-right: none;
+      border-bottom: 1px solid var(--bd);
+    }
+  }
+
   .tree-pane {
     display: flex;
     min-width: 0;
     min-height: 0;
     flex-direction: column;
     border-right: 1px solid var(--bd);
+    margin-right: 4px;
+  }
+
+  .tree-pane.hidden {
+    margin-right: 0;
   }
 
   .tree-tools {
@@ -343,20 +506,20 @@
     margin-top: 6px;
   }
   .tag-actions button {
-    border: 1px solid var(--bd);
+    border: 1px solid color-mix(in srgb, var(--tag-color, var(--bd)), transparent 70%);
     border-radius: 3px;
     padding: 1px 5px;
     background: transparent;
-    color: var(--t3);
+    color: var(--tag-color, var(--t3));
     cursor: pointer;
     font-family: var(--mono);
     font-size: 8.5px;
     transition: all 0.1s;
   }
   .tag-actions button:hover {
-    border-color: color-mix(in srgb, var(--ac), transparent 70%);
-    background: var(--ac-d2);
-    color: var(--t1);
+    border-color: var(--tag-color, var(--ac));
+    background: color-mix(in srgb, var(--tag-color, var(--ac)), transparent 85%);
+    color: var(--tag-color, var(--t1));
   }
 
   .selection-bar {
@@ -372,7 +535,19 @@
 
   .selection-bar button {
     margin-left: auto;
-    padding: var(--sp-1) var(--sp-3);
+    padding: 2px 8px;
+    border: none;
+    background: transparent;
+    color: var(--t3);
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: 9px;
+    border-radius: 3px;
+    transition: color 0.1s, background 0.1s;
+  }
+  .selection-bar button:hover {
+    color: var(--t1);
+    background: var(--bg2);
   }
 
   .tree {
@@ -412,19 +587,6 @@
     font-variant-numeric: tabular-nums;
   }
 
-  .selection-bar button {
-    margin-left: auto;
-    border: none;
-    background: transparent;
-    color: var(--t3);
-    cursor: pointer;
-    font-family: var(--mono);
-    font-size: 9px;
-  }
-  .selection-bar button:hover {
-    color: var(--t1);
-  }
-
   .diff-pane {
     display: flex;
     min-width: 0;
@@ -448,4 +610,41 @@
   .state.error {
     color: var(--s-error);
   }
+
+  .tag-pill {
+    display: inline-block;
+    padding: 0 5px;
+    border-radius: 3px;
+    background: color-mix(in srgb, var(--tag-color, #666), transparent 80%);
+    color: var(--tag-color, #666);
+    font-size: 8.5px;
+    font-weight: 500;
+    border: 1px solid color-mix(in srgb, var(--tag-color, #666), transparent 70%);
+    line-height: 1.6;
+  }
+
+  .diff-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+  }
+
+  .edit-toggle.active {
+    color: var(--ac);
+    background: var(--ac-d2);
+  }
+
+  .save-status {
+    font-size: 9px;
+    color: var(--t2);
+  }
+  .save-status.ok {
+    color: var(--ac);
+  }
+  .save-status.dirty {
+    color: var(--s-input);
+    font-weight: 500;
+  }
+
 </style>

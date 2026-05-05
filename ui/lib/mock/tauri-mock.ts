@@ -632,6 +632,10 @@ export async function mockInvoke(cmd: string, args?: Record<string, unknown>): P
       return MOCK_SUBAGENT_JOURNAL[`${sessionId}:${subagentId}`] ?? [];
     }
 
+    case 'git_branch': {
+      return 'feat/improve-feed-ui';
+    }
+
     case 'git_overview': {
       const cwd = (args?.cwd as string) ?? '';
       return {

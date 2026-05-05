@@ -12,6 +12,7 @@
   import { modelShortName } from '../lib/status';
   import { onMount } from 'svelte';
   import { clearAttention } from '../lib/tauri/attention';
+  import { GitBranch } from 'lucide-svelte';
   import HttpApiSettingsModal from './HttpApiSettingsModal.svelte';
 
   let showHttpSettings = false;
@@ -325,6 +326,12 @@
                   <span class="sep">·</span>
                   <span>{fmtTokens(c)}</span>
                 </div>
+                {#if c.gitBranch}
+                  <div class="card-branch" title={c.gitBranch}>
+                    <span class="card-branch-icon" aria-hidden="true"><GitBranch size={10} /></span>
+                    <span class="card-branch-text">{c.gitBranch}</span>
+                  </div>
+                {/if}
                 <div class="card-bar">
                   <div class="card-fill" style="width:{Math.min(pct, 100)}%"></div>
                 </div>
@@ -565,6 +572,26 @@
     background: var(--card-color);
     border-radius: 1px;
     transition: width 0.3s ease;
+  }
+
+  .card-branch {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    margin-top: 3px;
+    overflow: hidden;
+  }
+  .card-branch-icon {
+    display: flex;
+    color: var(--ac);
+    flex-shrink: 0;
+  }
+  .card-branch-text {
+    font-size: 8.5px;
+    color: var(--ac);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .item-top {

@@ -46,10 +46,19 @@ export interface GitDiffFile {
   modified: string;
 }
 
+/** Fast branch detection — reads .git/HEAD without spawning git. */
+export function gitBranch(cwd: string): Promise<string | null> {
+  return invoke<string | null>('git_branch', { cwd });
+}
+
 export function gitOverview(cwd: string): Promise<GitOverview> {
   return invoke<GitOverview>('git_overview', { cwd });
 }
 
 export function gitDiffFile(cwd: string, file: GitFileChange): Promise<GitDiffFile> {
   return invoke<GitDiffFile>('git_diff_file', { cwd, path: file.path, group: file.group });
+}
+
+export function writeFileContent(path: string, content: string): Promise<void> {
+  return invoke<void>('write_file_content', { path, content });
 }
