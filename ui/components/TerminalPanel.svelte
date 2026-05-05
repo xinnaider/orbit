@@ -51,6 +51,49 @@
     return Date.now();
   }
 
+  function v(name: string, fallback: string): string {
+    if (typeof document === 'undefined') return fallback;
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+  }
+
+  function orbitTermTheme(): Terminal['options']['theme'] {
+    const bg = v('--bg', '#080808');
+    const fg = v('--t0', '#e0e0e0');
+    const ac = v('--ac', '#00d47e');
+    const t3 = v('--t3', '#444');
+    const t2 = v('--t2', '#666');
+    const t1 = v('--t1', '#888');
+    const sError = v('--s-error', '#e04848');
+    const sInput = v('--s-input', '#e8a030');
+    const sInit = v('--s-init', '#4888e0');
+    const thinkFg = v('--think-fg', '#9980d4');
+
+    return {
+      background: bg,
+      foreground: fg,
+      cursor: ac,
+      cursorAccent: bg,
+      selectionBackground: `${ac}33`,
+      selectionForeground: fg,
+      black: t3,
+      red: sError,
+      green: ac,
+      yellow: sInput,
+      blue: sInit,
+      magenta: thinkFg,
+      cyan: sInit,
+      white: t1,
+      brightBlack: t2,
+      brightRed: sError,
+      brightGreen: ac,
+      brightYellow: sInput,
+      brightBlue: sInit,
+      brightMagenta: thinkFg,
+      brightCyan: sInit,
+      brightWhite: fg,
+    };
+  }
+
   async function spawnPty(term: Terminal, fit: FitAddon): Promise<void> {
     const isWindows = navigator.platform.startsWith('Win');
     const shell = isWindows ? 'powershell.exe' : '/bin/bash';
@@ -73,11 +116,7 @@
       fontSize: 13,
       fontFamily: 'Consolas, "Courier New", monospace',
       scrollback: 5000,
-      theme: {
-        background: '#1a1a1a',
-        foreground: '#d4d4d4',
-        cursor: '#d4d4d4',
-      },
+      theme: orbitTermTheme(),
     });
 
     const fit = new FitAddon();
@@ -87,6 +126,17 @@
 
     // Delay fit to ensure container has dimensions
     requestAnimationFrame(() => fit.fit());
+
+    // Hide native scrollbar (Windows WebView2 ignores ::-webkit-scrollbar)
+    // Make viewport wider than container, container clips the overflow
+    const vp = container.querySelector('.xterm-viewport') as HTMLElement | null;
+    if (vp) {
+      vp.style.setProperty('right', '-23px', 'important');
+      vp.style.setProperty('overflow-y', 'auto', 'important');
+    }
+    if (container) {
+      container.style.setProperty('overflow', 'hidden', 'important');
+    }
 
     numericId = resolveNumericId();
 
@@ -190,11 +240,54 @@
 <style>
   .terminal-shell {
     display: flex;
+    flex-direction: column;
     flex: 1;
+    width: 100%;
     min-width: 0;
     min-height: 0;
     background: var(--bg);
     color: var(--t0);
+    margin: 0;
+    border: none;
+    outline: none;
+    overflow: hidden;
+  }
+
+  .terminal-body {
+    display: flex;
+    flex: 1;
+    width: 100%;
+    min-height: 0;
+    overflow: hidden;
+    margin: 0;
+    border: none;
+    outline: none;
+  }
+
+  .terminal-panel {
+    flex: 1;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    background: var(--bg);
+    margin: 0;
+    border: none;
+    outline: none;
+    overflow: hidden;
+    padding: 6px;
+  }
+
+  .terminal-overlay {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-4);
+    flex: 1;
+    padding: var(--sp-8);
+    margin: 0;
+    border: none;
+    outline: none;
   }
 
   .terminal-status {
@@ -225,4 +318,5 @@
     background: var(--bg4);
     border-color: color-mix(in srgb, var(--ac), transparent 60%);
   }
+
 </style>

@@ -152,13 +152,21 @@ export function moveTab(fromPaneId: string, toPaneId: string, tabId: string): vo
     if (index === -1) return ws;
 
     const [tab] = fromPane.tabs.splice(index, 1);
-    toPane.tabs.push(tab);
-    toPane.activeTabId = tab.id;
-    ws.focusedPaneId = toPaneId;
 
     if (fromPane.activeTabId === tabId) {
       fromPane.activeTabId = fromPane.tabs[Math.max(0, index - 1)]?.id ?? fromPane.tabs[0]?.id ?? null;
     }
+
+    // Dedup: if the same target already exists in destination, focus it instead
+    const existing = toPane.tabs.find((t) => sameTarget(t.target, tab.target));
+    if (existing) {
+      toPane.activeTabId = existing.id;
+    } else {
+      toPane.tabs.push(tab);
+      toPane.activeTabId = tab.id;
+    }
+
+    ws.focusedPaneId = toPaneId;
 
     compact(ws);
     return ws;
@@ -189,6 +197,21 @@ export function splitPane(
   insertBefore = false
 ): void {
   workspace.update((ws) => {
+    // Resolve target and check for duplicates
+    const tabTarget =
+      typeof sessionIdOrTab === 'number'
+        ? ({ kind: 'agent', sessionId: sessionIdOrTab } as const)
+        : sessionIdOrTab?.target ?? null;
+
+    if (tabTarget) {
+      const existing = findTabByTarget(ws, tabTarget);
+      if (existing) {
+        ws.focusedPaneId = existing.paneId;
+        ws.panes[existing.paneId].activeTabId = existing.tab.id;
+        return ws;
+      }
+    }
+
     const newPId = newPaneId();
     const tab =
       typeof sessionIdOrTab === 'number'
@@ -207,6 +230,69 @@ export function splitPane(
         ];
 
     ws.root = replaceLeaf(ws.root, paneId, {
+      type: 'split',
+      direction,
+      ratio: 0.5,
+      children,
+    });
+    ws.focusedPaneId = newPId;
+    compact(ws);
+    return ws;
+  });
+}
+
+/**
+ * Split a pane and move an existing tab into the new pane.
+ * Unlike splitPane(), this removes the tab from its source pane,
+ * preventing duplicates when dragging a tab to a drop edge.
+ */
+export function splitPaneMoveTab(
+  targetPaneId: string,
+  direction: 'horizontal' | 'vertical',
+  sourcePaneId: string,
+  sourceTabId: string,
+  insertBefore: boolean
+): void {
+  workspace.update((ws) => {
+    const sourcePane = ws.panes[sourcePaneId];
+    if (!sourcePane) return ws;
+
+    const tabIndex = sourcePane.tabs.findIndex((t) => t.id === sourceTabId);
+    if (tabIndex === -1) return ws;
+
+    // Remove tab from source
+    const [tab] = sourcePane.tabs.splice(tabIndex, 1);
+    if (sourcePane.activeTabId === sourceTabId) {
+      sourcePane.activeTabId =
+        sourcePane.tabs[Math.max(0, tabIndex - 1)]?.id ??
+        sourcePane.tabs[0]?.id ??
+        null;
+    }
+
+    // Dedup: if target is already open elsewhere (not source), focus it instead
+    const existing = findTabByTarget(ws, tab.target);
+    if (existing && existing.paneId !== sourcePaneId) {
+      ws.focusedPaneId = existing.paneId;
+      ws.panes[existing.paneId].activeTabId = existing.tab.id;
+      compact(ws);
+      return ws;
+    }
+
+    // Create new pane with the moved tab
+    const newPId = newPaneId();
+    ws.panes[newPId] = createPaneState(tab);
+
+    const children: [SplitNode, SplitNode] = insertBefore
+      ? [
+          { type: 'leaf', paneId: newPId },
+          { type: 'leaf', paneId: targetPaneId },
+        ]
+      : [
+          { type: 'leaf', paneId: targetPaneId },
+          { type: 'leaf', paneId: newPId },
+        ];
+
+    ws.root = replaceLeaf(ws.root, targetPaneId, {
       type: 'split',
       direction,
       ratio: 0.5,

@@ -22,6 +22,7 @@
 
   onMount(async () => {
     monaco = await import('monaco-editor');
+    monaco.editor.setTheme('vs-dark');
     editor = monaco.editor.createDiffEditor(host, {
       automaticLayout: true,
       readOnly: true,

@@ -1,11 +1,11 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
-  import { Bot, FolderOpen, GitBranch, Terminal } from 'lucide-svelte';
+  import { GitBranch, Terminal } from 'lucide-svelte';
 
   export let x: number;
   export let y: number;
 
-  type AddAction = 'terminal' | 'session' | 'open' | 'git';
+  type AddAction = 'terminal' | 'git';
 
   const dispatch = createEventDispatcher<{
     select: { action: AddAction };
@@ -46,15 +46,6 @@
     <GitBranch size={14} />
     Git overview
   </button>
-  <button class="menu-item" role="menuitem" on:click={() => select('session')}>
-    <Bot size={14} />
-    New session
-  </button>
-  <div class="menu-divider"></div>
-  <button class="menu-item" role="menuitem" on:click={() => select('open')}>
-    <FolderOpen size={14} />
-    Open session...
-  </button>
 </div>
 
 <style>
@@ -63,7 +54,7 @@
     min-width: 176px;
     padding: var(--sp-2) 0;
     z-index: 1000;
-    border: 1px solid color-mix(in srgb, var(--ac), transparent 78%);
+    border: 1px solid var(--bd);
     border-radius: 6px;
     background: var(--bg1);
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.38);
@@ -91,9 +82,4 @@
     color: var(--t0);
   }
 
-  .menu-divider {
-    height: 1px;
-    background: var(--bd);
-    margin: var(--sp-2) 0;
-  }
 </style>

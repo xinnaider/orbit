@@ -4,8 +4,8 @@
 
 ## May 2026
 
-### 05/05 · New — Compact workspace tabs, inline panel headers, and Git tree panel
-Workspace tabs are now pill-style with monospace labels and green active state — no borders or overlap. Panel headers use a single-row layout with title, separator, info pills, and flat action buttons. A new Git panel shows file changes in a tree view with search, tags, and a Monaco diff viewer. Sidebar tabs and branch strips also adopt the compact look.
+### 05/05 · Improvement — Terminal dark theme, diff dark mode, simplified tabs
+The embedded terminal now matches Orbit's dark theme with proper background and cursor colors. The scrollbar is hidden for a cleaner look. The Monaco diff viewer in the Git panel uses dark mode instead of the white default. The tab add menu was simplified to show only Terminal and Git options, and dragging tabs between split panes now deduplicates correctly.
 
 ---
 

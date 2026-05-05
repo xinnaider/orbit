@@ -6,6 +6,7 @@
     workspace,
     focusPane,
     splitPane,
+    splitPaneMoveTab,
     closePane,
     moveTab,
     type Tab,
@@ -75,7 +76,12 @@
     const direction: 'horizontal' | 'vertical' =
       e.detail.position === 'left' || e.detail.position === 'right' ? 'horizontal' : 'vertical';
     const insertBefore = e.detail.position === 'left' || e.detail.position === 'top';
-    splitPane(paneId, direction, parsed.tab, insertBefore);
+
+    if (parsed.sourcePaneId && parsed.sourceTabId) {
+      splitPaneMoveTab(paneId, direction, parsed.sourcePaneId, parsed.sourceTabId, insertBefore);
+    } else {
+      splitPane(paneId, direction, parsed.tab, insertBefore);
+    }
   }
 
   function tabFromDropData(
@@ -114,7 +120,7 @@
     return null;
   }
 
-  function handleAddAction(action: 'terminal' | 'session' | 'open' | 'git') {
+  function handleAddAction(action: 'terminal' | 'git') {
     const cwd = session?.cwd ?? (activeTab?.target.kind === 'git' ? activeTab.target.cwd : '.');
     if (action === 'terminal') {
       addTab(paneId, { kind: 'terminal', terminalId: crypto.randomUUID(), cwd });

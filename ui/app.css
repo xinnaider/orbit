@@ -95,6 +95,30 @@ select {
   background: var(--ac-d);
 }
 
+/* ── xterm overrides ──────────────────────────────────────── */
+.terminal-panel .xterm,
+.terminal-panel .xterm-viewport,
+.terminal-panel .xterm-screen,
+.terminal-panel .xterm-screen canvas,
+.terminal-panel .composition-view {
+  background: var(--bg) !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.terminal-panel .xterm-viewport {
+  scrollbar-width: none !important;
+}
+
+.terminal-panel .xterm-viewport::-webkit-scrollbar {
+  display: none !important;
+}
+
+.terminal-panel .xterm-cursor-layer {
+  caret-color: var(--ac);
+}
+
 /* ── Mobile responsiveness ─────────────────────────────────── */
 
 @media (max-width: 768px) {
