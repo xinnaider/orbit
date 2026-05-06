@@ -91,8 +91,8 @@
   }
 
   .tab-item.active {
-    background: var(--ac-d2);
-    color: var(--ac);
+    background: var(--bg3);
+    color: var(--t0);
     font-weight: 500;
   }
 
@@ -102,8 +102,8 @@
   }
 
   .tab-item:not(.focused).active {
-    background: var(--ac-d2);
-    color: var(--ac);
+    background: var(--bg3);
+    color: var(--t1);
     opacity: 0.6;
   }
 
@@ -138,16 +138,15 @@
       color 0.15s,
       opacity 0.15s,
       background 0.15s;
-    opacity: 0;
+    opacity: 0.5;
   }
 
-  .tab-item.active .tab-close,
   .tab-item:hover .tab-close {
-    opacity: 0.7;
+    opacity: 0.8;
   }
 
   .tab-close:hover {
     color: var(--t0);
-    background: var(--ac-d2);
+    background: var(--bg3);
   }
 </style>

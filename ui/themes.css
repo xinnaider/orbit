@@ -165,3 +165,37 @@
   --result-fg: #6c7086;
   --result-bg: rgba(205, 214, 244, 0.02);
 }
+
+/* ===== Steel Workshop ===== */
+/* Blue-steel, clean, utilitarian. Inspired by Emdash (YC W26) and DP Code. */
+[data-theme='steel'] {
+  --bg: #0b0d10;
+  --bg1: #0f1116;
+  --bg2: #15181f;
+  --bg3: #1c1f28;
+  --bg4: #232733;
+  --bd: #1a1d26;
+  --bd1: #242836;
+  --bd2: #303447;
+  --t0: #ecedee;
+  --t1: #9a9fae;
+  --t2: #6b7084;
+  --t3: #494e60;
+  --ac: #4f8cff;
+  --ac-d: rgba(79, 140, 255, 0.08);
+  --ac-d2: rgba(79, 140, 255, 0.04);
+  --s-working: #4fc98f;
+  --s-input: #e8b84c;
+  --s-idle: #494e60;
+  --s-error: #e85a5a;
+  --s-init: #4f8cff;
+  --s-done: #1c1f28;
+  --user-fg: #4f8cff;
+  --user-bg: rgba(79, 140, 255, 0.06);
+  --think-fg: #e8b84c;
+  --think-bg: rgba(232, 184, 76, 0.06);
+  --tool-fg: #e8b84c;
+  --tool-bg: rgba(232, 184, 76, 0.05);
+  --result-fg: #6b7084;
+  --result-bg: rgba(255, 255, 255, 0.02);
+}

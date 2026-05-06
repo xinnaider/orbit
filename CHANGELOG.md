@@ -4,6 +4,9 @@
 
 ## May 2026
 
+### 05/05 · New — Steel Workshop theme
+Added a new blue-steel theme inspired by Emdash and DP Code — cool gray surfaces with blue accent instead of green. Available in the theme picker dropdown alongside Dark, Nord, Dracula, and Catppuccin. Switches instantly and persists across restarts.
+
 ### 05/05 · Improvement — Terminal dark theme, diff dark mode, simplified tabs
 The embedded terminal now matches Orbit's dark theme with proper background and cursor colors. The scrollbar is hidden for a cleaner look. The Monaco diff viewer in the Git panel uses dark mode instead of the white default. The tab add menu was simplified to show only Terminal and Git options, and dragging tabs between split panes now deduplicates correctly.
 

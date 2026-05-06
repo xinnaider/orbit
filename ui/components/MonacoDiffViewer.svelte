@@ -131,12 +131,6 @@
         scrollBeyondLastLine: false,
         renderSideBySide: false,
         compactMode: true,
-        hideUnchangedRegions: {
-          enabled: true,
-          contextLineCount: 3,
-          minimumLineCount: 8,
-          revealLineCount: 20,
-        },
         renderOverviewRuler: false,
         renderIndicators: true,
         diffWordWrap: 'on',
