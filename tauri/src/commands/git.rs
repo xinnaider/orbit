@@ -312,8 +312,7 @@ pub fn git_overview(cwd: String) -> Result<GitOverview, String> {
 pub fn git_diff_file(cwd: String, path: String, group: String) -> Result<GitDiffFile, String> {
     run_git(&cwd, &["rev-parse", "--is-inside-work-tree"])?;
     let status = run_git(&cwd, &["status", "--porcelain=v1", "--", &path])?;
-    let deleted = status.starts_with('D')
-        || status.chars().nth(1) == Some('D');
+    let deleted = status.starts_with('D') || status.chars().nth(1) == Some('D');
     let untracked = group == "untracked";
 
     let (original, modified) = if untracked {

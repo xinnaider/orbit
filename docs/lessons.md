@@ -38,6 +38,14 @@ Padrões de erro identificados durante o desenvolvimento. Leia ao início de cad
 
 ---
 
+## Verificacoes Pre-Commit
+
+**Regra:** Rodar `cargo fmt --manifest-path tauri/Cargo.toml --check` junto com clippy antes de todo commit. Não confiar só no pre-commit hook.
+**Por quê:** O cargo clippy compila mas não verifica formatação. O CI falha com `cargo fmt --check` mesmo com clippy passando localmente — como aconteceu no PR do Feed UI.
+**Quando aplicar:** Sempre ao commitar código Rust.
+
+---
+
 ## Execucao de Planos
 
 **Regra:** Ao executar um plano com multiplos blocos, verificar no codigo que cada bloco visivel foi conectado ao fluxo real da UI antes de declarar concluido.
