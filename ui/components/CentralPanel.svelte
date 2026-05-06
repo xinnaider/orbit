@@ -2,12 +2,12 @@
   import type { Session } from '../lib/stores/sessions';
   import { GitBranch, Volume2, VolumeX } from 'lucide-svelte';
   import { journal, pendingMessages } from '../lib/stores/journal';
-  import { getSessionJournal } from '../lib/tauri';
   import { backends as backendsStore } from '../lib/stores/providers';
+  import { getSessionJournal } from '../lib/tauri/sessions';
   import { invoke } from '../lib/tauri/invoke';
   import { updateSessionState, sessions } from '../lib/stores/sessions';
   import { statusColor, statusLabel, isPulsing, modelShortName } from '../lib/status';
-  import { formatTokens } from '../lib/cost';
+  import { formatTokensLong } from '../lib/cost';
   import { mutedSessions, toggleMute } from '../lib/stores/ui';
   import Feed from './Feed.svelte';
   import InputBar from './InputBar.svelte';
@@ -53,10 +53,18 @@
     fetchBranch();
   }
 
-  // Clear pending only when assistant responds (not on user entry echo)
+  // Clear pending when entry appears in Feed (backend echoed it)
   $: {
     const e = $journal.get(session?.id);
-    if (e && e.some((entry) => entry.entryType === 'assistant' || entry.entryType === 'toolCall')) {
+    if (
+      e &&
+      e.some(
+        (entry) =>
+          entry.entryType === 'user' ||
+          entry.entryType === 'assistant' ||
+          entry.entryType === 'toolCall'
+      )
+    ) {
       pendingMessages.clear();
     }
   }
@@ -105,42 +113,37 @@
 
 <div class="panel">
   <PanelHeader
-    title={session.name ?? session.projectName ?? session.cwd?.split(/[\\/]/).pop() ?? `#${session.id}`}
+    title={session.name ??
+      session.projectName ??
+      session.cwd?.split(/[\\/]/).pop() ??
+      `#${session.id}`}
     status={statusStr}
     dragPayload={JSON.stringify({ sessionId: session.id, sourcePaneId: paneId })}
     {onClose}
     {focused}
   >
     <span slot="leading" class="dot" style="color:{statusClr}" class:pulse={pulsing}></span>
-      <div slot="meta" class="header-right">
-        {#if session.tokens}
-          <span class="meta">
-            {formatTokens(session.tokens.input + session.tokens.output)}
-          </span>
-          {#if (session.contextPercent ?? 0) > 0}
-            <div class="hdr-divider"></div>
-            <span class="ctx">
-              <span class="ctx-bar">
-                <span
-                  class="ctx-fill"
-                  style="width:{Math.min(session.contextPercent ?? 0, 100)}%;
-                  background:{(session.contextPercent ?? 0) > 85
-                    ? 'var(--s-error)'
-                    : (session.contextPercent ?? 0) > 65
-                      ? 'var(--s-input)'
-                      : 'var(--ac)'}"
-                >
-                </span>
-              </span>
-              <span class="ctx-pct">{Math.round(session.contextPercent ?? 0)}%</span>
-            </span>
-          {/if}
-          <div class="hdr-divider"></div>
-        {/if}
-        <span class="model-pill" title={session.model ?? ''}>
-          {fmtModel(session.model)}
+    <div slot="meta" class="header-right">
+      {#if session.tokens}
+        <span class="meta tokens-meta">
+          <span class="meta-item"
+            >{formatTokensLong(session.tokens.input)}<span class="meta-arrow-up">↑</span></span
+          >
+          <span class="meta-sep">·</span>
+          <span class="meta-item"
+            >{formatTokensLong(session.tokens.output)}<span class="meta-arrow-down">↓</span></span
+          >
         </span>
-      </div>
+        {#if (session.contextPercent ?? 0) > 0}
+          <span class="meta-sep">·</span>
+          <span class="ctx-pct">{Math.round(session.contextPercent ?? 0)}% ctx</span>
+        {/if}
+        <span class="meta-sep">·</span>
+      {/if}
+      <span class="model-pill" title={session.model ?? ''}>
+        {fmtModel(session.model)}
+      </span>
+    </div>
     <button
       slot="actions"
       class="action-btn mute-btn"
@@ -180,9 +183,9 @@
           bind:this={feedComponent}
           {entries}
           status={session.status}
-          provider={session.provider}
+          provider={session.provider ?? 'claude-code'}
           cwd={session.cwd}
-          on:bottomchange={onFeedBottomChange}
+          on:bottomchange={(e) => (atBottom = e.detail.atBottom)}
         />
       {/key}
       {#each $pendingMessages as msg (msg.id)}
@@ -224,7 +227,7 @@
     display: inline-block;
     width: 6px;
     height: 6px;
-    border-radius: 2px;
+    border-radius: 50%;
     background: currentColor;
     flex-shrink: 0;
   }
@@ -258,8 +261,8 @@
     flex-shrink: 0;
   }
   .branch-text {
-    font-family: var(--mono);
-    font-size: 9px;
+    font-family: var(--sans);
+    font-size: 9.5px;
     color: var(--ac);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -272,31 +275,41 @@
     flex-shrink: 0;
   }
   .meta {
-    font-family: var(--mono);
-    font-size: 9.5px;
+    font-family: var(--sans);
+    font-size: 10px;
     color: var(--t2);
     font-variant-numeric: tabular-nums;
   }
-  .ctx {
-    display: flex;
+  .tokens-meta {
+    display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 5px;
   }
-  .ctx-bar {
-    width: 32px;
-    height: 3px;
-    background: var(--bg3);
-    border-radius: 2px;
-    overflow: hidden;
+  .meta-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
   }
-  .ctx-fill {
-    height: 100%;
-    border-radius: var(--radius-sm);
-    transition: width 0.3s;
+  .meta-arrow-up {
+    color: var(--tool-fg);
+    font-size: 9px;
+  }
+  .meta-arrow-down {
+    color: var(--ac);
+    font-size: 9px;
+  }
+  .meta-sep {
+    color: var(--t3);
   }
   .ctx-pct {
-    font-family: var(--mono);
-    font-size: 9.5px;
+    font-family: var(--sans);
+    font-size: 10px;
+    color: var(--t2);
+    font-variant-numeric: tabular-nums;
+  }
+  .ctx-pct {
+    font-family: var(--sans);
+    font-size: 10px;
     color: var(--t2);
     font-variant-numeric: tabular-nums;
   }
@@ -307,21 +320,14 @@
     height: 18px;
     padding: 0 6px;
     border-radius: 3px;
-    font-family: var(--mono);
-    font-size: 9px;
+    font-family: var(--sans);
+    font-size: 9.5px;
     font-weight: 500;
     background: var(--bg3);
     color: var(--t2);
     border: 1px solid var(--bd);
     white-space: nowrap;
   }
-  .hdr-divider {
-    width: 1px;
-    height: 12px;
-    background: var(--bd);
-    flex-shrink: 0;
-  }
-
   /* approval banner CSS removed — TODO: re-enable when auto-deny error is fixed */
 
   .feed-wrap {
@@ -344,7 +350,9 @@
     color: var(--t3);
     cursor: pointer;
     flex-shrink: 0;
-    transition: background 0.1s, color 0.1s;
+    transition:
+      background 0.1s,
+      color 0.1s;
   }
 
   .action-btn:hover {

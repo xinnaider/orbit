@@ -113,7 +113,11 @@
     } catch {
       const sessionId = Number(data);
       if (Number.isFinite(sessionId)) {
-        return { tab: createTab({ kind: 'agent', sessionId }), sourcePaneId: null, sourceTabId: null };
+        return {
+          tab: createTab({ kind: 'agent', sessionId }),
+          sourcePaneId: null,
+          sourceTabId: null,
+        };
       }
     }
 
@@ -152,24 +156,34 @@
   {/if}
 
   <div class="pane-content">
-  {#if activeTab?.target.kind === 'git'}
-    <GitPanel cwd={activeTab.target.cwd} {paneId} focused={isFocused} onClose={() => closeTab(paneId, activeTab.id)} />
-  {:else if activeTab?.target.kind === 'terminal'}
-    <TerminalPanel
-      terminalId={activeTab.target.terminalId}
-      cwd={activeTab.target.cwd}
-      {paneId}
-      focused={isFocused}
-      onClose={() => closeTab(paneId, activeTab.id)}
-    />
-  {:else if activeTab?.target.kind === 'agent' && session}
-    <CentralPanel {session} {paneId} focused={isFocused} onClose={canClose ? () => closePane(paneId) : null} />
-  {:else}
-    <div class="empty-state">
-      <span class="icon">+</span>
-      <span class="hint">click a session in the sidebar</span>
-    </div>
-  {/if}
+    {#if activeTab?.target.kind === 'git'}
+      <GitPanel
+        cwd={activeTab.target.cwd}
+        {paneId}
+        focused={isFocused}
+        onClose={() => closeTab(paneId, activeTab.id)}
+      />
+    {:else if activeTab?.target.kind === 'terminal'}
+      <TerminalPanel
+        terminalId={activeTab.target.terminalId}
+        cwd={activeTab.target.cwd}
+        {paneId}
+        focused={isFocused}
+        onClose={() => closeTab(paneId, activeTab.id)}
+      />
+    {:else if activeTab?.target.kind === 'agent' && session}
+      <CentralPanel
+        {session}
+        {paneId}
+        focused={isFocused}
+        onClose={canClose ? () => closePane(paneId) : null}
+      />
+    {:else}
+      <div class="empty-state">
+        <span class="icon">+</span>
+        <span class="hint">click a session in the sidebar</span>
+      </div>
+    {/if}
   </div>
 
   <SplitDropZone visible={dragOver} on:drop={handleSplitDrop} />

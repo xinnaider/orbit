@@ -34,10 +34,7 @@ export function tagKey(file: { path: string; group: string }): string {
   return `${file.group}:${file.path}`;
 }
 
-export function loadGitTags(
-  repoPath: string,
-  files: GitFileChange[],
-): Record<string, string[]> {
+export function loadGitTags(repoPath: string, files: GitFileChange[]): Record<string, string[]> {
   const raw = localStorage.getItem(storageKey(repoPath));
   if (!raw) return {};
 
@@ -70,7 +67,9 @@ export function loadGitTags(
       changed = true;
       continue;
     }
-    const filtered = tags.filter((t): t is string => typeof t === 'string' && validTagValues.has(t));
+    const filtered = tags.filter(
+      (t): t is string => typeof t === 'string' && validTagValues.has(t)
+    );
     if (filtered.length === 0) {
       changed = true;
       continue;
@@ -94,7 +93,7 @@ export function saveGitTags(repoPath: string, tags: Record<string, string[]>): v
 export function applyTagToFiles(
   tags: Record<string, string[]>,
   files: GitFileChange[],
-  tag: string,
+  tag: string
 ): Record<string, string[]> {
   const next: Record<string, string[]> = { ...tags };
 
@@ -117,7 +116,7 @@ export function applyTagToFiles(
 export function removeTagFromFiles(
   tags: Record<string, string[]>,
   files: GitFileChange[],
-  tag: string,
+  tag: string
 ): Record<string, string[]> {
   const next: Record<string, string[]> = { ...tags };
 
@@ -138,7 +137,7 @@ export function removeTagFromFiles(
 
 export function tagsByFileId(
   files: GitFileChange[],
-  tags: Record<string, string[]>,
+  tags: Record<string, string[]>
 ): Record<string, string[]> {
   const result: Record<string, string[]> = {};
 

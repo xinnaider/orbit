@@ -719,10 +719,42 @@ export async function mockInvoke(cmd: string, args?: Record<string, unknown>): P
           },
         ],
         branches: [
-          { name: 'feat/improve-feed-ui', fullName: 'refs/heads/feat/improve-feed-ui', kind: 'local', current: true, upstream: 'origin/feat/improve-feed-ui', ahead: 3, behind: 0 },
-          { name: 'master', fullName: 'refs/heads/master', kind: 'local', current: false, upstream: 'origin/master', ahead: 0, behind: 1 },
-          { name: 'origin/feat/improve-feed-ui', fullName: 'refs/remotes/origin/feat/improve-feed-ui', kind: 'remote', current: false, upstream: null, ahead: 0, behind: 0 },
-          { name: 'origin/master', fullName: 'refs/remotes/origin/master', kind: 'remote', current: false, upstream: null, ahead: 0, behind: 0 },
+          {
+            name: 'feat/improve-feed-ui',
+            fullName: 'refs/heads/feat/improve-feed-ui',
+            kind: 'local',
+            current: true,
+            upstream: 'origin/feat/improve-feed-ui',
+            ahead: 3,
+            behind: 0,
+          },
+          {
+            name: 'master',
+            fullName: 'refs/heads/master',
+            kind: 'local',
+            current: false,
+            upstream: 'origin/master',
+            ahead: 0,
+            behind: 1,
+          },
+          {
+            name: 'origin/feat/improve-feed-ui',
+            fullName: 'refs/remotes/origin/feat/improve-feed-ui',
+            kind: 'remote',
+            current: false,
+            upstream: null,
+            ahead: 0,
+            behind: 0,
+          },
+          {
+            name: 'origin/master',
+            fullName: 'refs/remotes/origin/master',
+            kind: 'remote',
+            current: false,
+            upstream: null,
+            ahead: 0,
+            behind: 0,
+          },
         ],
       };
     }
@@ -741,7 +773,8 @@ export async function mockInvoke(cmd: string, args?: Record<string, unknown>): P
         modified = `import type { GitFileChange } from './tauri/git';\n\nexport const FIXED_GIT_TAGS = ['ready', 'needs review', 'docs', 'risky', 'generated'] as const;\nexport type FixedGitTag = (typeof FIXED_GIT_TAGS)[number];\n\nexport function tagKey(file: { path: string; group: string }): string {\n  return \`\${file.group}:\${file.path}\`;\n}\n\nexport function loadGitTags(repoPath: string): Record<string, string[]> {\n  try {\n    const raw = localStorage.getItem(\`orbit:git-file-tags:\${repoPath}\`);\n    return raw ? JSON.parse(raw) : {};\n  } catch { return {}; }\n}\n`;
       } else {
         original = '{\n  "name": "orbit",\n  "version": "1.0.0",\n  "private": true\n}\n';
-        modified = '{\n  "name": "orbit",\n  "version": "1.0.0",\n  "private": true,\n  "dependencies": {\n    "monaco-editor": "^0.55.0"\n  }\n}\n';
+        modified =
+          '{\n  "name": "orbit",\n  "version": "1.0.0",\n  "private": true,\n  "dependencies": {\n    "monaco-editor": "^0.55.0"\n  }\n}\n';
       }
 
       const langMap: Record<string, string> = {

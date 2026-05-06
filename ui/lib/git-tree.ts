@@ -57,8 +57,7 @@ function buildFolderTree(group: GitChangeGroup, files: GitFileChange[]): GitTree
     for (const part of parts.slice(0, -1)) {
       const nextPath = current.path ? `${current.path}/${part}` : part;
       let folder = current.children.find(
-        (child): child is GitTreeFolderNode =>
-          child.kind === 'folder' && child.path === nextPath,
+        (child): child is GitTreeFolderNode => child.kind === 'folder' && child.path === nextPath
       );
       if (!folder) {
         folder = {
@@ -116,7 +115,7 @@ export function buildFlatTree(files: GitFileChange[]): GitTreeNode[] {
 export function filterGitFiles(
   files: GitFileChange[],
   query: string,
-  tagsByFile: Record<string, string[]>,
+  tagsByFile: Record<string, string[]>
 ): GitFileChange[] {
   if (!query.trim()) return files;
 

@@ -131,7 +131,15 @@
     });
 
     const u2 = onSessionOutput(({ sessionId, entry }) => {
-      journal.update((map) => new Map(map).set(sessionId, [...(map.get(sessionId) ?? []), entry]));
+      journal.update((map) => {
+        const existing = map.get(sessionId) ?? [];
+        // Dedup: same timestamp+entryType means backend already has this
+        const dup = existing.some(
+          (e) => e.timestamp === entry.timestamp && e.entryType === entry.entryType
+        );
+        if (dup) return map;
+        return new Map(map).set(sessionId, [...existing, entry]);
+      });
     });
 
     const u3 = onSessionState((p) => {

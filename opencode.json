@@ -1,4 +1,15 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["superpowers@git+https://github.com/obra/superpowers.git"]
+  "mcp": {
+    "orbit": {
+      "command": [
+        "C:\\Users\\fernandonepen\\Documents\\orbit\\tauri\\target\\debug\\orbit-mcp.exe"
+      ],
+      "enabled": true,
+      "type": "local"
+    }
+  },
+  "plugin": [
+    "superpowers@git+https://github.com/obra/superpowers.git"
+  ]
 }

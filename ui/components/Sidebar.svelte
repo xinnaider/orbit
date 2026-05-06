@@ -368,6 +368,7 @@
     flex-direction: column;
     border-right: 1px solid var(--bd);
     background: var(--bg1);
+    font-family: var(--mono);
   }
 
   .header {

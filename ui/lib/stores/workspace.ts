@@ -154,7 +154,8 @@ export function moveTab(fromPaneId: string, toPaneId: string, tabId: string): vo
     const [tab] = fromPane.tabs.splice(index, 1);
 
     if (fromPane.activeTabId === tabId) {
-      fromPane.activeTabId = fromPane.tabs[Math.max(0, index - 1)]?.id ?? fromPane.tabs[0]?.id ?? null;
+      fromPane.activeTabId =
+        fromPane.tabs[Math.max(0, index - 1)]?.id ?? fromPane.tabs[0]?.id ?? null;
     }
 
     // Dedup: if the same target already exists in destination, focus it instead
@@ -201,7 +202,7 @@ export function splitPane(
     const tabTarget =
       typeof sessionIdOrTab === 'number'
         ? ({ kind: 'agent', sessionId: sessionIdOrTab } as const)
-        : sessionIdOrTab?.target ?? null;
+        : (sessionIdOrTab?.target ?? null);
 
     if (tabTarget) {
       const existing = findTabByTarget(ws, tabTarget);
@@ -264,9 +265,7 @@ export function splitPaneMoveTab(
     const [tab] = sourcePane.tabs.splice(tabIndex, 1);
     if (sourcePane.activeTabId === sourceTabId) {
       sourcePane.activeTabId =
-        sourcePane.tabs[Math.max(0, tabIndex - 1)]?.id ??
-        sourcePane.tabs[0]?.id ??
-        null;
+        sourcePane.tabs[Math.max(0, tabIndex - 1)]?.id ?? sourcePane.tabs[0]?.id ?? null;
     }
 
     // Dedup: if target is already open elsewhere (not source), focus it instead

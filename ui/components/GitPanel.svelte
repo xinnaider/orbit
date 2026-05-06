@@ -155,7 +155,8 @@
 
   function tagSelected(tag: FixedGitTag) {
     const selectedFiles = files.filter((file) => selectedIds.has(file.id));
-    const targetFiles = selectedFiles.length > 0 ? selectedFiles : selectedFile ? [selectedFile] : [];
+    const targetFiles =
+      selectedFiles.length > 0 ? selectedFiles : selectedFile ? [selectedFile] : [];
     if (targetFiles.length === 0) return;
 
     // Toggle: if ALL target files already have this tag, remove it instead
@@ -231,12 +232,18 @@
     <div class="git-body" class:tree-hidden={treeCollapsed}>
       <aside class="tree-pane" class:hidden={treeCollapsed}>
         <div class="tree-tools">
-          <input bind:value={query} placeholder="Search files or tags..." aria-label="Search Git files or tags" />
+          <input
+            bind:value={query}
+            placeholder="Search files or tags..."
+            aria-label="Search Git files or tags"
+          />
           <div class="tag-actions">
             <Tag size={12} />
             {#each FIXED_GIT_TAGS as tag}
               {@const color = TAG_COLORS[tag] ?? '#666'}
-              <button type="button" style="--tag-color:{color}" on:click={() => tagSelected(tag)}>{tag}</button>
+              <button type="button" style="--tag-color:{color}" on:click={() => tagSelected(tag)}
+                >{tag}</button
+              >
             {/each}
           </div>
         </div>
@@ -273,7 +280,7 @@
           {#if selectedFile}
             <span class="pill">{selectedFile.group}</span>
           {/if}
-          {#each selectedFile ? tags[tagKey(selectedFile)] ?? [] : [] as tag}
+          {#each selectedFile ? (tags[tagKey(selectedFile)] ?? []) : [] as tag}
             {@const color = TAG_COLORS[tag] ?? '#666'}
             <span class="tag-pill" style="--tag-color:{color}">{tag}</span>
           {/each}
@@ -283,7 +290,9 @@
                 type="button"
                 class="hdr-action"
                 class:active={autoSave}
-                title={autoSave ? 'Auto-save is on' : 'Enable auto-save (saves 1.5s after last change)'}
+                title={autoSave
+                  ? 'Auto-save is on'
+                  : 'Enable auto-save (saves 1.5s after last change)'}
                 on:click={() => (autoSave = !autoSave)}
               >
                 {#if autoSave}
@@ -399,7 +408,6 @@
     font-variant-numeric: tabular-nums;
   }
 
-
   .tree-empty {
     padding: 16px 10px;
     color: var(--t3);
@@ -418,7 +426,9 @@
     background: transparent;
     color: var(--t3);
     cursor: pointer;
-    transition: background 0.1s, color 0.1s;
+    transition:
+      background 0.1s,
+      color 0.1s;
   }
   .hdr-action:hover {
     background: var(--bg3);
@@ -537,7 +547,9 @@
     font-family: var(--mono);
     font-size: 9px;
     border-radius: 3px;
-    transition: color 0.1s, background 0.1s;
+    transition:
+      color 0.1s,
+      background 0.1s;
   }
   .selection-bar button:hover {
     color: var(--t1);
@@ -553,8 +565,6 @@
     font-family: var(--mono);
     font-size: 10px;
   }
-
-
 
   .diff-pane {
     display: flex;
@@ -639,5 +649,4 @@
     color: var(--s-input);
     font-weight: 500;
   }
-
 </style>

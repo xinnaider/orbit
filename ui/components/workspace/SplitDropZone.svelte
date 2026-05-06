@@ -83,7 +83,7 @@
   /* ── Edge: split preview ── */
   .preview {
     position: absolute;
-    background: rgba(0, 212, 126, 0.10);
+    background: rgba(0, 212, 126, 0.1);
     border: 2px solid var(--ac);
     border-radius: 4px;
     pointer-events: none;

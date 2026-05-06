@@ -209,7 +209,10 @@
   <PanelHeader
     title="Terminal"
     status={cwd}
-    dragPayload={JSON.stringify({ sourcePaneId: paneId, target: { kind: 'terminal', terminalId, cwd } })}
+    dragPayload={JSON.stringify({
+      sourcePaneId: paneId,
+      target: { kind: 'terminal', terminalId, cwd },
+    })}
     {onClose}
     {focused}
   />
@@ -318,5 +321,4 @@
     background: var(--bg4);
     border-color: color-mix(in srgb, var(--ac), transparent 60%);
   }
-
 </style>

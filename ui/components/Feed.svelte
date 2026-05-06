@@ -4,6 +4,7 @@
   import Markdown from './Markdown.svelte';
   import ToolCallEntry from './ToolCallEntry.svelte';
   import { backends } from '../lib/stores/providers';
+  import { Bot, MessageSquare, Sparkles } from 'lucide-svelte';
 
   export let entries: JournalEntry[] = [];
   export let status: string = '';
@@ -214,10 +215,10 @@
   }
 </script>
 
-<div class="feed-scroller" bind:this={scrollerEl} on:scroll={onScroll}>
+<div class="feed-scroller" bind:this={scrollerEl} onscroll={onScroll}>
   {#if hasMore}
     <div class="load-more">
-      <button on:click={loadMore}>↑ load earlier messages</button>
+      <button onclick={loadMore}>↑ load earlier messages</button>
     </div>
   {/if}
 
@@ -226,7 +227,7 @@
     {#if e.entryType === 'user'}
       <div class="row user">
         <div class="row-meta">
-          <span class="row-who user-who">you</span>
+          <span class="row-who user-who"><MessageSquare size={10} /> YOU</span>
           <span class="row-ts">{ts(e)}</span>
         </div>
         <div class="row-body">
@@ -235,28 +236,43 @@
       </div>
     {:else if e.entryType === 'thinking'}
       {@const expanded = expandedThinking.has(absIdx)}
-      <div class="row thinking">
-        <div class="row-meta">
-          <span class="row-who think-who">···</span>
+      <div class="row thinking" class:expanded>
+        <div class="row-meta think-meta">
+          <!-- svelte-ignore a11y_click_events_have_key_events -->
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <span
+            class="think-dots-label"
+            onclick={() => toggleThinking(absIdx)}
+            role="button"
+            tabindex="0"
+            onkeydown={(e) => e.key === 'Enter' && toggleThinking(absIdx)}
+          >
+            <span class="think-dots">
+              <span></span><span></span><span></span>
+            </span>
+            <span class="think-preview-text">
+              {#if expanded}
+                {(e.thinking ?? '').split('\n')[0].slice(0, 60)}
+              {:else}
+                {(e.thinking ?? '').split('\n')[0].slice(0, 80)}…
+              {/if}
+            </span>
+          </span>
           {#if e.thinkingDuration}
             <span class="row-ts">{e.thinkingDuration.toFixed(1)}s</span>
           {/if}
-          <button class="expand-btn" on:click={() => toggleThinking(absIdx)}>
-            {expanded ? '▼ collapse' : '▶ expand'}
+          <button class="expand-btn" onclick={() => toggleThinking(absIdx)}>
+            {expanded ? '▼' : '▶'}
           </button>
         </div>
         {#if expanded}
           <div class="row-body think-body">{e.thinking}</div>
-        {:else}
-          <div class="row-body think-preview">
-            {(e.thinking ?? '').split('\n')[0].slice(0, 100)}…
-          </div>
         {/if}
       </div>
     {:else if e.entryType === 'assistant'}
       <div class="row assistant">
         <div class="row-meta">
-          <span class="row-who ai-who">{agentLabel}</span>
+          <span class="row-who ai-who"><Sparkles size={10} /> {agentLabel}</span>
           <span class="row-ts">{ts(e)}</span>
         </div>
         <div class="row-body">
@@ -265,6 +281,10 @@
       </div>
     {:else if e.entryType === 'toolCall'}
       <div class="row tool">
+        <div class="row-meta tool-meta">
+          <span class="row-who tool-who"><Sparkles size={10} /> {agentLabel}</span>
+          <span class="row-ts">{ts(e)}</span>
+        </div>
         <ToolCallEntry entry={e} resultEntry={r} streamingEntries={s} {cwd} />
       </div>
     {:else if e.entryType === 'system'}
@@ -291,7 +311,6 @@
     overflow-x: hidden;
     display: flex;
     flex-direction: column;
-    padding: var(--sp-5) 0;
     box-sizing: border-box;
   }
 
@@ -319,7 +338,11 @@
 
   .row {
     padding: var(--sp-6) var(--sp-7);
+    border-bottom: 1px solid var(--bd);
     flex-shrink: 0;
+  }
+  .row:last-child {
+    border-bottom: none;
   }
   .row:hover {
     background: rgba(255, 255, 255, 0.015);
@@ -332,19 +355,38 @@
     margin-bottom: var(--sp-2);
   }
   .row-who {
-    font-size: var(--xs);
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: lowercase;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-weight: 500;
+    text-transform: uppercase;
+    color: var(--t2);
+    letter-spacing: 0.04em;
+    font-size: 10.5px;
+    font-family: var(--mono);
   }
   .user-who {
     color: var(--user-fg);
   }
-  .ai-who {
-    color: var(--ac);
+  .tool-who {
+    color: var(--t2);
+    opacity: 0.65;
   }
-  .think-who {
-    color: var(--think-fg);
+  .tool-meta {
+    margin-bottom: var(--sp-1);
+  }
+  .ai-who {
+    color: var(--t1);
+  }
+  .user-who {
+    color: var(--user-fg);
+  }
+  .tool-who {
+    color: var(--t2);
+    opacity: 0.55;
+  }
+  .tool-meta {
+    margin-bottom: var(--sp-1);
   }
   .row-ts {
     font-size: var(--xs);
@@ -355,9 +397,87 @@
     background: none;
     border: none;
     color: var(--t2);
-    font-size: var(--xs);
+    font-size: 10px;
     cursor: pointer;
+    font-family: var(--sans);
     padding: 0;
+    line-height: 1;
+    letter-spacing: 0.05em;
+  }
+  .expand-btn:hover {
+    color: var(--t1);
+  }
+
+  /* ── Thinking block ── */
+  .row.thinking {
+    background: var(--think-bg);
+    padding: var(--sp-3) var(--sp-6);
+  }
+  .think-meta {
+    gap: 6px;
+    display: flex;
+    align-items: center;
+  }
+  .think-dots-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    color: var(--tool-fg);
+    flex: 1;
+    min-width: 0;
+  }
+  .think-dots {
+    display: inline-flex;
+    gap: 3px;
+    align-items: center;
+  }
+  .think-dots span {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--tool-fg);
+    opacity: 0.4;
+    animation: thinkDot 1.4s ease-in-out infinite;
+  }
+  .think-dots span:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+  .think-dots span:nth-child(3) {
+    animation-delay: 0.4s;
+  }
+  @keyframes thinkDot {
+    0%,
+    80%,
+    100% {
+      opacity: 0.4;
+      transform: translateY(0);
+    }
+    40% {
+      opacity: 1;
+      transform: translateY(-3px);
+    }
+  }
+  .think-preview-text {
+    font-size: var(--sm);
+    color: var(--tool-fg);
+    opacity: 0.6;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: var(--sans);
+  }
+  .row.thinking.expanded .think-preview-text {
+    opacity: 1;
+    font-family: var(--mono);
+    color: var(--think-fg);
+  }
+  .think-body {
+    font-size: var(--md);
+    color: var(--think-fg);
+    white-space: pre-wrap;
+    line-height: 1.55;
+    padding-top: var(--sp-3);
   }
   .expand-btn:hover {
     color: var(--t0);
@@ -385,15 +505,6 @@
     border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
     max-height: 280px;
     overflow-y: auto;
-  }
-  .think-preview {
-    color: var(--think-fg);
-    font-style: italic;
-    font-size: var(--sm);
-    opacity: 0.7;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
 
   .system {
@@ -451,7 +562,7 @@
 
   @media (max-width: 768px) {
     .row {
-      padding: var(--sp-4) var(--sp-5);
+      padding: var(--sp-5) var(--sp-6);
     }
     .system {
       padding: var(--sp-2) var(--sp-5);
