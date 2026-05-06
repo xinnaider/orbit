@@ -1,15 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import {
-    ChevronDown,
-    ChevronRight,
     FileDiff,
     GitBranch,
     PanelLeftClose,
     PanelLeftOpen,
     Pencil,
     RefreshCw,
-    Save,
     Tag,
     Timer,
     TimerOff,
@@ -25,7 +22,7 @@
     type GitFileChange,
     type GitOverview,
   } from '../lib/tauri/git';
-  import { buildGitTree, filterGitFiles } from '../lib/git-tree';
+  import { buildFlatTree, filterGitFiles } from '../lib/git-tree';
   import {
     applyTagToFiles,
     removeTagFromFiles,
@@ -65,8 +62,9 @@
   $: files = overview?.files ?? [];
   $: fileTags = tagsByFileId(files, tags);
   $: filteredFiles = filterGitFiles(files, query, fileTags);
-  $: tree = buildGitTree(filteredFiles);
-  $: stagedCount = files.filter((file) => file.group === 'staged').length;
+  $: tree = buildFlatTree(filteredFiles);
+  $: totalChanged = files.length;
+  $: activeDiffLoaded = !!selectedFile && !!diff && diff.id === selectedFile.id;
 
   async function refresh() {
     loading = true;
@@ -86,24 +84,29 @@
   }
 
   function expandInitialGroups(nextFiles: GitFileChange[]) {
+    // Expand all top-level folders
+    const paths = new Set(nextFiles.map((f) => f.path.split('/').slice(0, -1).join('/')));
     const ids = new Set<string>();
-    for (const file of nextFiles) {
-      ids.add(file.group);
+    for (const p of paths) {
+      if (p) ids.add(`all:${p}`);
     }
     expanded = ids;
   }
 
   async function loadDiff(file: GitFileChange) {
     selectedFile = file;
+    editMode = false;
     diffLoading = true;
     diffError = '';
     try {
-      diff = await gitDiffFile(cwd, file);
+      const result = await gitDiffFile(cwd, file);
+      if (selectedFile?.id === file.id) diff = result;
     } catch (e) {
-      diffError = e instanceof Error ? e.message : String(e);
-      diff = null;
+      if (selectedFile?.id === file.id) {
+        diffError = e instanceof Error ? e.message : String(e);
+      }
     } finally {
-      diffLoading = false;
+      if (selectedFile?.id === file.id) diffLoading = false;
     }
   }
 
@@ -204,10 +207,7 @@
       <GitBranch size={12} />
     </div>
     <div slot="meta" class="git-header-right">
-      <span class="hdr-stat">{files.length} files changed</span>
-      <div class="hdr-divider"></div>
-      <span class="hdr-stat add">+{files.filter(f => f.group === 'staged' || f.path.endsWith('.ts')).length}</span>
-      <span class="hdr-stat del">-{files.filter(f => f.group === 'unstaged' && !f.path.endsWith('.ts')).length}</span>
+      <span class="hdr-stat">{totalChanged} file{totalChanged !== 1 ? 's' : ''}</span>
     </div>
     <div slot="actions">
       <button type="button" class="hdr-action" aria-label="Toggle file tree" on:click={toggleTree}>
@@ -247,38 +247,22 @@
         </div>
 
         <div class="tree" aria-label="Changed files">
-          {#each tree as group (group.group)}
-          <div
-            class="group-row"
-            role="button"
-            tabindex="0"
-            on:click={() => toggleExpanded(group.group)}
-            on:keydown={(e) => e.key === 'Enter' && toggleExpanded(group.group)}
-          >
-              {#if expanded.has(group.group)}
-                <ChevronDown size={13} />
-              {:else}
-                <ChevronRight size={13} />
-              {/if}
-              <span>{group.label}</span>
-              <span class="count">{group.count}</span>
-            </div>
-            {#if expanded.has(group.group)}
-              {#each group.children as node (node.id)}
-                <TreeNode
-                  {node}
-                  depth={1}
-                  {expanded}
-                  {selectedIds}
-                  {selectedFile}
-                  {fileTags}
-                  onToggleExpanded={toggleExpanded}
-                  onToggleSelected={toggleSelected}
-                  onSelectFile={loadDiff}
-                />
-              {/each}
-            {/if}
+          {#each tree as node (node.id)}
+            <TreeNode
+              {node}
+              depth={0}
+              {expanded}
+              {selectedIds}
+              {selectedFile}
+              {fileTags}
+              onToggleExpanded={toggleExpanded}
+              onToggleSelected={toggleSelected}
+              onSelectFile={loadDiff}
+            />
           {/each}
+          {#if tree.length === 0}
+            <div class="tree-empty">No changes</div>
+          {/if}
         </div>
       </aside>
 
@@ -293,7 +277,7 @@
             {@const color = TAG_COLORS[tag] ?? '#666'}
             <span class="tag-pill" style="--tag-color:{color}">{tag}</span>
           {/each}
-          {#if selectedFile && diff && !diff.binary}
+          {#if selectedFile && activeDiffLoaded && diff && !diff.binary}
             <div class="diff-header-actions">
               <button
                 type="button"
@@ -329,25 +313,36 @@
           {/if}
         </div>
         <div class="diff-body">
-          {#if diffLoading}
-            <div class="state">Loading diff...</div>
-          {:else if diffError}
+          {#if !diff && !diffLoading}
+            <div class="state">Select a file to view its diff.</div>
+          {:else if diffError && !diffLoading}
             <div class="state error">{diffError}</div>
           {:else if diff?.binary}
-            <div class="state">Binary diff is not available.</div>
-          {:else if diff}
-            <MonacoDiffViewer
-              bind:this={diffViewer}
-              original={diff.original}
-              modified={diff.modified}
-              language={diff.language}
-              editable={editMode}
-              {autoSave}
-              on:save={handleSave}
-              on:dirty={handleDirty}
-            />
+            <div class="state">
+              {activeDiffLoaded ? 'Binary diff is not available.' : 'Loading diff...'}
+            </div>
           {:else}
-            <div class="state">Select a file to view its diff.</div>
+            {#key diff?.id}
+              {#if diff}
+                <MonacoDiffViewer
+                  bind:this={diffViewer}
+                  original={diff.original}
+                  modified={diff.modified}
+                  language={diff.language}
+                  editable={editMode}
+                  {autoSave}
+                  on:save={handleSave}
+                  on:dirty={handleDirty}
+                />
+              {:else}
+                <div class="state">Select a file to view its diff.</div>
+              {/if}
+            {/key}
+          {/if}
+          {#if diffLoading}
+            <div class="diff-loading-overlay">
+              <span>Loading diff...</span>
+            </div>
           {/if}
         </div>
       </main>
@@ -403,14 +398,13 @@
     color: var(--t2);
     font-variant-numeric: tabular-nums;
   }
-  .hdr-stat.add { color: var(--ac); }
-  .hdr-stat.del { color: var(--s-error); }
 
-  .hdr-divider {
-    width: 1px;
-    height: 12px;
-    background: var(--bd);
-    flex-shrink: 0;
+
+  .tree-empty {
+    padding: 16px 10px;
+    color: var(--t3);
+    font-size: var(--xs);
+    text-align: center;
   }
 
   .hdr-action {
@@ -560,32 +554,7 @@
     font-size: 10px;
   }
 
-  .group-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    height: 22px;
-    padding: 0 10px;
-    color: var(--t1);
-    cursor: pointer;
-    font-family: var(--mono);
-    font-size: 8.5px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
-    color: var(--t3);
-  }
 
-  .group-row:hover {
-    color: var(--t2);
-  }
-
-  .count {
-    margin-left: auto;
-    font-family: var(--mono);
-    font-size: 9px;
-    font-variant-numeric: tabular-nums;
-  }
 
   .diff-pane {
     display: flex;
@@ -595,8 +564,10 @@
   }
 
   .diff-body {
+    position: relative;
     flex: 1;
     min-height: 0;
+    overflow: hidden;
   }
 
   .state {
@@ -628,6 +599,28 @@
     align-items: center;
     gap: 4px;
     margin-left: auto;
+  }
+
+  .diff-loading-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    padding: 10px;
+    pointer-events: none;
+    background: color-mix(in srgb, var(--bg), transparent 82%);
+  }
+
+  .diff-loading-overlay span {
+    border: 1px solid var(--bd);
+    border-radius: var(--radius-sm);
+    background: var(--bg2);
+    color: var(--t2);
+    padding: 4px 7px;
+    font-family: var(--mono);
+    font-size: 9px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
   }
 
   .edit-toggle.active {

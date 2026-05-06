@@ -1,5 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher, onDestroy, onMount } from 'svelte';
+  import * as monaco from 'monaco-editor';
+  import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
 
   export let original: string;
   export let modified: string;
@@ -13,25 +15,47 @@
   }>();
 
   let host: HTMLDivElement;
-  let editor: import('monaco-editor').editor.IStandaloneDiffEditor | null = null;
-  let monaco: typeof import('monaco-editor') | null = null;
+  let editor: monaco.editor.IStandaloneDiffEditor | null = null;
+  let editorReady = false;
   let _dirty = false;
-  let _contentListener: (() => void) | null = null;
+  let _contentListener: monaco.IDisposable | null = null;
   let _autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
+  let _initFrame: ReturnType<typeof requestAnimationFrame> | null = null;
 
-  function setModel() {
-    if (!editor || !monaco) return;
-    cancelAutoSave();
-    if (_contentListener) _contentListener();
-    _contentListener = null;
+  function ensureMonacoWorkers() {
+    const globalScope = self as unknown as {
+      MonacoEnvironment?: {
+        getWorker(_moduleId: string, _label: string): Worker;
+      };
+    };
 
-    const current = editor.getModel();
+    globalScope.MonacoEnvironment ??= {
+      getWorker: () => new EditorWorker(),
+    };
+  }
+
+  function disposeCurrentModels() {
+    const current = editor?.getModel();
     current?.original.dispose();
     current?.modified.dispose();
+  }
+
+  function setModel() {
+    if (!editor) return;
+    cancelAutoSave();
+    _contentListener?.dispose();
+    _contentListener = null;
+    _prevOriginal = original;
+    _prevModified = modified;
+
+    const previous = editor.getModel();
     editor.setModel({
       original: monaco.editor.createModel(original, language),
       modified: monaco.editor.createModel(modified, language),
     });
+    previous?.original.dispose();
+    previous?.modified.dispose();
+
     _dirty = false;
     dispatch('dirty', { dirty: false });
 
@@ -48,7 +72,7 @@
       if (autoSave && editable && isDirty) {
         scheduleAutoSave();
       }
-    }).dispose;
+    });
   }
 
   function scheduleAutoSave() {
@@ -69,7 +93,7 @@
   }
 
   function setupKeybinding() {
-    if (!editor || !monaco) return;
+    if (!editor) return;
     const mod = editor.getModifiedEditor();
     mod.addAction({
       id: 'orbit-save-file',
@@ -86,38 +110,52 @@
     });
   }
 
-  /** Public: mark as saved (clear dirty indicator + cancel pending auto-save). */
   export function markSaved() {
     cancelAutoSave();
     _dirty = false;
     dispatch('dirty', { dirty: false });
   }
 
-  onMount(async () => {
-    monaco = await import('monaco-editor');
-    monaco.editor.setTheme('vs-dark');
-    editor = monaco.editor.createDiffEditor(host, {
-      automaticLayout: true,
-      readOnly: !editable,
-      minimap: { enabled: false },
-      scrollBeyondLastLine: false,
+  onMount(() => {
+    ensureMonacoWorkers();
+
+    _initFrame = requestAnimationFrame(() => {
+      _initFrame = null;
+      if (!host) return;
+
+      monaco.editor.setTheme('vs-dark');
+      editor = monaco.editor.createDiffEditor(host, {
+        automaticLayout: true,
+        readOnly: !editable,
+        minimap: { enabled: false },
+        scrollBeyondLastLine: false,
+        renderSideBySide: false,
+        compactMode: true,
+        hideUnchangedRegions: {
+          enabled: true,
+          contextLineCount: 3,
+          minimumLineCount: 8,
+          revealLineCount: 20,
+        },
+        renderOverviewRuler: false,
+        renderIndicators: true,
+        diffWordWrap: 'on',
+      });
+      setModel();
+      setupKeybinding();
+      editorReady = true;
     });
-    setModel();
-    setupKeybinding();
   });
 
-  // Recreate models only when content actually changes
   let _prevOriginal: string | undefined;
   let _prevModified: string | undefined;
-  $: if (editor && monaco && (original !== _prevOriginal || modified !== _prevModified)) {
+  $: if (editor && (original !== _prevOriginal || modified !== _prevModified)) {
     _prevOriginal = original;
     _prevModified = modified;
-    cancelAutoSave();
     setModel();
   }
 
-  // Toggle readOnly on editable change — do NOT recreate models
-  $: if (editor && monaco) {
+  $: if (editor) {
     editor.updateOptions({ readOnly: !editable });
     if (!editable && _dirty) {
       cancelAutoSave();
@@ -126,8 +164,7 @@
     }
   }
 
-  // Focus the modified editor when edit mode is enabled
-  $: if (editor && monaco && editable) {
+  $: if (editor && editable) {
     requestAnimationFrame(() => {
       editor?.getModifiedEditor()?.focus();
     });
@@ -138,21 +175,47 @@
   }
 
   onDestroy(() => {
+    if (_initFrame !== null) {
+      cancelAnimationFrame(_initFrame);
+      _initFrame = null;
+    }
     cancelAutoSave();
-    if (_contentListener) _contentListener();
-    const current = editor?.getModel();
-    current?.original.dispose();
-    current?.modified.dispose();
+    _contentListener?.dispose();
+    _contentListener = null;
+    disposeCurrentModels();
     editor?.dispose();
+    editor = null;
   });
 </script>
 
-<div class="monaco-diff-host" bind:this={host}></div>
+<div class="monaco-diff-shell">
+  <div class="monaco-diff-host" bind:this={host}></div>
+  {#if !editorReady}
+    <div class="monaco-diff-loading">Loading diff editor...</div>
+  {/if}
+</div>
 
 <style>
+  .monaco-diff-shell {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+  }
+
   .monaco-diff-host {
     width: 100%;
     height: 100%;
     min-height: 0;
+  }
+
+  .monaco-diff-loading {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: var(--muted, #9ca3af);
+    background: var(--bg, #0f1115);
+    font-size: 12px;
   }
 </style>

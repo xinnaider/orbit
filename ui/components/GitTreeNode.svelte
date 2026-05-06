@@ -86,9 +86,9 @@
     <FileText size={14} />
     <span class="node-name">{node.name}</span>
     {#if fileTags[node.change.id]?.length}
-      <span class="tag-dots" title={fileTags[node.change.id].join(', ')}>
+      <span class="tag-labels">
         {#each fileTags[node.change.id] as t}
-          <span class="tag-dot" style="background:{TAG_COLORS[t] ?? '#666'}"></span>
+          <span class="tag-label" style="--tag-color:{TAG_COLORS[t] ?? '#666'}">{t}</span>
         {/each}
       </span>
     {/if}
@@ -117,7 +117,6 @@
 
   .file-row.selected {
     background: rgba(0, 212, 126, 0.06);
-    color: #d9f7e8;
   }
 
   .expand-btn,
@@ -156,17 +155,23 @@
     padding-right: 4px;
   }
 
-  .tag-dots {
+  .tag-labels {
     display: flex;
     align-items: center;
     gap: 3px;
+    flex-shrink: 0;
     margin-left: auto;
-    flex-shrink: 0;
+    padding-right: 2px;
   }
-  .tag-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    flex-shrink: 0;
+  .tag-label {
+    display: inline-block;
+    padding: 0 4px;
+    border-radius: 3px;
+    background: color-mix(in srgb, var(--tag-color, #666), transparent 82%);
+    color: var(--tag-color, #666);
+    font-size: 7.5px;
+    font-weight: 500;
+    line-height: 1.7;
+    border: 1px solid color-mix(in srgb, var(--tag-color, #666), transparent 75%);
   }
 </style>

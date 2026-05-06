@@ -250,7 +250,11 @@
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'F12' && HAS_TAURI) {
       import('@tauri-apps/api/webviewWindow').then(({ getCurrentWebviewWindow }) => {
-        (getCurrentWebviewWindow() as unknown as { openDevtools(): void }).openDevtools();
+        const currentWindow = getCurrentWebviewWindow() as unknown as {
+          openDevtools?: () => void;
+        };
+
+        currentWindow.openDevtools?.();
       });
     }
   }

@@ -105,6 +105,14 @@ export function buildGitTree(files: GitFileChange[]): GitTreeGroup[] {
   return result;
 }
 
+/**
+ * Build a flat tree from all files regardless of group.
+ * No staged/unstaged/untracked separation — like VS Code's Source Control tree.
+ */
+export function buildFlatTree(files: GitFileChange[]): GitTreeNode[] {
+  return buildFolderTree('all' as GitChangeGroup, files);
+}
+
 export function filterGitFiles(
   files: GitFileChange[],
   query: string,
