@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Orbit — Compact Stack Mock</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg: #080808;
+    --bg1: #0d0d0d;
+    --bg2: #121212;
+    --bg3: #181818;
+    --bg4: #1e1e1e;
+    --bd: #1a1a1a;
+    --bd1: #242424;
+    --bd2: #2e2e2e;
+    --t0: #e0e0e0;
+    --t1: #888;
+    --t2: #666;
+    --t3: #444;
+    --ac: #00d47e;
+    --ac-d: rgba(0, 212, 126, 0.1);
+    --ac-d2: rgba(0, 212, 126, 0.05);
+    --ac-border: rgba(0, 212, 126, 0.25);
+    --s-working: #00d47e;
+    --s-input: #e8a030;
+    --s-error: #e04848;
+    --user-fg: #7eb8f7;
+    --user-bg: rgba(126, 184, 247, 0.05);
+    --think-fg: #9980d4;
+    --think-bg: rgba(153, 128, 212, 0.06);
+    --tool-fg: #e8a030;
+    --tool-bg: rgba(232, 160, 48, 0.05);
+    --result-fg: #606060;
+    --result-bg: rgba(255, 255, 255, 0.02);
+    --mono: 'JetBrains Mono', monospace;
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 10px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a0a;
+    font-family: var(--mono);
+    color: var(--t0);
+    padding: 32px 40px;
+    display: flex; flex-direction: column; gap: 48px;
+  }
+
+  h2 {
+    font-size: 12px; font-weight: 500; color: var(--t2);
+    text-transform: uppercase; letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--bd);
+    padding-bottom: 8px; margin-bottom: 20px;
+  }
+  h3 { font-size: 11px; font-weight: 500; color: var(--t1); margin-bottom: 12px; }
+
+  /* ============================================= */
+  /*  A layout demo with 2 panes                    */
+  /* ============================================= */
+
+  .layout-demo {
+    display: flex; gap: 0;
+    border: 1px solid var(--bd1);
+    border-radius: 8px; overflow: hidden;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+  }
+
+  .pane {
+    flex: 1; min-width: 0;
+    display: flex; flex-direction: column;
+    background: var(--bg);
+    position: relative;
+  }
+  .pane + .pane { border-left: 1px solid var(--bd1); }
+
+  /* ============================================= */
+  /*  Focus line + gap to tabs                      */
+  /* ============================================= */
+  .focus-line {
+    height: 2px; flex-shrink: 0;
+    background: var(--ac); opacity: 0;
+  }
+  .pane.focused .focus-line { opacity: 0.7; }
+  .focus-gap {
+    height: 4px; flex-shrink: 0;
+  }
+
+  /* ============================================= */
+  /*  TAB BAR — Compact Stack, ~34px                */
+  /*  Soft Minimal: active = quiet chip             */
+  /*  Terminal Premium: green tint + border         */
+  /* ============================================= */
+  .tab-bar {
+    display: flex; align-items: stretch;
+    height: 34px;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--bd);
+    padding-left: 2px;
+    gap: 6px;
+  }
+
+  .tab {
+    display: flex; align-items: center;
+    gap: 5px; height: 100%;
+    padding: 0 8px;
+    cursor: pointer;
+    font-size: 10.5px; color: var(--t2);
+    position: relative; user-select: none;
+    border: 1px solid var(--bd);
+    border-bottom: none;
+    border-radius: 5px 5px 0 0;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+  }
+  .tab:hover {
+    background: var(--bg3);
+    color: var(--t1);
+    border-color: var(--bd1);
+  }
+
+  .tab.active {
+    background: var(--bg);
+    color: var(--t0);
+    border-color: var(--bd1);
+    border-bottom-color: transparent;
+  }
+
+  .tab.active::after {
+    content: '';
+    position: absolute; bottom: -1px; left: 0; right: 0;
+    height: 1px;
+    background: var(--bg);
+    z-index: 1;
+  }
+
+  .tab-icon { display: inline-flex; color: var(--t2); flex-shrink: 0; }
+
+  .tab-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .tab-close {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 14px; height: 14px;
+    border: none; border-radius: 3px;
+    background: transparent; color: var(--t3);
+    cursor: pointer; padding: 0;
+    opacity: 0.4; transition: opacity 0.12s, background 0.12s;
+    flex-shrink: 0;
+  }
+  .tab.active .tab-close { opacity: 0.5; }
+  .tab:hover .tab-close { opacity: 0.8; }
+  .tab-close:hover { background: var(--bg4); color: var(--t0); opacity: 1; }
+
+  .tab-add {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px;
+    border: none; border-radius: 4px;
+    background: transparent; color: var(--t3);
+    cursor: pointer;
+    margin-left: auto; margin-right: 4px;
+    transition: background 0.12s, color 0.12s;
+  }
+  .tab-add:hover { background: var(--bg3); color: var(--t1); }
+
+  /* Unfocused pane */
+  .pane:not(.focused) .tab-bar { opacity: 0.65; }
+  .pane:not(.focused) .tab.active {
+    background: transparent;
+    border-color: var(--bd);
+  }
+  .pane:not(.focused) .tab.active::after { opacity: 0.2; }
+  .pane:not(.focused) .tab-close { display: none; }
+
+  /* ============================================= */
+  /*  PANEL HEADER — inline, ~36px                  */
+  /*  Title + subtitle + metrics + actions on one line */
+  /* ============================================= */
+  .panel-header {
+    display: flex; align-items: center;
+    gap: 8px;
+    min-height: 36px;
+    padding: 0 10px;
+    background: var(--bg1);
+    border-bottom: 1px solid var(--bd);
+    flex-shrink: 0; user-select: none;
+  }
+
+  .header-left {
+    display: flex; align-items: center; gap: 6px;
+    min-width: 0; flex: 1;
+  }
+
+  .status-dot {
+    width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+  }
+  .status-dot.green { background: var(--s-working); }
+  .status-dot.amber { background: var(--s-input); }
+  .status-dot.gray  { background: #404040; }
+
+  .header-title {
+    color: var(--t0);
+    font-size: 12px; font-weight: 500;
+    white-space: nowrap;
+  }
+  .header-sep {
+    color: var(--t3); font-size: 10px;
+    user-select: none;
+  }
+  .header-subtitle {
+    color: var(--t2);
+    font-size: 10px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  .header-pill {
+    border: 1px solid var(--bd1); border-radius: 999px;
+    padding: 0 6px;
+    color: var(--t1); font-size: 9px;
+    background: var(--bg2); flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .header-right {
+    display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+  }
+
+  .metric {
+    color: var(--t2); font-size: 9px; white-space: nowrap;
+  }
+  .metric strong { color: var(--t1); font-weight: 500; }
+
+  .header-actions { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+  .icon-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 20px; height: 20px;
+    border: 1px solid transparent; border-radius: 4px;
+    background: transparent; color: var(--t2);
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+  }
+  .icon-btn:hover {
+    background: var(--bg3);
+    border-color: var(--bd1);
+    color: var(--t0);
+  }
+  .icon-btn.pill {
+    width: auto; padding: 0 6px; gap: 4px;
+    font-size: 9px;
+    height: 20px;
+  }
+
+  .pane:not(.focused) .panel-header { opacity: 0.6; }
+  .pane:not(.focused) .icon-btn { opacity: 0.5; }
+
+  /* ============================================= */
+  /*  Branch strip                                  */
+  /* ============================================= */
+  .branch-strip {
+    display: flex; align-items: center;
+    gap: 6px; height: 20px; padding: 0 10px;
+    background: var(--ac-d2);
+    border-bottom: 1px solid var(--ac-border);
+    color: var(--ac); font-size: 9px; flex-shrink: 0;
+  }
+
+  /* ============================================= */
+  /*  CHAT FEED                                     */
+  /* ============================================= */
+  .chat-feed {
+    display: flex; flex-direction: column; gap: 0;
+    flex: 1; min-height: 0; overflow-y: auto;
+  }
+
+  .entry {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--bd);
+    font-size: 11px; line-height: 1.6;
+  }
+  .entry:last-child { border-bottom: none; }
+
+  .entry.user { background: var(--user-bg); }
+  .entry.thinking { background: var(--think-bg); }
+  .entry.result { background: var(--result-bg); }
+
+  .entry-label {
+    font-size: 9px; font-weight: 500;
+    text-transform: uppercase; letter-spacing: 0.3px;
+    margin-bottom: 4px;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .entry.user .entry-label { color: var(--user-fg); }
+  .entry.thinking .entry-label { color: var(--think-fg); }
+  .entry.result .entry-label { color: var(--tool-fg); }
+  .entry.assistant .entry-label { color: var(--ac); }
+
+  .thinking-collapsed {
+    display: flex; align-items: center; gap: 6px;
+    cursor: pointer; color: var(--think-fg); opacity: 0.6;
+    font-size: 10px; font-style: italic;
+  }
+
+  .tool-card {
+    margin: 6px 0;
+    border: 1px solid var(--bd);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+  }
+  .tool-card-header {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 8px;
+    background: var(--tool-bg);
+    color: var(--tool-fg);
+    font-size: 10px; font-weight: 500;
+    border-bottom: 1px solid var(--bd);
+    cursor: pointer;
+  }
+  .tool-card-body {
+    padding: 8px;
+    font-size: 10px; color: var(--t1);
+  }
+  .tool-card-body pre {
+    background: var(--bg2);
+    border: 1px solid var(--bd);
+    border-radius: 3px;
+    padding: 6px 8px;
+    font-family: var(--mono); font-size: 10px;
+    overflow-x: auto; color: var(--t0);
+    margin: 4px 0;
+  }
+
+  .bash-card {
+    margin: 4px 0;
+    border: 1px solid var(--bd);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+  }
+  .bash-card-header {
+    display: flex; align-items: center; gap: 6px;
+    padding: 3px 8px;
+    background: var(--bg3);
+    border-bottom: 1px solid var(--bd);
+    color: var(--t2); font-size: 9px;
+  }
+  .bash-card-output {
+    padding: 6px 8px;
+    font-size: 10px; font-family: var(--mono);
+    color: var(--t0); white-space: pre-wrap; line-height: 1.3;
+    background: var(--bg);
+  }
+
+  .diff-snippet {
+    margin: 4px 0;
+    border: 1px solid var(--bd);
+    border-radius: 3px;
+    font-size: 10px; overflow: hidden;
+  }
+  .diff-line {
+    padding: 1px 8px;
+    font-family: var(--mono); white-space: pre;
+  }
+  .diff-line.add { background: rgba(0,212,126,0.06); color: #4caf7a; }
+  .diff-line.rem { background: rgba(224,72,72,0.06); color: #e06060; }
+
+  .entry-footer {
+    display: flex; align-items: center; gap: 8px;
+    margin-top: 6px; padding-top: 4px;
+    border-top: 1px solid var(--bd);
+    font-size: 8px; color: var(--t3);
+  }
+
+  /* ============================================= */
+  /*  Git panel — tree left + diff right            */
+  /* ============================================= */
+  .pane-body { flex: 1; min-height: 0; }
+
+  .git-panel {
+    display: flex; flex: 1; min-height: 0;
+  }
+  .git-tree {
+    width: 220px; flex-shrink: 0;
+    display: flex; flex-direction: column;
+    padding: 8px;
+    font-size: 10px; color: var(--t2);
+    gap: 1px;
+    border-right: 1px solid var(--bd);
+    overflow-y: auto;
+  }
+  .git-diff {
+    flex: 1; min-width: 0;
+    padding: 12px;
+    overflow-y: auto;
+    font-size: 11px;
+  }
+  .git-diff-header {
+    display: flex; align-items: center; gap: 6px;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--bd);
+    font-size: 10px; color: var(--t1);
+  }
+  .git-diff-path {
+    color: var(--ac); font-weight: 500;
+  }
+  .git-diff-stats {
+    margin-left: auto; color: var(--t2);
+  }
+  .tree-group-label {
+    font-size: 9px; text-transform: uppercase;
+    color: var(--t3); letter-spacing: 0.3px;
+    padding: 6px 4px 2px;
+  }
+  .tree-item {
+    display: flex; align-items: center; gap: 6px;
+    padding: 2px 4px; cursor: pointer;
+    border-radius: 3px;
+    color: var(--t1);
+  }
+  .tree-item:hover { background: var(--bg3); color: var(--t0); }
+  .tree-item .count {
+    margin-left: auto; color: var(--ac); font-size: 9px;
+  }
+
+  hr { border: none; border-top: 1px solid var(--bd); margin: 8px 0; }
+</style>
+
+<!-- ============================================= -->
+<!-- SVG sprite for inline icons                     -->
+<!-- ============================================= -->
+<svg style="display:none;">
+  <defs>
+    <!-- Bot icon -->
+    <svg id="icon-bot" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+    </svg>
+    <svg id="icon-terminal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="4,17 10,11 4,5"/><line x1="12" y1="19" x2="20" y2="19"/>
+    </svg>
+    <svg id="icon-git-branch" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/>
+    </svg>
+    <svg id="icon-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+    </svg>
+    <svg id="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+    </svg>
+    <svg id="icon-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="23,4 23,10 17,10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+    </svg>
+    <svg id="icon-message" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+    </svg>
+    <svg id="icon-mute" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polygon points="11,5 6,9 2,9 2,15 6,15 11,19"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>
+    </svg>
+    <svg id="icon-minimap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+    </svg>
+    <svg id="icon-file" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/>
+    </svg>
+    <svg id="icon-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/>
+    </svg>
+    <svg id="icon-model" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/>
+    </svg>
+    <svg id="icon-dot-grid" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+      <circle cx="3" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="21" cy="12" r="1.5"/>
+    </svg>
+  </defs>
+</svg>
+
+<body>
+
+<!-- ============================================= -->
+<!-- LAYOUT DEMO                                    -->
+<!-- ============================================= -->
+<h2>Compact Stack — Layout completo</h2>
+
+<div style="display:flex;gap:24px;margin-bottom:20px;">
+
+<table style="font-size:11px;color:var(--t2);border-collapse:collapse;width:100%;">
+  <tr>
+    <td style="padding:4px 8px;border-bottom:1px solid var(--bd);color:var(--t1);width:180px;">Pane chrome (top→bottom)</td>
+    <td style="padding:4px 8px;border-bottom:1px solid var(--bd);">
+      Focus line (2px) → gap (4px) → TabBar (34px) → PanelHeader (36px inline) → [Branch strip (20px)] → Body
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:4px 8px;border-bottom:1px solid var(--bd);color:var(--t1);">Tab visual</td>
+    <td style="padding:4px 8px;border-bottom:1px solid var(--bd);">
+      "Soft Minimal": active tab = <code>var(--bg)</code> bg + <code>var(--bd1)</code> border (cinza). Ícone sempre neutro (<code>var(--t2)</code>). Inactive tabs com borda <code>var(--bd)</code>.
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:4px 8px;border-bottom:1px solid var(--bd);color:var(--t1);">Close button</td>
+    <td style="padding:4px 8px;border-bottom:1px solid var(--bd);">
+      Sempre visível: opacity 0.4 (inactive), 0.5 (active), 0.8 (hover). Unfocused: oculto.
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:4px 8px;border-bottom:1px solid var(--bd);color:var(--t1);">Focus line</td>
+    <td style="padding:4px 8px;border-bottom:1px solid var(--bd);">
+      2px <code>var(--ac)</code> + 4px gap verde → tab. Painel não focado: tudo transparente.
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:4px 8px;border-bottom:1px solid var(--bd);color:var(--t1);">Header inline</td>
+    <td style="padding:4px 8px;border-bottom:1px solid var(--bd);">
+      Tudo em uma linha: dot → title → separator → subtitle → pill → metrics → actions. Sem stack.
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:4px 8px;border-bottom:1px solid var(--bd);color:var(--t1);">Unfocused</td>
+    <td style="padding:4px 8px;border-bottom:1px solid var(--bd);">
+      TabBar opacity 0.65, active tab perde chip/borda, header 0.6, sem close buttons.
+    </td>
+  </tr>
+</table>
+
+</div>
+
+<div class="layout-demo">
+  <!-- SIDEBAR (thinner) -->
+  <div style="width:56px;background:var(--bg2);border-right:1px solid var(--bd1);flex-shrink:0;display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:8px;">
+    <div style="width:32px;height:32px;border-radius:6px;background:var(--ac-d2);border:1px solid var(--ac-border);display:flex;align-items:center;justify-content:center;color:var(--ac);cursor:pointer;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
+    </div>
+    <div style="width:32px;height:32px;border-radius:6px;background:var(--bg3);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;color:var(--t2);cursor:pointer;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </div>
+  </div>
+
+  <!-- LEFT PANE — FOCUSED -->
+  <div class="pane focused">
+    <div style="flex-shrink:0;">
+      <div class="focus-line"></div>
+      <div class="focus-gap"></div>
+    </div>
+
+    <div class="tab-bar">
+      <div class="tab active">
+        <span class="tab-icon">
+          <svg width="12" height="12" viewBox="0 0 24 24"><use href="#icon-bot"/></svg>
+        </span>
+        <span class="tab-label">my-app (claude-code)</span>
+        <button class="tab-close">
+          <svg width="8" height="8" viewBox="0 0 24 24"><use href="#icon-x"/></svg>
+        </button>
+      </div>
+      <div class="tab">
+        <span class="tab-icon">
+          <svg width="12" height="12" viewBox="0 0 24 24"><use href="#icon-terminal"/></svg>
+        </span>
+        <span class="tab-label">Terminal</span>
+        <button class="tab-close">
+          <svg width="8" height="8" viewBox="0 0 24 24"><use href="#icon-x"/></svg>
+        </button>
+      </div>
+      <button class="tab-add">
+        <svg width="12" height="12" viewBox="0 0 24 24"><use href="#icon-plus"/></svg>
+      </button>
+    </div>
+
+    <!-- INLINE HEADER: dot + title / subtitle / pill / metrics / actions all in one row -->
+    <div class="panel-header">
+      <span class="status-dot green"></span>
+      <span class="header-title">my-app</span>
+      <span class="header-sep">/</span>
+      <span class="header-subtitle">C:\projects\my-app</span>
+      <span class="header-pill">Working</span>
+
+      <div class="header-right" style="margin-left:auto;">
+        <span class="metric"><strong>1.2k</strong>↑ · <strong>567</strong>↓</span>
+        <span class="metric" style="color:var(--t3);">|</span>
+        <span class="metric"><strong>34%</strong> ctx</span>
+
+        <div class="header-actions">
+          <button class="icon-btn pill">
+            <svg width="9" height="9" viewBox="0 0 24 24"><use href="#icon-model"/></svg>
+            claude-3.5
+          </button>
+          <button class="icon-btn">
+            <svg width="12" height="12" viewBox="0 0 24 24"><use href="#icon-mute"/></svg>
+          </button>
+          <button class="icon-btn">
+            <svg width="12" height="12" viewBox="0 0 24 24"><use href="#icon-minimap"/></svg>
+          </button>
+          <button class="icon-btn">
+            <svg width="12" height="12" viewBox="0 0 24 24"><use href="#icon-x"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="branch-strip">
+      <svg width="10" height="10" viewBox="0 0 24 24"><use href="#icon-git-branch"/></svg>
+      feat/workspace-tabs
+    </div>
+
+    <div class="chat-feed pane-body">
+      <div class="entry user">
+        <div class="entry-label">
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          You
+        </div>
+        <div>Refactor the authentication module to use JWT tokens with refresh flow</div>
+      </div>
+      <div class="entry thinking">
+        <div class="entry-label">
+          <svg width="9" height="9" viewBox="0 0 24 24"><use href="#icon-message"/></svg>
+          Thinking
+        </div>
+        <div class="thinking-collapsed">
+          <svg width="14" height="14" viewBox="0 0 24 24"><use href="#icon-dot-grid"/></svg>
+          Analyzing auth flow, existing middleware and token validation...
+        </div>
+      </div>
+      <div class="entry assistant">
+        <div class="entry-label">
+          <svg width="9" height="9" viewBox="0 0 24 24"><use href="#icon-bot"/></svg>
+          Assistant
+        </div>
+        <div style="margin-bottom:6px;">
+          Vou refatorar o módulo de autenticação. O plano:
+        </div>
+        <div class="tool-card">
+          <div class="tool-card-header">
+            <svg width="10" height="10" viewBox="0 0 24 24"><use href="#icon-file"/></svg>
+            Write — src/auth/jwt.ts
+          </div>
+          <div class="tool-card-body">
+            <pre>import jwt from 'jsonwebtoken';
+const SECRET = process.env.JWT_SECRET!;
+
+export function signAccess(payload: Record&lt;string, unknown&gt;) {
+  return jwt.sign(payload, SECRET, { expiresIn: '15m' });
+}
+
+export function verify(token: string) {
+  return jwt.verify(token, SECRET);
+}</pre>
+          </div>
+        </div>
+        <div class="bash-card">
+          <div class="bash-card-header">
+            <svg width="9" height="9" viewBox="0 0 24 24"><use href="#icon-terminal"/></svg>
+            bash — exit 0
+          </div>
+          <div class="bash-card-output">$ npx tsc --noEmit
+✅ TypeScript compilation passed</div>
+        </div>
+        <div class="diff-snippet">
+          <div class="diff-line add">+ import { signAccess, verify } from './auth/jwt';</div>
+          <div class="diff-line rem">- import { oldAuth } from './legacy/auth';</div>
+        </div>
+        <div class="entry-footer">
+          <span>tokens: 1,234 ↑ · 567 ↓</span>
+          <span>·</span>
+          <span>context: 34%</span>
+          <span>·</span>
+          <span>$0.042</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANE — UNFOCUSED -->
+  <div class="pane">
+    <div style="flex-shrink:0;">
+      <div class="focus-line"></div>
+      <div class="focus-gap"></div>
+    </div>
+
+    <div class="tab-bar">
+      <div class="tab active">
+        <span class="tab-icon">
+          <svg width="12" height="12" viewBox="0 0 24 24"><use href="#icon-git-branch"/></svg>
+        </span>
+        <span class="tab-label">Git</span>
+        <button class="tab-close">
+          <svg width="8" height="8" viewBox="0 0 24 24"><use href="#icon-x"/></svg>
+        </button>
+      </div>
+      <div class="tab">
+        <span class="tab-icon">
+          <svg width="12" height="12" viewBox="0 0 24 24"><use href="#icon-terminal"/></svg>
+        </span>
+        <span class="tab-label">Terminal</span>
+        <button class="tab-close">
+          <svg width="8" height="8" viewBox="0 0 24 24"><use href="#icon-x"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- INLINE HEADER: git icon + title / branch / pills / refresh / close -->
+    <div class="panel-header">
+      <svg width="14" height="14" viewBox="0 0 24 24" style="color:var(--t1);flex-shrink:0;"><use href="#icon-git-branch"/></svg>
+      <span class="header-title">Git Overview</span>
+      <span class="header-sep">/</span>
+      <span class="header-subtitle">main</span>
+      <span class="header-pill" style="border-color:var(--ac-border);color:var(--ac);background:var(--ac-d2);">3 changed</span>
+
+      <div class="header-right" style="margin-left:auto;">
+        <div class="header-actions">
+          <button class="icon-btn">
+            <svg width="12" height="12" viewBox="0 0 24 24"><use href="#icon-refresh"/></svg>
+          </button>
+          <button class="icon-btn">
+            <svg width="12" height="12" viewBox="0 0 24 24"><use href="#icon-x"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="pane-body git-panel">
+      <div class="git-tree">
+        <div class="tree-group-label" style="color:var(--ac);">Staged</div>
+        <div class="tree-item">
+          <svg width="10" height="10" viewBox="0 0 24 24" style="flex-shrink:0;"><use href="#icon-file"/></svg>
+          src/auth/jwt.ts
+          <span class="count">+4</span>
+        </div>
+        <div class="tree-group-label">Unstaged</div>
+        <div class="tree-item">
+          <svg width="10" height="10" viewBox="0 0 24 24" style="flex-shrink:0;"><use href="#icon-file"/></svg>
+          src/middleware/refresh.ts
+          <span class="count">+8</span>
+        </div>
+        <div class="tree-item" style="background:var(--bg3);color:var(--t0);">
+          <svg width="10" height="10" viewBox="0 0 24 24" style="flex-shrink:0;"><use href="#icon-file"/></svg>
+          src/routes/auth.ts
+          <span class="count" style="color:var(--s-error);">-3</span>
+        </div>
+        <div class="tree-group-label">Untracked</div>
+        <div class="tree-item">
+          <svg width="10" height="10" viewBox="0 0 24 24" style="flex-shrink:0;"><use href="#icon-file"/></svg>
+          src/types/auth.d.ts
+          <span class="count" style="color:var(--t2);">+12</span>
+        </div>
+      </div>
+      <div class="git-diff">
+        <div class="git-diff-header">
+          <svg width="12" height="12" viewBox="0 0 24 24" style="flex-shrink:0;color:var(--tool-fg);"><use href="#icon-file"/></svg>
+          <span class="git-diff-path">src/routes/auth.ts</span>
+          <span class="git-diff-stats">-3 / +0</span>
+        </div>
+        <div style="margin-bottom:6px;color:var(--t1);font-size:10px;line-height:1.5;">
+          <div style="color:var(--t2);">@@ -42,7 +42,4 @@</div>
+          <div style="color:var(--s-error);">-import { oldAuth, verifyLegacy } from './legacy/auth';</div>
+          <div style="color:var(--ac);">+import { signAccess, verify } from './auth/jwt';</div>
+          <div style="color:var(--t0);"> export function login(req, res) {</div>
+          <div style="color:var(--s-error);">-  const token = oldAuth(req.body);</div>
+          <div style="color:var(--ac);">+  const token = signAccess({ userId: req.user.id });</div>
+          <div style="color:var(--t0);">   res.json({ token });</div>
+          <div style="color:var(--s-error);">-  res.setHeader('X-Auth', 'legacy');</div>
+          <div style="padding-left:12px;color:var(--t0);"> }</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================= -->
+<!-- FOCUSED vs UNFOCUSED                           -->
+<!-- ============================================= -->
+
+<h2 style="margin-top:32px;">Focado vs Não Focado — side by side</h2>
+
+<div style="display:flex;gap:24px;">
+  <div style="flex:1;">
+
+<div style="border:1px solid var(--bd1);border-radius:6px;overflow:hidden;">
+    <div class="pane focused">
+      <div style="flex-shrink:0;">
+        <div class="focus-line"></div>
+        <div class="focus-gap"></div>
+      </div>
+
+      <div class="tab-bar">
+        <div class="tab active">
+          <span class="tab-icon"><svg width="12" height="12" viewBox="0 0 24 24"><use href="#icon-bot"/></svg></span>
+          <span class="tab-label">my-app (claude-code)</span>
+          <button class="tab-close"><svg width="8" height="8" viewBox="0 0 24 24"><use href="#icon-x"/></svg></button>
+        </div>
+        <div class="tab">
+          <span class="tab-label">Terminal</span>
+          <button class="tab-close"><svg width="8" height="8" viewBox="0 0 24 24"><use href="#icon-x"/></svg></button>
+        </div>
+      </div>
+
+      <div class="panel-header">
+        <span class="status-dot green"></span>
+        <span class="header-title">my-app</span>
+        <span class="header-sep">/</span>
+        <span class="header-subtitle">C:\projects\my-app</span>
+        <span class="header-pill">Working</span>
+        <div class="header-right" style="margin-left:auto;">
+          <div class="header-actions">
+            <button class="icon-btn"><svg width="12" height="12" viewBox="0 0 24 24"><use href="#icon-minimap"/></svg></button>
+            <button class="icon-btn"><svg width="12" height="12" viewBox="0 0 24 24"><use href="#icon-x"/></svg></button>
+          </div>
+        </div>
+      </div>
+
+      <div style="padding:24px;display:grid;place-items:center;color:var(--t3);font-size:12px;">
+        Chat content area
+      </div>
+    </div>
+    <div style="padding:6px 10px;background:var(--bg2);border-top:1px solid var(--bd1);color:var(--ac);font-size:10px;">
+      <strong>FOCUSED</strong> — green line + gap, tab chip, full opacity
+    </div>
+</div>
+
+  </div>
+
+  <div style="flex:1;">
+
+<div style="border:1px solid var(--bd1);border-radius:6px;overflow:hidden;">
+    <div class="pane">
+      <div style="flex-shrink:0;">
+        <div class="focus-line"></div>
+        <div class="focus-gap"></div>
+      </div>
+
+      <div class="tab-bar">
+        <div class="tab active">
+          <span class="tab-icon"><svg width="12" height="12" viewBox="0 0 24 24"><use href="#icon-bot"/></svg></span>
+          <span class="tab-label">my-app (claude-code)</span>
+        </div>
+        <div class="tab">
+          <span class="tab-label">Terminal</span>
+        </div>
+      </div>
+
+      <div class="panel-header" style="opacity:0.6;">
+        <span class="status-dot green"></span>
+        <span class="header-title">my-app</span>
+        <span class="header-sep">/</span>
+        <span class="header-subtitle">C:\projects\my-app</span>
+        <span class="header-pill">Working</span>
+        <div class="header-right" style="margin-left:auto;">
+          <div class="header-actions">
+            <button class="icon-btn"><svg width="12" height="12" viewBox="0 0 24 24"><use href="#icon-minimap"/></svg></button>
+            <button class="icon-btn"><svg width="12" height="12" viewBox="0 0 24 24"><use href="#icon-x"/></svg></button>
+          </div>
+        </div>
+      </div>
+
+      <div style="padding:24px;display:grid;place-items:center;color:var(--t3);font-size:12px;">
+        Chat content area
+      </div>
+    </div>
+    <div style="padding:6px 10px;background:var(--bg2);border-top:1px solid var(--bd1);color:var(--t2);font-size:10px;">
+      <strong>UNFOCUSED</strong> — no green line, flat tab, 0.6 header, no close buttons
+    </div>
+</div>
+
+  </div>
+</div>
+
+</body>
+</html>

@@ -131,7 +131,15 @@
     });
 
     const u2 = onSessionOutput(({ sessionId, entry }) => {
-      journal.update((map) => new Map(map).set(sessionId, [...(map.get(sessionId) ?? []), entry]));
+      journal.update((map) => {
+        const existing = map.get(sessionId) ?? [];
+        // Dedup: same timestamp+entryType means backend already has this
+        const dup = existing.some(
+          (e) => e.timestamp === entry.timestamp && e.entryType === entry.entryType
+        );
+        if (dup) return map;
+        return new Map(map).set(sessionId, [...existing, entry]);
+      });
     });
 
     const u3 = onSessionState((p) => {
@@ -233,8 +241,10 @@
   $: selected = (() => {
     const ws = $workspace;
     const focusedPane = ws.focusedPaneId ? ws.panes[ws.focusedPaneId] : null;
-    if (focusedPane?.sessionId) {
-      return getSelectedSession($sessions, focusedPane.sessionId);
+    const activeTab =
+      focusedPane?.tabs.find((tab) => tab.id === focusedPane.activeTabId) ?? focusedPane?.tabs[0];
+    if (activeTab?.target.kind === 'agent') {
+      return getSelectedSession($sessions, activeTab.target.sessionId);
     }
     return null;
   })();
@@ -248,7 +258,11 @@
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'F12' && HAS_TAURI) {
       import('@tauri-apps/api/webviewWindow').then(({ getCurrentWebviewWindow }) => {
-        (getCurrentWebviewWindow() as unknown as { openDevtools(): void }).openDevtools();
+        const currentWindow = getCurrentWebviewWindow() as unknown as {
+          openDevtools?: () => void;
+        };
+
+        currentWindow.openDevtools?.();
       });
     }
   }

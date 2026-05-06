@@ -5,3 +5,4 @@ export * from './system';
 export * from './projects';
 export * from './files';
 export * from './http-api';
+export * from './git';

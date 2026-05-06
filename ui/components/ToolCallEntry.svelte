@@ -264,135 +264,135 @@
   }
 </script>
 
-<div class="tool-wrap">
-  <div class="tool-header">
-    <span class="tool-icon {toolClass}"><ToolIcon size={13} /></span>
-    <span class="tool {toolClass}">{entry.tool}</span>
-    <span class="target mono">{shortPath(target)}</span>
-    <span class="time">{timeStr}</span>
+<div class="tc-card">
+  <div class="tc-header">
+    <span class="tc-icon {toolClass}"><ToolIcon size={12} /></span>
+    <span class="tc-title">
+      <span class="tc-tool">{entry.tool}</span>
+      {#if target}
+        <span class="tc-sep">—</span>
+        <span class="tc-target">{shortPath(target)}</span>
+      {/if}
+    </span>
+    <span class="tc-spacer"></span>
     {#if entry.linesChanged}
-      <span class="changes">
+      <span class="tc-changes">
         <span class="added">+{entry.linesChanged.added}</span>
         <span class="removed">-{entry.linesChanged.removed}</span>
       </span>
     {/if}
+    <span class="tc-time">{timeStr}</span>
     {#if hasDetail || resultEntry?.output}
       {#if hasBashCommand && resultEntry?.output}
         <button
-          class="copy-btn"
+          class="tc-action tc-action--label"
           onclick={(e) => {
             e.stopPropagation();
             copyToClipboard(entry.toolInput!.command as string);
           }}
-          title="Copiar comando"
+          title="Copiar comando"><Copy size={10} /> cmd</button
         >
-          <Copy size={11} /> command
-        </button>
         <button
-          class="copy-btn"
+          class="tc-action tc-action--label tc-action--darker"
           onclick={(e) => {
             e.stopPropagation();
             copyToClipboard(resultEntry.output!);
           }}
-          title="Copiar output"
+          title="Copiar output"><Copy size={10} /> out</button
         >
-          <Copy size={11} /> output
-        </button>
       {:else}
         <button
-          class="copy-btn"
+          class="tc-action"
           onclick={async (e) => {
             e.stopPropagation();
             copyToClipboard(await getCopyContent());
           }}
-          title="Copiar conteúdo"
+          title="Copiar conteúdo"><Copy size={10} /></button
         >
-          <Copy size={11} /> content
-        </button>
       {/if}
       <button
-        class="expand-btn"
+        class="tc-action"
         onclick={(e) => {
           e.stopPropagation();
           modalOpen = true;
         }}
-        title="Fullscreen"><Maximize2 size={11} /></button
+        title="Fullscreen"><Maximize2 size={10} /></button
       >
     {/if}
   </div>
 
   {#if hasDetail || resultEntry?.output}
-    <div class="detail">
-      <div class="code-card">
-        {#if hasEditDiff}
-          <div class="diff-block code-inner">
-            {#each inlineVisible as dl}
-              <div class="diff-line {dl.type}">
-                <span class="dl-num">{dl.lineNo}</span>
-                <span class="dl-prefix"
-                  >{dl.type === 'add' ? '+' : dl.type === 'rem' ? '-' : ' '}</span
-                >
-                <span class="dl-code">{@html doHighlight(dl.text, lang)}</span>
-              </div>
-            {/each}
-            {#if inlineOverflow > 0}
-              <button class="diff-overflow" onclick={() => (modalOpen = true)}>
-                ▸ +{inlineOverflow} linhas · clique para ver tudo
-              </button>
-            {/if}
-          </div>
-        {:else if hasWriteContent}
-          <div class="diff-block code-inner">
-            {#each writeVisible as dl}
-              <div class="diff-line add">
-                <span class="dl-num">{dl.lineNo}</span>
-                <span class="dl-prefix">+</span>
-                <span class="dl-code">{@html doHighlight(dl.text, lang)}</span>
-              </div>
-            {/each}
-            {#if writeOverflow > 0}
-              <button class="diff-overflow" onclick={() => (modalOpen = true)}>
-                ▸ +{writeOverflow} linhas · clique para ver tudo
-              </button>
-            {/if}
-          </div>
-        {:else if hasBashCommand}
-          <pre class="code-inner code-text"><code>{@html doHighlight(codeText, 'bash')}</code></pre>
-        {/if}
-
-        {#if streamingEntries.length > 0 && !resultEntry}
-          <div class="streaming-output">
-            {#each streamingEntries as s}
-              <pre class="streaming-line">{s.text}</pre>
-            {/each}
-          </div>
-        {/if}
-
-        {#if resultEntry?.output}
-          {#if hasDetail}
-            <div class="result-divider"></div>
-          {/if}
-          {#if isReadTool}
-            {@const parsed = stripLineNumbers(resultEntry.output)}
-            <div class="code-inner read-output">
-              <table class="read-table">
-                <tbody>
-                  {#each parsed.code.split('\n') as line, li}
-                    <tr>
-                      <td class="line-num">{parsed.lineNums[li] ?? ''}</td>
-                      <td class="line-code">{@html doHighlight(line, lang)}</td>
-                    </tr>
-                  {/each}
-                </tbody>
-              </table>
+    <div class="tc-body">
+      {#if hasEditDiff}
+        <div class="diff-block">
+          {#each inlineVisible as dl}
+            <div class="diff-line {dl.type}">
+              <span class="dl-num">{dl.lineNo}</span>
+              <span class="dl-prefix"
+                >{dl.type === 'add' ? '+' : dl.type === 'rem' ? '-' : ' '}</span
+              >
+              <span class="dl-code">{@html doHighlight(dl.text, lang)}</span>
             </div>
-          {:else}
-            <div class="code-inner result-output">
-              <pre class="result-pre mono">{resultEntry.output}</pre>
-            </div>
+          {/each}
+          {#if inlineOverflow > 0}
+            <button class="diff-overflow" onclick={() => (modalOpen = true)}>
+              ▸ +{inlineOverflow} linhas · clique para ver tudo
+            </button>
           {/if}
+        </div>
+      {:else if hasWriteContent}
+        <div class="diff-block">
+          {#each writeVisible as dl}
+            <div class="diff-line add">
+              <span class="dl-num">{dl.lineNo}</span>
+              <span class="dl-prefix">+</span>
+              <span class="dl-code">{@html doHighlight(dl.text, lang)}</span>
+            </div>
+          {/each}
+          {#if writeOverflow > 0}
+            <button class="diff-overflow" onclick={() => (modalOpen = true)}>
+              ▸ +{writeOverflow} linhas · clique para ver tudo
+            </button>
+          {/if}
+        </div>
+      {:else if hasBashCommand}
+        <div class="bash-body">
+          <pre class="bash-code"><code>{@html doHighlight(codeText, 'bash')}</code></pre>
+        </div>
+      {/if}
+
+      {#if streamingEntries.length > 0 && !resultEntry}
+        <div class="streaming-output">
+          {#each streamingEntries as s}
+            <pre class="streaming-line">{s.text}</pre>
+          {/each}
+        </div>
+      {/if}
+
+      {#if resultEntry?.output}
+        {#if hasDetail}
+          <div class="result-divider"></div>
         {/if}
-      </div>
+        {#if isReadTool}
+          {@const parsed = stripLineNumbers(resultEntry.output)}
+          <div class="read-output">
+            <table class="read-table">
+              <tbody>
+                {#each parsed.code.split('\n') as line, li}
+                  <tr>
+                    <td class="line-num">{parsed.lineNums[li] ?? ''}</td>
+                    <td class="line-code">{@html doHighlight(line, lang)}</td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
+        {:else}
+          <div class="result-output">
+            <pre class="result-pre mono">{resultEntry.output}</pre>
+          </div>
+        {/if}
+      {/if}
     </div>
   {/if}
 </div>
@@ -413,94 +413,110 @@
           <span class="tool {toolClass}">{entry.tool}</span>
           <span class="target mono">{target}</span>
         </div>
-        <div class="modal-actions">
-          {#if hasBashCommand && resultEntry?.output}
-            <button
-              class="copy-btn modal-copy-btn"
-              onclick={() => copyToClipboard(entry.toolInput!.command as string)}
-              title="Copiar comando"
-            >
-              <Copy size={13} /> command
-            </button>
-            <button
-              class="copy-btn modal-copy-btn"
-              onclick={() => copyToClipboard(resultEntry.output!)}
-              title="Copiar output"
-            >
-              <Copy size={13} /> output
-            </button>
-          {:else}
-            <button
-              class="copy-btn modal-copy-btn"
-              onclick={async () => copyToClipboard(await getCopyContent())}
-              title="Copiar conteúdo"
-            >
-              <Copy size={13} /> content
-            </button>
-          {/if}
-          <button class="modal-close" onclick={() => (modalOpen = false)}>✕</button>
-        </div>
+        <button class="modal-close" onclick={() => (modalOpen = false)}>✕</button>
       </div>
       <div class="modal-body detail">
         {#if hasEditDiff}
-          <div class="modal-section-label">Changes</div>
-          <div class="code-card modal-card">
-            <div class="diff-block modal-code-scroll">
-              {#each modalLines as dl}
-                <div class="diff-line {dl.type}">
-                  <span class="dl-num">{dl.lineNo}</span>
-                  <span class="dl-prefix"
-                    >{dl.type === 'add' ? '+' : dl.type === 'rem' ? '-' : ' '}</span
-                  >
-                  <span class="dl-code">{@html doHighlight(dl.text, lang)}</span>
-                </div>
-              {/each}
+          <div class="modal-card-section">
+            <div class="modal-card-header">
+              <span class="modal-card-label">Changes</span>
+              <button
+                class="card-copy-btn"
+                onclick={async () => copyToClipboard(await getCopyContent())}
+                title="Copiar conteúdo"
+              >
+                <Copy size={10} /> copy
+              </button>
+            </div>
+            <div class="modal-card-body">
+              <div class="diff-block">
+                {#each modalLines as dl}
+                  <div class="diff-line {dl.type}">
+                    <span class="dl-num">{dl.lineNo}</span>
+                    <span class="dl-prefix"
+                      >{dl.type === 'add' ? '+' : dl.type === 'rem' ? '-' : ' '}</span
+                    >
+                    <span class="dl-code">{@html doHighlight(dl.text, lang)}</span>
+                  </div>
+                {/each}
+              </div>
             </div>
           </div>
         {:else if hasWriteContent}
-          <div class="modal-section-label">New File</div>
-          <div class="code-card modal-card">
-            <div class="diff-block modal-code-scroll">
-              {#each writeLines as dl}
-                <div class="diff-line add">
-                  <span class="dl-num">{dl.lineNo}</span>
-                  <span class="dl-prefix">+</span>
-                  <span class="dl-code">{@html doHighlight(dl.text, lang)}</span>
-                </div>
-              {/each}
+          <div class="modal-card-section">
+            <div class="modal-card-header">
+              <span class="modal-card-label">New File</span>
+              <button
+                class="card-copy-btn"
+                onclick={async () => copyToClipboard(await getCopyContent())}
+                title="Copiar conteúdo"
+              >
+                <Copy size={10} /> copy
+              </button>
+            </div>
+            <div class="modal-card-body">
+              <div class="diff-block">
+                {#each writeLines as dl}
+                  <div class="diff-line add">
+                    <span class="dl-num">{dl.lineNo}</span>
+                    <span class="dl-prefix">+</span>
+                    <span class="dl-code">{@html doHighlight(dl.text, lang)}</span>
+                  </div>
+                {/each}
+              </div>
             </div>
           </div>
         {:else if hasBashCommand}
-          <div class="modal-section-label">Command</div>
-          <div class="code-card modal-card">
-            <pre class="modal-code-scroll code-text"><code
-                >{@html doHighlight(codeText, 'bash')}</code
-              ></pre>
+          <div class="modal-card-section">
+            <div class="modal-card-header">
+              <span class="modal-card-label">Command</span>
+              <button
+                class="card-copy-btn"
+                onclick={() => copyToClipboard(entry.toolInput!.command as string)}
+                title="Copiar comando"
+              >
+                <Copy size={10} /> copy
+              </button>
+            </div>
+            <div class="modal-card-body">
+              <pre class="code-text"><code>{@html doHighlight(codeText, 'bash')}</code></pre>
+            </div>
           </div>
         {/if}
 
         {#if resultEntry?.output}
-          <div class="modal-section-label">Output</div>
-          <div class="code-card modal-card">
-            {#if isReadTool}
-              {@const parsed = stripLineNumbers(resultEntry.output)}
-              <div class="modal-code-scroll read-output">
-                <table class="read-table">
-                  <tbody>
-                    {#each parsed.code.split('\n') as line, li}
-                      <tr>
-                        <td class="line-num">{parsed.lineNums[li] ?? ''}</td>
-                        <td class="line-code">{@html doHighlight(line, lang)}</td>
-                      </tr>
-                    {/each}
-                  </tbody>
-                </table>
-              </div>
-            {:else}
-              <div class="modal-code-scroll result-output">
-                <pre class="result-pre mono">{resultEntry.output}</pre>
-              </div>
-            {/if}
+          <div class="modal-card-section">
+            <div class="modal-card-header">
+              <span class="modal-card-label">Output</span>
+              <button
+                class="card-copy-btn"
+                onclick={() => copyToClipboard(resultEntry.output!)}
+                title="Copiar output"
+              >
+                <Copy size={10} /> copy
+              </button>
+            </div>
+            <div class="modal-card-body">
+              {#if isReadTool}
+                {@const parsed = stripLineNumbers(resultEntry.output)}
+                <div class="read-output">
+                  <table class="read-table">
+                    <tbody>
+                      {#each parsed.code.split('\n') as line, li}
+                        <tr>
+                          <td class="line-num">{parsed.lineNums[li] ?? ''}</td>
+                          <td class="line-code">{@html doHighlight(line, lang)}</td>
+                        </tr>
+                      {/each}
+                    </tbody>
+                  </table>
+                </div>
+              {:else}
+                <div class="result-output">
+                  <pre class="result-pre mono">{resultEntry.output}</pre>
+                </div>
+              {/if}
+            </div>
           </div>
         {/if}
       </div>
@@ -509,387 +525,289 @@
 {/if}
 
 <style>
-  .tool-wrap {
-    margin: var(--sp-1) 0;
+  /* ── Tool Card ── */
+  .tc-card {
+    margin: var(--sp-2) 0;
+    border: 1px solid var(--bd);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: var(--bg1);
   }
-  .tool-header {
+
+  .tc-header {
     display: flex;
     align-items: center;
     gap: var(--sp-3);
-    padding: var(--sp-3) var(--sp-5);
-    border-radius: var(--radius-md);
-    font-size: 12px;
-    transition: background 0.15s;
+    padding: var(--sp-2) var(--sp-4);
+    background: var(--bg2);
+    border-bottom: 1px solid var(--bd);
+    font-size: 10.5px;
+    font-family: var(--sans);
+    min-height: 28px;
   }
-  .tool-header:hover {
-    background: var(--bg3);
-  }
-  .tool-icon {
+
+  .tc-icon {
     display: flex;
     align-items: center;
     flex-shrink: 0;
   }
-  .tool-icon.read,
-  .tool-icon.grep,
-  .tool-icon.glob {
+  .tc-icon.read,
+  .tc-icon.grep,
+  .tc-icon.glob {
     color: var(--user-fg);
   }
-  .tool-icon.edit,
-  .tool-icon.write {
+  .tc-icon.edit,
+  .tc-icon.write {
     color: var(--tool-fg);
   }
-  .tool-icon.bash {
+  .tc-icon.bash {
     color: var(--ac);
   }
-  .tool-icon.agent,
-  .tool-icon.skill {
+  .tc-icon.agent,
+  .tc-icon.skill {
     color: var(--think-fg);
   }
 
-  .tool {
-    font-weight: 600;
-    flex-shrink: 0;
-  }
-  .tool.read,
-  .tool.grep,
-  .tool.glob {
-    color: var(--user-fg);
-  }
-  .tool.edit,
-  .tool.write {
-    color: var(--tool-fg);
-  }
-  .tool.bash {
-    color: var(--ac);
-  }
-  .tool.agent {
-    color: var(--think-fg);
-  }
-  .tool.skill {
-    color: var(--think-fg);
-  }
-  .target {
-    color: var(--t1);
-    font-size: 12px;
+  .tc-title {
+    display: flex;
+    align-items: center;
+    gap: 4px;
     flex: 1;
     min-width: 0;
     overflow: hidden;
-    text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .time {
-    color: var(--t2);
-    font-size: 10px;
+  .tc-tool {
+    font-weight: 600;
+    color: var(--t0);
     flex-shrink: 0;
   }
-  .changes {
+  .tc-sep {
+    color: var(--t3);
+    flex-shrink: 0;
+  }
+  .tc-target {
+    color: var(--t1);
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .tc-spacer {
+    flex: 1;
+  }
+
+  .tc-changes {
     display: flex;
-    gap: var(--sp-2);
+    gap: var(--sp-1);
     flex-shrink: 0;
   }
   .added {
     color: var(--ac);
-    font-size: 11px;
+    font-size: 10px;
   }
   .removed {
     color: var(--s-error);
-    font-size: 11px;
-  }
-  .expand-btn {
-    flex-shrink: 0;
-    background: var(--bg3);
-    border: 1px solid var(--bd1);
-    color: var(--t1);
-    font-size: 11px;
-    cursor: pointer;
-    padding: var(--sp-1) var(--sp-3);
-    border-radius: var(--radius-md);
-    line-height: 1;
-    transition: all 0.15s;
-  }
-  .expand-btn:hover {
-    background: var(--bg4);
-    color: var(--user-fg);
-    border-color: var(--user-fg);
+    font-size: 10px;
   }
 
-  .copy-btn {
+  .tc-time {
+    color: var(--t2);
+    font-size: 9.5px;
     flex-shrink: 0;
+  }
+
+  .tc-action {
     display: flex;
     align-items: center;
-    gap: var(--sp-1);
-    background: var(--bg3);
-    border: 1px solid var(--bd1);
-    color: var(--t1);
-    font-size: 11px;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--t2);
     cursor: pointer;
-    padding: var(--sp-1) var(--sp-3);
-    border-radius: var(--radius-md);
-    line-height: 1;
-    transition: all 0.15s;
+    transition: all 0.12s;
+    flex-shrink: 0;
   }
-  .copy-btn:hover {
-    background: var(--bg4);
-    color: var(--user-fg);
-    border-color: var(--user-fg);
-  }
-  .copy-btn:active {
-    background: var(--ac-bg, rgba(0, 212, 126, 0.2));
-    color: var(--ac);
-    border-color: var(--ac);
-  }
-
-  .detail {
-    padding: var(--sp-2) var(--sp-5) var(--sp-2) var(--sp-5);
-  }
-
-  .code-card {
-    border: 1px solid var(--bd1);
-    border-radius: var(--radius-lg);
-    overflow: hidden;
-  }
-  .code-inner {
-    font-family: 'Cascadia Code', 'Fira Code', monospace;
-    font-size: 11px;
-    line-height: 1.6;
-    max-height: 300px;
-    overflow-y: auto;
-  }
-  .code-text {
-    padding: var(--sp-4) var(--sp-5);
-    margin: 0;
-    background: var(--bg2);
-    white-space: pre-wrap;
-    color: var(--t1);
-  }
-  .code-text code {
-    font-family: inherit;
-  }
-
-  /* Streaming bash output (progress events before final result) */
-  .streaming-output {
-    background: var(--bg2);
-    border-top: 1px solid var(--bd1);
-  }
-  .streaming-line {
-    margin: 0;
-    padding: var(--sp-1) var(--sp-5);
-    font-size: 10px;
-    line-height: 1.5;
-    white-space: pre-wrap;
-    color: var(--t2);
-    font-family: 'Cascadia Code', 'Fira Code', monospace;
-  }
-
-  /* Result output section */
-  .result-divider {
-    height: 1px;
-    background: var(--bd1);
-  }
-  .result-output {
-    background: var(--bg2);
-  }
-  .result-pre {
-    margin: 0;
-    padding: var(--sp-4) var(--sp-5);
-    font-size: 11px;
-    line-height: 1.5;
-    white-space: pre-wrap;
-    color: var(--t1);
-  }
-
-  /* Read output with line numbers */
-  .read-output {
-    background: var(--bg2);
-  }
-  .read-table {
-    border-collapse: collapse;
-    width: 100%;
-    font-family: 'Cascadia Code', 'Fira Code', monospace;
-    font-size: 11px;
-    line-height: 1.6;
-  }
-  .read-table tr:hover {
+  .tc-action:hover {
     background: var(--bg3);
+    color: var(--t0);
   }
-  .line-num {
-    padding: 0 var(--sp-4) 0 var(--sp-3);
-    text-align: right;
-    color: var(--t2);
-    user-select: none;
-    white-space: nowrap;
-    border-right: 1px solid var(--bd1);
-    opacity: 0.6;
-    vertical-align: top;
+  .tc-action--label {
+    width: auto;
+    gap: 3px;
+    padding: 0 5px;
+    font-size: 9px;
+    font-family: var(--sans);
+    font-weight: 500;
   }
-  .line-code {
-    padding: 0 var(--sp-4);
-    white-space: pre-wrap;
-    word-break: break-all;
+  .tc-action--darker {
+    background: var(--bg3);
+    color: var(--t1);
+  }
+  .tc-action--darker:hover {
+    background: var(--bg4);
+    color: var(--t0);
   }
 
-  /* Diff lines */
+  /* ── Body ── */
+  .tc-body {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    line-height: 1.55;
+  }
+
+  /* ── Diff block ── */
   .diff-block {
     font-family: var(--mono);
-    font-size: 11px;
+    line-height: 1.5;
   }
   .diff-line {
     display: flex;
-    gap: var(--sp-3);
-    padding: 1px var(--sp-4);
-    line-height: 1.5;
-  }
-  .diff-line.add {
-    background: rgba(0, 212, 126, 0.07);
-    color: #6bffaa;
-  }
-  .diff-line.rem {
-    background: rgba(224, 72, 72, 0.08);
-    color: #ff8877;
+    align-items: stretch;
+    padding: 0 var(--sp-4);
+    font-size: 10.5px;
+    min-height: 20px;
   }
   .diff-line.ctx {
-    color: var(--t3);
+    background: var(--bg1);
   }
+  .diff-line.add {
+    background: var(--diff-add-bg);
+  }
+  .diff-line.rem {
+    background: var(--diff-rem-bg);
+  }
+
   .dl-num {
-    min-width: 28px;
-    text-align: right;
-    color: var(--t3);
+    width: 28px;
     flex-shrink: 0;
+    color: var(--t3);
+    text-align: right;
+    padding-right: var(--sp-2);
     user-select: none;
+    font-size: 10px;
   }
   .dl-prefix {
-    flex-shrink: 0;
     width: 10px;
+    flex-shrink: 0;
     user-select: none;
-  }
-  .diff-line.add .dl-prefix {
-    color: var(--ac);
-  }
-  .diff-line.rem .dl-prefix {
-    color: var(--s-error);
-  }
-  .diff-line.ctx .dl-prefix {
     color: var(--t3);
   }
   .dl-code {
     flex: 1;
-    min-width: 0;
-    white-space: pre;
-  }
-  .code-inner .dl-code {
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: pre-wrap;
+    word-break: break-word;
   }
   .diff-overflow {
-    display: block;
     width: 100%;
-    background: none;
+    text-align: left;
+    padding: var(--sp-2) var(--sp-4);
+    background: var(--bg2);
     border: none;
     border-top: 1px solid var(--bd);
-    color: var(--t3);
-    font-size: 10px;
-    font-family: var(--mono);
-    padding: var(--sp-2) var(--sp-4);
-    text-align: center;
+    color: var(--t2);
+    font-size: 10.5px;
     cursor: pointer;
+    font-family: var(--sans);
   }
   .diff-overflow:hover {
-    color: var(--t1);
     background: var(--bg3);
-  }
-
-  .diff-block.modal-code-scroll {
-    overflow-x: auto;
-  }
-
-  /* highlight.js tokens */
-  .detail :global(.hljs-keyword),
-  .detail :global(.hljs-selector-tag),
-  .detail :global(.hljs-built_in) {
-    color: var(--hl-keyword, #c678dd);
-  }
-
-  .detail :global(.hljs-string),
-  .detail :global(.hljs-attr),
-  .detail :global(.hljs-addition) {
-    color: var(--hl-string, #98c379);
-  }
-
-  .detail :global(.hljs-number),
-  .detail :global(.hljs-literal) {
-    color: var(--hl-number, #d19a66);
-  }
-
-  .detail :global(.hljs-comment),
-  .detail :global(.hljs-quote) {
-    color: var(--hl-comment, #5c6370);
-    font-style: italic;
-  }
-
-  .detail :global(.hljs-function),
-  .detail :global(.hljs-title) {
-    color: var(--hl-function, #61afef);
-  }
-
-  .detail :global(.hljs-type),
-  .detail :global(.hljs-title.class_) {
-    color: var(--hl-type, #e5c07b);
-  }
-
-  .detail :global(.hljs-variable),
-  .detail :global(.hljs-template-variable) {
-    color: var(--hl-variable, #e06c75);
-  }
-
-  .detail :global(.hljs-meta),
-  .detail :global(.hljs-selector-class) {
-    color: var(--hl-meta, #61afef);
-  }
-
-  .detail :global(.hljs-tag) {
-    color: var(--hl-tag, #e06c75);
-  }
-  .detail :global(.hljs-name) {
-    color: var(--hl-tag, #e06c75);
-  }
-  .detail :global(.hljs-attribute) {
-    color: var(--hl-attr, #d19a66);
-  }
-
-  .detail :global(.hljs-params) {
     color: var(--t0);
   }
-  .detail :global(.hljs-punctuation) {
-    color: var(--t1);
+
+  /* ── Bash body ── */
+  .bash-body {
+    padding: var(--sp-3) var(--sp-4);
+  }
+  .bash-code {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    line-height: 1.5;
+    color: var(--ac);
+  }
+  .bash-code code {
+    font-family: var(--mono);
   }
 
-  /* Fullscreen modal */
+  /* ── Read output ── */
+  .read-output {
+    padding: var(--sp-3) var(--sp-4);
+    overflow-x: auto;
+  }
+  .read-output table {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    border-collapse: collapse;
+  }
+  .read-output td {
+    padding: 0 var(--sp-2);
+    line-height: 1.55;
+    vertical-align: top;
+  }
+  .read-output td.line-num {
+    color: var(--t3);
+    text-align: right;
+    user-select: none;
+    width: 32px;
+    padding-right: var(--sp-2);
+    font-size: 10px;
+  }
+
+  /* ── Result output ── */
+  .result-output {
+    padding: var(--sp-3) var(--sp-4);
+    overflow-x: auto;
+  }
+  .result-pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 10.5px;
+    line-height: 1.55;
+    font-family: var(--mono);
+  }
+
+  .result-divider {
+    height: 1px;
+    background: var(--bd);
+  }
+
+  /* ── Streaming ── */
+  .streaming-output {
+    border-top: 1px solid var(--bd);
+    padding: var(--sp-3) var(--sp-4);
+  }
+  .streaming-line {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    line-height: 1.55;
+    color: var(--t2);
+    margin: 0;
+  }
+
+  /* ── Modal ── */
   .modal-overlay {
     position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.7);
-    z-index: 1000;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.65);
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 24px;
-    animation: fadeIn 0.15s ease-out;
-  }
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
+    z-index: 999;
   }
   .modal {
     background: var(--bg1);
-    border: 1px solid var(--bd2);
+    border: 1px solid var(--bd);
     border-radius: var(--radius-lg);
-    width: 100%;
+    width: 90vw;
     max-width: 900px;
-    max-height: 90vh;
+    height: 85vh;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -898,71 +816,119 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: var(--sp-6) var(--sp-8);
-    border-bottom: 1px solid var(--bd1);
+    padding: var(--sp-4) var(--sp-5);
+    border-bottom: 1px solid var(--bd);
     flex-shrink: 0;
   }
   .modal-title {
     display: flex;
     align-items: center;
-    gap: var(--sp-4);
+    gap: var(--sp-3);
+    font-family: var(--sans);
     font-size: 13px;
-    min-width: 0;
-  }
-  .modal-title .target {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .modal-actions {
-    display: flex;
-    align-items: center;
-    gap: var(--sp-2);
-    flex-shrink: 0;
+    font-weight: 600;
+    color: var(--t0);
   }
   .modal-close {
     background: none;
     border: none;
-    color: var(--t1);
+    color: var(--t2);
     font-size: 16px;
     cursor: pointer;
-    padding: var(--sp-2) var(--sp-4);
-    border-radius: var(--radius-md);
+    padding: 0 var(--sp-2);
+    line-height: 1;
   }
   .modal-close:hover {
-    background: var(--bg3);
-    color: var(--t0);
-  }
-  .modal-copy-btn {
-    padding: var(--sp-2) var(--sp-4);
-    color: var(--t1);
-  }
-  .modal-copy-btn:hover {
-    background: var(--bg3);
     color: var(--t0);
   }
   .modal-body {
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
-    padding: var(--sp-8);
+    padding: var(--sp-4) var(--sp-5);
     display: flex;
     flex-direction: column;
-    gap: var(--sp-6);
-    min-height: 0;
+    gap: var(--sp-4);
   }
-  .modal-section-label {
-    font-size: 11px;
+
+  /* ── Modal Card Sections ── */
+  .modal-card-section {
+    border: 1px solid var(--bd);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: var(--bg1);
+    flex-shrink: 0;
+  }
+  .modal-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--sp-2) var(--sp-4);
+    background: var(--bg2);
+    border-bottom: 1px solid var(--bd);
+  }
+  .modal-card-label {
+    font-family: var(--sans);
+    font-size: 10px;
     font-weight: 600;
-    color: var(--t1);
+    color: var(--t2);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.04em;
   }
-  .modal-code-scroll {
-    font-family: 'Cascadia Code', 'Fira Code', monospace;
-    font-size: 12px;
-    line-height: 1.7;
-    max-height: 60vh;
+  .modal-card-body {
+    font-family: var(--mono);
+    font-size: var(--sm);
+    line-height: 1.6;
     overflow-x: auto;
-    overflow-y: auto;
+  }
+  .modal-card-body .diff-block .diff-line {
+    padding: 0 var(--sp-4);
+  }
+  .modal-card-body .code-text {
+    margin: 0;
+    padding: var(--sp-3) var(--sp-4);
+    font-family: var(--mono);
+    font-size: var(--sm);
+    line-height: 1.6;
+    color: var(--ac);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .modal-card-body .code-text code {
+    font-family: var(--mono);
+  }
+  .modal-card-body .read-output {
+    padding: var(--sp-3) var(--sp-4);
+  }
+  .modal-card-body .result-output {
+    padding: var(--sp-3) var(--sp-4);
+  }
+  .modal-card-body .result-pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: var(--sm);
+    line-height: 1.6;
+    font-family: var(--mono);
+  }
+
+  .card-copy-btn {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    background: transparent;
+    border: 1px solid var(--bd1);
+    color: var(--t2);
+    font-size: 9.5px;
+    cursor: pointer;
+    padding: 1px 6px;
+    border-radius: var(--radius-sm);
+    transition: all 0.12s;
+    font-family: var(--sans);
+  }
+  .card-copy-btn:hover {
+    background: var(--bg3);
+    color: var(--t0);
+    border-color: var(--t2);
   }
 </style>

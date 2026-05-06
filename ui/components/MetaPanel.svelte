@@ -230,6 +230,7 @@
     flex-direction: column;
     border-left: 1px solid var(--bd);
     background: var(--bg1);
+    font-family: var(--mono);
   }
 
   .tabs {

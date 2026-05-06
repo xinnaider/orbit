@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Orbit — Steel Workshop</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+  :root {
+    --surface-0: #0b0d10;
+    --surface-1: #0f1116;
+    --surface-2: #15181f;
+    --surface-3: #1c1f28;
+    --surface-4: #232733;
+    --border-0: #1a1d26;
+    --border-1: #242836;
+    --border-2: #303447;
+    --text-0: #ecedee;
+    --text-1: #9a9fae;
+    --text-2: #6b7084;
+    --text-3: #494e60;
+    --accent: #4f8cff;
+    --accent-bg: rgba(79, 140, 255, 0.08);
+    --accent-border: rgba(79, 140, 255, 0.25);
+    --accent-subtle: rgba(79, 140, 255, 0.04);
+    --green-fg: #4fc98f;
+    --green-bg: rgba(79, 201, 143, 0.06);
+    --amber-fg: #e8b84c;
+    --amber-bg: rgba(232, 184, 76, 0.06);
+    --red-fg: #e85a5a;
+    --red-bg: rgba(232, 90, 90, 0.06);
+    --radius: 6px;
+    --radius-sm: 4px;
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'DM Mono', 'JetBrains Mono', 'Fira Code', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--surface-0);
+    font-family: var(--font);
+    color: var(--text-0);
+    display: flex; flex-direction: column; gap: 48px;
+    padding: 32px 40px;
+  }
+
+  h2 {
+    font-size: 13px; font-weight: 500; color: var(--text-2);
+    letter-spacing: 0.4px;
+    border-bottom: 1px solid var(--border-0);
+    padding-bottom: 10px; margin-bottom: 24px;
+  }
+
+  /* ============================================= */
+  /*  MAIN LAYOUT: 3-column demo                    */
+  /* ============================================= */
+  .layout {
+    display: flex;
+    border: 1px solid var(--border-1);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+    background: var(--surface-1);
+  }
+
+  .sidebar {
+    width: 48px;
+    flex-shrink: 0;
+    background: var(--surface-2);
+    border-right: 1px solid var(--border-1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px 0;
+    gap: 6px;
+  }
+
+  .sb-icon {
+    width: 28px; height: 28px; border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-3); cursor: pointer;
+    border: none; background: transparent;
+    font-size: 14px; transition: all 0.12s;
+  }
+  .sb-icon:hover { color: var(--text-1); background: var(--surface-3); }
+  .sb-icon.active { color: var(--accent); background: var(--accent-bg); }
+
+  .sb-spacer { flex: 1; }
+
+  .pane {
+    flex: 1; min-width: 0;
+    display: flex; flex-direction: column;
+    position: relative;
+  }
+  .pane + .pane { border-left: 1px solid var(--border-1); }
+
+  /* ============================================= */
+  /*  TAB BAR — ultra-minimal, no bg                */
+  /* ============================================= */
+  .tab-bar {
+    display: flex; align-items: center;
+    height: 36px;
+    padding: 0 6px;
+    gap: 2px;
+    background: var(--surface-1);
+    border-bottom: 1px solid var(--border-0);
+    flex-shrink: 0;
+  }
+
+  .tab {
+    display: flex; align-items: center; gap: 6px;
+    height: 26px; padding: 0 8px;
+    border-radius: var(--radius-sm);
+    cursor: pointer; user-select: none;
+    color: var(--text-3); font-size: 11px; font-weight: 450;
+    transition: all 0.1s;
+    border: none; background: transparent;
+    position: relative;
+  }
+  .tab:hover { color: var(--text-1); background: var(--surface-3); }
+  .tab.active {
+    color: var(--text-0);
+    background: var(--surface-3);
+  }
+  .tab-icon { display: flex; color: inherit; opacity: 0.5; }
+  .tab.active .tab-icon { opacity: 0.8; }
+
+  .tab-close {
+    display: flex; align-items: center; justify-content: center;
+    width: 14px; height: 14px; border-radius: 2px;
+    border: none; background: transparent; cursor: pointer;
+    color: var(--text-3); padding: 0;
+    opacity: 0; transition: opacity 0.1s, background 0.1s;
+  }
+  .tab:hover .tab-close { opacity: 0.4; }
+  .tab-close:hover { opacity: 1 !important; color: var(--text-0); background: var(--surface-4); }
+
+  .tab-spacer { flex: 1; }
+
+  .tab-add {
+    width: 22px; height: 22px;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px dashed var(--border-1); border-radius: var(--radius-sm);
+    background: transparent; color: var(--text-3);
+    cursor: pointer; transition: all 0.12s;
+  }
+  .tab-add:hover { border-color: var(--text-2); color: var(--text-1); }
+
+  /* ============================================= */
+  /*  PANEL HEADER — minimal, single line           */
+  /* ============================================= */
+  .panel-header {
+    display: flex; align-items: center;
+    gap: 8px;
+    height: 34px; padding: 0 10px;
+    background: var(--surface-1);
+    border-bottom: 1px solid var(--border-0);
+    flex-shrink: 0;
+  }
+
+  .status-dot {
+    width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+  }
+  .status-dot.blue { background: var(--accent); }
+  .status-dot.green { background: var(--green-fg); }
+
+  .header-title {
+    font-size: 12px; font-weight: 500; color: var(--text-0);
+    white-space: nowrap; letter-spacing: -0.01em;
+  }
+  .header-sep { color: var(--text-3); font-size: 11px; }
+  .header-sub {
+    font-size: 11px; color: var(--text-2);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  .header-right {
+    margin-left: auto;
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  .stat {
+    font-size: 10px; color: var(--text-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .stat strong { color: var(--text-1); font-weight: 500; }
+
+  .hdr-action {
+    width: 20px; height: 20px; border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    border: none; background: transparent; color: var(--text-3);
+    cursor: pointer; font-size: 11px;
+    transition: all 0.1s;
+  }
+  .hdr-action:hover { background: var(--surface-3); color: var(--text-1); }
+
+  .hdr-pill {
+    height: 18px; padding: 0 6px; border-radius: 3px;
+    display: flex; align-items: center; gap: 4px;
+    font-size: 9.5px; font-weight: 500;
+    background: var(--surface-3); color: var(--text-2);
+    border: 1px solid var(--border-0);
+    white-space: nowrap;
+  }
+
+  /* ============================================= */
+  /*  BRANCH STRIP                                  */
+  /* ============================================= */
+  .branch-strip {
+    display: flex; align-items: center; gap: 6px;
+    height: 20px; padding: 0 10px;
+    background: var(--accent-subtle);
+    border-bottom: 1px solid var(--accent-border);
+    color: var(--accent); font-size: 9.5px; font-family: var(--mono);
+    flex-shrink: 0;
+  }
+
+  /* ============================================= */
+  /*  CHAT FEED                                      */
+  /* ============================================= */
+  .feed {
+    flex: 1; min-height: 0;
+    overflow-y: auto;
+    display: flex; flex-direction: column;
+  }
+
+  .entry {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border-0);
+    font-size: 12px; line-height: 1.65; color: var(--text-0);
+  }
+  .entry:last-child { border-bottom: none; }
+
+  .entry-label {
+    font-size: 9.5px; font-weight: 500;
+    letter-spacing: 0.3px; text-transform: uppercase;
+    display: flex; align-items: center; gap: 5px;
+    margin-bottom: 5px;
+  }
+  .entry.user .entry-label { color: var(--accent); }
+  .entry.model .entry-label { color: var(--text-2); }
+  .entry.think .entry-label { color: var(--amber-fg); }
+
+  .think-collapsed {
+    display: flex; align-items: center; gap: 8px;
+    color: var(--text-2); font-style: italic; font-size: 11px;
+    cursor: pointer;
+  }
+  .think-dots { display: flex; gap: 3px; }
+  .think-dots span {
+    width: 4px; height: 4px; border-radius: 50%;
+    background: var(--amber-fg); opacity: 0.5;
+  }
+
+  .tool-call {
+    margin: 8px 0;
+    border: 1px solid var(--border-1);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .tool-call-hd {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 8px;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--border-0);
+    color: var(--amber-fg); font-size: 10.5px; font-weight: 500;
+    cursor: pointer;
+  }
+  .tool-call-body {
+    padding: 8px;
+    background: var(--surface-1);
+    font-family: var(--mono); font-size: 10.5px; color: var(--text-1);
+    line-height: 1.5;
+  }
+  .tool-call-body pre {
+    margin: 4px 0; padding: 8px;
+    background: var(--surface-0);
+    border: 1px solid var(--border-0);
+    border-radius: var(--radius-sm);
+    overflow-x: auto;
+    font-family: var(--mono); font-size: 10.5px; color: var(--text-0);
+  }
+
+  .bash-block {
+    margin: 8px 0;
+    border: 1px solid var(--border-1);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .bash-hd {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 8px;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--border-0);
+    color: var(--text-2); font-size: 9.5px;
+  }
+  .bash-out {
+    padding: 8px;
+    font-family: var(--mono); font-size: 10.5px;
+    color: var(--text-1); white-space: pre-wrap; line-height: 1.4;
+  }
+
+  .diff-block {
+    margin: 6px 0;
+    border: 1px solid var(--border-1);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+  }
+  .diff-line {
+    padding: 1px 10px;
+    font-family: var(--mono); font-size: 10px;
+    white-space: pre;
+  }
+  .diff-line.add { background: var(--green-bg); color: var(--green-fg); }
+  .diff-line.rem { background: var(--red-bg); color: var(--red-fg); }
+
+  .entry-foot {
+    display: flex; align-items: center; gap: 10px;
+    margin-top: 6px; padding-top: 5px;
+    border-top: 1px solid var(--border-0);
+    font-size: 9px; color: var(--text-3);
+  }
+
+  /* ============================================= */
+  /*  GIT PANEL — tree + diff                        */
+  /* ============================================= */
+  .git-panel {
+    flex: 1; min-height: 0;
+    display: flex;
+  }
+  .git-tree {
+    width: 210px; flex-shrink: 0;
+    padding: 6px 0;
+    border-right: 1px solid var(--border-0);
+    overflow-y: auto;
+  }
+  .tree-group {
+    padding: 0 8px;
+  }
+  .tree-group-label {
+    font-size: 9px; font-weight: 600; text-transform: uppercase;
+    color: var(--text-3); letter-spacing: 0.4px;
+    padding: 6px 4px 3px;
+  }
+  .tree-item {
+    display: flex; align-items: center; gap: 6px;
+    padding: 3px 4px; border-radius: 3px;
+    font-size: 10.5px; color: var(--text-1);
+    cursor: pointer; transition: background 0.1s;
+  }
+  .tree-item:hover { background: var(--surface-3); color: var(--text-0); }
+  .tree-item.selected { background: var(--surface-3); color: var(--text-0); }
+  .tree-item .file-chg {
+    margin-left: auto; font-size: 9px; font-variant-numeric: tabular-nums;
+  }
+  .tree-item .file-chg.added { color: var(--green-fg); }
+  .tree-item .file-chg.removed { color: var(--red-fg); }
+
+  .git-diff {
+    flex: 1; min-width: 0;
+    padding: 10px 12px;
+    overflow-y: auto;
+  }
+  .diff-detail-hd {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 8px; padding-bottom: 6px;
+    border-bottom: 1px solid var(--border-0);
+    font-size: 11px;
+  }
+  .diff-detail-path { color: var(--accent); font-weight: 500; }
+  .diff-detail-stats { margin-left: auto; font-size: 10px; color: var(--text-2); }
+  .diff-detail-content {
+    font-family: var(--mono); font-size: 11px; line-height: 1.5;
+  }
+  .diff-detail-content .dl { padding: 0 8px; }
+  .diff-detail-content .dl.add {
+    background: var(--green-bg); color: var(--green-fg);
+    border-left: 2px solid var(--green-fg);
+  }
+  .diff-detail-content .dl.rem {
+    background: var(--red-bg); color: var(--red-fg);
+    border-left: 2px solid var(--red-fg);
+  }
+  .diff-detail-content .dl.ctx { color: var(--text-2); border-left: 2px solid var(--border-1); }
+</style>
+
+<body>
+
+<h2>
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:6px;">
+    <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+  </svg>
+  Steel Workshop — proposta de design para Orbit
+</h2>
+
+<!-- SPEC TABLE -->
+<div style="display:flex;gap:24px;margin-bottom:20px;">
+<table style="font-size:10.5px;color:var(--text-2);border-collapse:collapse;width:100%;">
+  <tr>
+    <td style="padding:3px 8px;border-bottom:1px solid var(--border-0);color:var(--text-1);width:140px;">Direção</td>
+    <td style="padding:3px 8px;border-bottom:1px solid var(--border-0);">
+      <strong style="color:var(--text-0);">Steel Workshop</strong> — azul-aço, limpo, utilitário. Inspirado em Emdash (YC W26) e DP Code.
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:3px 8px;border-bottom:1px solid var(--border-0);color:var(--text-1);">Paleta</td>
+    <td style="padding:3px 8px;border-bottom:1px solid var(--border-0);">
+      Fundos <code>#0b0d10</code> → <code>#232733</code> (cool gray). Accent <code>#4f8cff</code> (azul). Verde para adds, vermelho para dels.
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:3px 8px;border-bottom:1px solid var(--border-0);color:var(--text-1);">Tipografia</td>
+    <td style="padding:3px 8px;border-bottom:1px solid var(--border-0);">
+      Inter (UI) + DM Mono (code). TabBar: 11px weight 450. Header: 12px weight 500. Feed: 12px.
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:3px 8px;border-bottom:1px solid var(--border-0);color:var(--text-1);">Tabs</td>
+    <td style="padding:3px 8px;border-bottom:1px solid var(--border-0);">
+      Sem border no tab-bar. Tabs são pills <code>26px</code> altura, active/inactive no mesmo bg. Close só aparece no hover. Add é dashed icon.
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:3px 8px;border-bottom:1px solid var(--border-0);color:var(--text-1);">Header</td>
+    <td style="padding:3px 8px;border-bottom:1px solid var(--border-0);">
+      Single line. Dot (6px) + title / separator / subtitle. Sem pill de status — integrado no flow. Ações minimalistas no hover.
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:3px 8px;border-bottom:1px solid var(--border-0);color:var(--text-1);">Botão close</td>
+    <td style="padding:3px 8px;border-bottom:1px solid var(--border-0);">
+      Hidden por padrão, aparece no hover da tab. Opacity 0.4, sobe pra 1.0 no hover do próprio close.
+    </td>
+  </tr>
+</table>
+</div>
+
+<!-- ============================================= -->
+<!-- MAIN LAYOUT                                    -->
+<!-- ============================================= -->
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <button class="sb-icon active">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+    <button class="sb-icon">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4,17 10,11 4,5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+    </button>
+    <button class="sb-icon">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+    </button>
+    <div class="sb-spacer"></div>
+    <button class="sb-icon">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </button>
+  </div>
+
+  <!-- LEFT PANE — Agent Chat -->
+  <div class="pane">
+
+    <!-- Tab Bar -->
+    <div class="tab-bar">
+      <div class="tab active">
+        <svg class="tab-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        my-app · claude-code
+        <button class="tab-close">
+          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="tab">
+        <svg class="tab-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4,17 10,11 4,5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+        Terminal
+        <button class="tab-close">
+          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="tab-spacer"></div>
+      <button class="tab-add">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+    </div>
+
+    <!-- Header -->
+    <div class="panel-header">
+      <span class="status-dot blue"></span>
+      <span class="header-title">my-app</span>
+      <span class="header-sep">/</span>
+      <span class="header-sub">C:\projects\my-app</span>
+      <div class="header-right">
+        <span class="stat"><strong>1.2k</strong> ↑ · <strong>567</strong> ↓</span>
+        <span class="stat" style="color:var(--text-3);">|</span>
+        <span class="stat"><strong>34%</strong> ctx</span>
+        <div style="display:flex;gap:4px;margin-left:4px;">
+          <span class="hdr-pill">
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+            claude-3.5
+          </span>
+          <button class="hdr-action">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11,5 6,9 2,9 2,15 6,15 11,19"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+          </button>
+          <button class="hdr-action">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Branch strip -->
+    <div class="branch-strip">
+      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+      feat/workspace-tabs
+    </div>
+
+    <!-- Feed -->
+    <div class="feed">
+      <div class="entry user">
+        <div class="entry-label">
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          You
+        </div>
+        <div>Refactor the authentication module to use JWT tokens with refresh flow</div>
+      </div>
+
+      <div class="entry think">
+        <div class="entry-label">
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v1a2.5 2.5 0 0 1-2.5 2.5h-1A2.5 2.5 0 0 1 6 5.5v-1A2.5 2.5 0 0 1 8.5 2z"/><path d="M12 4.5h5.5A2.5 2.5 0 0 1 20 7v.5"/><path d="M4 12v5.5A2.5 2.5 0 0 0 6.5 20H7"/><path d="M15 20h5.5a2.5 2.5 0 0 0 2.5-2.5V12"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/></svg>
+          Thinking
+        </div>
+        <div class="think-collapsed">
+          <div class="think-dots"><span></span><span></span><span></span></div>
+          Analyzing auth flow, existing middleware and token validation...
+        </div>
+      </div>
+
+      <div class="entry user">
+        <div class="entry-label">
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          You
+        </div>
+        <div>Vou refatorar o módulo de autenticação.</div>
+      </div>
+
+      <div class="entry model">
+        <div class="entry-label">
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          claude-code
+        </div>
+        <div class="tool-call">
+          <div class="tool-call-hd">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+            Write — src/auth/jwt.ts
+          </div>
+          <div class="tool-call-body">
+            <pre>
+import jwt from 'jsonwebtoken';
+const SECRET = process.env.JWT_SECRET!;
+
+export function signAccess(payload: Record&lt;string, unknown&gt;) {
+  return jwt.sign(payload, SECRET, { expiresIn: '15m' });
+}</pre>
+          </div>
+        </div>
+        <div class="bash-block">
+          <div class="bash-hd">
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4,17 10,11 4,5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+            bash — exit 0
+          </div>
+          <div class="bash-out">$ npx tsc --noEmit
+TypeScript compilation passed.</div>
+        </div>
+        <div class="diff-block">
+          <div class="diff-line add">+ import { signAccess, verify } from './auth/jwt';</div>
+          <div class="diff-line rem">- import { oldAuth } from './legacy/auth';</div>
+        </div>
+        <div class="entry-foot">
+          <span>1,234 ↑ · 567 ↓ tokens</span>
+          <span>·</span>
+          <span>34% context</span>
+          <span>·</span>
+          <span>$0.042</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANE — Git Tree + Diff -->
+  <div class="pane">
+
+    <div class="tab-bar">
+      <div class="tab active">
+        <svg class="tab-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+        Git
+        <button class="tab-close">
+          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="tab">
+        <svg class="tab-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4,17 10,11 4,5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+        Terminal
+        <button class="tab-close">
+          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="tab-spacer"></div>
+    </div>
+
+    <div class="panel-header">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-1)" stroke-width="2"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+      <span class="header-title">Git Overview</span>
+      <span class="header-sep">/</span>
+      <span class="header-sub">main</span>
+      <div class="header-right">
+        <span class="stat"><strong>3</strong> changed</span>
+        <div style="display:flex;gap:4px;">
+          <button class="hdr-action">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23,4 23,10 17,10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          </button>
+          <button class="hdr-action">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Git body: tree + diff -->
+    <div class="git-panel">
+      <div class="git-tree">
+        <div class="tree-group">
+          <div class="tree-group-label" style="color:var(--accent);">Staged</div>
+          <div class="tree-item">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+            src/auth/jwt.ts
+            <span class="file-chg added">+4</span>
+          </div>
+        </div>
+        <div class="tree-group">
+          <div class="tree-group-label">Unstaged</div>
+          <div class="tree-item">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+            src/middleware/refresh.ts
+            <span class="file-chg added">+8</span>
+          </div>
+          <div class="tree-item selected">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+            src/routes/auth.ts
+            <span class="file-chg removed">-3</span>
+          </div>
+        </div>
+        <div class="tree-group">
+          <div class="tree-group-label">Untracked</div>
+          <div class="tree-item">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+            src/types/auth.d.ts
+            <span class="file-chg" style="color:var(--text-2);">+12</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="git-diff">
+        <div class="diff-detail-hd">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+          <span class="diff-detail-path">src/routes/auth.ts</span>
+          <span class="diff-detail-stats">-3 / +0</span>
+        </div>
+        <div class="diff-detail-content">
+          <div class="dl ctx"><span style="color:var(--text-3);margin-right:12px;">@@ -42,7 +42,4 @@</span></div>
+          <div class="dl ctx"> export function login(req, res) {</div>
+          <div class="dl rem">-import { oldAuth, verifyLegacy } from './legacy/auth';</div>
+          <div class="dl add">+import { signAccess, verify } from './auth/jwt';</div>
+          <div class="dl ctx">   const token = signAccess({ userId: req.user.id });</div>
+          <div class="dl ctx">   res.json({ token });</div>
+          <div class="dl rem">-  res.setHeader('X-Auth', 'legacy');</div>
+          <div class="dl ctx"> }</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -12,6 +12,7 @@
   import { modelShortName } from '../lib/status';
   import { onMount } from 'svelte';
   import { clearAttention } from '../lib/tauri/attention';
+  import { GitBranch } from 'lucide-svelte';
   import HttpApiSettingsModal from './HttpApiSettingsModal.svelte';
 
   let showHttpSettings = false;
@@ -215,13 +216,17 @@
       <p class="empty">no sessions</p>
     {:else}
       {#each $sessions.filter((s) => !s.parentSessionId) as s (s.id)}
-        {@const active = Object.values($workspace.panes).some((p) => p.sessionId === s.id)}
+        {@const active = Object.values($workspace.panes).some((p) =>
+          p.tabs.some((tab) => tab.target.kind === 'agent' && tab.target.sessionId === s.id)
+        )}
         {@const color = statusColor(s.status)}
         {@const pulsing = isPulsing(s.status)}
         {@const children = getChildren($sessions, s.id)}
         {@const expanded = expandedParents.has(s.id)}
         {@const childActive = children.some((c) =>
-          Object.values($workspace.panes).some((p) => p.sessionId === c.id)
+          Object.values($workspace.panes).some((p) =>
+            p.tabs.some((tab) => tab.target.kind === 'agent' && tab.target.sessionId === c.id)
+          )
         )}
         <button
           class="item"
@@ -286,7 +291,9 @@
         {#if expanded && children.length > 0}
           <div class="cards">
             {#each children as c (c.id)}
-              {@const cActive = Object.values($workspace.panes).some((p) => p.sessionId === c.id)}
+              {@const cActive = Object.values($workspace.panes).some((p) =>
+                p.tabs.some((tab) => tab.target.kind === 'agent' && tab.target.sessionId === c.id)
+              )}
               {@const cColor = statusColor(c.status)}
               {@const cPulsing = isPulsing(c.status)}
               {@const pct = c.contextPercent ?? 0}
@@ -319,6 +326,12 @@
                   <span class="sep">·</span>
                   <span>{fmtTokens(c)}</span>
                 </div>
+                {#if c.gitBranch}
+                  <div class="card-branch" title={c.gitBranch}>
+                    <span class="card-branch-icon" aria-hidden="true"><GitBranch size={10} /></span>
+                    <span class="card-branch-text">{c.gitBranch}</span>
+                  </div>
+                {/if}
                 <div class="card-bar">
                   <div class="card-fill" style="width:{Math.min(pct, 100)}%"></div>
                 </div>
@@ -355,6 +368,7 @@
     flex-direction: column;
     border-right: 1px solid var(--bd);
     background: var(--bg1);
+    font-family: var(--mono);
   }
 
   .header {
@@ -559,6 +573,26 @@
     background: var(--card-color);
     border-radius: 1px;
     transition: width 0.3s ease;
+  }
+
+  .card-branch {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    margin-top: 3px;
+    overflow: hidden;
+  }
+  .card-branch-icon {
+    display: flex;
+    color: var(--ac);
+    flex-shrink: 0;
+  }
+  .card-branch-text {
+    font-size: 8.5px;
+    color: var(--ac);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .item-top {

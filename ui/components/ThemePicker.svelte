@@ -132,4 +132,8 @@
   .swatch[data-theme-preview='catppuccin'] {
     background: #1e1e2e;
   }
+  .swatch[data-theme-preview='steel'] {
+    background: #0b0d10;
+    border-color: #303447;
+  }
 </style>

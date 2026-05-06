@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Orbit Tabs + Git — v2</title>
+<style>
+  :root {
+    --bg: #080808; --bg1: #0d0d0d; --bg2: #121212; --bg3: #181818; --bg4: #1e1e1e;
+    --bd: #1a1a1a; --bd1: #242424; --bd2: #2e2e2e;
+    --t0: #e0e0e0; --t1: #888; --t2: #666; --t3: #444;
+    --ac: #00d47e; --ac-d: rgba(0,212,126,0.1); --ac-d2: rgba(0,212,126,0.05);
+    --s-working: #00d47e; --s-input: #e8a030; --s-error: #e04848;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'JetBrains Mono', Consolas, monospace;
+    background: var(--bg); color: var(--t0);
+    padding: 20px; min-height: 100vh;
+  }
+  h1 { font-size: 15px; margin-bottom: 2px; letter-spacing: -0.01em; color: var(--t0); }
+  .sub { color: var(--t2); font-size: 11px; margin-bottom: 16px; }
+
+  /* Layout Orbit real */
+  .orbit { display: grid; grid-template-columns: 180px 1fr 320px; height: 580px; border: 1px solid var(--bd); border-radius: 8px; overflow: hidden; background: var(--bg); }
+
+  /* ── Sidebar ── */
+  .sidebar { background: var(--bg1); border-right: 1px solid var(--bd); display: flex; flex-direction: column; }
+  .sb-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 10px 8px; border-bottom: 1px solid var(--bd); }
+  .brand { font-weight: 600; font-size: 12px; color: var(--t0); }
+  .new-btn { width: 22px; height: 22px; border-radius: 4px; border: 1px solid var(--bd1); background: var(--bg2); color: var(--t2); font-size: 13px; line-height: 1; text-align: center; cursor: default; }
+  .list { flex: 1; overflow: auto; padding: 6px 4px; }
+  .item { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px; border-radius: 4px; color: var(--t2); font-size: 11px; cursor: default; }
+  .item.active { color: var(--t0); background: var(--ac-d2); box-shadow: inset 2px 0 0 var(--ac); }
+  .item .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .item .lbl { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+  /* ── Main / Right ── */
+  .main, .right { display: flex; flex-direction: column; min-width: 0; }
+  .right { border-left: 1px solid var(--bd); }
+
+  /* ── TabBar (estilo C) ── */
+  .tabbar { display: flex; align-items: stretch; height: 34px; padding: 3px 4px 0; background: var(--bg); border-bottom: 1px solid var(--ac-d); flex-shrink: 0; overflow: hidden; }
+  .tab { display: flex; align-items: center; gap: 5px; height: 29px; min-width: 90px; padding: 0 8px 0 6px; font-size: 10px; border-radius: 3px; border: 1px solid rgba(0,212,126,.09); background: var(--bg1); color: var(--t2); cursor: default; flex-shrink: 0; }
+  .tab.active { color: var(--t0); border-color: var(--ac); background: #07110c; box-shadow: 0 0 14px rgba(0,212,126,.08); }
+  .tab .icon { display: flex; flex-shrink: 0; }
+  .tab .x { margin-left: auto; opacity: .5; display: flex; flex-shrink: 0; }
+  .tab .x:hover { opacity: 1; }
+  .add-tab { margin-left: auto; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 3px; border: 1px solid var(--ac-d); background: var(--ac-d2); color: var(--t2); cursor: default; flex-shrink: 0; }
+
+  /* ── PanelHeader ── */
+  .hdr { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 12px; background: var(--bg1); border-bottom: 1px solid var(--ac-d); flex-shrink: 0; }
+  .hdr .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .hdr-title { font-size: 11px; font-weight: 600; color: var(--t0); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hdr .pill { font-size: 9px; border: 1px solid var(--ac-d); color: var(--ac); background: var(--ac-d2); border-radius: 999px; padding: 1px 6px; flex-shrink: 0; }
+  .hdr .spacer { flex: 1; }
+  .hdr .meta { font-size: 9px; color: var(--t2); flex-shrink: 0; }
+  .hdr .act { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+  .hdr .act button { width: 20px; height: 20px; display: grid; place-items: center; border-radius: 4px; border: 1px solid var(--bd1); background: var(--bg2); color: var(--t2); cursor: default; font-size: 9px; }
+
+  /* ── Feed ── */
+  .feed { flex: 1; padding: 14px; color: var(--t2); font-size: 10px; line-height: 1.7; overflow: hidden; }
+  .bubble { border-left: 2px solid var(--ac); padding-left: 10px; margin-bottom: 14px; color: var(--t1); }
+  .inputbar { height: 36px; border-top: 1px solid var(--bd); display: flex; align-items: center; padding: 0 12px; color: var(--t3); font-size: 10px; background: var(--bg); flex-shrink: 0; }
+
+  /* ── Git body ── */
+  .git-body { flex: 1; display: grid; grid-template-columns: 140px 1fr; min-height: 0; }
+  .tree { background: #040604; border-right: 1px solid var(--bd); padding: 8px 6px; overflow: auto; }
+  .tree .search { height: 22px; border: 1px solid var(--bd); border-radius: 4px; color: var(--t3); font-size: 9px; padding: 3px 6px; margin-bottom: 6px; background: var(--bg); }
+  .tree .group { color: var(--t0); font-size: 10px; height: 22px; display: flex; align-items: center; gap: 4px; cursor: default; }
+  .tree .file { height: 22px; display: flex; align-items: center; gap: 4px; color: var(--t2); font-size: 9px; border-radius: 3px; padding: 0 6px 0 14px; cursor: default; border: 1px solid transparent; }
+  .tree .file.sel { color: var(--t0); border-color: var(--ac-d); background: var(--ac-d2); }
+  .diff { display: flex; flex-direction: column; min-width: 0; }
+  .diff-head { height: 34px; display: flex; align-items: center; gap: 6px; padding: 0 10px; border-bottom: 1px solid var(--bd); font-size: 10px; color: var(--t0); background: var(--bg1); flex-shrink: 0; }
+  .code { flex: 1; padding: 10px; font-size: 9px; line-height: 1.6; color: var(--t2); background: repeating-linear-gradient(var(--bg), var(--bg) 20px, var(--bg1) 21px); overflow: auto; }
+  .code .add { color: var(--ac); }
+  .code .del { color: var(--s-error); }
+
+  /* Lucide SVGs inline */
+  .icon-svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .icon-xs { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+</style>
+</head>
+<body>
+
+<h1>Orbit — estilo C com ícones Lucide + X</h1>
+<p class="sub">Layout fiel ao Orbit real. Tabs estilo C (border-radius 3px, green glow ativo). Ícones: Bot, GitBranch, Terminal, Plus, X, Volume2, RefreshCw.</p>
+
+<div class="orbit">
+
+  <!-- ── Sidebar ── -->
+  <div class="sidebar">
+    <div class="sb-header">
+      <span class="brand">orbit</span>
+      <div class="new-btn">+</div>
+    </div>
+    <div class="list">
+      <div class="item active">
+        <span class="dot" style="background:var(--s-working)"></span>
+        <span class="lbl">marlin</span>
+      </div>
+      <div class="item">
+        <span class="dot" style="background:var(--s-working)"></span>
+        <span class="lbl">orca</span>
+      </div>
+      <div class="item">
+        <span class="dot" style="background:var(--t3)"></span>
+        <span class="lbl">ledger</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Main pane ── -->
+  <div class="main">
+    <!-- TabBar -->
+    <div class="tabbar">
+      <div class="tab active">
+        <span class="icon">
+          <svg class="icon-svg" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        </span>
+        marlin
+        <span class="x"><svg class="icon-xs" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span>
+      </div>
+      <div class="tab">
+        <span class="icon">
+          <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+        </span>
+        Terminal
+        <span class="x"><svg class="icon-xs" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span>
+      </div>
+      <div class="add-tab">
+        <svg class="icon-svg" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </div>
+    </div>
+
+    <!-- PanelHeader -->
+    <div class="hdr">
+      <span class="dot" style="background:var(--s-working)"></span>
+      <span class="hdr-title">marlin</span>
+      <span class="pill">running</span>
+      <span class="spacer"></span>
+      <span class="meta">12.4k</span>
+      <span class="pill">sonnet</span>
+      <div class="act">
+        <button title="Mute session">
+          <svg class="icon-xs" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Body -->
+    <div class="feed">
+      <div class="bubble">I'm working through the Git panel diff structure to show inline diffs grouped by file status.</div>
+      <div>Read <span style="color:var(--t1)">GitPanel.svelte</span></div>
+      <div>Updated tree grouping and inline diff viewer.</div>
+    </div>
+    <div class="inputbar">message marlin…</div>
+  </div>
+
+  <!-- ── Right pane (Git) ── -->
+  <div class="right">
+    <!-- TabBar -->
+    <div class="tabbar">
+      <div class="tab active">
+        <span class="icon">
+          <svg class="icon-svg" viewBox="0 0 24 24"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+        </span>
+        Git
+        <span class="x"><svg class="icon-xs" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span>
+      </div>
+    </div>
+
+    <!-- PanelHeader -->
+    <div class="hdr">
+      <span class="hdr-title">Git Overview</span>
+      <span class="spacer"></span>
+      <span class="pill" style="color:var(--s-input);border-color:rgba(232,160,48,0.22);background:rgba(232,160,48,0.055)">6 changes</span>
+      <div class="act">
+        <button title="Refresh">
+          <svg class="icon-xs" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Git body -->
+    <div class="git-body">
+      <div class="tree">
+        <div class="search">filter files…</div>
+        <div class="group">
+          <svg class="icon-xs" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg> Staged
+          <span style="color:var(--t3);margin-left:auto;">2</span>
+        </div>
+        <div class="file sel">
+          <svg class="icon-xs" viewBox="0 0 24 24" style="color:var(--t3)"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          PanelHeader.svelte
+        </div>
+        <div class="file">
+          <svg class="icon-xs" viewBox="0 0 24 24" style="color:var(--t3)"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          package.json
+        </div>
+        <div class="group">
+          <svg class="icon-xs" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg> Unstaged
+          <span style="color:var(--t3);margin-left:auto;">1</span>
+        </div>
+        <div class="file">
+          <svg class="icon-xs" viewBox="0 0 24 24" style="color:var(--t3)"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          git.rs
+        </div>
+        <div class="group">
+          <svg class="icon-xs" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg> Untracked
+          <span style="color:var(--t3);margin-left:auto;">2</span>
+        </div>
+      </div>
+      <div class="diff">
+        <div class="diff-head">
+          <span style="color:var(--ac)">PanelHeader.svelte</span>
+          <span class="pill" style="color:var(--s-input);border-color:rgba(232,160,48,0.22);background:rgba(232,160,48,0.055)">+200 -0</span>
+        </div>
+        <div class="code">
+          <span class="add">+ &lt;header class=&quot;panel-header&quot;&gt;</span><br>
+          <span class="add">+   &lt;slot name=&quot;leading&quot; /&gt;</span><br>
+          <span class="add">+   &lt;div class=&quot;panel-title-block&quot;&gt;</span><br>
+          <span class="add">+     &lt;span class=&quot;panel-title&quot;&gt;{title}&lt;/span&gt;</span><br>
+          <span>&nbsp;&nbsp;  /* existing content… */</span><br>
+          <span class="del">- .header { background: var(--bg1); }</span><br>
+          <span class="add">+ .header { background: #070908; border-color: var(--ac-d); }</span><br>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

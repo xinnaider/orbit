@@ -1,15 +1,23 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
+  import { GitBranch, Terminal } from 'lucide-svelte';
 
   export let x: number;
   export let y: number;
 
+  type AddAction = 'terminal' | 'git';
+
   const dispatch = createEventDispatcher<{
-    select: { action: 'terminal' | 'session' | 'open' };
+    select: { action: AddAction };
     close: void;
   }>();
 
-  function select(action: 'terminal' | 'session' | 'open') {
+  $: viewportWidth = typeof window === 'undefined' ? 176 : window.innerWidth;
+  $: viewportHeight = typeof window === 'undefined' ? 132 : window.innerHeight;
+  $: menuLeft = Math.min(x, viewportWidth - 176);
+  $: menuTop = Math.min(y, viewportHeight - 132);
+
+  function select(action: AddAction) {
     dispatch('select', { action });
     dispatch('close');
   }
@@ -29,32 +37,27 @@
   }
 </script>
 
-<div class="menu" style="left: {x}px; top: {y}px;" role="menu">
+<div class="menu" style="left: {menuLeft}px; top: {menuTop}px;" role="menu">
   <button class="menu-item" role="menuitem" on:click={() => select('terminal')}>
-    <span class="item-icon">{'>'}</span>
+    <Terminal size={14} />
     New terminal
   </button>
-  <button class="menu-item" role="menuitem" on:click={() => select('session')}>
-    <span class="item-icon">●</span>
-    New session
-  </button>
-  <div class="menu-divider"></div>
-  <button class="menu-item" role="menuitem" on:click={() => select('open')}>
-    <span class="item-icon">⊕</span>
-    Open session...
+  <button class="menu-item" role="menuitem" on:click={() => select('git')}>
+    <GitBranch size={14} />
+    Git overview
   </button>
 </div>
 
 <style>
   .menu {
     position: fixed;
-    background: var(--bg2);
-    border: 1px solid var(--bd1);
-    border-radius: var(--radius-sm);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    min-width: 160px;
+    min-width: 176px;
     padding: var(--sp-2) 0;
     z-index: 1000;
+    border: 1px solid var(--bd);
+    border-radius: 6px;
+    background: var(--bg1);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.38);
   }
 
   .menu-item {
@@ -69,25 +72,13 @@
     font-size: var(--sm);
     cursor: pointer;
     text-align: left;
-    transition: background 0.1s;
+    transition:
+      background 0.15s,
+      color 0.15s;
   }
 
   .menu-item:hover {
-    background: var(--bg3);
+    background: var(--ac-d2);
     color: var(--t0);
-  }
-
-  .item-icon {
-    font-size: var(--xs);
-    color: var(--t2);
-    width: 14px;
-    text-align: center;
-    flex-shrink: 0;
-  }
-
-  .menu-divider {
-    height: 1px;
-    background: var(--bd);
-    margin: var(--sp-2) 0;
   }
 </style>

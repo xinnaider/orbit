@@ -35,3 +35,11 @@ Padrões de erro identificados durante o desenvolvimento. Leia ao início de cad
 **Regra:** Ao fazer `git stash` + `git pull` + `git stash pop`, verificar se arquivos staged antes do stash foram incluídos no commit seguinte.
 **Por quê:** A deleção do screenshot foi incluída no commit de bump de versão sem intenção, pois estava staged antes do stash.
 **Quando aplicar:** Sempre que usar stash para contornar conflitos de pull.
+
+---
+
+## Execucao de Planos
+
+**Regra:** Ao executar um plano com multiplos blocos, verificar no codigo que cada bloco visivel foi conectado ao fluxo real da UI antes de declarar concluido.
+**Por quê:** Implementar o Git panel sem conectar o bloco de tabs/header deixou os ajustes visuais aprovados invisiveis no app.
+**Quando aplicar:** Sempre que um plano incluir componentes novos e wiring em stores/containers, especialmente planos com etapas sobrepostas.
