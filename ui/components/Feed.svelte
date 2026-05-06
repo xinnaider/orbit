@@ -238,8 +238,6 @@
       {@const expanded = expandedThinking.has(absIdx)}
       <div class="row thinking" class:expanded>
         <div class="row-meta think-meta">
-          <!-- svelte-ignore a11y_click_events_have_key_events -->
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
           <span
             class="think-dots-label"
             onclick={() => toggleThinking(absIdx)}
