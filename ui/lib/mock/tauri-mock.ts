@@ -446,7 +446,7 @@ export function mockListen(event: string, cb: Listener) {
 
 let nextId = 4;
 let sessions = [...MOCK_SESSIONS];
-const journals: Record<number, JournalEntry[]> = { ...MOCK_JOURNAL };
+let journals: Record<number, JournalEntry[]> = { ...MOCK_JOURNAL };
 
 export async function mockInvoke(cmd: string, args?: Record<string, unknown>): Promise<unknown> {
   await delay(80); // realistic latency
