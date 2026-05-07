@@ -72,7 +72,7 @@
     max-width: 160px;
     cursor: pointer;
     user-select: none;
-    font-family: var(--sans);
+    font-family: var(--mono);
     font-size: 11px;
     font-weight: 450;
     color: var(--t2);

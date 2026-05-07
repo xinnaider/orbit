@@ -261,7 +261,7 @@
     flex-shrink: 0;
   }
   .branch-text {
-    font-family: var(--sans);
+    font-family: var(--mono);
     font-size: 9.5px;
     color: var(--ac);
     overflow: hidden;
@@ -275,7 +275,7 @@
     flex-shrink: 0;
   }
   .meta {
-    font-family: var(--sans);
+    font-family: var(--mono);
     font-size: 10px;
     color: var(--t2);
     font-variant-numeric: tabular-nums;
@@ -302,13 +302,13 @@
     color: var(--t3);
   }
   .ctx-pct {
-    font-family: var(--sans);
+    font-family: var(--mono);
     font-size: 10px;
     color: var(--t2);
     font-variant-numeric: tabular-nums;
   }
   .ctx-pct {
-    font-family: var(--sans);
+    font-family: var(--mono);
     font-size: 10px;
     color: var(--t2);
     font-variant-numeric: tabular-nums;
@@ -320,7 +320,7 @@
     height: 18px;
     padding: 0 6px;
     border-radius: 3px;
-    font-family: var(--sans);
+    font-family: var(--mono);
     font-size: 9.5px;
     font-weight: 500;
     background: var(--bg3);

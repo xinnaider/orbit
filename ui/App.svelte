@@ -134,9 +134,8 @@
     const u2 = onSessionOutput(({ sessionId, entry }) => {
       journal.update((map) => {
         const existing = map.get(sessionId) ?? [];
-        // Dedup: same timestamp+entryType means backend already has this
         const dup = existing.some(
-          (e) => e.timestamp === entry.timestamp && e.entryType === entry.entryType
+          (e) => e.seq === entry.seq && e.entryType === entry.entryType
         );
         if (dup) return map;
         return new Map(map).set(sessionId, [...existing, entry]);

@@ -542,7 +542,7 @@
     background: var(--bg2);
     border-bottom: 1px solid var(--bd);
     font-size: 10.5px;
-    font-family: var(--sans);
+    font-family: var(--mono);
     min-height: 28px;
   }
 
@@ -639,7 +639,7 @@
     gap: 3px;
     padding: 0 5px;
     font-size: 9px;
-    font-family: var(--sans);
+    font-family: var(--mono);
     font-weight: 500;
   }
   .tc-action--darker {
@@ -710,7 +710,7 @@
     color: var(--t2);
     font-size: 10.5px;
     cursor: pointer;
-    font-family: var(--sans);
+    font-family: var(--mono);
   }
   .diff-overflow:hover {
     background: var(--bg3);
@@ -824,7 +824,7 @@
     display: flex;
     align-items: center;
     gap: var(--sp-3);
-    font-family: var(--sans);
+    font-family: var(--mono);
     font-size: 13px;
     font-weight: 600;
     color: var(--t0);
@@ -868,7 +868,7 @@
     border-bottom: 1px solid var(--bd);
   }
   .modal-card-label {
-    font-family: var(--sans);
+    font-family: var(--mono);
     font-size: 10px;
     font-weight: 600;
     color: var(--t2);
@@ -924,7 +924,7 @@
     padding: 1px 6px;
     border-radius: var(--radius-sm);
     transition: all 0.12s;
-    font-family: var(--sans);
+    font-family: var(--mono);
   }
   .card-copy-btn:hover {
     background: var(--bg3);

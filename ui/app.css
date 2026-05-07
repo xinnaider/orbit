@@ -50,7 +50,7 @@ body {
 }
 
 body {
-  font-family: var(--sans);
+  font-family: var(--mono);
   font-size: var(--base);
   color: var(--t0);
   -webkit-font-smoothing: antialiased;

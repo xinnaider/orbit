@@ -87,7 +87,7 @@
   .panel-title {
     overflow: hidden;
     color: var(--t0);
-    font-family: var(--sans);
+    font-family: var(--mono);
     font-size: 12px;
     font-weight: 500;
     text-overflow: ellipsis;
@@ -97,7 +97,7 @@
 
   .panel-title-sep {
     color: var(--t3);
-    font-family: var(--sans);
+    font-family: var(--mono);
     font-size: 11px;
     flex-shrink: 0;
   }
@@ -105,7 +105,7 @@
   .panel-subtitle {
     overflow: hidden;
     color: var(--t2);
-    font-family: var(--sans);
+    font-family: var(--mono);
     font-size: 11px;
     text-overflow: ellipsis;
     white-space: nowrap;

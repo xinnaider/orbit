@@ -397,7 +397,7 @@
     color: var(--t2);
     font-size: 10px;
     cursor: pointer;
-    font-family: var(--sans);
+    font-family: var(--mono);
     padding: 0;
     line-height: 1;
     letter-spacing: 0.05em;
@@ -463,7 +463,7 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-family: var(--sans);
+    font-family: var(--mono);
   }
   .row.thinking.expanded .think-preview-text {
     opacity: 1;
