@@ -135,9 +135,7 @@
     const u2 = onSessionOutput(({ sessionId, entry }) => {
       journal.update((map) => {
         const existing = map.get(sessionId) ?? [];
-        const dup = existing.some(
-          (e) => e.seq === entry.seq && e.entryType === entry.entryType
-        );
+        const dup = existing.some((e) => e.seq === entry.seq && e.entryType === entry.entryType);
         if (dup) return map;
         return new Map(map).set(sessionId, [...existing, entry]);
       });
