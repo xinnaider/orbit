@@ -324,6 +324,19 @@ pub fn delete_session(
     Ok(())
 }
 
+/// Get raw JSONL output lines for a session.
+#[tauri::command]
+pub fn get_session_raw_outputs(
+    session_id: SessionId,
+    state: State<SessionState>,
+) -> Result<Vec<String>, IpcError> {
+    state
+        .read()
+        .db
+        .get_outputs(session_id)
+        .map_err(IpcError::from)
+}
+
 /// Reset all sessions (kills all, clears DB).
 #[tauri::command]
 pub fn reset_sessions(state: State<SessionState>, app: AppHandle) -> Result<(), IpcError> {

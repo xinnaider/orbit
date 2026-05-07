@@ -467,6 +467,14 @@ export async function mockInvoke(cmd: string, args?: Record<string, unknown>): P
       return (journals[id] ?? []).slice(offset, offset + limit);
     }
 
+    case 'get_session_raw_outputs': {
+      const id = args?.sessionId as number;
+      const entries = journals[id] ?? [];
+      return entries.map((e) =>
+        JSON.stringify({ type: e.entryType, text: e.text, tool: e.tool, seq: e.seq })
+      );
+    }
+
     case 'create_session': {
       const id = nextId++;
       const newSession: Session = {

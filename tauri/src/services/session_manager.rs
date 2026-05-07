@@ -572,6 +572,10 @@ impl SessionManager {
         })
         .to_string();
         let _ = db.insert_output(session_id, &user_line);
+        let _ = app.emit(
+            "session:raw-output",
+            serde_json::json!({ "sessionId": session_id, "line": &user_line }),
+        );
 
         let emit_entry: crate::models::JournalEntry;
         {
@@ -664,6 +668,10 @@ impl SessionManager {
                     }
 
                     let _ = db.insert_output(session_id, &trimmed);
+                    let _ = app.emit(
+                        "session:raw-output",
+                        serde_json::json!({ "sessionId": session_id, "line": &trimmed }),
+                    );
 
                     let (new_entries, state_event, is_rate_limit) = {
                         let mut m = manager.write().unwrap_or_else(|e| e.into_inner());

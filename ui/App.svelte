@@ -17,6 +17,7 @@
   import { get } from 'svelte/store';
   import { assignSession, clearSession, restoreWorkspace, workspace } from './lib/stores/workspace';
   import { journal } from './lib/stores/journal';
+  import { rawJournal } from './lib/stores/rawJournal';
   import { taskUpdateTrigger } from './lib/stores/tasks';
   import { addToast } from './lib/stores/toasts';
   import {
@@ -33,6 +34,7 @@
     onSessionTaskUpdate,
     onSessionReset,
     onSessionDeleted,
+    onSessionRawOutput,
     getAppVersion,
     getChangelog,
   } from './lib/tauri';
@@ -198,14 +200,22 @@
     const u9 = onSessionReset(() => {
       sessions.set([]);
       journal.set(new Map());
+      rawJournal.set(new Map());
     });
 
     const u10 = onSessionDeleted((id) => {
       clearSession(id);
     });
 
+    const u11 = onSessionRawOutput(({ sessionId, line }) => {
+      rawJournal.update((map) => {
+        const existing = map.get(sessionId) ?? [];
+        return new Map(map).set(sessionId, [...existing, line]);
+      });
+    });
+
     // Resolve all unlisten functions and store for cleanup
-    Promise.all([u1, u2, u3, u4, u5, u6, u7, u8, u9, u10]).then((fns) => {
+    Promise.all([u1, u2, u3, u4, u5, u6, u7, u8, u9, u10, u11]).then((fns) => {
       unlisteners = fns;
     });
 

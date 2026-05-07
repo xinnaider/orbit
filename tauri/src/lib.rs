@@ -189,6 +189,7 @@ pub fn run() {
                     "session:task-update",
                     "session:subagent-created",
                     "session:deleted",
+                    "session:raw-output",
                 ];
                 for event_name in events {
                     let tx = stream_tx.clone();
@@ -243,6 +244,7 @@ pub fn run() {
             ipc::session::clear_attention,
             ipc::session::respond_permission,
             ipc::session::reset_sessions,
+            ipc::session::get_session_raw_outputs,
             ipc::project::create_project,
             ipc::project::list_projects,
             commands::agents::get_subagents,

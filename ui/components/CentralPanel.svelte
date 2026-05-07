@@ -2,17 +2,19 @@
   import type { Session } from '../lib/stores/sessions';
   import { GitBranch, Volume2, VolumeX } from 'lucide-svelte';
   import { journal, pendingMessages } from '../lib/stores/journal';
+  import { rawJournal } from '../lib/stores/rawJournal';
   import { backends as backendsStore } from '../lib/stores/providers';
-  import { getSessionJournal } from '../lib/tauri/sessions';
+  import { getSessionJournal, getSessionRawOutputs } from '../lib/tauri/sessions';
   import { invoke } from '../lib/tauri/invoke';
   import { updateSessionState, sessions } from '../lib/stores/sessions';
   import { statusColor, statusLabel, isPulsing, modelShortName } from '../lib/status';
   import { formatTokensLong } from '../lib/cost';
   import { mutedSessions, toggleMute } from '../lib/stores/ui';
   import Feed from './Feed.svelte';
+  import RawFeed from './RawFeed.svelte';
   import InputBar from './InputBar.svelte';
   import PanelHeader from './workspace/PanelHeader.svelte';
-  import PermissionDialog from './PermissionDialog.svelte'; // TODO: re-enable when auto-deny error is fixed
+  import PermissionDialog from './PermissionDialog.svelte';
 
   export let session: Session;
   export let onClose: (() => void) | null = null;
@@ -21,6 +23,37 @@
 
   let feedComponent: Feed;
   let atBottom = true;
+  let viewMode: 'chat' | 'raw' = 'chat';
+  let rawLoading = false;
+
+  // Load DB history once on mount
+  let loadedRaw = false;
+  async function loadRawHistory(id: number) {
+    if (loadedRaw) return;
+    loadedRaw = true;
+    rawLoading = true;
+    try {
+      const lines = await getSessionRawOutputs(id);
+      rawJournal.update((m) => {
+        const existing = m.get(id) ?? [];
+        if (lines.length > existing.length) {
+          return new Map(m).set(id, lines);
+        }
+        return m;
+      });
+    } catch {
+      /* no-op */
+    } finally {
+      rawLoading = false;
+    }
+  }
+
+  $: if (session?.id != null) {
+    loadedRaw = false;
+    loadRawHistory(session.id);
+  }
+
+  $: rawLines = $rawJournal.get(session?.id) ?? [];
 
   async function loadHistory(id: number) {
     try {
@@ -144,20 +177,35 @@
         {fmtModel(session.model)}
       </span>
     </div>
-    <button
-      slot="actions"
-      class="action-btn mute-btn"
-      class:muted
-      title={muted ? 'Unmute session' : 'Mute session'}
-      aria-label={muted ? 'Unmute session' : 'Mute session'}
-      on:click={() => toggleMute(String(session.id))}
-    >
-      {#if muted}
-        <VolumeX size={12} />
-      {:else}
-        <Volume2 size={12} />
-      {/if}
-    </button>
+    <div slot="actions" class="header-actions">
+      <div class="view-toggle">
+        <button type="button"
+          class="toggle-btn"
+          class:active={viewMode === 'chat'}
+          on:click={() => (viewMode = 'chat')}
+          title="Chat view">chat</button
+        >
+        <button type="button"
+          class="toggle-btn"
+          class:active={viewMode === 'raw'}
+          on:click={() => (viewMode = 'raw')}
+          title="Raw JSONL view">raw</button
+        >
+      </div>
+      <button
+        class="action-btn mute-btn"
+        class:muted
+        title={muted ? 'Unmute session' : 'Mute session'}
+        aria-label={muted ? 'Unmute session' : 'Mute session'}
+        on:click={() => toggleMute(String(session.id))}
+      >
+        {#if muted}
+          <VolumeX size={12} />
+        {:else}
+          <Volume2 size={12} />
+        {/if}
+      </button>
+    </div>
   </PanelHeader>
 
   <!-- Branch strip -->
@@ -173,7 +221,13 @@
 
   <!-- Feed -->
   <div class="feed-wrap">
-    {#if entries.length === 0 && $pendingMessages.length === 0}
+    {#if viewMode === 'raw'}
+      {#if rawLoading && rawLines.length === 0}
+        <div class="feed-empty"><span>loading raw output...</span></div>
+      {:else}
+        <RawFeed lines={rawLines} />
+      {/if}
+    {:else if entries.length === 0 && $pendingMessages.length === 0}
       <div class="feed-empty">
         <span>session #{session.id} · {statusStr}</span>
       </div>
@@ -274,6 +328,12 @@
     gap: 6px;
     flex-shrink: 0;
   }
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    flex-shrink: 0;
+  }
   .meta {
     font-family: var(--mono);
     font-size: 10px;
@@ -358,6 +418,38 @@
   .action-btn:hover {
     background: var(--bg3);
     color: var(--t1);
+  }
+
+  .view-toggle {
+    display: flex;
+    gap: 0;
+    flex-shrink: 0;
+    margin-right: var(--sp-2);
+  }
+  .toggle-btn {
+    background: none;
+    border: 1px solid var(--bd1);
+    color: var(--t2);
+    font-size: 9px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    font-family: var(--mono);
+    cursor: pointer;
+    line-height: 1;
+    height: 20px;
+  }
+  .toggle-btn:first-child {
+    border-radius: 3px 0 0 3px;
+  }
+  .toggle-btn:last-child {
+    border-radius: 0 3px 3px 0;
+    border-left: none;
+  }
+  .toggle-btn.active {
+    background: var(--ac-d);
+    border-color: var(--ac-border);
+    color: var(--ac);
   }
 
   .mute-btn {

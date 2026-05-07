@@ -66,3 +66,8 @@ export function onSessionReset(cb: () => void) {
 export function onSessionDeleted(cb: (sessionId: number) => void) {
   return listen<{ sessionId: number }>('session:deleted', (e) => cb(e.payload.sessionId));
 }
+
+export type RawOutputPayload = { sessionId: number; line: string };
+export function onSessionRawOutput(cb: (payload: RawOutputPayload) => void) {
+  return listen<RawOutputPayload>('session:raw-output', (e) => cb(e.payload));
+}
