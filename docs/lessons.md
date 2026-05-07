@@ -51,3 +51,13 @@ Padrões de erro identificados durante o desenvolvimento. Leia ao início de cad
 **Regra:** Ao executar um plano com multiplos blocos, verificar no codigo que cada bloco visivel foi conectado ao fluxo real da UI antes de declarar concluido.
 **Por quê:** Implementar o Git panel sem conectar o bloco de tabs/header deixou os ajustes visuais aprovados invisiveis no app.
 **Quando aplicar:** Sempre que um plano incluir componentes novos e wiring em stores/containers, especialmente planos com etapas sobrepostas.
+
+---
+
+## rtk git bypassa hooks
+
+**Regra:** `rtk git commit` pode bypassar o pre-commit hook. Sempre rodar `cargo fmt --manifest-path tauri/Cargo.toml` manualmente antes de qualquer commit de código Rust. Idem para `cargo clippy`, `npx eslint`, `npx prettier`.
+
+**Por quê:** O CI roda `cargo fmt --check` e falha se a formatação não estiver correta. O pre-commit hook roda auto-fix mas se o commit for feito via `rtk` o hook pode ser ignorado.
+
+**Quando aplicar:** Todo commit que tocar código Rust.
