@@ -15,7 +15,7 @@
     type Session,
   } from './lib/stores/sessions';
   import { get } from 'svelte/store';
-  import { assignSession, restoreWorkspace, workspace } from './lib/stores/workspace';
+  import { assignSession, clearSession, restoreWorkspace, workspace } from './lib/stores/workspace';
   import { journal } from './lib/stores/journal';
   import { taskUpdateTrigger } from './lib/stores/tasks';
   import { addToast } from './lib/stores/toasts';
@@ -32,6 +32,7 @@
     onSessionRateLimit,
     onSessionTaskUpdate,
     onSessionReset,
+    onSessionDeleted,
     getAppVersion,
     getChangelog,
   } from './lib/tauri';
@@ -201,8 +202,12 @@
       journal.set(new Map());
     });
 
+    const u10 = onSessionDeleted((id) => {
+      clearSession(id);
+    });
+
     // Resolve all unlisten functions and store for cleanup
-    Promise.all([u1, u2, u3, u4, u5, u6, u7, u8, u9]).then((fns) => {
+    Promise.all([u1, u2, u3, u4, u5, u6, u7, u8, u9, u10]).then((fns) => {
       unlisteners = fns;
     });
 

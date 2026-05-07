@@ -535,6 +535,7 @@ export async function mockInvoke(cmd: string, args?: Record<string, unknown>): P
     case 'delete_session': {
       const id = args?.sessionId as number;
       sessions = sessions.filter((s) => s.id !== id);
+      setTimeout(() => mockEmit('session:deleted', { sessionId: id }), 30);
       return null;
     }
 

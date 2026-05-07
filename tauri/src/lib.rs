@@ -188,6 +188,7 @@ pub fn run() {
                     "session:rate-limit",
                     "session:task-update",
                     "session:subagent-created",
+                    "session:deleted",
                 ];
                 for event_name in events {
                     let tx = stream_tx.clone();

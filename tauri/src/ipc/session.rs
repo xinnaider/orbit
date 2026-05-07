@@ -310,8 +310,10 @@ pub fn rename_session(
 
 /// Delete a session (removes from DB, stops if running).
 #[tauri::command]
-pub fn delete_session(session_id: SessionId, state: State<SessionState>) -> Result<(), IpcError> {
+pub fn delete_session(session_id: SessionId, state: State<SessionState>, app: AppHandle) -> Result<(), IpcError> {
     state.write().delete_session(session_id)?;
+    use tauri::Emitter;
+    let _ = app.emit("session:deleted", serde_json::json!({ "sessionId": session_id }));
     Ok(())
 }
 

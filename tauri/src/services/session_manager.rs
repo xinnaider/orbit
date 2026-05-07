@@ -573,17 +573,23 @@ impl SessionManager {
         .to_string();
         let _ = db.insert_output(session_id, &user_line);
 
+        let emit_entry: crate::models::JournalEntry;
         {
             let mut m = manager.write().unwrap_or_else(|e| e.into_inner());
             let state = m.journal_states.entry(session_id).or_default();
-            state.entries.push(user_entry.clone());
+            let mut entry = user_entry;
+            entry.seq = state.next_seq;
+            entry.epoch = state.epoch.clone();
+            state.next_seq += 1;
+            emit_entry = entry.clone();
+            state.entries.push(entry);
         }
 
         let _ = app.emit(
             "session:output",
             SessionOutputEvent {
                 session_id,
-                entry: user_entry,
+                entry: emit_entry,
             },
         );
     }

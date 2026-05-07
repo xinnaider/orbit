@@ -62,3 +62,7 @@ export function onSessionTaskUpdate(cb: (sessionId: number) => void) {
 export function onSessionReset(cb: () => void) {
   return listen<{}>('session:reset', () => cb());
 }
+
+export function onSessionDeleted(cb: (sessionId: number) => void) {
+  return listen<{ sessionId: number }>('session:deleted', (e) => cb(e.payload.sessionId));
+}
