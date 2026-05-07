@@ -1128,6 +1128,19 @@ impl SessionManager {
             .map_err(|e| e.to_string())
     }
 
+    pub fn reset_all_sessions(&mut self) -> Result<(), String> {
+        for (_, a) in self.active.iter() {
+            if let Some(pid) = a.session.pid {
+                kill_pid(pid as u32);
+                let pid_file = std::env::temp_dir().join(format!("orbit-session-{pid}.id"));
+                let _ = std::fs::remove_file(pid_file);
+            }
+        }
+        self.active.clear();
+        self.journal_states.clear();
+        self.db.delete_all_sessions().map_err(|e| e.to_string())
+    }
+
     /// Eagerly load journal state for all sessions from DB.
     /// Not called at startup (journals load lazily on first access).
     /// Available as a utility for warming the cache or in tests.

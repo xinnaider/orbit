@@ -69,3 +69,7 @@ export async function deleteSession(sessionId: number): Promise<void> {
 export async function getSessionJournal(sessionId: number): Promise<JournalEntry[]> {
   return await invoke('get_session_journal', { sessionId });
 }
+
+export async function resetSessions(): Promise<void> {
+  await invoke('reset_sessions');
+}

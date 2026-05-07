@@ -58,3 +58,7 @@ export function onSessionRateLimit(cb: (sessionId: number) => void) {
 export function onSessionTaskUpdate(cb: (sessionId: number) => void) {
   return listen<{ sessionId: number }>('session:task-update', (e) => cb(e.payload.sessionId));
 }
+
+export function onSessionReset(cb: () => void) {
+  return listen<{}>('session:reset', () => cb());
+}

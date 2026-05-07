@@ -572,6 +572,15 @@ impl DatabaseService {
         Ok(())
     }
 
+    pub fn delete_all_sessions(&self) -> SqlResult<()> {
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+        conn.execute_batch("PRAGMA foreign_keys = OFF")?;
+        conn.execute_batch("DELETE FROM session_outputs")?;
+        conn.execute_batch("DELETE FROM sessions")?;
+        conn.execute_batch("PRAGMA foreign_keys = ON")?;
+        Ok(())
+    }
+
     pub fn get_outputs(&self, session_id: SessionId) -> SqlResult<Vec<String>> {
         let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         let mut stmt =

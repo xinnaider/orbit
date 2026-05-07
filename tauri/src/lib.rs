@@ -241,6 +241,7 @@ pub fn run() {
             ipc::session::test_ssh,
             ipc::session::clear_attention,
             ipc::session::respond_permission,
+            ipc::session::reset_sessions,
             ipc::project::create_project,
             ipc::project::list_projects,
             commands::agents::get_subagents,

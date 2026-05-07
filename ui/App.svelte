@@ -31,6 +31,7 @@
     onSessionError,
     onSessionRateLimit,
     onSessionTaskUpdate,
+    onSessionReset,
     getAppVersion,
     getChangelog,
   } from './lib/tauri';
@@ -196,8 +197,13 @@
       taskUpdateTrigger.set(id);
     });
 
+    const u9 = onSessionReset(() => {
+      sessions.set([]);
+      journal.set(new Map());
+    });
+
     // Resolve all unlisten functions and store for cleanup
-    Promise.all([u1, u2, u3, u4, u5, u6, u7, u8]).then((fns) => {
+    Promise.all([u1, u2, u3, u4, u5, u6, u7, u8, u9]).then((fns) => {
       unlisteners = fns;
     });
 

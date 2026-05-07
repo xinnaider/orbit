@@ -13,9 +13,9 @@
   import { onMount } from 'svelte';
   import { clearAttention } from '../lib/tauri/attention';
   import { GitBranch } from 'lucide-svelte';
-  import HttpApiSettingsModal from './HttpApiSettingsModal.svelte';
+  import SettingsModal from './SettingsModal.svelte';
 
-  let showHttpSettings = false;
+  let showSettings = false;
 
   function attentionColor(reason: string | null): string {
     switch (reason) {
@@ -346,8 +346,8 @@
   <footer class="footer">
     <span>{$sessions.length} session{$sessions.length !== 1 ? 's' : ''}</span>
     <div class="footer-actions">
-      <button class="footer-btn" on:click={() => (showHttpSettings = true)} title="Connect phone">
-        Phone
+      <button class="footer-btn" on:click={() => (showSettings = true)} title="Settings">
+        Settings
       </button>
       <button class="collapse-btn" on:click={() => sidebarVisible.set(false)} title="Hide sidebar"
         >‹</button
@@ -355,8 +355,8 @@
     </div>
   </footer>
 
-  {#if showHttpSettings}
-    <HttpApiSettingsModal on:close={() => (showHttpSettings = false)} />
+  {#if showSettings}
+    <SettingsModal on:close={() => (showSettings = false)} />
   {/if}
 </aside>
 

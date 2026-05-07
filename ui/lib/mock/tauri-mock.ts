@@ -538,6 +538,13 @@ export async function mockInvoke(cmd: string, args?: Record<string, unknown>): P
       return null;
     }
 
+    case 'reset_sessions': {
+      sessions = [];
+      journals = {};
+      setTimeout(() => mockEmit('session:reset', {}), 50);
+      return null;
+    }
+
     case 'check_claude':
       return { found: true, path: '/mock/claude', searchedPath: '' };
 

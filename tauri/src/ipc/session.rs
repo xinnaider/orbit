@@ -315,6 +315,15 @@ pub fn delete_session(session_id: SessionId, state: State<SessionState>) -> Resu
     Ok(())
 }
 
+/// Reset all sessions (kills all, clears DB).
+#[tauri::command]
+pub fn reset_sessions(state: State<SessionState>, app: AppHandle) -> Result<(), IpcError> {
+    state.write().reset_all_sessions()?;
+    use tauri::Emitter;
+    let _ = app.emit("session:reset", serde_json::json!({}));
+    Ok(())
+}
+
 /// Respond to a pending ACP permission request (approve or deny).
 #[tauri::command]
 pub fn respond_permission(
