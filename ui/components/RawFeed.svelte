@@ -76,9 +76,19 @@
     font-size: var(--sm);
     color: var(--t3);
   }
-  :global(.raw-line .punct) { color: var(--t2); }
-  :global(.raw-line .key) { color: var(--ac); }
-  :global(.raw-line .str) { color: var(--user-fg); }
-  :global(.raw-line .num) { color: var(--warning, #f5a623); }
-  :global(.raw-line .bool) { color: var(--s-input); }
+  :global(.raw-line .punct) {
+    color: var(--t2);
+  }
+  :global(.raw-line .key) {
+    color: var(--ac);
+  }
+  :global(.raw-line .str) {
+    color: var(--user-fg);
+  }
+  :global(.raw-line .num) {
+    color: var(--warning, #f5a623);
+  }
+  :global(.raw-line .bool) {
+    color: var(--s-input);
+  }
 </style>

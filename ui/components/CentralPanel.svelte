@@ -179,13 +179,15 @@
     </div>
     <div slot="actions" class="header-actions">
       <div class="view-toggle">
-        <button type="button"
+        <button
+          type="button"
           class="toggle-btn"
           class:active={viewMode === 'chat'}
           on:click={() => (viewMode = 'chat')}
           title="Chat view">chat</button
         >
-        <button type="button"
+        <button
+          type="button"
           class="toggle-btn"
           class:active={viewMode === 'raw'}
           on:click={() => (viewMode = 'raw')}
