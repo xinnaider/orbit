@@ -159,7 +159,9 @@
 
   function setViewMode(mode: 'flat' | 'tree') {
     viewMode = mode;
-    try { localStorage.setItem('orbit:gitViewMode', mode); } catch {}
+    try {
+      localStorage.setItem('orbit:gitViewMode', mode);
+    } catch {}
   }
 
   function tagSelected(tag: FixedGitTag) {
@@ -717,7 +719,9 @@
     color: var(--t3);
     cursor: pointer;
     border-radius: var(--radius-sm);
-    transition: background 0.1s, color 0.1s;
+    transition:
+      background 0.1s,
+      color 0.1s;
   }
 
   .view-btn:hover {

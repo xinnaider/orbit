@@ -56,7 +56,11 @@ export function gitOverview(cwd: string): Promise<GitOverview> {
   return invoke<GitOverview>('git_overview', { cwd });
 }
 
-export function gitDiffFile(cwd: string, file: GitFileChange, statusOutput?: string): Promise<GitDiffFile> {
+export function gitDiffFile(
+  cwd: string,
+  file: GitFileChange,
+  statusOutput?: string
+): Promise<GitDiffFile> {
   return invoke<GitDiffFile>('git_diff_file', {
     cwd,
     path: file.path,

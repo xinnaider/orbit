@@ -3,7 +3,7 @@
   "mcp": {
     "orbit": {
       "command": [
-        "C:\\Users\\fernandonepen\\Documents\\orbit\\tauri\\target\\debug\\orbit-mcp.exe"
+        "C:\\Users\\fernandonepen\\AppData\\Local\\Orbit\\orbit-mcp.exe"
       ],
       "enabled": true,
       "type": "local"
