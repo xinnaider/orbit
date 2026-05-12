@@ -4,6 +4,12 @@
 
 ## May 2026
 
+### 05/12 · Improvement — Git panel: flat file list, status badges, and performance
+The Git panel now shows a flat file list by default (VS Code style) instead of the folder tree.
+Each file displays a status badge (M, A, D, R, U, C) with color coding. A toggle at the bottom
+of the file list lets you switch between flat and tree views, and your preference is saved.
+Performance is improved: loading the file list and switching between diffs is noticeably faster.
+
 ### 05/05 · New — Steel Workshop theme, Inter font, chat UI refinements
 Added a new blue-steel theme inspired by Emdash and DP Code — cool gray surfaces with blue accent instead of green. The app now uses Inter (sans-serif) for all UI labels, keeping JetBrains Mono only for code blocks. Chat entries have separators between messages, uppercase labels with icons, an amber thinking block with animated dots and clickable preview, always-visible tool call headers, and circular status dots. Available in the theme picker dropdown alongside Dark, Nord, Dracula, and Catppuccin. Switches instantly and persists across restarts.
 
