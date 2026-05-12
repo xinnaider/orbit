@@ -11,6 +11,7 @@
   import type { GitFileChange } from '../lib/tauri/git';
   import type { GitTreeNode as TreeNodeType } from '../lib/git-tree';
   import { TAG_COLORS } from '../lib/git-tags';
+  import { STATUS_SYMBOLS, STATUS_COLORS } from '../lib/git-tree';
   import TreeNode from './GitTreeNode.svelte';
 
   export let node: TreeNodeType;
@@ -83,6 +84,15 @@
         <Square size={12} />
       {/if}
     </button>
+{#if node.change.status}
+  <span
+    class="status-badge"
+    style="--status-color: {STATUS_COLORS[node.change.status] ?? '#666'}"
+    title={node.change.status}
+  >
+    {STATUS_SYMBOLS[node.change.status] ?? '?'}
+  </span>
+{/if}
     <FileText size={14} />
     <span class="node-name">{node.name}</span>
     {#if fileTags[node.change.id]?.length}
@@ -173,5 +183,19 @@
     font-weight: 500;
     line-height: 1.7;
     border: 1px solid color-mix(in srgb, var(--tag-color, #666), transparent 75%);
+  }
+
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 14px;
+    font-size: 8.5px;
+    font-weight: 700;
+    color: var(--status-color);
+    flex-shrink: 0;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--status-color), transparent 85%);
   }
 </style>
