@@ -39,6 +39,7 @@ pub struct GitOverview {
     behind: u32,
     files: Vec<GitFileChange>,
     branches: Vec<GitBranchInfo>,
+    status_output: String,
 }
 
 #[derive(Serialize)]
@@ -125,53 +126,6 @@ fn current_branch(cwd: &str) -> Result<(Option<String>, Option<String>, u32, u32
     Ok((branch, upstream, ahead, behind))
 }
 
-fn branches(cwd: &str) -> Result<Vec<GitBranchInfo>, String> {
-    let output = run_git(
-        cwd,
-        &[
-            "for-each-ref",
-            "--format=%(refname)%00%(refname:short)%00%(HEAD)%00%(upstream:short)%00%(ahead-behind:HEAD)",
-            "refs/heads",
-            "refs/remotes",
-        ],
-    )?;
-
-    Ok(output
-        .lines()
-        .filter_map(|line| {
-            let parts: Vec<&str> = line.split('\0').collect();
-            if parts.len() < 5 {
-                return None;
-            }
-
-            let full_name = parts[0].to_string();
-            let kind = if full_name.starts_with("refs/remotes/") {
-                "remote"
-            } else {
-                "local"
-            };
-            let upstream = if parts[3].is_empty() {
-                None
-            } else {
-                Some(parts[3].to_string())
-            };
-            let mut counts = parts[4].split_whitespace();
-            let ahead = counts.next().and_then(|v| v.parse().ok()).unwrap_or(0);
-            let behind = counts.next().and_then(|v| v.parse().ok()).unwrap_or(0);
-
-            Some(GitBranchInfo {
-                name: parts[1].to_string(),
-                full_name,
-                kind: kind.to_string(),
-                current: parts[2] == "*",
-                upstream,
-                ahead,
-                behind,
-            })
-        })
-        .collect())
-}
-
 fn normalize_path(path: &str) -> String {
     path.replace('\\', "/")
 }
@@ -251,9 +205,10 @@ fn make_change(
     }
 }
 
-fn changed_files(cwd: &str) -> Result<Vec<GitFileChange>, String> {
+fn changed_files(cwd: &str) -> Result<(Vec<GitFileChange>, String), String> {
     let output = run_git(cwd, &["status", "--porcelain=v1"])?;
-    Ok(output.lines().flat_map(parse_status_line).collect())
+    let files: Vec<GitFileChange> = output.lines().flat_map(parse_status_line).collect();
+    Ok((files, output))
 }
 
 fn read_git_object(cwd: &str, spec: &str) -> String {
@@ -295,24 +250,54 @@ pub fn git_branch(cwd: String) -> Option<String> {
 #[tauri::command]
 pub fn git_overview(cwd: String) -> Result<GitOverview, String> {
     run_git(&cwd, &["rev-parse", "--is-inside-work-tree"])?;
-    let (branch, upstream, ahead, behind) = current_branch(&cwd)?;
+
+    let cwd_clone = cwd.clone();
+    let branch_handle = std::thread::spawn(move || current_branch(&cwd_clone));
+
+    let cwd_clone2 = cwd.clone();
+    let files_handle = std::thread::spawn(move || changed_files(&cwd_clone2));
+
+    let (branch, upstream, ahead, behind) = branch_handle
+        .join()
+        .map_err(|_| "branch thread panicked".to_string())??;
+    let (files, status_output) = files_handle
+        .join()
+        .map_err(|_| "files thread panicked".to_string())??;
 
     Ok(GitOverview {
-        cwd: cwd.clone(),
+        cwd,
         branch,
         upstream,
         ahead,
         behind,
-        files: changed_files(&cwd)?,
-        branches: branches(&cwd)?,
+        files,
+        branches: Vec::new(),
+        status_output,
     })
 }
 
 #[tauri::command]
-pub fn git_diff_file(cwd: String, path: String, group: String) -> Result<GitDiffFile, String> {
+pub fn git_diff_file(
+    cwd: String,
+    path: String,
+    group: String,
+    status_output: Option<String>,
+) -> Result<GitDiffFile, String> {
     run_git(&cwd, &["rev-parse", "--is-inside-work-tree"])?;
-    let status = run_git(&cwd, &["status", "--porcelain=v1", "--", &path])?;
-    let deleted = status.starts_with('D') || status.chars().nth(1) == Some('D');
+    let deleted = if let Some(ref raw) = status_output {
+        raw.lines().any(|line| {
+            let trimmed = line.trim_start();
+            if trimmed.len() < 4 {
+                return false;
+            }
+            let file_part = trimmed[3..].trim();
+            (trimmed.starts_with('D') || trimmed.chars().nth(1) == Some('D'))
+                && file_part == path.as_str()
+        })
+    } else {
+        let status = run_git(&cwd, &["status", "--porcelain=v1", "--", &path])?;
+        status.starts_with('D') || status.chars().nth(1) == Some('D')
+    };
     let untracked = group == "untracked";
 
     let (original, modified) = if untracked {

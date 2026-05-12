@@ -34,6 +34,7 @@ export interface GitOverview {
   behind: number;
   files: GitFileChange[];
   branches: GitBranchInfo[];
+  statusOutput: string;
 }
 
 export interface GitDiffFile {
@@ -55,8 +56,13 @@ export function gitOverview(cwd: string): Promise<GitOverview> {
   return invoke<GitOverview>('git_overview', { cwd });
 }
 
-export function gitDiffFile(cwd: string, file: GitFileChange): Promise<GitDiffFile> {
-  return invoke<GitDiffFile>('git_diff_file', { cwd, path: file.path, group: file.group });
+export function gitDiffFile(cwd: string, file: GitFileChange, statusOutput?: string): Promise<GitDiffFile> {
+  return invoke<GitDiffFile>('git_diff_file', {
+    cwd,
+    path: file.path,
+    group: file.group,
+    statusOutput: statusOutput ?? null,
+  });
 }
 
 export function writeFileContent(path: string, content: string): Promise<void> {

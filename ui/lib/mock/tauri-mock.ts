@@ -772,6 +772,7 @@ export async function mockInvoke(cmd: string, args?: Record<string, unknown>): P
             behind: 0,
           },
         ],
+        statusOutput: 'M  src/components/GitPanel.svelte\nA  tauri/src/commands/git.rs\n',
       };
     }
 

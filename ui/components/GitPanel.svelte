@@ -99,7 +99,7 @@
     diffLoading = true;
     diffError = '';
     try {
-      const result = await gitDiffFile(cwd, file);
+      const result = await gitDiffFile(cwd, file, overview?.statusOutput);
       if (selectedFile?.id === file.id) diff = result;
     } catch (e) {
       if (selectedFile?.id === file.id) {
