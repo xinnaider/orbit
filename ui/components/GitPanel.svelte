@@ -3,6 +3,8 @@
   import {
     FileDiff,
     GitBranch,
+    List,
+    FolderTree,
     PanelLeftClose,
     PanelLeftOpen,
     Pencil,
@@ -14,6 +16,7 @@
   import MonacoDiffViewer from './MonacoDiffViewer.svelte';
   import PanelHeader from './workspace/PanelHeader.svelte';
   import TreeNode from './GitTreeNode.svelte';
+  import GitFlatList from './GitFlatList.svelte';
   import {
     gitDiffFile,
     gitOverview,
@@ -58,6 +61,7 @@
   let dirtyAfterSave = false;
   let diffViewer: any = undefined;
   let autoSave = false;
+  let viewMode: 'flat' | 'tree' = 'flat';
 
   $: files = overview?.files ?? [];
   $: fileTags = tagsByFileId(files, tags);
@@ -153,6 +157,11 @@
     treeCollapsed = !treeCollapsed;
   }
 
+  function toggleViewMode() {
+    viewMode = viewMode === 'flat' ? 'tree' : 'flat';
+    localStorage.setItem('orbit:gitViewMode', viewMode);
+  }
+
   function tagSelected(tag: FixedGitTag) {
     const selectedFiles = files.filter((file) => selectedIds.has(file.id));
     const targetFiles =
@@ -192,6 +201,8 @@
   }
 
   onMount(() => {
+    const saved = localStorage.getItem('orbit:gitViewMode');
+    if (saved === 'tree' || saved === 'flat') viewMode = saved;
     refresh();
   });
 </script>
@@ -254,22 +265,54 @@
         </div>
 
         <div class="tree" aria-label="Changed files">
-          {#each tree as node (node.id)}
-            <TreeNode
-              {node}
-              depth={0}
-              {expanded}
-              {selectedIds}
+          {#if viewMode === 'tree'}
+            {#each tree as node (node.id)}
+              <TreeNode
+                {node}
+                depth={0}
+                {expanded}
+                {selectedIds}
+                {selectedFile}
+                {fileTags}
+                onToggleExpanded={toggleExpanded}
+                onToggleSelected={toggleSelected}
+                onSelectFile={loadDiff}
+              />
+            {/each}
+          {:else}
+            <GitFlatList
+              files={filteredFiles}
               {selectedFile}
+              {selectedIds}
               {fileTags}
-              onToggleExpanded={toggleExpanded}
-              onToggleSelected={toggleSelected}
               onSelectFile={loadDiff}
+              onToggleSelected={toggleSelected}
             />
-          {/each}
-          {#if tree.length === 0}
+          {/if}
+          {#if (viewMode === 'tree' && tree.length === 0) || (viewMode === 'flat' && filteredFiles.length === 0)}
             <div class="tree-empty">No changes</div>
           {/if}
+        </div>
+
+        <div class="view-mode-toggle">
+          <button
+            type="button"
+            class="view-btn"
+            class:active={viewMode === 'flat'}
+            title="Flat view"
+            on:click={toggleViewMode}
+          >
+            <List size={12} />
+          </button>
+          <button
+            type="button"
+            class="view-btn"
+            class:active={viewMode === 'tree'}
+            title="Tree view"
+            on:click={toggleViewMode}
+          >
+            <FolderTree size={12} />
+          </button>
         </div>
       </aside>
 
@@ -648,5 +691,38 @@
   .save-status.dirty {
     color: var(--s-input);
     font-weight: 500;
+  }
+
+  .view-mode-toggle {
+    display: flex;
+    align-items: center;
+    gap: 1px;
+    padding: 4px 8px;
+    border-top: 1px solid var(--bd);
+    flex-shrink: 0;
+  }
+
+  .view-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 22px;
+    border: none;
+    background: transparent;
+    color: var(--t3);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    transition: background 0.1s, color 0.1s;
+  }
+
+  .view-btn:hover {
+    background: var(--bg3);
+    color: var(--t1);
+  }
+
+  .view-btn.active {
+    color: var(--ac);
+    background: var(--ac-d2);
   }
 </style>

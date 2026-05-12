@@ -63,7 +63,7 @@
       <span class="file-name">{file.fileName}</span>
 
       {#if fpath}
-        <span class="folder-path">{fpath}</span>
+        <span class="folder-path" title={fpath}>{fpath}</span>
       {/if}
 
       {#if fileTags[file.id]?.length}
