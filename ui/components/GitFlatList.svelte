@@ -97,7 +97,7 @@
     padding: 0 8px;
     cursor: default;
     border-radius: 3px;
-    color: #6b7f75;
+    color: var(--t2);
     font-size: var(--xs);
   }
 
@@ -143,7 +143,7 @@
 
   .file-name {
     font-weight: 500;
-    color: #d9f7e8;
+    color: var(--t1);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -155,7 +155,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    color: #4a5a52;
+    color: var(--t3);
     font-size: 9px;
     flex: 1;
     min-width: 30px;

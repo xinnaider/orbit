@@ -157,9 +157,9 @@
     treeCollapsed = !treeCollapsed;
   }
 
-  function toggleViewMode() {
-    viewMode = viewMode === 'flat' ? 'tree' : 'flat';
-    localStorage.setItem('orbit:gitViewMode', viewMode);
+  function setViewMode(mode: 'flat' | 'tree') {
+    viewMode = mode;
+    try { localStorage.setItem('orbit:gitViewMode', mode); } catch {}
   }
 
   function tagSelected(tag: FixedGitTag) {
@@ -201,8 +201,10 @@
   }
 
   onMount(() => {
-    const saved = localStorage.getItem('orbit:gitViewMode');
-    if (saved === 'tree' || saved === 'flat') viewMode = saved;
+    try {
+      const saved = localStorage.getItem('orbit:gitViewMode');
+      if (saved === 'tree' || saved === 'flat') viewMode = saved;
+    } catch {}
     refresh();
   });
 </script>
@@ -299,8 +301,9 @@
             type="button"
             class="view-btn"
             class:active={viewMode === 'flat'}
+            aria-pressed={viewMode === 'flat'}
             title="Flat view"
-            on:click={toggleViewMode}
+            on:click={() => setViewMode('flat')}
           >
             <List size={12} />
           </button>
@@ -308,8 +311,9 @@
             type="button"
             class="view-btn"
             class:active={viewMode === 'tree'}
+            aria-pressed={viewMode === 'tree'}
             title="Tree view"
-            on:click={toggleViewMode}
+            on:click={() => setViewMode('tree')}
           >
             <FolderTree size={12} />
           </button>

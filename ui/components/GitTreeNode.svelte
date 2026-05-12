@@ -84,15 +84,16 @@
         <Square size={12} />
       {/if}
     </button>
-{#if node.change.status}
-  <span
-    class="status-badge"
-    style="--status-color: {STATUS_COLORS[node.change.status] ?? '#666'}"
-    title={node.change.status}
-  >
-    {STATUS_SYMBOLS[node.change.status] ?? '?'}
-  </span>
-{/if}
+    {#if node.change.status}
+      <span
+        class="status-badge"
+        style="--status-color: {STATUS_COLORS[node.change.status] ?? '#666'}"
+        title={node.change.status}
+        aria-label="Status: {node.change.status}"
+      >
+        {STATUS_SYMBOLS[node.change.status] ?? '?'}
+      </span>
+    {/if}
     <FileText size={14} />
     <span class="node-name">{node.name}</span>
     {#if fileTags[node.change.id]?.length}
