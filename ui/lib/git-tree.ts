@@ -25,6 +25,24 @@ export interface GitTreeGroup {
   count: number;
 }
 
+export const STATUS_SYMBOLS: Record<string, string> = {
+  modified: 'M',
+  added: 'A',
+  deleted: 'D',
+  renamed: 'R',
+  copied: 'C',
+  untracked: 'U',
+};
+
+export const STATUS_COLORS: Record<string, string> = {
+  modified: '#e2b714',
+  added: '#00d47e',
+  deleted: '#f14c4c',
+  renamed: '#a379e6',
+  copied: '#4fc1ff',
+  untracked: '#4ec9b0',
+};
+
 const GROUP_LABELS: Record<GitChangeGroup, string> = {
   staged: 'Staged',
   unstaged: 'Unstaged',
@@ -50,29 +68,39 @@ function buildFolderTree(group: GitChangeGroup, files: GitFileChange[]): GitTree
     children: [],
   };
 
+  // Use a Map for O(1) folder lookups during construction
+  const folderMap = new Map<string, GitTreeFolderNode>();
+  folderMap.set('', root);
+
   for (const file of files) {
     const parts = file.path.split('/');
-    let current = root;
+    const folderPath = parts.slice(0, -1).join('/');
 
+    // Ensure all parent folders exist using Map lookups
+    let accumulated = '';
     for (const part of parts.slice(0, -1)) {
-      const nextPath = current.path ? `${current.path}/${part}` : part;
-      let folder = current.children.find(
-        (child): child is GitTreeFolderNode => child.kind === 'folder' && child.path === nextPath
-      );
-      if (!folder) {
-        folder = {
+      const parentPath = accumulated;
+      accumulated = accumulated ? `${accumulated}/${part}` : part;
+
+      if (!folderMap.has(accumulated)) {
+        const folder: GitTreeFolderNode = {
           kind: 'folder',
-          id: `${group}:${nextPath}`,
+          id: `${group}:${accumulated}`,
           name: part,
-          path: nextPath,
+          path: accumulated,
           children: [],
         };
-        current.children.push(folder);
+        folderMap.set(accumulated, folder);
+
+        // Add to parent (parent always exists in Map by construction)
+        const parent = folderMap.get(parentPath)!;
+        parent.children.push(folder);
       }
-      current = folder;
     }
 
-    current.children.push({
+    // Add file to its parent folder
+    const parent = folderMap.get(folderPath)!;
+    parent.children.push({
       kind: 'file',
       id: file.id,
       name: file.fileName,
