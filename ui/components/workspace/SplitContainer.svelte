@@ -111,18 +111,19 @@
   .resize-handle {
     flex-shrink: 0;
     position: relative;
-    background: var(--bd);
+    background: var(--bd1);
     z-index: 2;
+    transition: background 0.15s;
   }
 
   /* Thin visible line */
   .handle-horizontal {
-    width: 1px;
+    width: 2px;
     cursor: col-resize;
   }
 
   .handle-vertical {
-    height: 1px;
+    height: 2px;
     cursor: row-resize;
   }
 
@@ -147,6 +148,6 @@
   }
 
   .resize-handle:hover {
-    background: var(--bd1);
+    background: var(--bd2);
   }
 </style>
