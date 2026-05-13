@@ -3,6 +3,8 @@
  * Maps Tauri command names to HTTP REST calls against the Orbit HTTP API.
  */
 
+import type { Session } from '../stores/sessions';
+
 const TOKEN_KEY = 'orbit_api_token';
 
 export function getStoredToken(): string | null {
@@ -74,14 +76,16 @@ export async function webInvoke<T>(cmd: string, args?: Args): Promise<T> {
 
     case 'create_session': {
       const a = args!;
-      return apiPost('/sessions', {
+      const created = await apiPost<{ sessionId: number }>('/sessions', {
         cwd: a.cwd,
         prompt: a.prompt,
         provider: a.provider,
         model: a.model,
         name: a.name,
         parentSessionId: a.parentSessionId,
-      }) as Promise<T>;
+      });
+      const list = await apiGet<Session[]>('/sessions');
+      return (list.find((session) => session.id === created.sessionId) ?? created) as T;
     }
 
     case 'stop_session':

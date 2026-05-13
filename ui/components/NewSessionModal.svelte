@@ -4,13 +4,17 @@
   import { createSession, getProviders, diagnoseProvider } from '../lib/tauri';
   import { saveProviderKey } from '../lib/tauri/providers';
   import { backends as backendsStore, providerCaps, getCaps } from '../lib/stores/providers';
+  import type { Session } from '../lib/stores/sessions';
   import type { ProviderDiagnostic } from '../lib/tauri';
   import { generateAgentName } from '../lib/android-names';
   import Modal from './shared/Modal.svelte';
   import ProviderSelector from './shared/ProviderSelector.svelte';
   import SshFields from './shared/SshFields.svelte';
 
-  const dispatch = createEventDispatcher();
+  const dispatch = createEventDispatcher<{
+    done: { session: Session };
+    cancel: void;
+  }>();
 
   let path = '';
   let prompt = '';
@@ -140,7 +144,7 @@
         ? apiKeyOverride.trim()
         : undefined;
     try {
-      await createSession({
+      const session = await createSession({
         projectPath: path.trim(),
         prompt: prompt.trim() || 'Hello',
         model: resolveModel(),
@@ -160,7 +164,7 @@
         const envVar = envVars[0] ?? `${subProviderId.toUpperCase().replace(/-/g, '_')}_API_KEY`;
         saveProviderKey(subProviderId, envVar, apiKeyForSession).catch(() => {});
       }
-      dispatch('done');
+      dispatch('done', { session });
     } catch (e: any) {
       error = e?.message ?? String(e);
     } finally {

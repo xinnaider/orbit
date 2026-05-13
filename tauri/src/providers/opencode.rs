@@ -124,15 +124,6 @@ impl Provider for OpenCodeProvider {
     }
     fn format_model(&self, raw_model: &str, provider_id: &str) -> String {
         if provider_id == "opencode" {
-            if let Some(model) = crate::commands::providers::resolve_opencode_request(
-                Some(provider_id),
-                Some(raw_model),
-            )
-            .and_then(|resolved| resolved.model)
-            {
-                return model;
-            }
-
             if raw_model
                 .split_once('/')
                 .is_some_and(|(provider, _)| provider != "opencode")
@@ -141,6 +132,15 @@ impl Provider for OpenCodeProvider {
             }
             if raw_model.starts_with("opencode/") {
                 return raw_model.to_string();
+            }
+
+            if let Some(model) = crate::commands::providers::resolve_opencode_request(
+                Some(provider_id),
+                Some(raw_model),
+            )
+            .and_then(|resolved| resolved.model)
+            {
+                return model;
             }
         } else if raw_model.starts_with(&format!("{provider_id}/")) {
             return raw_model.to_string();

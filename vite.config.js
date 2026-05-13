@@ -13,6 +13,7 @@ export default defineConfig(async () => ({
       '**/.worktrees/**',
       '**/.claude/worktrees/**',
       '**/tauri/**',
+      '**/*.component.test.ts',
     ],
   },
 

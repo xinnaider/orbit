@@ -1,6 +1,7 @@
 <script lang="ts">
   import { sessions, updateSessionState } from '../lib/stores/sessions';
   import { workspace, assignSession, splitPane } from '../lib/stores/workspace';
+  import { upsertAndOpenSession } from '../lib/stores/session-actions';
   import { get } from 'svelte/store';
   import { statusColor, statusLabel, isPulsing } from '../lib/status';
   import NewSessionModal from './NewSessionModal.svelte';
@@ -141,7 +142,13 @@
 </script>
 
 {#if showModal}
-  <NewSessionModal on:done={() => (showModal = false)} on:cancel={() => (showModal = false)} />
+  <NewSessionModal
+    on:done={(e) => {
+      if (e.detail?.session) upsertAndOpenSession(e.detail.session);
+      showModal = false;
+    }}
+    on:cancel={() => (showModal = false)}
+  />
 {/if}
 
 {#if confirmDelete}

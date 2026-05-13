@@ -9,13 +9,13 @@
   import {
     sessions,
     selectedSessionId,
-    upsertSession,
     updateSessionState,
     getSelectedSession,
     type Session,
   } from './lib/stores/sessions';
   import { get } from 'svelte/store';
   import { assignSession, clearSession, restoreWorkspace, workspace } from './lib/stores/workspace';
+  import { upsertAndOpenSession, upsertSessionFromEvent } from './lib/stores/session-actions';
   import { journal } from './lib/stores/journal';
   import { rawJournal } from './lib/stores/rawJournal';
   import { taskUpdateTrigger } from './lib/stores/tasks';
@@ -126,13 +126,7 @@
       if (ws.focusedPaneId) assignSession(ws.focusedPaneId, existing[0].id);
     }
 
-    const u1 = onSessionCreated((s) => {
-      sessions.update((l) => upsertSession(l, s));
-      if (!$selectedSessionId) {
-        const ws = get(workspace);
-        if (ws.focusedPaneId) assignSession(ws.focusedPaneId, s.id);
-      }
-    });
+    const u1 = onSessionCreated(upsertSessionFromEvent);
 
     const u2 = onSessionOutput(({ sessionId, entry }) => {
       journal.update((map) => {
@@ -273,6 +267,13 @@
     showNewSessionModal = true;
   }
 
+  function handleNewSessionDone(event: CustomEvent<{ session?: Session }>) {
+    if (event.detail?.session) {
+      upsertAndOpenSession(event.detail.session);
+    }
+    showNewSessionModal = false;
+  }
+
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'F12' && HAS_TAURI) {
       import('@tauri-apps/api/webviewWindow').then(({ getCurrentWebviewWindow }) => {
@@ -302,7 +303,7 @@
 
   {#if showNewSessionModal}
     <NewSessionModal
-      on:done={() => (showNewSessionModal = false)}
+      on:done={handleNewSessionDone}
       on:cancel={() => (showNewSessionModal = false)}
     />
   {/if}

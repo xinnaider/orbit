@@ -484,7 +484,7 @@ pub fn process_line_opencode(state: &mut JournalState, line: &str) {
     let event_type = val.get("type").and_then(|v| v.as_str()).unwrap_or("");
 
     match event_type {
-        "step_start" => {
+        "step_start" | "step-start" => {
             state.status = AgentStatus::Working;
         }
 
@@ -493,7 +493,7 @@ pub fn process_line_opencode(state: &mut JournalState, line: &str) {
                 .pointer("/part/text")
                 .and_then(|v| v.as_str())
                 .unwrap_or("");
-            if !text.is_empty() {
+            if !text.trim().is_empty() {
                 state.status = AgentStatus::Working;
                 state.entries.push(JournalEntry {
                     entry_type: JournalEntryType::Assistant,
@@ -572,13 +572,16 @@ pub fn process_line_opencode(state: &mut JournalState, line: &str) {
             });
         }
 
-        "step_finish" => {
+        "step_finish" | "step-finish" => {
             let reason = val
                 .pointer("/part/reason")
                 .and_then(|v| v.as_str())
                 .unwrap_or("");
 
-            if let Some(tokens) = val.pointer("/part/tokens") {
+            if let Some(tokens) = val
+                .pointer("/part/tokens")
+                .or_else(|| val.pointer("/tokens"))
+            {
                 // Each step reports its own totals — overwrite, don't accumulate
                 state.input_tokens = tokens.get("input").and_then(|v| v.as_u64()).unwrap_or(0);
                 state.output_tokens = tokens.get("output").and_then(|v| v.as_u64()).unwrap_or(0);
@@ -1297,6 +1300,88 @@ mod process_line_tests {
         process_line(&mut state, &progress_line("   "));
         t.phase("Assert");
         t.empty("no entries for whitespace content", &state.entries);
+    }
+}
+
+#[cfg(test)]
+mod process_line_opencode_tests {
+    use super::*;
+    use crate::test_utils::TestCase;
+
+    #[test]
+    fn should_ignore_opencode_whitespace_text_events() {
+        let mut t = TestCase::new("should_ignore_opencode_whitespace_text_events");
+        t.phase("Act");
+        let mut state = JournalState::default();
+        process_line_opencode(
+            &mut state,
+            r#"{"type":"text","part":{"type":"text","text":" "}}"#,
+        );
+        t.phase("Assert");
+        t.empty(
+            "no assistant entry for whitespace-only text",
+            &state.entries,
+        );
+    }
+
+    #[test]
+    fn should_preserve_non_empty_opencode_text_events() {
+        let mut t = TestCase::new("should_preserve_non_empty_opencode_text_events");
+        t.phase("Act");
+        let mut state = JournalState::default();
+        process_line_opencode(
+            &mut state,
+            r#"{"type":"text","part":{"type":"text","text":" hello "}}"#,
+        );
+        t.phase("Assert");
+        t.len("one assistant entry", &state.entries, 1);
+        t.eq(
+            "text preserves original content",
+            state.entries[0].text.as_deref(),
+            Some(" hello "),
+        );
+    }
+
+    #[test]
+    fn should_parse_opencode_step_finish_with_hyphen_and_top_level_tokens() {
+        let mut t =
+            TestCase::new("should_parse_opencode_step_finish_with_hyphen_and_top_level_tokens");
+        t.phase("Act");
+        let mut state = JournalState::default();
+        process_line_opencode(
+            &mut state,
+            r#"{"type":"step-finish","part":{"reason":"stop"},"tokens":{"input":12,"output":5,"cache":{"write":3,"read":4}}}"#,
+        );
+        t.phase("Assert");
+        t.eq("status is idle", state.status, AgentStatus::Idle);
+        t.eq("input tokens", state.input_tokens, 12u64);
+        t.eq("output tokens", state.output_tokens, 5u64);
+        t.eq("cache write", state.cache_write, 3u64);
+        t.eq("cache read", state.cache_read, 4u64);
+    }
+
+    #[test]
+    fn should_not_create_empty_entry_for_opencode_space_text_sequence() {
+        let mut t = TestCase::new("should_not_create_empty_entry_for_opencode_space_text_sequence");
+        t.phase("Act");
+        let mut state = JournalState::default();
+        process_line_opencode(
+            &mut state,
+            r#"{"type":"step_start","part":{"type":"step-start"}}"#,
+        );
+        process_line_opencode(
+            &mut state,
+            r#"{"type":"text","part":{"type":"text","text":" "}}"#,
+        );
+        process_line_opencode(
+            &mut state,
+            r#"{"type":"step_finish","part":{"type":"step-finish","reason":"stop","tokens":{"input":10,"output":2,"cache":{"write":0,"read":1}}}}"#,
+        );
+        t.phase("Assert");
+        t.empty("no visible chat entries", &state.entries);
+        t.eq("status is idle", state.status, AgentStatus::Idle);
+        t.eq("input tokens are kept", state.input_tokens, 10u64);
+        t.eq("cache read is kept", state.cache_read, 1u64);
     }
 }
 
