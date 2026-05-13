@@ -86,12 +86,15 @@
     fetchBranch();
   }
 
-  // Clear pending when entry appears in Feed (backend echoed it)
+  $: entries = $journal.get(session?.id) ?? [];
+
+  // Clear pending AFTER entries is updated — prevents race where
+  // pendingMessages.clear() fires before entries re-evaluates,
+  // causing a brief "empty feed" state that drops the first message.
   $: {
-    const e = $journal.get(session?.id);
     if (
-      e &&
-      e.some(
+      entries &&
+      entries.some(
         (entry) =>
           entry.entryType === 'user' ||
           entry.entryType === 'assistant' ||
@@ -111,7 +114,6 @@
     atBottom = true;
   }
 
-  $: entries = $journal.get(session?.id) ?? [];
   $: statusStr = statusLabel(session?.status ?? '');
   $: statusClr = statusColor(session?.status ?? '');
   $: pulsing = isPulsing(session?.status ?? '');
