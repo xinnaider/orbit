@@ -621,6 +621,7 @@ If the user provides neither role nor name nor mission, ask one concise question
   }
 
   async function quickAction(msg: string) {
+    if (!msg.trim()) return;
     pendingMessages.add(msg);
     try {
       await sendSessionMessage(sessionId, msg);

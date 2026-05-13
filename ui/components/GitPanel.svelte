@@ -161,7 +161,9 @@
     viewMode = mode;
     try {
       localStorage.setItem('orbit:gitViewMode', mode);
-    } catch {}
+    } catch {
+      /* ignore localStorage errors */
+    }
   }
 
   function tagSelected(tag: FixedGitTag) {
@@ -206,7 +208,9 @@
     try {
       const saved = localStorage.getItem('orbit:gitViewMode');
       if (saved === 'tree' || saved === 'flat') viewMode = saved;
-    } catch {}
+    } catch {
+      /* ignore localStorage errors */
+    }
     refresh();
   });
 </script>

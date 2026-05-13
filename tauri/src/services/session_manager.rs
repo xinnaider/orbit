@@ -558,44 +558,47 @@ impl SessionManager {
             serde_json::json!({ "sessionId": session_id, "pid": pid }),
         );
 
-        let user_entry = crate::models::JournalEntry {
-            session_id: session_id.to_string(),
-            timestamp: chrono::Utc::now().to_rfc3339(),
-            entry_type: crate::models::JournalEntryType::User,
-            text: Some(prompt_text.to_string()),
-            ..crate::models::JournalEntry::default()
-        };
-        let user_line = serde_json::json!({
-            "type": "user",
-            "message": { "content": prompt_text },
-            "timestamp": &user_entry.timestamp
-        })
-        .to_string();
-        let _ = db.insert_output(session_id, &user_line);
-        let _ = app.emit(
-            "session:raw-output",
-            serde_json::json!({ "sessionId": session_id, "line": &user_line }),
-        );
+        // Skip creating user entry if prompt is empty/whitespace-only
+        if !prompt_text.trim().is_empty() {
+            let user_entry = crate::models::JournalEntry {
+                session_id: session_id.to_string(),
+                timestamp: chrono::Utc::now().to_rfc3339(),
+                entry_type: crate::models::JournalEntryType::User,
+                text: Some(prompt_text.to_string()),
+                ..crate::models::JournalEntry::default()
+            };
+            let user_line = serde_json::json!({
+                "type": "user",
+                "message": { "content": prompt_text },
+                "timestamp": &user_entry.timestamp
+            })
+            .to_string();
+            let _ = db.insert_output(session_id, &user_line);
+            let _ = app.emit(
+                "session:raw-output",
+                serde_json::json!({ "sessionId": session_id, "line": &user_line }),
+            );
 
-        let emit_entry: crate::models::JournalEntry;
-        {
-            let mut m = manager.write().unwrap_or_else(|e| e.into_inner());
-            let state = m.journal_states.entry(session_id).or_default();
-            let mut entry = user_entry;
-            entry.seq = state.next_seq;
-            entry.epoch = state.epoch.clone();
-            state.next_seq += 1;
-            emit_entry = entry.clone();
-            state.entries.push(entry);
+            let emit_entry: crate::models::JournalEntry;
+            {
+                let mut m = manager.write().unwrap_or_else(|e| e.into_inner());
+                let state = m.journal_states.entry(session_id).or_default();
+                let mut entry = user_entry;
+                entry.seq = state.next_seq;
+                entry.epoch = state.epoch.clone();
+                state.next_seq += 1;
+                emit_entry = entry.clone();
+                state.entries.push(entry);
+            }
+
+            let _ = app.emit(
+                "session:output",
+                SessionOutputEvent {
+                    session_id,
+                    entry: emit_entry,
+                },
+            );
         }
-
-        let _ = app.emit(
-            "session:output",
-            SessionOutputEvent {
-                session_id,
-                entry: emit_entry,
-            },
-        );
     }
 
     /// Read JSON lines from Claude's stdout, parse, emit events.
