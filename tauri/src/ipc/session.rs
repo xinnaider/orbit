@@ -75,6 +75,30 @@ pub fn create_session(
     use tauri::Emitter;
     let _ = app.emit("session:created", &session);
 
+    // Push the user's initial prompt as a journal entry so it appears in the chat
+    {
+        let mut m = state.0.write().unwrap_or_else(|e| e.into_inner());
+        let state_entry = m.journal_states.entry(session.id).or_default();
+        let user_entry = crate::models::JournalEntry {
+            session_id: session.id.to_string(),
+            timestamp: chrono::Utc::now().to_rfc3339(),
+            entry_type: crate::models::JournalEntryType::User,
+            text: Some(prompt.clone()),
+            seq: state_entry.next_seq,
+            epoch: state_entry.epoch.clone(),
+            ..crate::models::JournalEntry::default()
+        };
+        state_entry.next_seq += 1;
+        state_entry.entries.push(user_entry.clone());
+        let _ = app.emit(
+            "session:output",
+            serde_json::json!({
+                "sessionId": session.id,
+                "entry": user_entry
+            }),
+        );
+    }
+
     let manager = Arc::clone(&state.0);
     let reg = Arc::clone(&registry.0);
     let session_id = session.id;

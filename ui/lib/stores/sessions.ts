@@ -28,6 +28,7 @@ export interface Session {
   cwd: string | null;
   projectName: string | null;
   gitBranch: string | null;
+  gitDirty?: boolean;
   worktreePath: string | null;
   branchName: string | null;
   tokens: TokenUsage | null;

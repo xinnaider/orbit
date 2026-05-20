@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::Write;
 use std::sync::{Arc, RwLock};
 
@@ -91,6 +91,12 @@ pub struct SessionManager {
     pub journal_states: HashMap<SessionId, JournalState>,
     /// MCP-spawned child sessions grouped by parent session ID.
     mcp_subagents: HashMap<SessionId, Vec<(SessionId, crate::models::SubagentInfo)>>,
+    /// Git diff manager for real-time working tree watching.
+    pub diff_manager: Arc<super::diff_manager::DiffManager>,
+    /// Tracks which session is watching which directory (for cleanup).
+    watch_map: HashMap<SessionId, std::path::PathBuf>,
+    /// Sessions currently in the spawning phase (prevents double-spawn race).
+    spawning_sessions: HashSet<SessionId>,
 }
 
 impl SessionManager {
@@ -100,6 +106,9 @@ impl SessionManager {
             active: HashMap::new(),
             journal_states: HashMap::new(),
             mcp_subagents: HashMap::new(),
+            diff_manager: Arc::new(super::diff_manager::DiffManager::new()),
+            watch_map: HashMap::new(),
+            spawning_sessions: HashSet::new(),
         }
     }
 
@@ -274,6 +283,9 @@ impl SessionManager {
     ///
     /// Resolves the provider from the registry and delegates spawning + output
     /// parsing to the `Provider` trait, eliminating per-provider match dispatch.
+    ///
+    /// Includes a guard against double-spawning: if the session already has a
+    /// running PID and is not in a terminal state, the spawn is skipped.
     pub fn do_spawn(
         manager: Arc<RwLock<SessionManager>>,
         app: AppHandle,
@@ -281,6 +293,18 @@ impl SessionManager {
         prompt: String,
         registry: &ProviderRegistry,
     ) {
+        // Guard: prevent double-spawn via a spawning_sessions set
+        // This catches races before PID is assigned (unlike the PID check).
+        {
+            let mut m = manager.write().unwrap_or_else(|e| e.into_inner());
+            if !m.spawning_sessions.insert(session_id) {
+                eprintln!(
+                    "[orbit] warning: session {session_id} already spawning, \
+                     skipping duplicate spawn"
+                );
+                return;
+            }
+        }
         // 1. Read session data from the active map
         let (
             db,
@@ -293,61 +317,85 @@ impl SessionManager {
             spawn_mode,
             ssh_key_path,
             skip_permissions,
-        ) = {
-            let m = manager.read().unwrap_or_else(|e| e.into_inner());
-            let a = match m.active.get(&session_id) {
-                Some(a) => a,
-                None => {
-                    let _ = app.emit(
-                        "session:error",
-                        serde_json::json!({
-                            "sessionId": session_id,
-                            "error": "Session not found in active map"
-                        }),
-                    );
-                    return;
-                }
-            };
+        ) = match manager.try_read() {
+            Ok(m) => {
+                let a = match m.active.get(&session_id) {
+                    Some(a) => a,
+                    None => {
+                        let _ = app.emit(
+                            "session:error",
+                            serde_json::json!({
+                                "sessionId": session_id,
+                                "error": "Session not found in active map"
+                            }),
+                        );
+                        {
+                            let mut m = manager.write().unwrap_or_else(|e| e.into_inner());
+                            m.spawning_sessions.remove(&session_id);
+                        }
+                        return;
+                    }
+                };
 
-            let raw_model = a.session.model.clone().unwrap_or_default();
-            let pid_str = a.session.provider.clone();
+                let raw_model = a.session.model.clone().unwrap_or_default();
+                let pid_str = a.session.provider.clone();
 
-            let mut env = vec![];
-            env.push(("ORBIT_SESSION_ID".to_string(), session_id.to_string()));
-            if let Some(ref key) = a.api_key {
-                let var_name = format!("{}_API_KEY", pid_str.to_uppercase().replace('-', "_"));
-                env.push((var_name, key.clone()));
-            }
-
-            let spawn_mode = match (a.session.ssh_host.clone(), a.session.ssh_user.clone()) {
-                (Some(host), Some(user)) => crate::services::ssh::SpawnMode::Ssh { host, user },
-                (Some(host), None) => {
-                    eprintln!(
-                        "[orbit] session {session_id}: ssh_host={host:?} set but ssh_user is \
+                let spawn_mode = match (a.session.ssh_host.clone(), a.session.ssh_user.clone()) {
+                    (Some(host), Some(user)) => crate::services::ssh::SpawnMode::Ssh { host, user },
+                    (Some(host), None) => {
+                        eprintln!(
+                            "[orbit] session {session_id}: ssh_host={host:?} set but ssh_user is \
                          missing — falling back to local spawn."
-                    );
-                    crate::services::ssh::SpawnMode::Local
-                }
-                _ => crate::services::ssh::SpawnMode::Local,
-            };
-            let ssh_key_path = a.ssh_key_path.clone();
+                        );
+                        crate::services::ssh::SpawnMode::Local
+                    }
+                    (None, Some(user)) => {
+                        eprintln!(
+                            "[orbit] session {session_id}: ssh_user={user:?} set but ssh_host is \
+                         missing — falling back to local spawn."
+                        );
+                        crate::services::ssh::SpawnMode::Local
+                    }
+                    (None, None) => crate::services::ssh::SpawnMode::Local,
+                };
 
-            (
-                m.db.clone(),
-                a.session
-                    .worktree_path
-                    .clone()
-                    .or_else(|| a.session.cwd.clone())
-                    .unwrap_or_default(),
-                raw_model,
-                pid_str,
-                a.effort.clone(),
-                a.claude_session_id.clone(),
-                env,
-                spawn_mode,
-                ssh_key_path,
-                a.session.skip_permissions,
-            )
+                let mut extra_env = vec![("ORBIT_SESSION_ID".to_string(), session_id.to_string())];
+                if let Some(ref key) = a.api_key {
+                    let var_name = format!("{}_API_KEY", pid_str.to_uppercase().replace('-', "_"));
+                    extra_env.push((var_name, key.clone()));
+                }
+                if let Some(ref effort) = a.effort {
+                    extra_env.push(("ORBIT_EFFORT".to_string(), effort.clone()));
+                }
+                if let Some(ref resume_id) = a.claude_session_id {
+                    extra_env.push(("ORBIT_RESUME_ID".to_string(), resume_id.clone()));
+                }
+
+                (
+                    m.db.clone(),
+                    a.session
+                        .worktree_path
+                        .clone()
+                        .or_else(|| a.session.cwd.clone())
+                        .unwrap_or_default(),
+                    raw_model,
+                    pid_str,
+                    a.effort.clone(),
+                    a.claude_session_id.clone(),
+                    extra_env,
+                    spawn_mode,
+                    a.ssh_key_path.clone(),
+                    a.session.skip_permissions,
+                )
+            }
+            Err(_) => {
+                eprintln!("[orbit] warning: failed to acquire read lock for session {session_id}, skipping spawn");
+                {
+                    let mut m = manager.write().unwrap_or_else(|e| e.into_inner());
+                    m.spawning_sessions.remove(&session_id);
+                }
+                return;
+            }
         };
 
         // 2. Resolve provider from registry
@@ -361,6 +409,10 @@ impl SessionManager {
                         "error": format!("Unknown provider: {provider_id}")
                     }),
                 );
+                {
+                    let mut m = manager.write().unwrap_or_else(|e| e.into_inner());
+                    m.spawning_sessions.remove(&session_id);
+                }
                 return;
             }
         };
@@ -380,9 +432,9 @@ impl SessionManager {
         let prompt_text = prompt.clone();
         if cfg!(debug_assertions) {
             eprintln!("[orbit:debug] ── spawn session {session_id} ──");
-            eprintln!("[orbit:debug]   provider: {provider_id}");
-            eprintln!("[orbit:debug]   model: {model}");
-            eprintln!("[orbit:debug]   cwd: {cwd}");
+            eprintln!("[orbit:debug]   provider: {}", provider_id);
+            eprintln!("[orbit:debug]   model: {}", model);
+            eprintln!("[orbit:debug]   cwd: {}", cwd);
             eprintln!(
                 "[orbit:debug]   spawn_mode: {}",
                 match &spawn_mode {
@@ -443,6 +495,7 @@ impl SessionManager {
                 let _ = db.update_session_status(session_id, crate::models::SessionStatus::Error);
                 {
                     let mut m = manager.write().unwrap_or_else(|e| e.into_inner());
+                    m.spawning_sessions.remove(&session_id);
                     if let Some(a) = m.active.get_mut(&session_id) {
                         a.session.attention = Some(crate::models::AttentionState {
                             requires_attention: true,
@@ -461,8 +514,27 @@ impl SessionManager {
             }
         };
 
+        // Start git working tree watcher for real-time diff updates
+        let cwd_path = std::path::PathBuf::from(&cwd);
+        {
+            let mut m = manager.write().unwrap_or_else(|e| e.into_inner());
+            let app_handle = app.clone();
+            let sid = session_id;
+            m.diff_manager.watch(cwd_path.clone(), move |snapshot| {
+                let _ = app_handle.emit(
+                    "session:git-update",
+                    serde_json::json!({
+                        "sessionId": sid,
+                        "snapshot": snapshot
+                    }),
+                );
+            });
+            m.watch_map.insert(session_id, cwd_path);
+        }
+
         // 5. Stderr drain — rate limit detection is handled by stdout rate_limit_event
         let stderr_reader = handle.stderr;
+        let app_clone = app.clone();
         std::thread::spawn(move || {
             use std::io::BufRead;
             let mut reader = std::io::BufReader::new(stderr_reader);
@@ -472,11 +544,19 @@ impl SessionManager {
                 match reader.read_line(&mut line) {
                     Ok(0) | Err(_) => break,
                     Ok(_) => {
-                        if cfg!(debug_assertions) {
-                            let trimmed = line.trim();
-                            if !trimmed.is_empty() {
+                        let trimmed = line.trim();
+                        if !trimmed.is_empty() {
+                            if cfg!(debug_assertions) {
                                 eprintln!("[orbit:debug] stderr {session_id}: {trimmed}");
                             }
+                            eprintln!("[orbit:stderr] {session_id}: {trimmed}");
+                            let _ = app_clone.emit(
+                                "session:stderr",
+                                serde_json::json!({
+                                    "sessionId": session_id,
+                                    "line": trimmed
+                                }),
+                            );
                         }
                     }
                 }
@@ -848,6 +928,7 @@ impl SessionManager {
                     since: Some(chrono::Utc::now().to_rfc3339()),
                 };
             }
+            m.spawning_sessions.remove(&session_id);
             let _ = db.update_session_status(session_id, crate::models::SessionStatus::Completed);
         }
 
@@ -899,6 +980,31 @@ impl SessionManager {
             }
         }
 
+        // Push the user's follow-up message as a journal entry so it appears in the chat
+        {
+            let mut m = manager.write().unwrap_or_else(|e| e.into_inner());
+            if let Some(state) = m.journal_states.get_mut(&session_id) {
+                let user_entry = crate::models::JournalEntry {
+                    session_id: session_id.to_string(),
+                    timestamp: chrono::Utc::now().to_rfc3339(),
+                    entry_type: crate::models::JournalEntryType::User,
+                    text: Some(text.clone()),
+                    seq: state.next_seq,
+                    epoch: state.epoch.clone(),
+                    ..crate::models::JournalEntry::default()
+                };
+                state.next_seq += 1;
+                state.entries.push(user_entry.clone());
+                let _ = app.emit(
+                    "session:output",
+                    serde_json::json!({
+                        "sessionId": session_id,
+                        "entry": user_entry
+                    }),
+                );
+            }
+        }
+
         let manager_clone = Arc::clone(&manager);
         std::thread::spawn(move || {
             Self::do_spawn(manager_clone, app, session_id, text, &registry);
@@ -908,6 +1014,10 @@ impl SessionManager {
     }
 
     pub fn stop_session(&mut self, session_id: SessionId) -> Result<(), String> {
+        // Unwatch git working tree
+        if let Some(cwd) = self.watch_map.remove(&session_id) {
+            self.diff_manager.unwatch(&cwd);
+        }
         if let Some(a) = self.active.get(&session_id) {
             if let Some(pid) = a.session.pid {
                 kill_pid(pid as u32);
@@ -916,6 +1026,7 @@ impl SessionManager {
             }
         }
         self.active.remove(&session_id);
+        self.spawning_sessions.remove(&session_id);
         let _ = self
             .db
             .update_session_status(session_id, crate::models::SessionStatus::Stopped);
@@ -1138,6 +1249,10 @@ impl SessionManager {
     }
 
     pub fn delete_session(&mut self, session_id: SessionId) -> Result<(), String> {
+        // Unwatch git working tree
+        if let Some(cwd) = self.watch_map.remove(&session_id) {
+            self.diff_manager.unwatch(&cwd);
+        }
         self.active.remove(&session_id);
         self.journal_states.remove(&session_id);
         self.db
@@ -1153,9 +1268,71 @@ impl SessionManager {
                 let _ = std::fs::remove_file(pid_file);
             }
         }
+        // Unwatch all git working trees
+        for (_, cwd) in self.watch_map.drain() {
+            self.diff_manager.unwatch(&cwd);
+        }
         self.active.clear();
         self.journal_states.clear();
         self.db.delete_all_sessions().map_err(|e| e.to_string())
+    }
+
+    /// Gracefully stop a session with a timeout. If the session doesn't stop
+    /// within the timeout, the process is killed forcefully.
+    pub fn stop_session_with_timeout(
+        &mut self,
+        session_id: SessionId,
+        timeout_ms: u64,
+    ) -> Result<(), String> {
+        let pid = self.active.get(&session_id).and_then(|a| a.session.pid);
+
+        // Unwatch git working tree
+        if let Some(cwd) = self.watch_map.remove(&session_id) {
+            self.diff_manager.unwatch(&cwd);
+        }
+
+        if let Some(pid) = pid {
+            // Try graceful stop first
+            kill_pid(pid as u32);
+
+            // Wait for process to exit with timeout using polling
+            let start = std::time::Instant::now();
+            let timeout = std::time::Duration::from_millis(timeout_ms);
+            loop {
+                if start.elapsed() >= timeout {
+                    eprintln!(
+                        "[orbit] warning: session {session_id} (pid={pid}) did not stop within \
+                         {timeout_ms}ms timeout — force-killing"
+                    );
+                    kill_pid(pid as u32);
+                    break;
+                }
+                // Check if process is still running via process exit
+                let is_alive = std::process::Command::new("tasklist")
+                    .args(["/FI", &format!("PID eq {pid}"), "/NH"])
+                    .output();
+                match is_alive {
+                    Ok(output) => {
+                        let out = String::from_utf8_lossy(&output.stdout);
+                        let pid_str = pid.to_string();
+                        if !out.contains(&pid_str) {
+                            break;
+                        }
+                    }
+                    Err(_) => {
+                        break;
+                    }
+                }
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+        }
+
+        self.active.remove(&session_id);
+        self.spawning_sessions.remove(&session_id);
+        let _ = self
+            .db
+            .update_session_status(session_id, crate::models::SessionStatus::Stopped);
+        Ok(())
     }
 
     /// Eagerly load journal state for all sessions from DB.

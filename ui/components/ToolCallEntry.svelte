@@ -127,6 +127,40 @@
         .map((text, i) => ({ type: 'add' as const, text, lineNo: i + 1 }))
     : [];
   $: writeOverflow = Math.max(0, writeLines.length - 6);
+
+  // Real-time diff from streaming entries (visible while tool is running)
+  $: streamEdits = streamingEntries
+    .filter((s) => {
+      const tool = ((s.tool ?? '') as string).toLowerCase();
+      return tool === 'edit' && s.toolInput?.old_string && s.toolInput?.new_string;
+    })
+    .map((s) => {
+      const rawChunks = diffLines(
+        s.toolInput!.old_string as string,
+        s.toolInput!.new_string as string
+      );
+      return {
+        rawChunks,
+        inline: buildInlineLines(rawChunks).slice(0, 6),
+        name: (s.toolInput as Record<string, any>)?.file_path ?? 'file',
+      };
+    });
+
+  $: streamWrites = streamingEntries
+    .filter((s) => {
+      const tool = ((s.tool ?? '') as string).toLowerCase();
+      return tool === 'write' && s.toolInput?.content;
+    })
+    .map((s) => ({
+      lines: (s.toolInput!.content as string).split('\n').map((text, i) => ({
+        type: 'add' as const,
+        text,
+        lineNo: i + 1,
+      })),
+      name: (s.toolInput as Record<string, any>)?.file_path ?? 'file',
+    }));
+
+  $: hasStreamDiffs = streamEdits.length > 0 || streamWrites.length > 0;
   $: writeVisible = writeLines.slice(0, 6);
 
   // Code text (bash only — Write is handled via writeLines)
@@ -363,9 +397,45 @@
 
       {#if streamingEntries.length > 0 && !resultEntry}
         <div class="streaming-output">
-          {#each streamingEntries as s}
-            <pre class="streaming-line">{s.text}</pre>
-          {/each}
+          {#if hasStreamDiffs}
+            {#each streamEdits as edit}
+              <div class="stream-diff-preview">
+                <div class="stream-diff-header">editing {edit.name}...</div>
+                <div class="diff-block">
+                  {#each edit.inline as dl}
+                    <div class="diff-line {dl.type}">
+                      <span class="dl-num">{dl.lineNo}</span>
+                      <span class="dl-prefix">{dl.type === 'add' ? '+' : '-'}</span>
+                      <span class="dl-code">{@html doHighlight(dl.text, lang)}</span>
+                    </div>
+                  {/each}
+                </div>
+              </div>
+            {/each}
+            {#each streamWrites as write}
+              <div class="stream-diff-preview">
+                <div class="stream-diff-header">creating {write.name}...</div>
+                <div class="diff-block">
+                  {#each write.lines.slice(0, 6) as dl}
+                    <div class="diff-line add">
+                      <span class="dl-num">{dl.lineNo}</span>
+                      <span class="dl-prefix">+</span>
+                      <span class="dl-code"
+                        >{@html doHighlight(dl.text, detectLang(write.name))}</span
+                      >
+                    </div>
+                  {/each}
+                  {#if write.lines.length > 6}
+                    <div class="diff-overflow">▸ +{write.lines.length - 6} linhas</div>
+                  {/if}
+                </div>
+              </div>
+            {/each}
+          {:else}
+            {#each streamingEntries as s}
+              <pre class="streaming-line">{s.text}</pre>
+            {/each}
+          {/if}
         </div>
       {/if}
 
@@ -786,6 +856,28 @@
     line-height: 1.55;
     color: var(--t2);
     margin: 0;
+  }
+  .stream-diff-preview {
+    margin-bottom: var(--sp-3);
+  }
+  .stream-diff-header {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--t3);
+    margin-bottom: var(--sp-1);
+    padding: var(--sp-1) var(--sp-2);
+    background: var(--bg2);
+    border-radius: var(--radius-sm);
+  }
+  .stream-diff-preview .diff-block {
+    border: 0;
+    margin: 0;
+  }
+  .stream-diff-preview .diff-overflow {
+    font-size: 10px;
+    color: var(--ac);
+    padding: var(--sp-1) var(--sp-2);
+    cursor: pointer;
   }
 
   /* ── Modal ── */

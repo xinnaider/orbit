@@ -126,7 +126,14 @@ pub fn process_line(state: &mut JournalState, line: &str) {
 
     let raw: RawEntry = match serde_json::from_str(trimmed) {
         Ok(r) => r,
-        Err(_) => return,
+        Err(e) => {
+            eprintln!(
+                "[orbit:parse] warning: failed to parse JSONL entry: {}\n  preview: {}",
+                e,
+                trimmed.chars().take(100).collect::<String>(),
+            );
+            return;
+        }
     };
 
     let ts = raw.timestamp.clone().unwrap_or_default();

@@ -253,6 +253,7 @@ pub fn run() {
             commands::git::git_branch,
             commands::git::git_overview,
             commands::git::git_diff_file,
+            commands::git::git_snapshot,
             commands::files::get_subagent_journal,
             commands::plugins::get_slash_commands,
             commands::files::list_project_files,

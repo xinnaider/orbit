@@ -4,6 +4,49 @@
 
 ## May 2026
 
+### 05/20 · Fix — User's first message now appears in chat
+The initial prompt that creates a session and follow-up messages were missing from the chat feed. Both now appear immediately as user entries before the agent responds.
+
+### 05/20 · Fix — Double-session spawn prevented
+A race condition could cause the same session to be spawned twice, creating duplicate processes. A spawning guard now prevents concurrent spawns for the same session.
+When a session starts, Orbit now watches the project's git working tree in the background. If files change (branch switch, edits, new files), the session's git status updates in real-time. The watcher stops when the session stops.
+
+### 05/20 · New — Real-time diffs in streaming output (edit/write progress visible)
+While an agent is editing or writing files, Orbit now shows the diff inline in the chat feed — you can see the changes as they happen, not just after the tool completes.
+
+### 05/20 · New — Stderr warnings shown as toast notifications
+Agent errors from stderr (rate limits, permission fallbacks, connection issues) now appear as toast notifications in the top-right corner, auto-dismissing after 8 seconds.
+
+### 05/20 · New — Graceful session stop with timeout
+Stopping a session now uses a timeout mechanism: the process gets a stop signal first, and if it doesn't exit within the timeout, it's force-killed. Prevents stale sessions.
+
+### 05/20 · New — Clean build script (`scripts/clean-target.ps1`)
+Run this PowerShell script to remove Rust target directories (typically 8-10 GB), node cache, and Vite build artifacts. Frees disk space with a single command.
+
+### 05/20 · New — Git snapshot command for on-demand status refresh
+A new `git_snapshot` Tauri command lets the frontend grab the current git branch, dirty file list, and upstream info in one call, without spawning background watchers.
+
+### 05/20 · New — Background git watcher for real-time status changes
+A polling git watcher checks the working tree every 5 seconds and emits change events when the branch or dirty file count changes. The debounced DiffManager (150ms) prevents rapid-fire git commands during tool calls.
+
+### 05/20 · New — OrbitError typed error hierarchy
+All fallible operations now return `Result<T, OrbitError>` instead of panicking or using untyped strings. Variants: LockAcquisitionTimeout, SessionTimeout, ProviderUnavailable, GitError, JsonParseError, IoError, DatabaseError.
+
+### 05/20 · Improvement — JSON parsing errors now logged instead of silent
+When a JSONL line fails to parse, Orbit now logs a warning with the error details and a preview of the line, instead of silently dropping it. This makes it easier to debug output parsing issues.
+
+### 05/20 · Fix — Stderr output now visible in real-time instead of debug-only
+Errors from agent stderr are now emitted as events and shown in the frontend, instead of being silently discarded in release mode.
+
+### 05/20 · Fix — Session data read with timeout to prevent deadlocks
+Session data reads now use try_read() instead of unbounded blocking reads, preventing deadlocks when locks are contended.
+
+### 05/20 · Fix — UI updates no longer blocked by JSONL processing
+Event building now uses a read lock instead of write lock for read-only data, keeping the UI responsive during heavy JSONL processing.
+
+### 05/20 · Fix — Nested write lock removed to prevent thread deadlock
+The model detection code in the reader loop no longer acquires a second write lock while already holding one, fixing a critical deadlock that would freeze sessions.
+
 ### 05/12 · Improvement — Git panel: flat file list, status badges, and performance
 The Git panel now shows a flat file list by default (VS Code style) instead of the folder tree.
 Each file displays a status badge (M, A, D, R, U, C) with color coding. A toggle at the bottom

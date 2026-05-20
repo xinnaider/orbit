@@ -71,3 +71,19 @@ export type RawOutputPayload = { sessionId: number; line: string };
 export function onSessionRawOutput(cb: (payload: RawOutputPayload) => void) {
   return listen<RawOutputPayload>('session:raw-output', (e) => cb(e.payload));
 }
+
+export interface StderrPayload {
+  sessionId: number;
+  line: string;
+}
+export function onSessionStderr(cb: (payload: StderrPayload) => void) {
+  return listen<StderrPayload>('session:stderr', (e) => cb(e.payload));
+}
+
+export interface GitUpdatePayload {
+  sessionId: number;
+  snapshot: import('../types').GitSnapshot;
+}
+export function onSessionGitUpdate(cb: (payload: GitUpdatePayload) => void) {
+  return listen<GitUpdatePayload>('session:git-update', (e) => cb(e.payload));
+}

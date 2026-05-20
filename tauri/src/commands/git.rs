@@ -339,3 +339,12 @@ pub fn git_diff_file(
         modified,
     })
 }
+
+/// Grab a quick git snapshot without spawning background watchers.
+/// Useful for the frontend to refresh git state on demand.
+#[tauri::command]
+pub fn git_snapshot(cwd: String) -> Result<crate::services::git_service::GitSnapshot, String> {
+    let p = std::path::PathBuf::from(&cwd);
+    let snap = crate::services::git_service::GitWatcher::poll_snapshot(&p);
+    Ok(snap)
+}

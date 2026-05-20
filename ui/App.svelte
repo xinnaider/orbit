@@ -35,6 +35,8 @@
     onSessionReset,
     onSessionDeleted,
     onSessionRawOutput,
+    onSessionStderr,
+    onSessionGitUpdate,
     getAppVersion,
     getChangelog,
   } from './lib/tauri';
@@ -65,6 +67,7 @@
   let pendingUpdate: UpdateInfo | null = null;
   let updateToastId: string | null = null;
   let showMobileBetaModal = false;
+  const stderrLastToast = new Map<number, number>();
 
   const CHANGELOG_VERSION_KEY = 'orbit:lastSeenChangelogVersion';
 
@@ -208,8 +211,41 @@
       });
     });
 
+    const u12 = onSessionStderr(({ sessionId, line }) => {
+      // Filter known harmless messages to avoid toast spam
+      const harmless = [
+        '[rtk]', // RTK plugin not found
+        'extension.js.map', // Missing extension maps
+        'ENOENT', // File not found (harmless warnings)
+        '--dangerously-skip-permissions',
+      ];
+      if (harmless.some((h) => line.includes(h))) return;
+
+      // Rate-limit: skip if same session emitted stderr in last 10s
+      const now = Date.now();
+      const last = stderrLastToast.get(sessionId) ?? 0;
+      if (now - last < 10_000) return;
+      stderrLastToast.set(sessionId, now);
+
+      addToast({
+        type: 'warning',
+        message: `session #${sessionId}: ${line.slice(0, 200)}`,
+        autoDismiss: true,
+      });
+    });
+
+    const u13 = onSessionGitUpdate(({ sessionId, snapshot }) => {
+      // Update session with git branch/dirty state in real-time
+      sessions.update((l) =>
+        updateSessionState(l, sessionId, {
+          gitBranch: snapshot.branch ?? null,
+          gitDirty: snapshot.isDirty,
+        })
+      );
+    });
+
     // Resolve all unlisten functions and store for cleanup
-    Promise.all([u1, u2, u3, u4, u5, u6, u7, u8, u9, u10, u11]).then((fns) => {
+    Promise.all([u1, u2, u3, u4, u5, u6, u7, u8, u9, u10, u11, u12, u13]).then((fns) => {
       unlisteners = fns;
     });
 

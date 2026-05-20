@@ -48,5 +48,12 @@ tauri/binaries/
 tauri.key
 tauri.key.pub
 
+# Test artifacts
+*.db-shm
+*.db-wal
+*.db-journal
+test-output/
+test-results/
+
 # Generated demo GIF — regenerate with: npm run demo:gif
 # media/demo.gif is committed intentionally

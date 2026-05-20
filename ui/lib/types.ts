@@ -101,3 +101,14 @@ export interface UpdateInfo {
   body: string;
   currentVersion: string;
 }
+
+export interface GitSnapshot {
+  cwd: string;
+  branch: string | null;
+  upstream: string | null;
+  isDirty: boolean;
+  fileCount: number;
+  files: string[];
+  statusOutput: string | null;
+  error: string | null;
+}

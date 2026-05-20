@@ -1,5 +1,7 @@
 pub mod crypto;
 pub mod database;
+pub mod diff_manager;
+pub mod git_service;
 pub mod http_server;
 pub mod mcp_config;
 pub mod pty_manager;
