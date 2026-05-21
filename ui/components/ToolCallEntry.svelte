@@ -53,6 +53,15 @@
   export let resultEntry: JournalEntry | null = null;
   export let streamingEntries: JournalEntry[] = [];
   export let cwd: string | null = null;
+  export let compact = false;
+
+  $: toolState = resultEntry
+    ? resultEntry.exitCode === 0 || resultEntry.exitCode == null
+      ? 'done'
+      : 'failed'
+    : streamingEntries.length > 0
+      ? 'working'
+      : 'queued';
 
   let modalOpen = false;
   let copied = false;
@@ -298,65 +307,14 @@
   }
 </script>
 
-<div class="tc-card">
-  <div class="tc-header">
-    <span class="tc-icon {toolClass}"><ToolIcon size={12} /></span>
-    <span class="tc-title">
-      <span class="tc-tool">{entry.tool}</span>
-      {#if target}
-        <span class="tc-sep">—</span>
-        <span class="tc-target">{shortPath(target)}</span>
-      {/if}
-    </span>
-    <span class="tc-spacer"></span>
-    {#if entry.linesChanged}
-      <span class="tc-changes">
-        <span class="added">+{entry.linesChanged.added}</span>
-        <span class="removed">-{entry.linesChanged.removed}</span>
-      </span>
-    {/if}
-    <span class="tc-time">{timeStr}</span>
-    {#if hasDetail || resultEntry?.output}
-      {#if hasBashCommand && resultEntry?.output}
-        <button
-          class="tc-action tc-action--label"
-          onclick={(e) => {
-            e.stopPropagation();
-            copyToClipboard(entry.toolInput!.command as string);
-          }}
-          title="Copiar comando"><Copy size={10} /> cmd</button
-        >
-        <button
-          class="tc-action tc-action--label tc-action--darker"
-          onclick={(e) => {
-            e.stopPropagation();
-            copyToClipboard(resultEntry.output!);
-          }}
-          title="Copiar output"><Copy size={10} /> out</button
-        >
-      {:else}
-        <button
-          class="tc-action"
-          onclick={async (e) => {
-            e.stopPropagation();
-            copyToClipboard(await getCopyContent());
-          }}
-          title="Copiar conteúdo"><Copy size={10} /></button
-        >
-      {/if}
-      <button
-        class="tc-action"
-        onclick={(e) => {
-          e.stopPropagation();
-          modalOpen = true;
-        }}
-        title="Fullscreen"><Maximize2 size={10} /></button
-      >
-    {/if}
+<div class="tc-card quiet-tool-card" class:compact>
+  <div class="tc-header quiet-tool-head">
+    <span class="tc-title">{entry.tool ?? 'tool'}</span>
+    <span class="tc-state" class:failed={toolState === 'failed'}>{toolState}</span>
   </div>
 
   {#if hasDetail || resultEntry?.output}
-    <div class="tc-body">
+    <div class="tc-body quiet-tool-body">
       {#if hasEditDiff}
         <div class="diff-block">
           {#each inlineVisible as dl}
@@ -1022,5 +980,50 @@
     background: var(--bg3);
     color: var(--t0);
     border-color: var(--t2);
+  }
+
+  /* ── Quiet tool card ── */
+  .quiet-tool-card {
+    border: 1px solid color-mix(in srgb, var(--tool-fg), transparent 84%);
+    background: var(--tool-bg);
+    border-radius: 16px;
+    overflow: hidden;
+    max-width: 720px;
+  }
+  .quiet-tool-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    border-bottom: 1px solid color-mix(in srgb, var(--tool-fg), transparent 90%);
+    color: var(--tool-fg);
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  .tc-state {
+    color: var(--t2);
+  }
+  .tc-state.failed {
+    color: var(--s-error);
+  }
+  .quiet-tool-body {
+    padding: 12px;
+    background: rgba(0, 0, 0, 0.12);
+    color: var(--t1);
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.55;
+  }
+  .quiet-tool-card.compact {
+    border-radius: 13px;
+    max-width: 100%;
+  }
+  .quiet-tool-card.compact .quiet-tool-head {
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+  .quiet-tool-card.compact .quiet-tool-body {
+    padding: 9px 10px;
+    font-size: 11px;
   }
 </style>

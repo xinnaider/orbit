@@ -104,12 +104,12 @@ describe('ToolCallEntry', () => {
       tool: 'bash',
       toolInput: { command: 'ls -la' },
     });
-    const { getByText } = render(ToolCallEntry, {
+    const { container, getByText } = render(ToolCallEntry, {
       props: { entry, resultEntry: null, streamingEntries: [], cwd: null },
     });
 
     expect(getByText('bash')).toBeTruthy();
-    expect(getByText('ls -la')).toBeTruthy();
+    expect(container.textContent).toContain('ls -la');
   });
 
   it('renders write tool with content', () => {
@@ -162,5 +162,39 @@ describe('ToolCallEntry', () => {
     });
 
     expect(getByText('read')).toBeTruthy();
+  });
+
+  it('renders quiet tool card with state label', () => {
+    const entry = makeEntry({
+      entryType: 'toolCall',
+      tool: 'bash',
+      toolInput: { command: 'npm test' },
+    });
+    const result = makeEntry({
+      entryType: 'toolResult',
+      output: '20 passed',
+      exitCode: 0,
+    });
+    const { container, getByText } = render(ToolCallEntry, {
+      props: { entry, resultEntry: result, streamingEntries: [], cwd: null },
+    });
+
+    expect(container.querySelector('.quiet-tool-card')).toBeTruthy();
+    expect(getByText('bash')).toBeTruthy();
+    expect(getByText('done')).toBeTruthy();
+    expect(container.textContent).toContain('npm test');
+    expect(container.textContent).toContain('20 passed');
+  });
+
+  it('renders compact quiet tool card', () => {
+    const entry = makeEntry({
+      entryType: 'toolCall',
+      tool: 'read',
+      toolInput: { file_path: '/tmp/readme.md' },
+    });
+    const { container } = render(ToolCallEntry, {
+      props: { entry, resultEntry: null, streamingEntries: [], cwd: null, compact: true },
+    });
+    expect(container.querySelector('.quiet-tool-card.compact')).toBeTruthy();
   });
 });
