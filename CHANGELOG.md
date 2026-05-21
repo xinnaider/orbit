@@ -4,6 +4,24 @@
 
 ## May 2026
 
+### 05/21 · Improvement — Dark theme refined with warmer quieter tones
+The dark theme now uses a warmer palette: backgrounds shifted from pure black (#080808) to near-black with subtle warmth (#090a0a), text is now a softer off-white (#f1ece3), borders use translucent warm white (rgba 241,236,227), and the green accent is a calmer tone (#7bd99d). Reading long sessions is now noticeably more comfortable.
+
+### 05/21 · New — Session inspector hidden by default
+The right-side stats panel is now hidden when Orbit starts. Press ⌘I (or Ctrl+I on Windows/Linux) to toggle it open. A compact `⌘I` button appears on the right edge when the inspector is closed.
+
+### 05/21 · Improvement — Terminal panes match Quiet Journal chrome
+Terminal panes now show a green dot indicator, a shell label pill ("pwsh"), and a new-terminal button in the pane header. The terminal body uses a slightly darker background to distinguish it from chat panes.
+
+### 05/21 · New — Compact pane mode for multi-pane layouts
+When a pane has multiple tabs or multiple panes share the screen, the feed, tool cards, and composer automatically switch to a compact layout with smaller fonts, tighter spacing, and narrower timeline nodes. No manual toggle needed.
+
+### 05/21 · New — Tool calls shown as quiet timeline cards
+Tool calls (bash, read, write, edit) now appear as inline cards in the timeline with a state label (queued, working, done, failed). The compact variant reduces the card size for multi-pane views.
+
+### 05/21 · Improvement — Sidebar simplified to Quiet Console
+The sidebar now uses a wider 282px layout with session entries grouped under a "Today" section label. Each entry shows the session name and a concise subline (model, branch, context %). A search placeholder hints at future filtering. The footer shows keyboard shortcuts instead of a session count.
+
 ### 05/21 · New — Chat feed rendered as Quiet Journal timeline
 The session feed now uses a timeline layout with vertical connecting lines, dot indicators, and compact density mode. Each entry shows an actor label and timestamp. User messages have a bubble-style appearance. The timeline improves visual hierarchy and saves vertical space in compact mode.
 
