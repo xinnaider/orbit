@@ -311,6 +311,11 @@
   }
 
   function handleKeydown(e: KeyboardEvent) {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'i') {
+      e.preventDefault();
+      metaPanelVisible.set(!$metaPanelVisible);
+      return;
+    }
     if (e.key === 'F12' && HAS_TAURI) {
       import('@tauri-apps/api/webviewWindow').then(({ getCurrentWebviewWindow }) => {
         const currentWindow = getCurrentWebviewWindow() as unknown as {
@@ -414,9 +419,7 @@
     {#if selected && $metaPanelVisible}
       <MetaPanel session={selected} />
     {:else if selected && !$metaPanelVisible}
-      <button class="meta-reopen" on:click={() => metaPanelVisible.set(true)} title="Show panel"
-        >‹</button
-      >
+      <button class="meta-reopen quiet-inspector-reopen" on:click={() => metaPanelVisible.set(true)} title="Show inspector">⌘I</button>
     {/if}
   </div>
 {/if}

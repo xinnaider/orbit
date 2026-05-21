@@ -219,6 +219,17 @@ describe('MetaPanel', () => {
   //  Conditional rendering
   // ═══════════════════════════════════════
 
+  // ═══════════════════════════════════════
+  //  Inspector default (hidden)
+  // ═══════════════════════════════════════
+
+  it('renders as quiet inspector surface', () => {
+    const session = makeSession({ id: 1, name: 'Inspector Session', status: 'running' });
+    const { container, getByText } = render(MetaPanel, { props: { session } });
+    expect(container.querySelector('.meta.inspector')).toBeTruthy();
+    expect(getByText('stats')).toBeTruthy();
+  });
+
   it('hides tasks tab when caps disables it', async () => {
     // Override getCaps for this test
     const { getCaps } = await import('$lib/stores/providers');

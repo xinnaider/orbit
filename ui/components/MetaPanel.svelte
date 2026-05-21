@@ -47,7 +47,7 @@
   $: stopped = session.status === 'stopped';
 </script>
 
-<aside class="meta">
+<aside class="meta inspector" aria-label="Session inspector">
   <div class="tabs">
     <button class="tab" class:active={tab === 'stats'} on:click={() => (tab = 'stats')}
       >stats</button
@@ -397,5 +397,36 @@
 
   .meta-info .stat-row {
     color: var(--t2);
+  }
+
+  .inspector {
+    width: 292px;
+    border-left: 1px solid var(--bd);
+    background: color-mix(in srgb, var(--bg), white 2%);
+    padding: 14px;
+  }
+  .inspector .tabs {
+    height: 34px;
+    border-bottom: 0;
+    gap: 6px;
+  }
+  .inspector .tab {
+    border-radius: 999px;
+    border: 1px solid var(--bd1);
+    background: transparent;
+    color: var(--t2);
+    padding: 5px 9px;
+    font-size: 11px;
+  }
+  .inspector .tab.active {
+    color: var(--ac);
+    background: var(--ac-d2);
+    border-color: var(--ac-border);
+  }
+  .inspector .stat-group {
+    border: 1px solid var(--bd);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.025);
+    padding: 14px;
   }
 </style>
