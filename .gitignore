@@ -1,7 +1,9 @@
 # System
 .DS_Store
-bash.exe.stackdump
-*.stackdump
+/*.stackdump
+
+# Root-level artifacts (html mocks, crash dumps)
+/*.html
 
 # Editor / IDE
 .vscode/
