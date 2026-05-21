@@ -3,6 +3,8 @@ import type { JournalEntry, SlashCommand, SubagentInfo, TaskItem } from '../type
 
 const nowIso = () => new Date().toISOString();
 
+let globalSeq = 0;
+
 const MOCK_SUBAGENTS: Record<number, SubagentInfo[]> = {
   1: [
     {
@@ -992,8 +994,8 @@ function simulateClaudeResponse(sessionId: number, userMsg: string) {
     output: null,
     exitCode: null,
     linesChanged: null,
-    seq: 0,
-    epoch: '',
+    seq: globalSeq++,
+    epoch: String(Date.now()),
   };
   journals[sessionId].push(userEntry);
   mockEmit('session:output', { sessionId, entry: userEntry });
@@ -1013,8 +1015,8 @@ function simulateClaudeResponse(sessionId: number, userMsg: string) {
       output: null,
       exitCode: null,
       linesChanged: null,
-      seq: 0,
-      epoch: '',
+      seq: globalSeq++,
+      epoch: String(Date.now()),
     };
     journals[sessionId].push(thinkEntry);
     mockEmit('session:output', { sessionId, entry: thinkEntry });
@@ -1034,8 +1036,8 @@ function simulateClaudeResponse(sessionId: number, userMsg: string) {
       output: null,
       exitCode: null,
       linesChanged: null,
-      seq: 0,
-      epoch: '',
+      seq: globalSeq++,
+      epoch: String(Date.now()),
     };
     journals[sessionId].push(toolEntry);
     mockEmit('session:output', { sessionId, entry: toolEntry });
@@ -1055,8 +1057,8 @@ function simulateClaudeResponse(sessionId: number, userMsg: string) {
       thinkingDuration: null,
       exitCode: 0,
       linesChanged: null,
-      seq: 0,
-      epoch: '',
+      seq: globalSeq++,
+      epoch: String(Date.now()),
     };
     journals[sessionId].push(resultEntry);
     mockEmit('session:output', { sessionId, entry: resultEntry });
@@ -1076,8 +1078,8 @@ function simulateClaudeResponse(sessionId: number, userMsg: string) {
       output: null,
       exitCode: null,
       linesChanged: null,
-      seq: 0,
-      epoch: '',
+      seq: globalSeq++,
+      epoch: String(Date.now()),
     };
     journals[sessionId].push(aiEntry);
     mockEmit('session:output', { sessionId, entry: aiEntry });

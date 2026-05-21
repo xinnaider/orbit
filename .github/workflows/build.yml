@@ -5,7 +5,7 @@ on:
     branches: [master, dev]
     tags:
       - 'v*'
-    paths-ignore:
+    paths-ignore: &IGNORE
       - '**.md'
       - '.github/ISSUE_TEMPLATE/**'
       - 'docs/**'
@@ -15,14 +15,7 @@ on:
       - 'scripts/**'
   pull_request:
     branches: [master, dev]
-    paths-ignore:
-      - '**.md'
-      - '.github/ISSUE_TEMPLATE/**'
-      - 'docs/**'
-      - 'media/**'
-      - 'LICENSE'
-      - 'landing/**'
-      - 'scripts/**'
+    paths-ignore: *IGNORE
   workflow_dispatch:
 
 permissions:
@@ -77,6 +70,19 @@ jobs:
 
       - name: Lint — TypeScript/Svelte (eslint + svelte-check)
         run: npx svelte-kit sync && npx eslint ui --max-warnings 0 && npx svelte-check --tsconfig tsconfig.json --fail-on-warnings
+
+      - name: Run unit tests
+        run: npx vitest run --config vitest.config.js
+
+      - name: Run component tests
+        run: npm run test:components
+
+      - name: Install Playwright (Chromium)
+        run: npx playwright install chromium
+
+      - name: Run E2E smoke tests
+        run: npx playwright test --project=chromium e2e/
+        timeout-minutes: 10
 
   build-windows:
     name: Build Windows (.exe)

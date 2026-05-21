@@ -66,6 +66,7 @@
   <div
     class="tree-row file-row"
     class:selected={selectedFile?.id === node.change.id}
+    data-testid="git-file-row"
     role="button"
     tabindex="0"
     style="padding-left: {depth * 16 + 8}px"

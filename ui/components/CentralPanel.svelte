@@ -88,21 +88,24 @@
 
   $: entries = $journal.get(session?.id) ?? [];
 
-  // Clear pending AFTER entries is updated — prevents race where
-  // pendingMessages.clear() fires before entries re-evaluates,
-  // causing a brief "empty feed" state that drops the first message.
+  // Clear pending messages only when a NEW entry arrives (entries grew).
+  // This avoids clearing pendingMessages on spurious re-evaluations
+  // triggered by loadHistory or unrelated store updates.
+  let prevEntryCount = 0;
   $: {
-    if (
-      entries &&
-      entries.some(
-        (entry) =>
-          entry.entryType === 'user' ||
-          entry.entryType === 'assistant' ||
-          entry.entryType === 'toolCall'
-      )
-    ) {
-      pendingMessages.clear();
+    const count = entries.length;
+    if (count > prevEntryCount) {
+      const last = entries[count - 1];
+      if (
+        last &&
+        (last.entryType === 'user' ||
+          last.entryType === 'assistant' ||
+          last.entryType === 'toolCall')
+      ) {
+        pendingMessages.clear();
+      }
     }
+    prevEntryCount = count;
   }
 
   function onFeedBottomChange(event: CustomEvent<{ atBottom: boolean }>) {

@@ -11,10 +11,11 @@ export default defineConfig(async () => {
           dev: true,
         },
         hot: false,
+        preprocess: false,
       }),
     ],
     test: {
-      include: ['ui/lib/**/*.component.test.ts'],
+      include: ['ui/lib/**/*.component.test.ts', 'ui/components/**/*.component.test.ts'],
       environment: 'happy-dom',
       alias: {
         $lib: path.resolve(__dirname, 'ui/lib'),

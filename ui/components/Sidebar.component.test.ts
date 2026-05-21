@@ -1,0 +1,289 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { render, fireEvent, cleanup } from '@testing-library/svelte';
+
+// --- Mock helpers and vi.mock calls ---
+
+const {
+  mockSessionsStore,
+  mockWorkspaceStore,
+  mockMutedSessionsObj,
+  mockSessionEffortObj,
+  mockBackendsStore,
+  mockProviderCapsStore,
+} = vi.hoisted(() => {
+  function createStore<T>(initial: T) {
+    let val = initial;
+    const subs = new Set<(v: T) => void>();
+    return {
+      subscribe: (fn: (v: T) => void) => {
+        subs.add(fn);
+        fn(val);
+        return () => subs.delete(fn);
+      },
+      set: (v: T) => {
+        val = v;
+        subs.forEach((fn) => fn(val));
+      },
+      update: (updater: (v: T) => T) => {
+        val = updater(val);
+        subs.forEach((fn) => fn(val));
+      },
+    };
+  }
+
+  return {
+    mockBackendsStore: createStore<any[]>([]),
+    mockProviderCapsStore: createStore<Map<string, any>>(new Map()),
+    mockSessionsStore: createStore<any[]>([]),
+    mockWorkspaceStore: createStore<any>({
+      root: { type: 'leaf', paneId: 'p1' },
+      panes: { p1: { tabs: [], activeTabId: null } },
+      focusedPaneId: 'p1',
+    }),
+    mockMutedSessionsObj: {
+      subscribe: createStore(new Set<string>()).subscribe,
+      isMuted: vi.fn((set: Set<string>, id: string) => set.has(id)),
+      toggle: vi.fn(),
+    },
+    mockSessionEffortObj: {
+      subscribe: createStore({} as Record<string, string>).subscribe,
+      get: vi.fn(() => 'high'),
+      set: vi.fn(),
+    },
+  };
+});
+
+vi.mock('$lib/tauri/invoke', () => ({
+  HAS_TAURI: false,
+}));
+
+vi.mock('$lib/tauri', () => ({
+  deleteSession: vi.fn(),
+  stopSession: vi.fn(),
+  getAppVersion: vi.fn().mockResolvedValue('1.0.0'),
+  getProviders: vi.fn().mockResolvedValue([]),
+  diagnoseProvider: vi.fn(),
+}));
+
+vi.mock('$lib/tauri/attention', () => ({
+  clearAttention: vi.fn(),
+}));
+
+vi.mock('$lib/stores/sessions', () => ({
+  sessions: mockSessionsStore,
+  updateSessionState: vi.fn((list, id, patch) =>
+    list.map((s: any) => (s.id === id ? { ...s, ...patch } : s))
+  ),
+}));
+
+vi.mock('$lib/stores/workspace', () => ({
+  workspace: mockWorkspaceStore,
+  assignSession: vi.fn(),
+  splitPane: vi.fn(),
+}));
+
+vi.mock('$lib/stores/session-actions', () => ({
+  upsertAndOpenSession: vi.fn(),
+}));
+
+vi.mock('$lib/stores/ui', () => ({
+  mutedSessions: mockMutedSessionsObj,
+  sessionEffort: mockSessionEffortObj,
+}));
+
+vi.mock('$lib/stores/preferences', () => {
+  function createPrefStore<T>(initial: T) {
+    let val = initial;
+    const subs = new Set<(v: T) => void>();
+    return {
+      subscribe: (fn: (v: T) => void) => {
+        subs.add(fn);
+        fn(val);
+        return () => subs.delete(fn);
+      },
+      set: (v: T) => {
+        val = v;
+        subs.forEach((fn) => fn(val));
+      },
+    };
+  }
+  return {
+    sidebarVisible: createPrefStore(true),
+  };
+});
+
+vi.mock('$lib/status', () => ({
+  statusColor: vi.fn((_status: string) => 'var(--s-working)'),
+  statusLabel: vi.fn((status: string) => status),
+  isPulsing: vi.fn(() => false),
+  modelShortName: vi.fn((model: string | null) => model ?? '—'),
+}));
+
+vi.mock('$lib/cost', () => ({
+  formatTokens: vi.fn((n: number) => {
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+    if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
+    return String(n);
+  }),
+}));
+
+vi.mock('$lib/tauri/providers', () => ({
+  saveProviderKey: vi.fn(() => Promise.resolve()),
+  loadProviderKey: vi.fn(() => Promise.resolve(null)),
+}));
+
+vi.mock('$lib/stores/providers', () => ({
+  backends: mockBackendsStore,
+  providerCaps: mockProviderCapsStore,
+  getCaps: vi.fn(() => ({
+    supportsEffort: false,
+    supportsSsh: false,
+    supportsSubagents: false,
+    supportsTasks: false,
+    hasSubProviders: false,
+    effortLevels: {},
+  })),
+}));
+
+vi.mock('$lib/assets/orbit.svg?raw', () => ({
+  default: '',
+}));
+
+// --- Svelte component import ---
+
+import Sidebar from './Sidebar.svelte';
+
+// --- Test data ---
+
+const baseSession = {
+  id: 1,
+  status: 'initializing' as const,
+  name: null,
+  projectId: null,
+  permissionMode: 'ignore',
+  model: null,
+  provider: 'claude-code',
+  pid: null,
+  cwd: null,
+  projectName: null,
+  gitBranch: null,
+  worktreePath: null,
+  branchName: null,
+  tokens: null,
+  contextPercent: null,
+  pendingApproval: null,
+  miniLog: null,
+  sshHost: null,
+  sshUser: null,
+  createdAt: '2025-01-01T00:00:00Z',
+  updatedAt: '2025-01-01T00:00:00Z',
+};
+
+function makeSession(overrides: Partial<typeof baseSession> = {}) {
+  return { ...baseSession, ...overrides };
+}
+
+// --- Tests ---
+
+describe('Sidebar', () => {
+  beforeEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+    mockSessionsStore.set([]);
+    mockBackendsStore.set([]);
+    mockProviderCapsStore.set(new Map());
+    mockWorkspaceStore.set({
+      root: { type: 'leaf', paneId: 'p1' },
+      panes: { p1: { tabs: [], activeTabId: null } },
+      focusedPaneId: 'p1',
+    });
+  });
+
+  // ── Empty state ──
+
+  it('renders empty state', () => {
+    const { getByText, getByTestId } = render(Sidebar);
+
+    expect(getByText('no sessions')).toBeTruthy();
+    expect(getByTestId('new-session-button')).toBeTruthy();
+    expect(getByText('0 sessions')).toBeTruthy();
+  });
+
+  // ── Session list ──
+
+  it('renders session list', () => {
+    const session = makeSession({ id: 1, name: 'My Session', projectName: 'My Project' });
+    mockSessionsStore.set([session]);
+
+    const { getByText } = render(Sidebar);
+
+    expect(getByText('My Session')).toBeTruthy();
+  });
+
+  // ── New session button opens modal ──
+
+  it('new session button opens modal', async () => {
+    const { getByTestId, queryByTestId } = render(Sidebar);
+
+    // Modal should not be visible initially
+    expect(queryByTestId('new-session-path')).toBeNull();
+
+    // Click new session button
+    await fireEvent.click(getByTestId('new-session-button'));
+
+    // Modal should now be visible
+    expect(getByTestId('new-session-path')).toBeTruthy();
+  });
+
+  // ── Footer session count ──
+
+  it('footer shows correct session count', () => {
+    mockSessionsStore.set([
+      makeSession({ id: 1, name: 'Session 1' }),
+      makeSession({ id: 2, name: 'Session 2' }),
+      makeSession({ id: 3, name: 'Session 3' }),
+    ]);
+
+    const { getByText } = render(Sidebar);
+
+    expect(getByText('3 sessions')).toBeTruthy();
+  });
+
+  // ── Muted session shows muted icon ──
+
+  it('session with muted state shows muted icon', () => {
+    const session = makeSession({ id: 5, name: 'Muted Session' });
+    mockSessionsStore.set([session]);
+
+    // Mock isMuted to return true for this session
+    mockMutedSessionsObj.isMuted.mockImplementation((set: Set<string>, id: string) => id === '5');
+
+    const { container, getByText } = render(Sidebar);
+
+    expect(getByText('Muted Session')).toBeTruthy();
+
+    // muted icon should be present
+    const mutedIcon = container.querySelector('.muted-icon');
+    expect(mutedIcon).toBeTruthy();
+  });
+
+  // ── Pending approval shows flag ──
+
+  it('session with pending approval shows flag', () => {
+    const session = makeSession({
+      id: 7,
+      name: 'Pending Session',
+      pendingApproval: 'needs permission',
+    });
+    mockSessionsStore.set([session]);
+
+    const { container, getByText } = render(Sidebar);
+
+    expect(getByText('Pending Session')).toBeTruthy();
+
+    // approval dot should be present
+    const approvalDot = container.querySelector('.approval-dot');
+    expect(approvalDot).toBeTruthy();
+    expect(approvalDot?.textContent).toBe('⚑');
+  });
+});

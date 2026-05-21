@@ -199,6 +199,7 @@
       <input
         id="ns-path"
         class="input"
+        data-testid="new-session-path"
         bind:value={path}
         placeholder={sshMode ? '/home/ubuntu/project' : '/home/user/project'}
         disabled={loading}
@@ -215,6 +216,7 @@
     <textarea
       id="ns-prompt"
       class="input textarea"
+      data-testid="new-session-prompt"
       bind:value={prompt}
       placeholder="what should the agent work on? (optional)"
       rows="3"
@@ -305,7 +307,13 @@
 
   <div class="actions">
     <button class="btn ghost" on:click={() => dispatch('cancel')} disabled={loading}>cancel</button>
-    <button class="btn primary" on:click={submit} disabled={loading || !path}>
+    <button
+      type="button"
+      class="btn primary"
+      data-testid="start-session-button"
+      on:click={submit}
+      disabled={loading || !path}
+    >
       {loading ? (sshMode && !diag ? 'verifying ssh...' : 'spawning...') : 'start session'}
     </button>
   </div>

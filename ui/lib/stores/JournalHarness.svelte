@@ -7,18 +7,21 @@
   // Exato espelho dos reactive blocks do CentralPanel
   $: entries = session?.id == null ? [] : ($journal.get(session.id) ?? []);
 
+  let prevEntryCount = 0;
   $: {
-    if (
-      entries &&
-      entries.some(
-        (entry) =>
-          entry.entryType === 'user' ||
-          entry.entryType === 'assistant' ||
-          entry.entryType === 'toolCall'
-      )
-    ) {
-      pendingMessages.clear();
+    const count = entries.length;
+    if (count > prevEntryCount) {
+      const last = entries[count - 1];
+      if (
+        last &&
+        (last.entryType === 'user' ||
+          last.entryType === 'assistant' ||
+          last.entryType === 'toolCall')
+      ) {
+        pendingMessages.clear();
+      }
     }
+    prevEntryCount = count;
   }
 
   // Estado derivado pro teste

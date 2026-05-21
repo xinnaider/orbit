@@ -214,7 +214,14 @@
     </div>
     <div class="header-actions">
       <ThemePicker />
-      <button class="new-btn" on:click={() => (showModal = true)} title="New session">+</button>
+      <button
+        type="button"
+        class="new-btn"
+        aria-label="New session"
+        data-testid="new-session-button"
+        on:click={() => (showModal = true)}
+        title="New session">+</button
+      >
     </div>
   </header>
 
