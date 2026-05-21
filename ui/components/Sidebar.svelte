@@ -201,213 +201,90 @@
   />
 {/if}
 
-<aside class="sidebar">
-  <header class="header">
+<aside class="sidebar" data-testid="quiet-sidebar">
+  <header class="header quiet-header">
     <div class="brand">
-      <span class="brand-logo">{@html OrbitLogo}</span>
+      <span class="brand-logo" data-testid="orbit-brand-icon">{@html OrbitLogo}</span>
       <span class="brand-name">orbit</span>
       {#if appVersion}
-        <button class="brand-version" on:click={onOpenChangelog} title="What's new"
-          >v{appVersion}</button
-        >
+        <button class="brand-version" on:click={onOpenChangelog} title="What's new">
+          v{appVersion}
+        </button>
       {/if}
     </div>
     <div class="header-actions">
       <ThemePicker />
       <button
         type="button"
-        class="new-btn"
+        class="new-btn quiet-new"
         aria-label="New session"
         data-testid="new-session-button"
         on:click={() => (showModal = true)}
-        title="New session">+</button
-      >
+      >new</button>
     </div>
   </header>
 
-  <div class="list">
-    {#if $sessions.length === 0}
-      <p class="empty">no sessions</p>
-    {:else}
-      {#each $sessions.filter((s) => !s.parentSessionId) as s (s.id)}
-        {@const active = Object.values($workspace.panes).some((p) =>
-          p.tabs.some((tab) => tab.target.kind === 'agent' && tab.target.sessionId === s.id)
-        )}
-        {@const color = statusColor(s.status)}
-        {@const pulsing = isPulsing(s.status)}
-        {@const children = getChildren($sessions, s.id)}
-        {@const expanded = expandedParents.has(s.id)}
-        {@const childActive = children.some((c) =>
-          Object.values($workspace.panes).some((p) =>
-            p.tabs.some((tab) => tab.target.kind === 'agent' && tab.target.sessionId === c.id)
-          )
-        )}
-        <button
-          class="item"
-          class:active
-          class:child-active={childActive && !active}
-          class:has-children={children.length > 0}
-          class:expanded
-          draggable="true"
-          on:dragstart={(e) => {
-            e.dataTransfer?.setData('text/plain', JSON.stringify({ sessionId: s.id }));
-          }}
-          on:click={() => selectOrToggle(s, children.length > 0)}
-          on:dblclick={() => {
-            const ws = get(workspace);
-            if (ws.focusedPaneId) splitPane(ws.focusedPaneId, 'horizontal', s.id);
-          }}
-          on:contextmenu={(e) => onContextMenu(e, s)}
-        >
-          <div class="item-top">
-            <span class="dot" style="color:{color}" class:pulse={pulsing}>●</span>
-            <span class="name">{displayName(s)}</span>
-            {#if mutedSessions.isMuted($mutedSessions, String(s.id))}
-              <span class="muted-icon" title="Muted">
-                <svg
-                  width="9"
-                  height="9"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                  <line x1="23" y1="9" x2="17" y2="15"></line>
-                  <line x1="17" y1="9" x2="23" y2="15"></line>
-                </svg>
-              </span>
-            {/if}
-            <span class="status" style="color:{color}">{statusLabel(s.status)}</span>
-          </div>
-          <div class="item-meta">
-            <span title={s.model ?? ''}>{fmtModel(s.model)}</span>
-            {#if s.provider === 'claude-code'}
-              <span class="sep">·</span>
-              <span>{sessionEffort.get($sessionEffort, String(s.id))}</span>
-            {/if}
-            <span class="sep">·</span>
-            <span>{fmtTokens(s)}</span>
-            {#if s.pendingApproval}
-              <span class="approval-dot" title={s.pendingApproval}>⚑</span>
-            {/if}
-            {#if s.attention?.requiresAttention}
-              <span
-                class="attention-dot"
-                style="color:{attentionColor(s.attention.reason)}"
-                title={s.attention.reason ?? 'needs attention'}>●</span
-              >
-            {/if}
-          </div>
-        </button>
-        {#if expanded && children.length > 0}
-          <div class="cards">
-            {#each children as c (c.id)}
-              {@const cActive = Object.values($workspace.panes).some((p) =>
-                p.tabs.some((tab) => tab.target.kind === 'agent' && tab.target.sessionId === c.id)
-              )}
-              {@const cColor = statusColor(c.status)}
-              {@const cPulsing = isPulsing(c.status)}
-              {@const pct = c.contextPercent ?? 0}
-              <button
-                class="card"
-                class:active={cActive}
-                style="--card-color:{cColor}"
-                draggable="true"
-                on:dragstart={(e) => {
-                  e.dataTransfer?.setData('text/plain', JSON.stringify({ sessionId: c.id }));
-                }}
-                on:click={() => {
-                  const ws = get(workspace);
-                  if (ws.focusedPaneId) assignSession(ws.focusedPaneId, c.id);
-                  if (c.attention?.requiresAttention) clearAttention(c.id);
-                }}
-                on:contextmenu={(e) => onContextMenu(e, c)}
-              >
-                <div class="card-top">
-                  <span class="card-dot" class:pulse={cPulsing}>●</span>
-                  <span class="card-name">{displayName(c)}</span>
-                  <span class="card-status" style="color:{cColor}">{statusLabel(c.status)}</span>
-                </div>
-                <div class="card-meta">
-                  <span>{fmtModel(c.model)}</span>
-                  {#if c.provider === 'claude-code'}
-                    <span class="sep">·</span>
-                    <span>{sessionEffort.get($sessionEffort, String(c.id))}</span>
-                  {/if}
-                  <span class="sep">·</span>
-                  <span>{fmtTokens(c)}</span>
-                </div>
-                {#if c.gitBranch}
-                  <div class="card-branch" title={c.gitBranch}>
-                    <span class="card-branch-icon" aria-hidden="true"><GitBranch size={10} /></span>
-                    <span class="card-branch-text">{c.gitBranch}</span>
-                  </div>
-                {/if}
-                <div class="card-bar">
-                  <div class="card-fill" style="width:{Math.min(pct, 100)}%"></div>
-                </div>
-              </button>
-            {/each}
-          </div>
-        {/if}
-      {/each}
-    {/if}
-  </div>
+  <div class="quiet-search" aria-label="Search sessions">Search sessions…</div>
 
-  <footer class="footer">
-    <span>{$sessions.length} session{$sessions.length !== 1 ? 's' : ''}</span>
-    <div class="footer-actions">
-      <button class="footer-btn" on:click={() => (showSettings = true)} title="Settings">
-        Settings
-      </button>
-      <button class="collapse-btn" on:click={() => sidebarVisible.set(false)} title="Hide sidebar"
-        >‹</button
-      >
+  <section class="session-section" aria-label="Today sessions">
+    <div class="section-label">Today</div>
+    <div class="session-list">
+      {#if $sessions.length === 0}
+        <div class="empty quiet-empty">No sessions yet</div>
+      {:else}
+        {#each $sessions.filter((s) => !s.parentSessionId) as s (s.id)}
+          {@const hasChildren = getChildren($sessions, s.id).length > 0}
+          {@const branchLabel = s.branchName ?? s.gitBranch ?? null}
+          <button
+            type="button"
+            class="session-item quiet-session"
+            class:active={$workspace.panes[$workspace.focusedPaneId ?? '']?.tabs.some((tab) => tab.target.kind === 'agent' && tab.target.sessionId === s.id)}
+            draggable="true"
+            data-testid="session-item"
+            on:dragstart={(e) => {
+              e.dataTransfer?.setData('text/plain', JSON.stringify({ sessionId: s.id }));
+            }}
+            on:click={() => selectOrToggle(s, hasChildren)}
+            on:contextmenu={(e) => onContextMenu(e, s)}
+          >
+            <span class="session-topline">
+              <span class="session-title">{displayName(s)}</span>
+              <span class="status-dot" style="background:{attentionColor(s.attention?.reason ?? null) || statusColor(s.status)}"></span>
+            </span>
+            <span class="session-subline">
+              <span>{fmtModel(s.model)}</span>
+              {#if branchLabel}<span>{branchLabel}</span>{/if}
+              {#if (s.contextPercent ?? 0) > 0}<span>{Math.round(s.contextPercent ?? 0)}% ctx</span>{/if}
+            </span>
+          </button>
+        {/each}
+      {/if}
     </div>
-  </footer>
+  </section>
 
-  {#if showSettings}
-    <SettingsModal on:close={() => (showSettings = false)} />
-  {/if}
+  <footer class="footer quiet-footer">drag sessions into panes • ⌘\ split • ⌘I inspect</footer>
 </aside>
 
 <style>
   .sidebar {
-    width: 220px;
-    flex-shrink: 0;
+    width: 282px;
+    flex: 0 0 282px;
+    background: var(--bg-sidebar, #0c0d0d);
+    border-right: 1px solid var(--bd);
+    padding: 18px 14px;
+    gap: 16px;
     display: flex;
     flex-direction: column;
-    border-right: 1px solid var(--bd);
-    background: var(--bg1);
-    font-family: var(--mono);
   }
 
-  .header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: var(--sp-5) var(--sp-6) 9px;
-    border-bottom: 1px solid var(--bd);
-    flex-shrink: 0;
-  }
+  .quiet-header { height: auto; padding: 0 6px 8px; border-bottom: 0; }
   .brand {
     display: flex;
     align-items: center;
-    gap: var(--sp-3);
+    gap: 10px;
   }
-  .brand-logo {
-    display: flex;
-    align-items: center;
-    color: var(--ac);
-    line-height: 0;
-  }
-  .brand-logo :global(svg) {
-    width: 16px;
-    height: 16px;
-  }
+  .brand-logo { width: 28px; height: 28px; color: var(--ac); filter: drop-shadow(0 0 12px var(--ac-d)); }
+  .brand-logo :global(svg) { width: 26px; height: 26px; }
   .brand-name {
     font-size: var(--md);
     font-weight: 600;
@@ -441,221 +318,22 @@
     align-items: center;
     gap: var(--sp-3);
   }
-  .new-btn {
-    background: none;
-    border: 1px solid var(--bd1);
-    color: var(--t1);
-    width: 20px;
-    height: 20px;
-    border-radius: var(--radius-sm);
-    font-size: 14px;
-    line-height: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition:
-      border-color 0.15s,
-      color 0.15s;
-  }
-  .new-btn:hover {
-    border-color: var(--ac);
-    color: var(--ac);
-  }
+  .quiet-new { width: auto; height: auto; padding: 6px 10px; border-radius: 999px; font-size: 12px; background: none; border: 1px solid var(--bd1); color: var(--t1); cursor: pointer; transition: border-color 0.15s, color 0.15s; font-family: var(--mono); }
+  .quiet-new:hover { border-color: var(--ac); color: var(--ac); }
+  .quiet-search { height: 34px; display: flex; align-items: center; padding: 0 12px; border-radius: 12px; background: rgba(255,255,255,0.045); color: var(--t3); font-size: 13px; }
+  .session-section { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+  .section-label { padding: 0 8px; color: var(--t3); font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; }
+  .session-list { display: flex; flex-direction: column; gap: 4px; }
+  .empty { padding: var(--sp-8) var(--sp-6); font-size: var(--sm); color: var(--t3); }
 
-  .list {
-    flex: 1;
-    overflow-y: auto;
-  }
+  .quiet-session { width: 100%; border: 1px solid transparent; border-radius: 15px; padding: 10px 11px; background: transparent; color: var(--t1); text-align: left; cursor: pointer; }
+  .quiet-session:hover { background: rgba(255,255,255,0.03); }
+  .quiet-session.active { color: var(--t0); background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.075); }
+  .session-topline { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; }
+  .session-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .session-subline { margin-top: 4px; display: flex; gap: 7px; color: var(--t3); font-family: var(--mono); font-size: 11px; white-space: nowrap; overflow: hidden; }
+  .status-dot { width: 7px; height: 7px; flex-shrink: 0; border-radius: 50%; box-shadow: 0 0 12px currentColor; }
 
-  .empty {
-    padding: var(--sp-8) var(--sp-6);
-    font-size: var(--sm);
-    color: var(--t3);
-  }
-
-  .item {
-    width: 100%;
-    text-align: left;
-    background: none;
-    border: none;
-    border-bottom: 1px solid var(--bd);
-    padding: var(--sp-4) var(--sp-6);
-    cursor: pointer;
-    transition: background 0.1s;
-    position: relative;
-  }
-  .item:hover {
-    background: var(--bg2);
-  }
-  .item.active {
-    background: var(--ac-d2);
-    border-left: 2px solid var(--ac);
-    padding-left: var(--sp-5);
-  }
-  .item.child-active {
-    background: color-mix(in srgb, var(--ac-d2), transparent 50%);
-    border-left: 2px solid var(--ac);
-    padding-left: var(--sp-5);
-  }
-  .item.has-children .item-meta::after {
-    content: '▸';
-    font-size: 9px;
-    color: var(--t3);
-    margin-left: auto;
-    transition: transform 0.15s;
-    display: inline-block;
-  }
-  .item.has-children.expanded .item-meta::after {
-    transform: rotate(90deg);
-  }
-
-  .cards {
-    padding: var(--sp-3) var(--sp-5);
-    display: flex;
-    flex-direction: column;
-    gap: var(--sp-2);
-    border-bottom: 1px solid var(--bd);
-    background: var(--bg0);
-  }
-  .card {
-    background: var(--bg1);
-    border: 1px solid var(--bd);
-    border-radius: var(--radius-sm);
-    padding: var(--sp-3) var(--sp-4);
-    cursor: pointer;
-    text-align: left;
-    transition:
-      background 0.1s,
-      border-color 0.15s,
-      box-shadow 0.15s;
-  }
-  .card:hover {
-    background: var(--bg2);
-    border-color: var(--bd1);
-  }
-  .card.active {
-    background: var(--ac-d2);
-    border-color: var(--ac);
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--ac), transparent 70%);
-  }
-  .card-top {
-    display: flex;
-    align-items: center;
-    gap: var(--sp-2);
-  }
-  .card-dot {
-    font-size: 6px;
-    color: var(--card-color);
-    flex-shrink: 0;
-    line-height: 1;
-  }
-  .card-dot.pulse {
-    animation: pulse 2s ease-in-out infinite;
-  }
-  .card-name {
-    font-size: var(--xs);
-    color: var(--t0);
-    font-weight: 500;
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .card-status {
-    font-size: 9px;
-    letter-spacing: 0.04em;
-    flex-shrink: 0;
-  }
-  .card-meta {
-    display: flex;
-    align-items: center;
-    gap: var(--sp-2);
-    font-size: 10px;
-    color: var(--t2);
-    margin-top: 2px;
-  }
-  .card-bar {
-    margin-top: var(--sp-2);
-    height: 2px;
-    background: var(--bg0);
-    border-radius: 1px;
-    overflow: hidden;
-  }
-  .card-fill {
-    height: 100%;
-    background: var(--card-color);
-    border-radius: 1px;
-    transition: width 0.3s ease;
-  }
-
-  .card-branch {
-    display: flex;
-    align-items: center;
-    gap: 3px;
-    margin-top: 3px;
-    overflow: hidden;
-  }
-  .card-branch-icon {
-    display: flex;
-    color: var(--ac);
-    flex-shrink: 0;
-  }
-  .card-branch-text {
-    font-size: 8.5px;
-    color: var(--ac);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .item-top {
-    display: flex;
-    align-items: center;
-    gap: var(--sp-3);
-    margin-bottom: var(--sp-2);
-  }
-  .dot {
-    font-size: 8px;
-    flex-shrink: 0;
-    line-height: 1;
-  }
-  .dot.pulse {
-    animation: pulse 2s ease-in-out infinite;
-  }
-  @keyframes pulse {
-    0%,
-    100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.3;
-    }
-  }
-
-  .name {
-    font-size: var(--md);
-    color: var(--t0);
-    font-weight: 500;
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .status {
-    font-size: var(--xs);
-    letter-spacing: 0.04em;
-    flex-shrink: 0;
-  }
-
-  .item-meta {
-    display: flex;
-    align-items: center;
-    gap: var(--sp-2);
-    font-size: var(--xs);
-    color: var(--t2);
-  }
   .confirm-overlay {
     position: fixed;
     inset: 0;
@@ -706,66 +384,15 @@
     border-color: var(--s-error);
   }
 
-  .approval-dot {
-    color: var(--s-input);
-    margin-left: var(--sp-2);
-  }
+  .quiet-footer { margin-top: auto; padding: 10px 8px 0; border-top: 1px solid var(--bd); color: var(--t3); font-family: var(--mono); font-size: 11px; }
 
-  .attention-dot {
-    font-size: 8px;
-    margin-left: var(--sp-2);
-    animation: pulse 2s ease-in-out infinite;
-  }
-
-  .muted-icon {
-    display: flex;
-    align-items: center;
-    color: var(--t3);
-    flex-shrink: 0;
-  }
-
-  .footer {
-    padding: var(--sp-3) var(--sp-6);
-    border-top: 1px solid var(--bd);
-    font-size: var(--xs);
-    color: var(--t2);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-shrink: 0;
-  }
-  .footer-actions {
-    display: flex;
-    align-items: center;
-    gap: var(--sp-3);
-  }
-  .footer-btn {
-    background: none;
-    border: 1px solid var(--bd);
-    border-radius: var(--radius-sm);
-    color: var(--t2);
-    font-size: 9px;
-    font-family: var(--mono);
-    letter-spacing: 0.05em;
-    padding: 2px 6px;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-  .footer-btn:hover {
-    border-color: var(--ac);
-    color: var(--ac);
-  }
-  .collapse-btn {
-    background: none;
-    border: none;
-    color: var(--t2);
-    font-size: 14px;
-    cursor: pointer;
-    padding: 0 var(--sp-1);
-    line-height: 1;
-    transition: color 0.15s;
-  }
-  .collapse-btn:hover {
-    color: var(--t0);
+  @keyframes pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.3;
+    }
   }
 </style>

@@ -204,9 +204,9 @@ describe('Sidebar', () => {
   it('renders empty state', () => {
     const { getByText, getByTestId } = render(Sidebar);
 
-    expect(getByText('no sessions')).toBeTruthy();
+    expect(getByText('No sessions yet')).toBeTruthy();
     expect(getByTestId('new-session-button')).toBeTruthy();
-    expect(getByText('0 sessions')).toBeTruthy();
+    expect(getByText(/drag sessions into panes/i)).toBeTruthy();
   });
 
   // ── Session list ──
@@ -235,55 +235,37 @@ describe('Sidebar', () => {
     expect(getByTestId('new-session-path')).toBeTruthy();
   });
 
-  // ── Footer session count ──
+  // ── Quiet Console sidebar landmarks ──
 
-  it('footer shows correct session count', () => {
+  it('renders Quiet Console sidebar landmarks', () => {
     mockSessionsStore.set([
-      makeSession({ id: 1, name: 'Session 1' }),
-      makeSession({ id: 2, name: 'Session 2' }),
-      makeSession({ id: 3, name: 'Session 3' }),
+      makeSession({
+        id: 1,
+        name: 'Refactor billing flow',
+        model: 'claude-sonnet-4-6',
+        gitBranch: 'feature/auth',
+        status: 'running',
+        contextPercent: 41,
+      }),
     ]);
 
+    const { getByText, getByTestId, queryByText } = render(Sidebar);
+
+    expect(getByTestId('orbit-brand-icon')).toBeTruthy();
+    expect(getByText('orbit')).toBeTruthy();
+    expect(getByText('Today')).toBeTruthy();
+    expect(getByText('Refactor billing flow')).toBeTruthy();
+    expect(getByText('feature/auth')).toBeTruthy();
+    expect(getByText('41% ctx')).toBeTruthy();
+    expect(queryByText('tokens')).toBeNull();
+  });
+
+  // ── Footer quiet workspace hints ──
+
+  it('footer shows quiet workspace hints instead of only session count', () => {
+    mockSessionsStore.set([makeSession({ id: 1, name: 'One' })]);
     const { getByText } = render(Sidebar);
-
-    expect(getByText('3 sessions')).toBeTruthy();
-  });
-
-  // ── Muted session shows muted icon ──
-
-  it('session with muted state shows muted icon', () => {
-    const session = makeSession({ id: 5, name: 'Muted Session' });
-    mockSessionsStore.set([session]);
-
-    // Mock isMuted to return true for this session
-    mockMutedSessionsObj.isMuted.mockImplementation((set: Set<string>, id: string) => id === '5');
-
-    const { container, getByText } = render(Sidebar);
-
-    expect(getByText('Muted Session')).toBeTruthy();
-
-    // muted icon should be present
-    const mutedIcon = container.querySelector('.muted-icon');
-    expect(mutedIcon).toBeTruthy();
-  });
-
-  // ── Pending approval shows flag ──
-
-  it('session with pending approval shows flag', () => {
-    const session = makeSession({
-      id: 7,
-      name: 'Pending Session',
-      pendingApproval: 'needs permission',
-    });
-    mockSessionsStore.set([session]);
-
-    const { container, getByText } = render(Sidebar);
-
-    expect(getByText('Pending Session')).toBeTruthy();
-
-    // approval dot should be present
-    const approvalDot = container.querySelector('.approval-dot');
-    expect(approvalDot).toBeTruthy();
-    expect(approvalDot?.textContent).toBe('⚑');
+    expect(getByText(/drag sessions into panes/i)).toBeTruthy();
+    expect(getByText(/⌘I inspect/i)).toBeTruthy();
   });
 });
