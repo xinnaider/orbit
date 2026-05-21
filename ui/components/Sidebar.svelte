@@ -1,22 +1,17 @@
 <script lang="ts">
   import { sessions, updateSessionState } from '../lib/stores/sessions';
-  import { workspace, assignSession, splitPane } from '../lib/stores/workspace';
+  import { workspace, assignSession } from '../lib/stores/workspace';
   import { upsertAndOpenSession } from '../lib/stores/session-actions';
   import { get } from 'svelte/store';
-  import { statusColor, statusLabel, isPulsing } from '../lib/status';
+  import { statusColor } from '../lib/status';
   import NewSessionModal from './NewSessionModal.svelte';
   import ContextMenu from './ContextMenu.svelte';
   import RenameSessionModal from './RenameSessionModal.svelte';
   import { deleteSession, stopSession, getAppVersion } from '../lib/tauri';
-  import { mutedSessions, sessionEffort } from '../lib/stores/ui';
-  import { sidebarVisible } from '../lib/stores/preferences';
+  import { mutedSessions } from '../lib/stores/ui';
   import { modelShortName } from '../lib/status';
   import { onMount } from 'svelte';
   import { clearAttention } from '../lib/tauri/attention';
-  import { GitBranch } from 'lucide-svelte';
-  import SettingsModal from './SettingsModal.svelte';
-
-  let showSettings = false;
 
   function attentionColor(reason: string | null): string {
     switch (reason) {
@@ -34,7 +29,6 @@
   }
 
   let appVersion = '';
-  import { formatTokens } from '../lib/cost';
   import OrbitLogo from '../lib/assets/orbit.svg?raw';
   import ThemePicker from './ThemePicker.svelte';
 
@@ -124,12 +118,6 @@
   onMount(async () => {
     appVersion = await getAppVersion();
   });
-
-  function fmtTokens(s: (typeof $sessions)[0]): string {
-    if (!s.tokens) return '—';
-    const total = s.tokens.input + s.tokens.output;
-    return formatTokens(total);
-  }
 
   function fmtModel(model: string | null): string {
     if (!model || model === 'auto') return 'auto';
