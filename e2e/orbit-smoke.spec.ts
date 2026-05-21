@@ -19,7 +19,7 @@ test.describe('Orbit smoke flows', () => {
   test('creates a session from the mock UI', async ({ page }) => {
     await page.getByTestId('new-session-button').click();
 
-    await expect(page.getByText('new session')).toBeVisible();
+    await expect(page.getByText('new session', { exact: true })).toBeVisible();
 
     await page.getByTestId('new-session-path').fill('/tmp/orbit-e2e-project');
     await page.getByTestId('new-session-prompt').fill('Create an E2E smoke response');
@@ -30,6 +30,6 @@ test.describe('Orbit smoke flows', () => {
 
     await expect(page.getByTestId('quiet-sidebar')).toBeVisible();
     await expect(page.locator('.timeline')).toBeVisible();
-    await expect(page.getByTitle('Show inspector')).toBeVisible();
+    await expect(page.getByTitle('Toggle inspector panel')).toBeVisible();
   });
 });
