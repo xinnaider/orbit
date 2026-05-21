@@ -12,6 +12,12 @@ Panel headers now use a taller layout (44px) with rounded pill badges for metada
 and action buttons. When a panel is focused, a subtle accent-colored glow appears
 at the top edge. Titles use the app's sans-serif font at 13px bold.
 
+### 05/21 · New — Quiet composer with compact mode
+The message input area now uses a rounded Quiet Journal style with a soft shadow
+and border. Two visible chip buttons (`@ file` and `/ command`) sit next to the
+textarea for quick access. A `compact` variant reduces font sizes and padding for
+a denser layout.
+
 ### 05/20 · Fix — User's first message now appears in chat
 The initial prompt that creates a session and follow-up messages were missing from the chat feed. Both now appear immediately as user entries before the agent responds. This also fixes the browser preview mode where messages would disappear due to a deduplication collision in the mock backend.
 

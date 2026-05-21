@@ -269,4 +269,39 @@ describe('InputBar', () => {
     const btn = getByTestId('send-message-button') as HTMLButtonElement;
     expect(btn.disabled).toBe(true);
   });
+
+  // ═══════════════════════════════════════
+  //  Quiet Composer
+  // ═══════════════════════════════════════
+
+  it('renders Quiet Journal composer controls', () => {
+    const { container, getByText } = render(InputBar, {
+      props: {
+        sessionId: 1,
+        cwd: 'C:/orbit',
+        sessionStatus: 'running',
+        provider: 'claude-code',
+        providerModels: [],
+      },
+    });
+
+    expect(container.querySelector('.quiet-composer')).toBeTruthy();
+    expect(getByText('@ file')).toBeTruthy();
+    expect(getByText('/ command')).toBeTruthy();
+  });
+
+  it('renders compact composer variant', () => {
+    const { container } = render(InputBar, {
+      props: {
+        sessionId: 1,
+        cwd: 'C:/orbit',
+        sessionStatus: 'running',
+        provider: 'claude-code',
+        providerModels: [],
+        compact: true,
+      },
+    });
+
+    expect(container.querySelector('.quiet-composer.compact')).toBeTruthy();
+  });
 });

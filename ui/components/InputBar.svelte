@@ -23,6 +23,7 @@
   export let sessionStatus: string = '';
   export let provider: string = 'claude-code';
   export let providerModels: string[] = [];
+  export let compact = false;
 
   $: caps = getCaps($providerCaps, provider);
 
@@ -632,7 +633,7 @@ If the user provides neither role nor name nor mission, ask one concise question
   }
 </script>
 
-<div class="input-area">
+<div class="input-area quiet-composer" class:compact>
   {#if sendError}
     <div class="send-error">! {sendError}</div>
   {/if}
@@ -670,6 +671,10 @@ If the user provides neither role nor name nor mission, ask one concise question
       disabled={sessionStatus === 'initializing'}
       data-testid="message-input"
     ></textarea>
+    <div class="composer-chips">
+      <button type="button" class="composer-chip" on:click={() => { text = '@ '; textarea?.focus(); }}>@ file</button>
+      <button type="button" class="composer-chip" on:click={() => { text = '/ '; textarea?.focus(); }}>/ command</button>
+    </div>
     <button
       class="send-btn"
       on:click={send}
@@ -771,6 +776,54 @@ If the user provides neither role nor name nor mission, ask one concise question
     color: var(--ac);
     font-size: 10px;
     flex-shrink: 0;
+  }
+
+  .quiet-composer {
+    width: min(840px, 100%);
+    border: 1px solid var(--bd2);
+    background: rgba(255,255,255,0.055);
+    border-radius: 22px;
+    padding: 12px;
+    box-shadow: 0 24px 70px rgba(0,0,0,0.24);
+  }
+  .quiet-composer textarea {
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--t0);
+  }
+  .composer-chips {
+    display: flex;
+    gap: 6px;
+    align-items: flex-end;
+    margin-bottom: var(--sp-2);
+    flex-shrink: 0;
+  }
+  .composer-chip {
+    border: 1px solid var(--bd1);
+    color: var(--t1);
+    background: rgba(255,255,255,0.03);
+    border-radius: 999px;
+    padding: 6px 9px;
+    font-family: var(--mono);
+    font-size: 11px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .composer-chip:hover {
+    background: rgba(255,255,255,0.08);
+    color: var(--t0);
+  }
+  .quiet-composer.compact {
+    min-height: 58px;
+    border-radius: 16px;
+    padding: 10px;
+  }
+  .quiet-composer.compact textarea {
+    font-size: 12px;
+  }
+  .quiet-composer.compact .composer-chip {
+    padding: 5px 8px;
+    font-size: 10px;
   }
 
   @media (max-width: 768px) {
