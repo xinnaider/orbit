@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Orbit Quiet Journal — multipanels + terminal</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Literata:opsz,wght@7..72,500;7..72,650&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+      :root {
+        color-scheme: dark;
+        --bg: #090a0a;
+        --panel: #101111;
+        --panel-2: #141515;
+        --panel-3: #191a1a;
+        --text: #f1ece3;
+        --muted: #a19a90;
+        --faint: #67615a;
+        --line: rgba(241, 236, 227, 0.1);
+        --line-2: rgba(241, 236, 227, 0.17);
+        --green: #7bd99d;
+        --blue: #8dbbf7;
+        --amber: #d9b56c;
+        --violet: #b9a1f4;
+        --red: #e47770;
+        --sans: 'Atkinson Hyperlegible', ui-sans-serif, sans-serif;
+        --display: 'Literata', Georgia, serif;
+        --mono: 'JetBrains Mono', monospace;
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at 12% 8%, rgba(123, 217, 157, 0.12), transparent 34%),
+          radial-gradient(circle at 78% 0%, rgba(141, 187, 247, 0.11), transparent 28%),
+          linear-gradient(180deg, #0b0c0c 0%, #080909 100%);
+        color: var(--text);
+        font-family: var(--sans);
+      }
+
+      .page { padding: 36px; }
+      .hero {
+        display: grid;
+        grid-template-columns: 0.8fr 1.2fr;
+        gap: 28px;
+        align-items: end;
+        margin-bottom: 28px;
+      }
+      h1 {
+        margin: 0;
+        font-family: var(--display);
+        font-size: clamp(36px, 5vw, 64px);
+        line-height: 0.92;
+        letter-spacing: -0.06em;
+      }
+      .hero p { margin: 0; color: var(--muted); line-height: 1.58; max-width: 900px; }
+      .principles { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:22px; }
+      .principle { border:1px solid var(--line); background:rgba(255,255,255,.025); border-radius:18px; padding:13px 14px; }
+      .principle b { display:block; font:700 11px var(--mono); color:var(--text); text-transform:uppercase; letter-spacing:.1em; }
+      .principle span { display:block; margin-top:6px; color:var(--muted); font-size:13px; line-height:1.45; }
+
+      .frame {
+        height: 820px;
+        border: 1px solid rgba(241,236,227,.14);
+        border-radius: 30px;
+        overflow: hidden;
+        background: var(--panel);
+        box-shadow: 0 44px 90px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.04);
+      }
+      .window-top {
+        height: 42px;
+        display:flex;
+        align-items:center;
+        gap:8px;
+        padding:0 18px;
+        border-bottom:1px solid rgba(255,255,255,.075);
+        background: rgba(0,0,0,.22);
+      }
+      .traffic { width:10px; height:10px; border-radius:50%; background:#444; }
+      .traffic:nth-child(1) { background: #e47770; }
+      .traffic:nth-child(2) { background: #d9b56c; }
+      .traffic:nth-child(3) { background: #7bd99d; }
+      .window-title { margin-left: 10px; color: var(--faint); font: 12px var(--mono); }
+
+      .app { height: calc(100% - 42px); display:flex; background: #101111; }
+      .sidebar {
+        width: 282px;
+        flex: 0 0 282px;
+        border-right:1px solid var(--line);
+        background:#0c0d0d;
+        padding: 18px 14px;
+        display:flex;
+        flex-direction:column;
+        gap:16px;
+      }
+      .brand { display:flex; align-items:center; justify-content:space-between; padding:0 6px 8px; }
+      .brand-left { display:flex; align-items:center; gap:10px; font-weight:700; letter-spacing:-.02em; }
+      .orbit-icon { width:28px; height:28px; color:var(--green); display:grid; place-items:center; }
+      .orbit-icon svg { width:26px; height:26px; filter: drop-shadow(0 0 12px rgba(123,217,157,.32)); }
+      .new { border:1px solid var(--line); background:rgba(255,255,255,.035); color:var(--text); border-radius:999px; padding:6px 10px; font:12px var(--mono); }
+      .search { height:34px; border:1px solid transparent; background:rgba(255,255,255,.045); color:var(--faint); border-radius:12px; display:flex; align-items:center; padding:0 12px; font-size:13px; }
+      .section-label { font:600 10px var(--mono); color:var(--faint); letter-spacing:.12em; text-transform:uppercase; padding:0 8px; }
+      .session-list { display:grid; gap:6px; }
+      .session { border:1px solid transparent; border-radius:15px; padding:10px 11px; color:var(--muted); }
+      .session.active { color:var(--text); background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.075); }
+      .session-top { display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:13px; }
+      .session-sub { margin-top:4px; display:flex; gap:7px; color:var(--faint); font:11px var(--mono); white-space:nowrap; overflow:hidden; }
+      .status-dot { width:7px; height:7px; border-radius:50%; background:var(--green); box-shadow:0 0 12px rgba(123,217,157,.4); }
+      .status-dot.amber { background:var(--amber); box-shadow:0 0 12px rgba(217,181,108,.35); }
+      .foot { margin-top:auto; color:var(--faint); font:11px var(--mono); padding:10px 8px 0; border-top:1px solid var(--line); }
+
+      .workspace { flex:1; min-width:0; display:grid; grid-template-columns: minmax(0, 1.12fr) 6px minmax(360px, .88fr); grid-template-rows: minmax(0, 1fr); }
+      .splitter-v { background: linear-gradient(90deg, transparent, rgba(255,255,255,.08), transparent); cursor: col-resize; }
+      .left-pane { min-width:0; display:flex; flex-direction:column; border-right:1px solid rgba(255,255,255,.02); }
+      .right-stack { min-width:0; display:grid; grid-template-rows: minmax(0, .58fr) 6px minmax(220px, .42fr); }
+      .splitter-h { background: linear-gradient(180deg, transparent, rgba(255,255,255,.08), transparent); cursor: row-resize; }
+
+      .pane { min-width:0; min-height:0; display:flex; flex-direction:column; background: #101111; }
+      .pane.focused { box-shadow: inset 0 0 0 1px rgba(123,217,157,.13); }
+      .pane-top {
+        height: 44px;
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:14px;
+        padding:0 14px;
+        border-bottom:1px solid var(--line);
+        background:rgba(255,255,255,.008);
+      }
+      .tab-title { display:flex; align-items:center; gap:9px; min-width:0; }
+      .tab-dot { width:7px; height:7px; border-radius:50%; background:var(--green); box-shadow:0 0 12px rgba(123,217,157,.35); }
+      .tab-dot.blue { background:var(--blue); box-shadow:0 0 12px rgba(141,187,247,.35); }
+      .tab-dot.term { background:var(--amber); box-shadow:0 0 12px rgba(217,181,108,.32); }
+      .tab-name { font-weight:700; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .tab-path { color:var(--faint); font:11px var(--mono); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .pane-actions { display:flex; gap:7px; align-items:center; flex:0 0 auto; }
+      .pill { border:1px solid var(--line); color:var(--muted); border-radius:999px; padding:4px 8px; font:10px var(--mono); background:rgba(255,255,255,.025); }
+      .pill.green { color:var(--green); background:rgba(123,217,157,.07); border-color:rgba(123,217,157,.16); }
+      .icon-btn { width:24px; height:24px; display:grid; place-items:center; border:1px solid var(--line); border-radius:8px; color:var(--faint); background:rgba(255,255,255,.025); font:12px var(--mono); }
+
+      .timeline-wrap { flex:1; min-height:0; overflow:hidden; display:flex; justify-content:center; }
+      .timeline { width:min(820px,100%); padding:24px 30px 18px; display:flex; flex-direction:column; gap:12px; overflow:hidden; }
+      .event { display:grid; grid-template-columns:20px 1fr; gap:14px; position:relative; }
+      .event:not(:last-child):before { content:""; position:absolute; left:9px; top:28px; bottom:-13px; width:1px; background:rgba(255,255,255,.07); }
+      .node { width:20px; height:20px; border-radius:50%; display:grid; place-items:center; margin-top:4px; border:1px solid var(--line); background:#111; }
+      .node:after { content:""; width:7px; height:7px; border-radius:50%; background:var(--faint); }
+      .event.user .node:after { background:var(--blue); box-shadow:0 0 12px rgba(141,187,247,.35); }
+      .event.agent .node:after { background:var(--green); box-shadow:0 0 12px rgba(123,217,157,.35); }
+      .event.tool .node:after { background:var(--amber); box-shadow:0 0 12px rgba(217,181,108,.28); }
+      .event-head { display:flex; align-items:center; gap:8px; margin-bottom:5px; color:var(--faint); font:10px var(--mono); }
+      .who { color:var(--muted); }
+      .text { color:#ebe5db; font-size:13px; line-height:1.58; }
+      .text p { margin:0 0 8px; }
+      .text p:last-child { margin-bottom:0; }
+      .user .text { max-width:620px; background:rgba(255,255,255,.045); border:1px solid var(--line); border-radius:17px; padding:10px 12px; }
+      .tool-card { border:1px solid rgba(217,181,108,.16); background:rgba(217,181,108,.055); border-radius:15px; overflow:hidden; max-width:640px; }
+      .tool-head { display:flex; justify-content:space-between; align-items:center; color:var(--amber); font:11px var(--mono); padding:9px 11px; border-bottom:1px solid rgba(217,181,108,.1); }
+      .tool-body { background:rgba(0,0,0,.12); padding:10px 11px; color:#c8c0b6; font:11px/1.55 var(--mono); }
+      .code-line { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+      .composer { padding: 10px 22px 18px; display:flex; justify-content:center; }
+      .composer-box { width:min(820px,100%); min-height:68px; border:1px solid var(--line-2); background:rgba(255,255,255,.055); border-radius:20px; display:flex; flex-direction:column; padding:10px; box-shadow:0 20px 60px rgba(0,0,0,.22); }
+      .placeholder { color:var(--faint); font-size:13px; padding:3px 6px 12px; }
+      .composer-actions { display:flex; justify-content:space-between; align-items:center; }
+      .btns { display:flex; gap:7px; align-items:center; }
+      .tiny { border:1px solid var(--line); color:var(--muted); background:rgba(255,255,255,.03); border-radius:999px; padding:5px 8px; font:10px var(--mono); }
+      .send { border:0; background:var(--green); color:#06100a; font-weight:700; border-radius:999px; padding:6px 12px; font-size:12px; }
+
+      .compact .timeline { width:100%; padding:18px 22px; gap:9px; }
+      .compact .event { grid-template-columns:16px 1fr; gap:11px; }
+      .compact .node { width:16px; height:16px; }
+      .compact .node:after { width:6px; height:6px; }
+      .compact .event:not(:last-child):before { left:7px; top:24px; bottom:-10px; }
+      .compact .text { font-size:12px; line-height:1.52; }
+      .compact .user .text { background:transparent; border:0; padding:0; max-width:none; }
+      .compact .composer-box { border-radius:16px; min-height:58px; }
+
+      .terminal-body {
+        flex:1;
+        min-height:0;
+        padding: 14px 16px;
+        background: #090a0a;
+        color: #d8d2c8;
+        font: 12px/1.55 var(--mono);
+        overflow:hidden;
+      }
+      .term-line { display:flex; gap:10px; white-space:nowrap; }
+      .prompt { color:var(--green); }
+      .dim { color:var(--faint); }
+      .ok { color:var(--green); }
+      .warn { color:var(--amber); }
+      .term-cursor { display:inline-block; width:8px; height:14px; background:var(--green); vertical-align:-2px; margin-left:2px; opacity:.85; }
+
+      .panel-label {
+        position:absolute;
+        right: 16px;
+        bottom: 14px;
+        color:var(--faint);
+        border:1px solid var(--line);
+        background:rgba(255,255,255,.025);
+        border-radius:999px;
+        padding:5px 9px;
+        font:10px var(--mono);
+      }
+
+      .notes { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:18px; }
+      .note { border:1px solid var(--line); border-radius:18px; padding:14px; background:rgba(255,255,255,.025); }
+      .note b { color:var(--text); font-size:13px; }
+      .note p { margin:6px 0 0; color:var(--muted); font-size:13px; line-height:1.5; }
+
+      @media (max-width: 1200px) {
+        .hero, .principles, .notes { grid-template-columns:1fr; }
+        .frame { height: 900px; }
+        .workspace { grid-template-columns:1fr; grid-template-rows: minmax(0, .52fr) 6px minmax(0,.48fr); }
+        .splitter-v { cursor:row-resize; background:linear-gradient(180deg, transparent, rgba(255,255,255,.08), transparent); }
+        .right-stack { grid-template-rows:minmax(0,.5fr) 6px minmax(0,.5fr); }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <h1>Quiet Journal, split.</h1>
+        <p>
+          Como o design escolhido funciona quando Orbit deixa de ser “um chat”: múltiplos chats lado a lado,
+          terminal aberto, splits redimensionáveis e headers compactos. O ícone atual do Orbit foi preservado.
+        </p>
+      </section>
+
+      <section class="principles">
+        <div class="principle"><b>Panels stay</b><span>Workspace continua aceitando split vertical/horizontal e múltiplos chats.</span></div>
+        <div class="principle"><b>Headers shrink</b><span>Cada pane tem título, status, model e ações mínimas. Telemetria pesada fica no inspector.</span></div>
+        <div class="principle"><b>Density adapts</b><span>Pane grande usa timeline confortável; pane menor ativa compact mode automaticamente.</span></div>
+        <div class="principle"><b>Terminal native</b><span>Terminal vira pane de primeira classe, com mesmo header e mesma linguagem visual.</span></div>
+      </section>
+
+      <div class="frame">
+        <div class="window-top">
+          <span class="traffic"></span><span class="traffic"></span><span class="traffic"></span>
+          <span class="window-title">Orbit — Quiet Journal multipanel workspace</span>
+        </div>
+        <div class="app">
+          <aside class="sidebar">
+            <div class="brand">
+              <div class="brand-left">
+                <span class="orbit-icon">
+                  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <ellipse cx="12" cy="12" rx="10.2" ry="4.2" stroke="currentColor" stroke-width="1.4" transform="rotate(-38 12 12)" />
+                    <circle cx="12" cy="12" r="2.6" fill="currentColor" />
+                    <circle cx="20.4" cy="7.6" r="1.3" fill="currentColor" opacity="0.75" />
+                  </svg>
+                </span>
+                orbit
+              </div>
+              <button class="new">new</button>
+            </div>
+            <div class="search">Search sessions…</div>
+            <div class="section-label">Workspace</div>
+            <div class="session-list">
+              <div class="session active"><div class="session-top"><span>Refactor billing flow</span><span class="status-dot"></span></div><div class="session-sub"><span>pane 1</span><span>sonnet</span><span>41% ctx</span></div></div>
+              <div class="session active"><div class="session-top"><span>Tests reviewer</span><span class="status-dot amber"></span></div><div class="session-sub"><span>pane 2</span><span>codex</span><span>input</span></div></div>
+              <div class="session active"><div class="session-top"><span>Terminal</span><span>•</span></div><div class="session-sub"><span>pane 3</span><span>powershell</span><span>orbit</span></div></div>
+            </div>
+            <div class="section-label">Other sessions</div>
+            <div class="session-list">
+              <div class="session"><div class="session-top"><span>Landing copy pass</span><span>•</span></div><div class="session-sub"><span>opencode</span><span>draft</span></div></div>
+              <div class="session"><div class="session-top"><span>Rust event store</span><span>•</span></div><div class="session-sub"><span>opus</span><span>waiting</span></div></div>
+            </div>
+            <div class="foot">drag sessions into panes • ⌘\ split • ⌘I inspect</div>
+          </aside>
+
+          <section class="workspace">
+            <div class="left-pane pane focused">
+              <header class="pane-top">
+                <div class="tab-title"><span class="tab-dot"></span><span class="tab-name">Refactor billing flow</span><span class="tab-path">C:\orbit • feature/auth</span></div>
+                <div class="pane-actions"><span class="pill green">running</span><span class="pill">sonnet 4.6</span><span class="pill">41% ctx</span><button class="icon-btn">⋯</button><button class="icon-btn">×</button></div>
+              </header>
+              <div class="timeline-wrap"><div class="timeline">
+                <div class="event user"><div class="node"></div><div><div class="event-head"><span class="who">you</span><span>10:24</span></div><div class="text">Simplifica o billing flow e remove estado duplicado. Mantém os testes passando.</div></div></div>
+                <div class="event agent"><div class="node"></div><div><div class="event-head"><span class="who">orbit / claude</span><span>10:24</span></div><div class="text"><p>Vou separar em três passos: mapear estado duplicado, mover regra para store única, e ajustar testes de checkout.</p></div></div></div>
+                <div class="event tool"><div class="node"></div><div><div class="event-head"><span class="who">tool</span><span>read</span></div><div class="tool-card"><div class="tool-head"><span>read ui/lib/stores/billing.ts</span><span>done</span></div><div class="tool-body"><div class="code-line">found duplicated derived state: selectedPlanId, draftPlanId</div><div class="code-line">consumer files: CheckoutPanel.svelte, PlanPicker.svelte</div></div></div></div></div>
+                <div class="event agent"><div class="node"></div><div><div class="event-head"><span class="who">orbit / claude</span><span>10:26</span></div><div class="text"><p>Problema confirmado: <b>CheckoutPanel</b> mantém cópia local. Vou trocar por derivação única do store e preservar seleção otimista.</p></div></div></div>
+                <div class="event user"><div class="node"></div><div><div class="event-head"><span class="who">you</span><span>10:27</span></div><div class="text">Pode seguir, mas não mexe no provider adapter.</div></div></div>
+                <div class="event tool"><div class="node"></div><div><div class="event-head"><span class="who">tool</span><span>edit</span></div><div class="tool-card"><div class="tool-head"><span>edit CheckoutPanel.svelte</span><span>working</span></div><div class="tool-body"><div class="code-line">- let selectedPlanId = plan.id</div><div class="code-line">+ $: selectedPlan = billing.selectedPlan($billing)</div><div class="code-line">+ const choosePlan = billing.actions.choosePlan</div></div></div></div></div>
+              </div></div>
+              <div class="composer"><div class="composer-box"><div class="placeholder">Message Orbit…</div><div class="composer-actions"><div class="btns"><button class="tiny">@ file</button><button class="tiny">/ command</button><button class="tiny">model</button></div><div class="btns"><button class="tiny">compact</button><button class="send">send</button></div></div></div></div>
+            </div>
+
+            <div class="splitter-v"></div>
+
+            <div class="right-stack">
+              <div class="pane compact">
+                <header class="pane-top">
+                  <div class="tab-title"><span class="tab-dot blue"></span><span class="tab-name">Tests reviewer</span><span class="tab-path">billing tests</span></div>
+                  <div class="pane-actions"><span class="pill">codex</span><span class="pill">input</span><button class="icon-btn">⋯</button></div>
+                </header>
+                <div class="timeline-wrap"><div class="timeline">
+                  <div class="event user"><div class="node"></div><div><div class="event-head"><span class="who">you</span><span>10:29</span></div><div class="text">Revise só os testes do billing depois que o pane principal terminar.</div></div></div>
+                  <div class="event agent"><div class="node"></div><div><div class="event-head"><span class="who">orbit / codex</span><span>waiting</span></div><div class="text"><p>Entendido. Vou aguardar alterações e rodar testes focados: <b>billing.test.ts</b> e component tests do checkout.</p></div></div></div>
+                  <div class="event tool"><div class="node"></div><div><div class="event-head"><span class="who">tool queue</span><span>pending</span></div><div class="tool-card"><div class="tool-head"><span>npm run test -- billing</span><span>queued</span></div><div class="tool-body"><div class="code-line">will run after file changes are detected</div></div></div></div></div>
+                </div></div>
+                <div class="composer"><div class="composer-box"><div class="placeholder">Reply to reviewer…</div><div class="composer-actions"><div class="btns"><button class="tiny">@</button><button class="tiny">/</button></div><button class="send">send</button></div></div></div>
+              </div>
+              <div class="splitter-h"></div>
+              <div class="pane">
+                <header class="pane-top">
+                  <div class="tab-title"><span class="tab-dot term"></span><span class="tab-name">Terminal</span><span class="tab-path">PowerShell • C:\orbit</span></div>
+                  <div class="pane-actions"><span class="pill">pwsh</span><button class="icon-btn">＋</button><button class="icon-btn">×</button></div>
+                </header>
+                <div class="terminal-body">
+                  <div class="term-line"><span class="prompt">PS C:\orbit&gt;</span><span>git status --short</span></div>
+                  <div class="term-line"><span></span><span class="dim"> M ui/components/CheckoutPanel.svelte</span></div>
+                  <div class="term-line"><span></span><span class="dim"> M ui/lib/stores/billing.ts</span></div>
+                  <br />
+                  <div class="term-line"><span class="prompt">PS C:\orbit&gt;</span><span>npm run test -- billing</span></div>
+                  <div class="term-line"><span></span><span class="ok">✓ ui/lib/stores/billing.test.ts (12)</span></div>
+                  <div class="term-line"><span></span><span class="ok">✓ ui/components/CheckoutPanel.component.test.ts (8)</span></div>
+                  <div class="term-line"><span></span><span class="dim">Test Files 2 passed (2)</span></div>
+                  <div class="term-line"><span></span><span class="dim">Tests 20 passed (20)</span></div>
+                  <br />
+                  <div class="term-line"><span class="prompt">PS C:\orbit&gt;</span><span class="warn">npm run test:components</span><span class="term-cursor"></span></div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <section class="notes">
+        <div class="note"><b>Pane behavior</b><p>Quando pane fica estreito, timeline entra em modo compacto: menos padding, user messages sem bubble pesada, tool cards menores.</p></div>
+        <div class="note"><b>Topbar rule</b><p>App-level topbar vira pane header. Evita duplicar headers quando há splits. Cada pane tem status local.</p></div>
+        <div class="note"><b>Terminal rule</b><p>Terminal usa o mesmo chrome dos chats. Não compete com a conversa; é só outro tipo de pane.</p></div>
+      </section>
+    </main>
+  </body>
+</html>

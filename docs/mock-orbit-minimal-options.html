@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Orbit minimal redesign — 3 populated mockups</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Literata:opsz,wght@7..72,500;7..72,650&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+      :root {
+        color-scheme: dark;
+        --page: #0b0c0d;
+        --ink: #f4f0e8;
+        --muted: #9a948b;
+        --faint: #67615a;
+        --line: rgba(244, 240, 232, 0.1);
+        --line-strong: rgba(244, 240, 232, 0.18);
+        --paper: #121314;
+        --paper-2: #171819;
+        --paper-3: #1e2021;
+        --green: #74d59a;
+        --blue: #8fbaf4;
+        --amber: #d8ae62;
+        --red: #e07168;
+        --violet: #b49bf3;
+        --radius-xl: 28px;
+        --radius-lg: 20px;
+        --radius-md: 14px;
+        --sans: 'Atkinson Hyperlegible', ui-sans-serif, sans-serif;
+        --display: 'Literata', Georgia, serif;
+        --mono: 'JetBrains Mono', 'Cascadia Code', monospace;
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at 18% 8%, rgba(116, 213, 154, 0.1), transparent 34%),
+          radial-gradient(circle at 80% 2%, rgba(143, 186, 244, 0.12), transparent 28%),
+          linear-gradient(180deg, #0b0c0d, #090a0b 58%, #070808);
+        color: var(--ink);
+        font-family: var(--sans);
+      }
+
+      .page { padding: 36px; }
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(280px, 0.8fr) 1.2fr;
+        gap: 28px;
+        align-items: end;
+        margin-bottom: 26px;
+      }
+      h1 {
+        margin: 0;
+        font-family: var(--display);
+        font-size: clamp(34px, 5vw, 62px);
+        line-height: 0.95;
+        letter-spacing: -0.055em;
+      }
+      .hero p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 15px;
+        line-height: 1.6;
+        max-width: 820px;
+      }
+      .principles {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+        margin: 24px 0 34px;
+      }
+      .principle {
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.025);
+        border-radius: 18px;
+        padding: 14px 16px;
+      }
+      .principle b { display: block; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink); }
+      .principle span { display: block; margin-top: 6px; color: var(--muted); font-size: 13px; line-height: 1.45; }
+
+      .option-block {
+        margin: 44px 0 72px;
+        border-top: 1px solid var(--line);
+        padding-top: 28px;
+      }
+      .option-head {
+        display: grid;
+        grid-template-columns: 84px 1fr 280px;
+        gap: 18px;
+        align-items: start;
+        margin-bottom: 18px;
+      }
+      .stamp {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        border: 1px solid var(--line-strong);
+        font: 600 20px var(--mono);
+        color: var(--green);
+        background: rgba(116, 213, 154, 0.055);
+      }
+      h2 {
+        margin: 0 0 8px;
+        font-family: var(--display);
+        font-size: 31px;
+        letter-spacing: -0.035em;
+      }
+      .summary { margin: 0; color: var(--muted); line-height: 1.55; font-size: 14px; max-width: 860px; }
+      .score {
+        display: grid;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .score-row { display: grid; grid-template-columns: 92px 1fr; align-items: center; gap: 10px; }
+      .bar { height: 5px; background: rgba(255,255,255,.07); border-radius: 20px; overflow: hidden; }
+      .bar span { display:block; height:100%; border-radius:inherit; background: var(--green); }
+
+      .frame {
+        width: 100%;
+        height: 760px;
+        border: 1px solid rgba(244,240,232,.14);
+        border-radius: 30px;
+        overflow: hidden;
+        background: #0f1011;
+        box-shadow: 0 44px 90px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.04);
+      }
+      .window-top {
+        height: 42px;
+        display:flex;
+        align-items:center;
+        gap:8px;
+        padding:0 18px;
+        border-bottom:1px solid rgba(255,255,255,.075);
+        background: rgba(0,0,0,.18);
+      }
+      .dot { width:10px; height:10px; border-radius:50%; background:#3b3d3f; }
+      .dot.red { background:#e07168; } .dot.amber { background:#d8ae62; } .dot.green { background:#74d59a; }
+      .window-title { margin-left:10px; color:#77716a; font: 12px var(--mono); }
+
+      .mock-app { height: calc(100% - 42px); display:flex; background: var(--app-bg, #0f1011); }
+      .side {
+        width: var(--side-w, 274px);
+        border-right:1px solid var(--line);
+        background: var(--side-bg, rgba(255,255,255,.018));
+        padding: 18px 14px;
+        display:flex;
+        flex-direction:column;
+        gap:16px;
+      }
+      .brand { display:flex; align-items:center; justify-content:space-between; padding: 0 6px 8px; }
+      .brand-mark { display:flex; align-items:center; gap:10px; font-weight:700; letter-spacing:-.02em; }
+      .orb { width:26px; height:26px; border-radius:50%; border:1px solid var(--line-strong); position:relative; }
+      .orb:after { content:""; position:absolute; inset:7px; border-radius:50%; background:var(--green); box-shadow:0 0 16px rgba(116,213,154,.35); }
+      .new { border:1px solid var(--line); background:rgba(255,255,255,.035); color:var(--ink); border-radius: 999px; padding:6px 10px; font: 12px var(--mono); }
+      .search { height:34px; border:1px solid transparent; background: rgba(255,255,255,.045); border-radius:12px; color:var(--faint); display:flex; align-items:center; padding:0 12px; font-size:13px; }
+      .section-label { font: 600 10px var(--mono); color: var(--faint); letter-spacing:.12em; text-transform: uppercase; padding: 0 8px; }
+      .session-list { display:grid; gap:6px; overflow:hidden; }
+      .session {
+        border:1px solid transparent;
+        border-radius: 15px;
+        padding: 10px 11px;
+        color: var(--muted);
+        background: transparent;
+      }
+      .session.active { color: var(--ink); background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.075); }
+      .session-top { display:flex; justify-content:space-between; gap:10px; align-items:center; font-size:13px; }
+      .session-sub { margin-top:4px; display:flex; gap:7px; color:var(--faint); font: 11px var(--mono); white-space:nowrap; overflow:hidden; }
+      .status-dot { width:7px; height:7px; border-radius:50%; background: var(--green); box-shadow: 0 0 12px rgba(116,213,154,.35); }
+      .side-foot { margin-top:auto; color: var(--faint); font: 11px var(--mono); padding: 10px 8px 0; border-top:1px solid var(--line); }
+
+      .main { flex:1; min-width:0; display:flex; flex-direction:column; position:relative; }
+      .topbar {
+        height: var(--top-h, 58px);
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        padding:0 24px;
+        border-bottom:1px solid var(--line);
+      }
+      .crumb { display:flex; align-items:center; gap:10px; min-width:0; }
+      .crumb-title { font-weight:700; letter-spacing:-.02em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .crumb-meta { color:var(--faint); font: 11px var(--mono); }
+      .pills { display:flex; gap:8px; align-items:center; }
+      .pill { border:1px solid var(--line); color:var(--muted); border-radius:999px; padding:5px 9px; font: 11px var(--mono); background:rgba(255,255,255,.025); }
+      .pill.green { color:var(--green); background:rgba(116,213,154,.07); border-color:rgba(116,213,154,.16); }
+
+      .chat-wrap { flex:1; overflow:hidden; display:flex; justify-content:center; }
+      .chat { width:min(820px, 100%); padding: 34px 34px 24px; overflow:hidden; display:flex; flex-direction:column; gap:18px; }
+      .msg { display:grid; grid-template-columns: 38px 1fr; gap:14px; align-items:start; }
+      .avatar { width:30px; height:30px; border-radius:50%; display:grid; place-items:center; font: 600 11px var(--mono); background:rgba(255,255,255,.055); color:var(--muted); border:1px solid var(--line); }
+      .avatar.user { background:rgba(143,186,244,.1); color:var(--blue); }
+      .avatar.agent { background:rgba(116,213,154,.08); color:var(--green); }
+      .bubble { line-height:1.6; color:#e9e3d9; font-size:14px; }
+      .bubble p { margin: 0 0 10px; }
+      .bubble p:last-child { margin-bottom:0; }
+      .msg.user .bubble { max-width: 650px; background: rgba(255,255,255,.045); border:1px solid var(--line); border-radius:20px; padding:13px 15px; }
+      .meta-line { margin-top:6px; color:var(--faint); font: 11px var(--mono); }
+      .tool-card { margin: 10px 0; border:1px solid rgba(216,174,98,.16); background:rgba(216,174,98,.055); border-radius:16px; overflow:hidden; }
+      .tool-head { display:flex; align-items:center; justify-content:space-between; padding:10px 12px; color:var(--amber); font: 12px var(--mono); border-bottom:1px solid rgba(216,174,98,.1); }
+      .tool-body { padding:12px; color:#c7bfb4; font:12px/1.55 var(--mono); background:rgba(0,0,0,.12); }
+      .code-line { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .thinking { display:inline-flex; gap:8px; align-items:center; color:var(--violet); background:rgba(180,155,243,.07); border:1px solid rgba(180,155,243,.13); padding:7px 10px; border-radius:999px; font:11px var(--mono); }
+      .composer { padding: 14px 30px 24px; display:flex; justify-content:center; }
+      .composer-box { width:min(820px,100%); min-height:82px; border:1px solid var(--line-strong); background:rgba(255,255,255,.055); border-radius:24px; display:flex; flex-direction:column; padding:12px; box-shadow:0 24px 70px rgba(0,0,0,.22); }
+      .placeholder-text { color:var(--faint); font-size:14px; padding:4px 6px 16px; }
+      .composer-actions { display:flex; justify-content:space-between; align-items:center; }
+      .left-actions, .right-actions { display:flex; gap:8px; align-items:center; }
+      .tiny-btn { border:1px solid var(--line); color:var(--muted); background:rgba(255,255,255,.03); border-radius:999px; padding:6px 9px; font:11px var(--mono); }
+      .send { border:0; background:var(--green); color:#06100a; font-weight:700; border-radius:999px; padding:7px 13px; }
+
+      .drawer {
+        width: 292px;
+        border-left:1px solid var(--line);
+        background:rgba(255,255,255,.025);
+        padding: 18px;
+        display:grid;
+        align-content:start;
+        gap:14px;
+      }
+      .drawer-card { border:1px solid var(--line); border-radius:18px; padding:14px; background:rgba(255,255,255,.028); }
+      .drawer-card h4 { margin:0 0 10px; font:700 12px var(--mono); color:var(--muted); text-transform:uppercase; letter-spacing:.1em; }
+      .stat-row { display:flex; justify-content:space-between; color:var(--muted); font:12px var(--mono); padding:5px 0; border-bottom:1px solid rgba(255,255,255,.045); }
+      .stat-row:last-child { border-bottom:0; }
+      .mini-bar { height:7px; border-radius:99px; background:rgba(255,255,255,.07); overflow:hidden; margin:8px 0 2px; }
+      .mini-bar span { display:block; height:100%; background:var(--green); border-radius:99px; }
+
+      /* OPTION A */
+      .a { --app-bg: #101112; --side-bg: #0d0e0f; }
+      .a .chat { padding-top:44px; }
+      .a .bubble { font-size:15px; }
+      .a .drawer { display:none; }
+      .a .main:after { content:"Inspector hidden • press ⌘I"; position:absolute; top:72px; right:24px; color:var(--faint); font:11px var(--mono); border:1px solid var(--line); border-radius:999px; padding:6px 10px; background:rgba(255,255,255,.025); }
+
+      /* OPTION B */
+      .b { --side-w: 82px; --top-h: 48px; --app-bg: #0b0d10; }
+      .b .side { align-items:center; padding:16px 10px; }
+      .b .brand, .b .search, .b .section-label, .b .side-foot { display:none; }
+      .b .session-list { width:100%; gap:10px; }
+      .b .session { padding:8px; display:grid; place-items:center; height:48px; border-radius:16px; }
+      .b .session-top, .b .session-sub { display:none; }
+      .b .session:before { content: attr(data-initial); width:30px; height:30px; display:grid; place-items:center; border-radius:10px; background:rgba(255,255,255,.06); font:700 12px var(--mono); color:var(--muted); }
+      .b .session.active:before { color:var(--green); background:rgba(116,213,154,.1); }
+      .b .chat { width:min(900px, 100%); padding:24px 38px; gap:12px; }
+      .b .msg { grid-template-columns: 18px 1fr; gap:16px; position:relative; }
+      .b .avatar { width:18px; height:18px; font-size:0; margin-top:5px; background:transparent; }
+      .b .avatar:after { content:""; width:7px; height:7px; border-radius:50%; background:var(--line-strong); }
+      .b .avatar.agent:after { background:var(--green); box-shadow:0 0 12px rgba(116,213,154,.35); }
+      .b .avatar.user:after { background:var(--blue); }
+      .b .msg:before { content:""; position:absolute; left:8px; top:26px; bottom:-12px; width:1px; background:rgba(255,255,255,.07); }
+      .b .msg:last-child:before { display:none; }
+      .b .msg.user .bubble { background:transparent; border:0; padding:0; max-width:none; }
+      .b .drawer { width:260px; }
+      .b .composer-box { border-radius:16px; min-height:70px; }
+
+      /* OPTION C */
+      .c { --app-bg:#0f1010; --side-w: 312px; }
+      .c .mock-app { background: radial-gradient(circle at 50% -10%, rgba(116,213,154,.08), transparent 42%), #0f1010; }
+      .c .topbar { border-bottom:0; padding:0 34px; }
+      .c .chat-wrap { align-items:center; }
+      .c .chat { height:calc(100% - 4px); width:min(780px,100%); padding:20px 24px; justify-content:flex-end; }
+      .c .msg { grid-template-columns:1fr; gap:8px; }
+      .c .avatar { display:none; }
+      .c .bubble { font-size:14px; }
+      .c .msg.user { justify-items:end; }
+      .c .msg.user .bubble { max-width:74%; border-radius:20px 20px 5px 20px; }
+      .c .msg.agent .bubble { max-width:88%; }
+      .c .tool-card { max-width:88%; }
+      .c .composer { padding-inline:34px; }
+      .c .drawer { display:none; }
+      .c .focus-rail { position:absolute; right:22px; top:82px; width:48px; display:grid; gap:10px; }
+      .rail-btn { width:42px; height:42px; border-radius:15px; border:1px solid var(--line); background:rgba(255,255,255,.035); display:grid; place-items:center; color:var(--muted); font:12px var(--mono); }
+      .rail-btn.active { color:var(--green); background:rgba(116,213,154,.08); border-color:rgba(116,213,154,.16); }
+
+      .notes {
+        margin-top:16px;
+        display:grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap:12px;
+      }
+      .note { border:1px solid var(--line); border-radius:18px; padding:14px; background:rgba(255,255,255,.025); }
+      .note b { color:var(--ink); font-size:13px; }
+      .note p { margin:6px 0 0; color:var(--muted); font-size:13px; line-height:1.5; }
+
+      @media (max-width: 1100px) {
+        .hero, .option-head, .principles, .notes { grid-template-columns: 1fr; }
+        .frame { height: 700px; }
+        .drawer { display:none; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <h1>Orbit, calmer.</h1>
+        <p>
+          Three dark-minimal directions for a less polluted Orbit. All keep the core workflow:
+          session list, populated chat, tool visibility, composer, and optional agent observability.
+          The big move: primary screen becomes sidebar + readable chat + composer. Tokens, tasks,
+          subagents, raw/logs, and git details move into explicit inspector surfaces.
+        </p>
+      </section>
+
+      <section class="principles">
+        <div class="principle"><b>Default</b><span>Dark minimal first. Light becomes equivalent later, not separate design.</span></div>
+        <div class="principle"><b>Density</b><span>Comfortable by default; compact mode available for logs and long sessions.</span></div>
+        <div class="principle"><b>Hierarchy</b><span>Chat content is primary. Telemetry becomes secondary and summoned.</span></div>
+        <div class="principle"><b>Memory</b><span>Orbit should feel like a focused command room, not terminal confetti.</span></div>
+      </section>
+
+      <section class="option-block">
+        <div class="option-head">
+          <div class="stamp">A</div>
+          <div>
+            <h2>Quiet Console</h2>
+            <p class="summary">
+              Most ChatGPT-like. Wide centered conversation, generous reading width, small session sidebar,
+              no right panel by default. Inspector is hidden behind ⌘I / button. Best if Orbit should feel calm,
+              approachable, and legible even during busy agent runs.
+            </p>
+          </div>
+          <div class="score">
+            <div class="score-row"><span>Readability</span><div class="bar"><span style="width:96%"></span></div></div>
+            <div class="score-row"><span>Density</span><div class="bar"><span style="width:58%"></span></div></div>
+            <div class="score-row"><span>Orbit DNA</span><div class="bar"><span style="width:74%"></span></div></div>
+          </div>
+        </div>
+        <div class="frame">
+          <div class="window-top"><span class="dot red"></span><span class="dot amber"></span><span class="dot green"></span><span class="window-title">Orbit — Quiet Console</span></div>
+          <div class="mock-app a">
+            <aside class="side">
+              <div class="brand"><div class="brand-mark"><span class="orb"></span>orbit</div><button class="new">new</button></div>
+              <div class="search">Search sessions…</div>
+              <div class="section-label">Today</div>
+              <div class="session-list">
+                <div class="session active"><div class="session-top"><span>Refactor billing flow</span><span class="status-dot"></span></div><div class="session-sub"><span>sonnet</span><span>feature/auth</span><span>41% ctx</span></div></div>
+                <div class="session"><div class="session-top"><span>Playwright flakes</span><span>•</span></div><div class="session-sub"><span>codex</span><span>e2e</span><span>done</span></div></div>
+                <div class="session"><div class="session-top"><span>Landing copy pass</span><span>•</span></div><div class="session-sub"><span>opencode</span><span>draft</span></div></div>
+                <div class="session"><div class="session-top"><span>Rust event store</span><span>•</span></div><div class="session-sub"><span>opus</span><span>blocked</span></div></div>
+              </div>
+              <div class="section-label">Pinned</div>
+              <div class="session-list">
+                <div class="session"><div class="session-top"><span>Orbit redesign</span><span>•</span></div><div class="session-sub"><span>design</span><span>active</span></div></div>
+              </div>
+              <div class="side-foot">4 active • 2 waiting • compact off</div>
+            </aside>
+            <section class="main">
+              <header class="topbar"><div class="crumb"><span class="crumb-title">Refactor billing flow</span><span class="crumb-meta">C:\orbit • feature/auth</span></div><div class="pills"><span class="pill green">running</span><span class="pill">sonnet 4.6</span><span class="pill">41% ctx</span></div></header>
+              <div class="chat-wrap"><div class="chat">
+                <div class="msg user"><div class="avatar user">ME</div><div><div class="bubble">Simplifica o billing flow e remove estado duplicado. Mantém os testes passando.</div><div class="meta-line">10:24</div></div></div>
+                <div class="msg agent"><div class="avatar agent">AI</div><div><div class="bubble"><p>Vou separar em três passos: mapear estado duplicado, mover regra para store única, e ajustar testes de checkout.</p><span class="thinking">thinking · scanning checkout stores</span></div><div class="tool-card"><div class="tool-head"><span>read ui/lib/stores/billing.ts</span><span>done</span></div><div class="tool-body"><div class="code-line">found duplicated derived state: selectedPlanId, draftPlanId</div><div class="code-line">consumer files: CheckoutPanel.svelte, PlanPicker.svelte</div></div></div></div></div>
+                <div class="msg agent"><div class="avatar agent">AI</div><div class="bubble"><p>Problema confirmado: <b>CheckoutPanel</b> mantém uma cópia local do plano selecionado. Vou trocar por derivação única do store e preservar a seleção otimista.</p></div></div>
+                <div class="msg user"><div class="avatar user">ME</div><div><div class="bubble">Pode seguir, mas não mexe no provider adapter.</div><div class="meta-line">10:27</div></div></div>
+                <div class="msg agent"><div class="avatar agent">AI</div><div><div class="tool-card"><div class="tool-head"><span>edit ui/components/CheckoutPanel.svelte</span><span>working</span></div><div class="tool-body"><div class="code-line">- let selectedPlanId = plan.id</div><div class="code-line">+ $: selectedPlan = billing.selectedPlan($billing)</div><div class="code-line">+ const choosePlan = billing.actions.choosePlan</div></div></div></div></div>
+              </div></div>
+              <div class="composer"><div class="composer-box"><div class="placeholder-text">Message Orbit…</div><div class="composer-actions"><div class="left-actions"><button class="tiny-btn">@ file</button><button class="tiny-btn">/ command</button><button class="tiny-btn">model</button></div><div class="right-actions"><button class="tiny-btn">compact</button><button class="send">send</button></div></div></div></div>
+            </section>
+          </div>
+        </div>
+        <div class="notes">
+          <div class="note"><b>What changes</b><p>Right MetaPanel hidden by default. Header loses token clutter. Branch/model/context become small pills.</p></div>
+          <div class="note"><b>Risk</b><p>Debug-heavy users may miss always-visible telemetry; solved with persistent inspector toggle.</p></div>
+          <div class="note"><b>Best for</b><p>General daily use. Cleanest path toward ChatGPT/Paperclip legibility.</p></div>
+        </div>
+      </section>
+
+      <section class="option-block">
+        <div class="option-head">
+          <div class="stamp">B</div>
+          <div>
+            <h2>Command Journal</h2>
+            <p class="summary">
+              Most distinctive. Sidebar collapses to an icon rail; chat becomes a chronological journal/timeline.
+              Tool calls attach to the timeline instead of becoming visually loud blocks. Inspector stays visible,
+              but calmer and narrower. Best for multi-agent / observability-heavy Orbit.
+            </p>
+          </div>
+          <div class="score">
+            <div class="score-row"><span>Readability</span><div class="bar"><span style="width:86%"></span></div></div>
+            <div class="score-row"><span>Density</span><div class="bar"><span style="width:82%"></span></div></div>
+            <div class="score-row"><span>Orbit DNA</span><div class="bar"><span style="width:94%"></span></div></div>
+          </div>
+        </div>
+        <div class="frame">
+          <div class="window-top"><span class="dot red"></span><span class="dot amber"></span><span class="dot green"></span><span class="window-title">Orbit — Command Journal</span></div>
+          <div class="mock-app b">
+            <aside class="side">
+              <div class="session-list">
+                <div class="session active" data-initial="BF"></div><div class="session" data-initial="PF"></div><div class="session" data-initial="LC"></div><div class="session" data-initial="RS"></div><div class="session" data-initial="+"></div>
+              </div>
+            </aside>
+            <section class="main">
+              <header class="topbar"><div class="crumb"><span class="crumb-title">Refactor billing flow</span><span class="crumb-meta">timeline view</span></div><div class="pills"><span class="pill green">running</span><span class="pill">2 tools</span><span class="pill">$0.084</span></div></header>
+              <div class="chat-wrap"><div class="chat">
+                <div class="msg user"><div class="avatar user">ME</div><div><div class="bubble">Simplifica o billing flow e remove estado duplicado. Mantém os testes passando.</div><div class="meta-line">10:24 · user prompt</div></div></div>
+                <div class="msg agent"><div class="avatar agent">AI</div><div><div class="bubble"><p>Plano: mapear duplicação, centralizar seleção no store, atualizar testes. Vou evitar o provider adapter.</p></div><div class="tool-card"><div class="tool-head"><span>read → billing.ts</span><span>12 files referenced</span></div><div class="tool-body"><div class="code-line">selectedPlanId appears in store + two Svelte components</div></div></div></div></div>
+                <div class="msg agent"><div class="avatar agent">AI</div><div class="bubble"><p>Encontrei duplicação real em <b>CheckoutPanel</b>. A mudança mais segura é expor <b>billing.selectedPlan</b> como derivado e transformar escolha em action única.</p></div></div>
+                <div class="msg user"><div class="avatar user">ME</div><div><div class="bubble">Pode seguir, mas não mexe no provider adapter.</div><div class="meta-line">10:27 · constraint added</div></div></div>
+                <div class="msg agent"><div class="avatar agent">AI</div><div><div class="tool-card"><div class="tool-head"><span>edit → CheckoutPanel.svelte</span><span>applying</span></div><div class="tool-body"><div class="code-line">remove local selectedPlanId</div><div class="code-line">wire choosePlan to billing.actions.choosePlan</div></div></div></div></div>
+              </div></div>
+              <div class="composer"><div class="composer-box"><div class="placeholder-text">Reply, add constraint, or delegate…</div><div class="composer-actions"><div class="left-actions"><button class="tiny-btn">@</button><button class="tiny-btn">/</button><button class="tiny-btn">delegate</button></div><div class="right-actions"><button class="tiny-btn">journal</button><button class="send">send</button></div></div></div></div>
+            </section>
+            <aside class="drawer">
+              <div class="drawer-card"><h4>Session</h4><div class="stat-row"><span>model</span><span>sonnet 4.6</span></div><div class="stat-row"><span>branch</span><span>feature/auth</span></div><div class="stat-row"><span>status</span><span style="color:var(--green)">running</span></div></div>
+              <div class="drawer-card"><h4>Context</h4><div class="mini-bar"><span style="width:41%"></span></div><div class="stat-row"><span>used</span><span>82k</span></div><div class="stat-row"><span>max</span><span>200k</span></div></div>
+              <div class="drawer-card"><h4>Recent tools</h4><div class="stat-row"><span>read</span><span>✓</span></div><div class="stat-row"><span>edit</span><span>…</span></div><div class="stat-row"><span>test</span><span>queued</span></div></div>
+            </aside>
+          </div>
+        </div>
+        <div class="notes">
+          <div class="note"><b>What changes</b><p>Session tree becomes icon rail. Full list opens as overlay. Timeline makes tool calls feel integrated.</p></div>
+          <div class="note"><b>Risk</b><p>Less obvious navigation for users with many named sessions unless overlay search is excellent.</p></div>
+          <div class="note"><b>Best for</b><p>Power users. Strongest “Orbit is not just another chat client” identity.</p></div>
+        </div>
+      </section>
+
+      <section class="option-block">
+        <div class="option-head">
+          <div class="stamp">C</div>
+          <div>
+            <h2>Focus Deck</h2>
+            <p class="summary">
+              Hybrid between ChatGPT and current Orbit. Sidebar remains readable and slightly wider, chat uses
+              conversational bubbles, while a slim floating rail exposes inspector/tasks/git/raw views. Best if we
+              want minimal disruption to current component architecture but still reduce noise dramatically.
+            </p>
+          </div>
+          <div class="score">
+            <div class="score-row"><span>Readability</span><div class="bar"><span style="width:90%"></span></div></div>
+            <div class="score-row"><span>Density</span><div class="bar"><span style="width:68%"></span></div></div>
+            <div class="score-row"><span>Orbit DNA</span><div class="bar"><span style="width:84%"></span></div></div>
+          </div>
+        </div>
+        <div class="frame">
+          <div class="window-top"><span class="dot red"></span><span class="dot amber"></span><span class="dot green"></span><span class="window-title">Orbit — Focus Deck</span></div>
+          <div class="mock-app c">
+            <aside class="side">
+              <div class="brand"><div class="brand-mark"><span class="orb"></span>orbit</div><button class="new">compose</button></div>
+              <div class="search">Jump to session or file…</div>
+              <div class="section-label">Running</div>
+              <div class="session-list">
+                <div class="session active"><div class="session-top"><span>Refactor billing flow</span><span class="status-dot"></span></div><div class="session-sub"><span>working now</span><span>2 tools</span></div></div>
+                <div class="session"><div class="session-top"><span>Rust event store</span><span>•</span></div><div class="session-sub"><span>waiting approval</span><span>opus</span></div></div>
+              </div>
+              <div class="section-label">Later</div>
+              <div class="session-list">
+                <div class="session"><div class="session-top"><span>Playwright flakes</span><span>•</span></div><div class="session-sub"><span>done</span><span>e2e</span></div></div>
+                <div class="session"><div class="session-top"><span>Landing copy pass</span><span>•</span></div><div class="session-sub"><span>draft</span><span>opencode</span></div></div>
+              </div>
+              <div class="side-foot">⌘K search • ⌘I inspect • ⌘⇧C compact</div>
+            </aside>
+            <section class="main">
+              <header class="topbar"><div class="crumb"><span class="crumb-title">Refactor billing flow</span></div><div class="pills"><span class="pill green">running</span><span class="pill">feature/auth</span></div></header>
+              <div class="focus-rail"><div class="rail-btn active">chat</div><div class="rail-btn">ctx</div><div class="rail-btn">git</div><div class="rail-btn">raw</div></div>
+              <div class="chat-wrap"><div class="chat">
+                <div class="msg agent"><div class="avatar agent">AI</div><div class="bubble"><p>Plano pronto. Vou mexer só em store + checkout UI, sem tocar no provider adapter.</p></div></div>
+                <div class="msg user"><div class="avatar user">ME</div><div class="bubble">Simplifica o billing flow e remove estado duplicado. Mantém os testes passando.</div></div>
+                <div class="msg agent"><div class="avatar agent">AI</div><div><div class="bubble"><p>Encontrei duplicação no estado local do checkout. Vou transformar a seleção de plano em action única no store.</p></div><div class="tool-card"><div class="tool-head"><span>edit CheckoutPanel.svelte</span><span>working</span></div><div class="tool-body"><div class="code-line">selectedPlan now derives from billing store</div></div></div></div></div>
+                <div class="msg user"><div class="avatar user">ME</div><div class="bubble">Perfeito. Depois roda só os testes do billing.</div></div>
+              </div></div>
+              <div class="composer"><div class="composer-box"><div class="placeholder-text">Ask follow-up…</div><div class="composer-actions"><div class="left-actions"><button class="tiny-btn">attach</button><button class="tiny-btn">slash</button></div><div class="right-actions"><button class="tiny-btn">max effort</button><button class="send">send</button></div></div></div></div>
+            </section>
+          </div>
+        </div>
+        <div class="notes">
+          <div class="note"><b>What changes</b><p>Right panel becomes floating rail. Sidebar remains familiar but calmer. Message bubbles become more human.</p></div>
+          <div class="note"><b>Risk</b><p>Less radical than A/B; if current UI feels very polluted, this may not go far enough.</p></div>
+          <div class="note"><b>Best for</b><p>Fast implementation with lower regression risk. Strong candidate for first iteration.</p></div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

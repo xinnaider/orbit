@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Orbit merged redesign — A sidebar/topbar + B chat</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Literata:opsz,wght@7..72,500;7..72,650&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+      :root {
+        color-scheme: dark;
+        --bg: #090a0a;
+        --panel: #101111;
+        --panel-2: #141515;
+        --panel-3: #191a1a;
+        --text: #f1ece3;
+        --muted: #a19a90;
+        --faint: #67615a;
+        --line: rgba(241, 236, 227, 0.1);
+        --line-2: rgba(241, 236, 227, 0.17);
+        --green: #7bd99d;
+        --blue: #8dbbf7;
+        --amber: #d9b56c;
+        --violet: #b9a1f4;
+        --red: #e47770;
+        --sans: 'Atkinson Hyperlegible', ui-sans-serif, sans-serif;
+        --display: 'Literata', Georgia, serif;
+        --mono: 'JetBrains Mono', monospace;
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at 12% 8%, rgba(123, 217, 157, 0.12), transparent 34%),
+          radial-gradient(circle at 78% 0%, rgba(141, 187, 247, 0.11), transparent 28%),
+          linear-gradient(180deg, #0b0c0c 0%, #080909 100%);
+        color: var(--text);
+        font-family: var(--sans);
+      }
+
+      .page { padding: 36px; }
+      .hero {
+        display: grid;
+        grid-template-columns: 0.8fr 1.2fr;
+        gap: 28px;
+        align-items: end;
+        margin-bottom: 34px;
+      }
+      h1 {
+        margin: 0;
+        font-family: var(--display);
+        font-size: clamp(36px, 5.2vw, 66px);
+        line-height: 0.92;
+        letter-spacing: -0.06em;
+      }
+      .hero p { margin: 0; color: var(--muted); line-height: 1.58; max-width: 850px; }
+      .rule { height: 1px; background: var(--line); margin: 22px 0 34px; }
+
+      .option { margin-bottom: 74px; }
+      .option-head {
+        display: grid;
+        grid-template-columns: 72px 1fr 260px;
+        gap: 18px;
+        align-items: start;
+        margin-bottom: 18px;
+      }
+      .badge {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font: 600 18px var(--mono);
+        color: var(--green);
+        border: 1px solid rgba(123,217,157,.22);
+        background: rgba(123,217,157,.06);
+      }
+      h2 { margin: 0 0 8px; font: 650 32px/1 var(--display); letter-spacing: -0.04em; }
+      .summary { margin: 0; color: var(--muted); line-height: 1.55; font-size: 14px; max-width: 850px; }
+      .spec-card { border: 1px solid var(--line); border-radius: 18px; padding: 13px; background: rgba(255,255,255,.025); }
+      .spec-row { display:flex; justify-content:space-between; gap:12px; color:var(--muted); font: 11px var(--mono); padding:5px 0; border-bottom:1px solid rgba(255,255,255,.045); }
+      .spec-row:last-child { border-bottom:0; }
+
+      .frame {
+        height: 770px;
+        border: 1px solid rgba(241,236,227,.14);
+        border-radius: 30px;
+        overflow: hidden;
+        background: var(--panel);
+        box-shadow: 0 44px 90px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.04);
+      }
+      .window-top {
+        height: 42px;
+        display:flex;
+        align-items:center;
+        gap:8px;
+        padding:0 18px;
+        border-bottom:1px solid rgba(255,255,255,.075);
+        background: rgba(0,0,0,.22);
+      }
+      .traffic { width:10px; height:10px; border-radius:50%; background:#444; }
+      .traffic:nth-child(1) { background: #e47770; }
+      .traffic:nth-child(2) { background: #d9b56c; }
+      .traffic:nth-child(3) { background: #7bd99d; }
+      .window-title { margin-left: 10px; color: var(--faint); font: 12px var(--mono); }
+
+      .app { height: calc(100% - 42px); display:flex; background: #101111; }
+      .sidebar {
+        width: 282px;
+        flex: 0 0 282px;
+        border-right:1px solid var(--line);
+        background: #0c0d0d;
+        padding: 18px 14px;
+        display:flex;
+        flex-direction:column;
+        gap:16px;
+      }
+      .brand { display:flex; align-items:center; justify-content:space-between; padding:0 6px 8px; }
+      .brand-left { display:flex; align-items:center; gap:10px; font-weight:700; letter-spacing:-.02em; }
+      .orb { width:26px; height:26px; border-radius:50%; border:1px solid var(--line-2); position:relative; }
+      .orb:after { content:""; position:absolute; inset:7px; border-radius:50%; background:var(--green); box-shadow:0 0 16px rgba(123,217,157,.4); }
+      .new { border:1px solid var(--line); background:rgba(255,255,255,.035); color:var(--text); border-radius:999px; padding:6px 10px; font: 12px var(--mono); }
+      .search { height:34px; border:1px solid transparent; background:rgba(255,255,255,.045); color:var(--faint); border-radius:12px; display:flex; align-items:center; padding:0 12px; font-size:13px; }
+      .section-label { font: 600 10px var(--mono); color:var(--faint); letter-spacing:.12em; text-transform:uppercase; padding:0 8px; }
+      .session-list { display:grid; gap:6px; }
+      .session { border:1px solid transparent; border-radius:15px; padding:10px 11px; color:var(--muted); }
+      .session.active { color:var(--text); background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.075); }
+      .session-top { display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:13px; }
+      .session-sub { margin-top:4px; display:flex; gap:7px; color:var(--faint); font: 11px var(--mono); white-space:nowrap; overflow:hidden; }
+      .status-dot { width:7px; height:7px; border-radius:50%; background:var(--green); box-shadow:0 0 12px rgba(123,217,157,.4); }
+      .foot { margin-top:auto; color:var(--faint); font:11px var(--mono); padding:10px 8px 0; border-top:1px solid var(--line); }
+
+      .main { flex:1; min-width:0; display:flex; flex-direction:column; position:relative; }
+      .topbar { height:58px; display:flex; align-items:center; justify-content:space-between; padding:0 24px; border-bottom:1px solid var(--line); background:rgba(255,255,255,.006); }
+      .crumb { display:flex; align-items:center; gap:10px; min-width:0; }
+      .title { font-weight:700; letter-spacing:-.02em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .meta { color:var(--faint); font:11px var(--mono); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .pills { display:flex; gap:8px; align-items:center; }
+      .pill { border:1px solid var(--line); color:var(--muted); border-radius:999px; padding:5px 9px; font:11px var(--mono); background:rgba(255,255,255,.025); }
+      .pill.green { color:var(--green); background:rgba(123,217,157,.07); border-color:rgba(123,217,157,.16); }
+
+      .timeline-wrap { flex:1; overflow:hidden; display:flex; justify-content:center; }
+      .timeline { width:min(900px, 100%); padding: 28px 38px 22px; display:flex; flex-direction:column; gap:13px; overflow:hidden; }
+      .event { display:grid; grid-template-columns: 20px 1fr; gap:16px; position:relative; }
+      .event:not(:last-child):before { content:""; position:absolute; left:9px; top:29px; bottom:-14px; width:1px; background:rgba(255,255,255,.07); }
+      .node { width:20px; height:20px; border-radius:50%; display:grid; place-items:center; margin-top:4px; border:1px solid var(--line); background:#111; }
+      .node:after { content:""; width:7px; height:7px; border-radius:50%; background:var(--faint); }
+      .event.user .node:after { background:var(--blue); box-shadow:0 0 12px rgba(141,187,247,.4); }
+      .event.agent .node:after { background:var(--green); box-shadow:0 0 12px rgba(123,217,157,.4); }
+      .event.tool .node:after { background:var(--amber); box-shadow:0 0 12px rgba(217,181,108,.3); }
+      .event.system .node:after { background:var(--violet); }
+      .body { min-width:0; }
+      .event-head { display:flex; align-items:center; gap:9px; margin-bottom:5px; color:var(--faint); font:11px var(--mono); }
+      .who { color:var(--muted); }
+      .text { color:#ebe5db; font-size:14px; line-height:1.62; }
+      .text p { margin:0 0 9px; }
+      .text p:last-child { margin-bottom:0; }
+      .user .text { max-width: 680px; background:rgba(255,255,255,.045); border:1px solid var(--line); border-radius:18px; padding:12px 14px; }
+      .tool-card { border:1px solid rgba(217,181,108,.16); background:rgba(217,181,108,.055); border-radius:16px; overflow:hidden; max-width: 720px; }
+      .tool-head { display:flex; justify-content:space-between; align-items:center; color:var(--amber); font:12px var(--mono); padding:10px 12px; border-bottom:1px solid rgba(217,181,108,.1); }
+      .tool-body { background:rgba(0,0,0,.12); padding:12px; color:#c8c0b6; font:12px/1.55 var(--mono); }
+      .code-line { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .thinking { display:inline-flex; align-items:center; gap:8px; color:var(--violet); background:rgba(185,161,244,.07); border:1px solid rgba(185,161,244,.13); border-radius:999px; padding:7px 10px; font:11px var(--mono); }
+
+      .composer { padding: 14px 30px 24px; display:flex; justify-content:center; }
+      .composer-box { width:min(840px, 100%); min-height:78px; border:1px solid var(--line-2); background:rgba(255,255,255,.055); border-radius:22px; display:flex; flex-direction:column; padding:12px; box-shadow:0 24px 70px rgba(0,0,0,.24); }
+      .placeholder { color:var(--faint); font-size:14px; padding:4px 6px 14px; }
+      .composer-actions { display:flex; justify-content:space-between; align-items:center; }
+      .btns { display:flex; gap:8px; align-items:center; }
+      .tiny { border:1px solid var(--line); color:var(--muted); background:rgba(255,255,255,.03); border-radius:999px; padding:6px 9px; font:11px var(--mono); }
+      .send { border:0; background:var(--green); color:#06100a; font-weight:700; border-radius:999px; padding:7px 13px; }
+
+      .inspector-pop {
+        position:absolute;
+        top:72px;
+        right:24px;
+        display:flex;
+        gap:8px;
+        align-items:center;
+        color:var(--faint);
+        font:11px var(--mono);
+        border:1px solid var(--line);
+        background:rgba(255,255,255,.025);
+        border-radius:999px;
+        padding:6px 10px;
+      }
+      .rail { position:absolute; top:78px; right:22px; width:48px; display:grid; gap:10px; }
+      .rail-btn { width:42px; height:42px; border-radius:15px; border:1px solid var(--line); background:rgba(255,255,255,.035); color:var(--muted); display:grid; place-items:center; font:11px var(--mono); }
+      .rail-btn.active { color:var(--green); background:rgba(123,217,157,.08); border-color:rgba(123,217,157,.16); }
+      .peek {
+        width: 240px;
+        border-left: 1px solid var(--line);
+        background: rgba(255,255,255,.02);
+        padding: 16px;
+        display:grid;
+        align-content:start;
+        gap:12px;
+      }
+      .peek-card { border:1px solid var(--line); background:rgba(255,255,255,.025); border-radius:17px; padding:13px; }
+      .peek-card h4 { margin:0 0 9px; color:var(--muted); font:700 11px var(--mono); text-transform:uppercase; letter-spacing:.1em; }
+      .peek-row { display:flex; justify-content:space-between; color:var(--muted); font:11px var(--mono); padding:5px 0; border-bottom:1px solid rgba(255,255,255,.045); }
+      .peek-row:last-child { border-bottom:0; }
+      .mini-bar { height:7px; background:rgba(255,255,255,.07); border-radius:999px; overflow:hidden; margin:8px 0; }
+      .mini-bar span { display:block; height:100%; background:var(--green); border-radius:inherit; }
+
+      .v2 .timeline { width:min(960px,100%); padding-right:82px; }
+      .v2 .user .text { background:transparent; border:0; padding:0; max-width:none; }
+      .v2 .composer-box { border-radius:16px; min-height:68px; }
+
+      .v3 .timeline { width:min(850px,100%); }
+      .v3 .app { background: radial-gradient(circle at 50% -14%, rgba(123,217,157,.08), transparent 42%), #101111; }
+      .v3 .tool-card { max-width: 650px; }
+
+      .notes { display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; margin-top:16px; }
+      .note { border:1px solid var(--line); border-radius:18px; padding:14px; background:rgba(255,255,255,.025); }
+      .note b { color:var(--text); font-size:13px; }
+      .note p { margin:6px 0 0; color:var(--muted); font-size:13px; line-height:1.5; }
+
+      @media (max-width: 1100px) {
+        .hero, .option-head, .notes { grid-template-columns: 1fr; }
+        .frame { height: 720px; }
+        .peek { display:none; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <h1>A + B merge.</h1>
+        <p>
+          Mantém o que você gostou: sidebar/topbar calmos do Quiet Console (A) e chat em timeline do Command Journal (B).
+          Aqui tem 3 variações da mesma direção, com diferenças só no tratamento do inspector, densidade e tool calls.
+        </p>
+      </section>
+      <div class="rule"></div>
+
+      <section class="option">
+        <div class="option-head">
+          <div class="badge">1</div>
+          <div>
+            <h2>Quiet Journal — recomendado</h2>
+            <p class="summary">
+              Sidebar/topbar exatamente no espírito do A. Chat do B em timeline, mas com respiro maior e inspector escondido.
+              É o melhor equilíbrio: limpa a tela, mantém contexto suficiente e deixa tool calls legíveis sem dominar a conversa.
+            </p>
+          </div>
+          <div class="spec-card">
+            <div class="spec-row"><span>Default density</span><span>comfortable</span></div>
+            <div class="spec-row"><span>Inspector</span><span>hidden / ⌘I</span></div>
+            <div class="spec-row"><span>Tool calls</span><span>cards inline</span></div>
+          </div>
+        </div>
+        <div class="frame">
+          <div class="window-top"><span class="traffic"></span><span class="traffic"></span><span class="traffic"></span><span class="window-title">Orbit — Quiet Journal</span></div>
+          <div class="app">
+            <aside class="sidebar">
+              <div class="brand"><div class="brand-left"><span class="orb"></span>orbit</div><button class="new">new</button></div>
+              <div class="search">Search sessions…</div>
+              <div class="section-label">Today</div>
+              <div class="session-list">
+                <div class="session active"><div class="session-top"><span>Refactor billing flow</span><span class="status-dot"></span></div><div class="session-sub"><span>sonnet</span><span>feature/auth</span><span>41% ctx</span></div></div>
+                <div class="session"><div class="session-top"><span>Playwright flakes</span><span>•</span></div><div class="session-sub"><span>codex</span><span>e2e</span><span>done</span></div></div>
+                <div class="session"><div class="session-top"><span>Landing copy pass</span><span>•</span></div><div class="session-sub"><span>opencode</span><span>draft</span></div></div>
+                <div class="session"><div class="session-top"><span>Rust event store</span><span>•</span></div><div class="session-sub"><span>opus</span><span>waiting approval</span></div></div>
+              </div>
+              <div class="section-label">Pinned</div>
+              <div class="session-list"><div class="session"><div class="session-top"><span>Orbit redesign</span><span>•</span></div><div class="session-sub"><span>design</span><span>active</span></div></div></div>
+              <div class="foot">4 active • 2 waiting • compact off</div>
+            </aside>
+            <section class="main">
+              <header class="topbar"><div class="crumb"><span class="title">Refactor billing flow</span><span class="meta">C:\orbit • feature/auth</span></div><div class="pills"><span class="pill green">running</span><span class="pill">sonnet 4.6</span><span class="pill">41% ctx</span></div></header>
+              <div class="inspector-pop">inspector hidden • ⌘I</div>
+              <div class="timeline-wrap"><div class="timeline">
+                <div class="event user"><div class="node"></div><div class="body"><div class="event-head"><span class="who">you</span><span>10:24</span></div><div class="text">Simplifica o billing flow e remove estado duplicado. Mantém os testes passando.</div></div></div>
+                <div class="event agent"><div class="node"></div><div class="body"><div class="event-head"><span class="who">orbit / claude</span><span>10:24</span></div><div class="text"><p>Vou separar em três passos: mapear estado duplicado, mover regra para store única, e ajustar testes de checkout.</p><span class="thinking">thinking · scanning checkout stores</span></div></div></div>
+                <div class="event tool"><div class="node"></div><div class="body"><div class="event-head"><span class="who">tool</span><span>read</span></div><div class="tool-card"><div class="tool-head"><span>read ui/lib/stores/billing.ts</span><span>done</span></div><div class="tool-body"><div class="code-line">found duplicated derived state: selectedPlanId, draftPlanId</div><div class="code-line">consumer files: CheckoutPanel.svelte, PlanPicker.svelte</div></div></div></div></div>
+                <div class="event agent"><div class="node"></div><div class="body"><div class="event-head"><span class="who">orbit / claude</span><span>10:26</span></div><div class="text"><p>Problema confirmado: <b>CheckoutPanel</b> mantém cópia local do plano selecionado. Vou trocar por derivação única do store e preservar seleção otimista.</p></div></div></div>
+                <div class="event user"><div class="node"></div><div class="body"><div class="event-head"><span class="who">you</span><span>10:27</span></div><div class="text">Pode seguir, mas não mexe no provider adapter.</div></div></div>
+                <div class="event tool"><div class="node"></div><div class="body"><div class="event-head"><span class="who">tool</span><span>edit</span></div><div class="tool-card"><div class="tool-head"><span>edit CheckoutPanel.svelte</span><span>working</span></div><div class="tool-body"><div class="code-line">- let selectedPlanId = plan.id</div><div class="code-line">+ $: selectedPlan = billing.selectedPlan($billing)</div><div class="code-line">+ const choosePlan = billing.actions.choosePlan</div></div></div></div></div>
+              </div></div>
+              <div class="composer"><div class="composer-box"><div class="placeholder">Message Orbit…</div><div class="composer-actions"><div class="btns"><button class="tiny">@ file</button><button class="tiny">/ command</button><button class="tiny">model</button></div><div class="btns"><button class="tiny">compact</button><button class="send">send</button></div></div></div></div>
+            </section>
+          </div>
+        </div>
+        <div class="notes"><div class="note"><b>Use as base</b><p>Menor poluição. Continua parecido com Orbit, mas leitura vira protagonista.</p></div><div class="note"><b>Interaction</b><p>⌘I abre inspector drawer; compact toggle reduz gaps e esconde event-head repetido.</p></div><div class="note"><b>Implementation</b><p>Menos ruptura: Sidebar/Header atuais simplificados; Feed vira timeline.</p></div></div>
+      </section>
+
+      <section class="option">
+        <div class="option-head">
+          <div class="badge">2</div>
+          <div>
+            <h2>Quiet Journal + Rail</h2>
+            <p class="summary">
+              Igual ao 1, mas adiciona rail flutuante no lado direito para chat/context/git/raw. Bom se você quer esconder MetaPanel,
+              mas deixar as superfícies técnicas sempre descobríveis sem ocupar uma coluna inteira.
+            </p>
+          </div>
+          <div class="spec-card"><div class="spec-row"><span>Default density</span><span>comfortable</span></div><div class="spec-row"><span>Inspector</span><span>floating rail</span></div><div class="spec-row"><span>Tool calls</span><span>compact inline</span></div></div>
+        </div>
+        <div class="frame v2">
+          <div class="window-top"><span class="traffic"></span><span class="traffic"></span><span class="traffic"></span><span class="window-title">Orbit — Quiet Journal + Rail</span></div>
+          <div class="app">
+            <aside class="sidebar"><div class="brand"><div class="brand-left"><span class="orb"></span>orbit</div><button class="new">new</button></div><div class="search">Search sessions…</div><div class="section-label">Today</div><div class="session-list"><div class="session active"><div class="session-top"><span>Refactor billing flow</span><span class="status-dot"></span></div><div class="session-sub"><span>sonnet</span><span>feature/auth</span><span>41% ctx</span></div></div><div class="session"><div class="session-top"><span>Playwright flakes</span><span>•</span></div><div class="session-sub"><span>codex</span><span>e2e</span><span>done</span></div></div><div class="session"><div class="session-top"><span>Rust event store</span><span>•</span></div><div class="session-sub"><span>opus</span><span>waiting</span></div></div></div><div class="foot">⌘K search • ⌘I inspect</div></aside>
+            <section class="main"><header class="topbar"><div class="crumb"><span class="title">Refactor billing flow</span><span class="meta">C:\orbit • feature/auth</span></div><div class="pills"><span class="pill green">running</span><span class="pill">2 tools</span><span class="pill">$0.084</span></div></header><div class="rail"><div class="rail-btn active">chat</div><div class="rail-btn">ctx</div><div class="rail-btn">git</div><div class="rail-btn">raw</div></div><div class="timeline-wrap"><div class="timeline"><div class="event user"><div class="node"></div><div class="body"><div class="event-head"><span class="who">you</span><span>10:24</span></div><div class="text">Simplifica o billing flow e remove estado duplicado. Mantém os testes passando.</div></div></div><div class="event agent"><div class="node"></div><div class="body"><div class="event-head"><span class="who">orbit / claude</span><span>10:24</span></div><div class="text"><p>Plano: mapear duplicação, centralizar seleção no store, atualizar testes. Vou evitar o provider adapter.</p></div></div></div><div class="event tool"><div class="node"></div><div class="body"><div class="event-head"><span class="who">tool</span><span>read</span></div><div class="tool-card"><div class="tool-head"><span>read → billing.ts</span><span>done</span></div><div class="tool-body"><div class="code-line">selectedPlanId appears in store + two Svelte components</div></div></div></div></div><div class="event agent"><div class="node"></div><div class="body"><div class="event-head"><span class="who">orbit / claude</span><span>10:26</span></div><div class="text"><p>A mudança segura: expor <b>billing.selectedPlan</b> como derivado e transformar escolha em action única.</p></div></div></div><div class="event tool"><div class="node"></div><div class="body"><div class="event-head"><span class="who">tool</span><span>edit</span></div><div class="tool-card"><div class="tool-head"><span>edit → CheckoutPanel.svelte</span><span>applying</span></div><div class="tool-body"><div class="code-line">remove local selectedPlanId</div><div class="code-line">wire choosePlan to billing.actions.choosePlan</div></div></div></div></div></div></div><div class="composer"><div class="composer-box"><div class="placeholder">Reply, add constraint, or delegate…</div><div class="composer-actions"><div class="btns"><button class="tiny">@</button><button class="tiny">/</button><button class="tiny">delegate</button></div><div class="btns"><button class="tiny">journal</button><button class="send">send</button></div></div></div></div></section>
+          </div>
+        </div>
+        <div class="notes"><div class="note"><b>Advantage</b><p>Mais descobrível que opção 1. Context/git/raw sempre a um clique.</p></div><div class="note"><b>Risk</b><p>Rail pode virar “mais uma coisa” se os estados ativos não forem extremamente sutis.</p></div><div class="note"><b>Best if</b><p>Você quer remover MetaPanel, mas não esconder demais ferramentas técnicas.</p></div></div>
+      </section>
+
+      <section class="option">
+        <div class="option-head">
+          <div class="badge">3</div>
+          <div>
+            <h2>Quiet Journal + Peek Inspector</h2>
+            <p class="summary">
+              Versão mais “dashboard”: sidebar/topbar do A, timeline do B, e um inspector mínimo sempre aberto. Não é tão limpo,
+              mas mantém tokens/context/recent tools visíveis sem voltar ao MetaPanel poluído atual.
+            </p>
+          </div>
+          <div class="spec-card"><div class="spec-row"><span>Default density</span><span>balanced</span></div><div class="spec-row"><span>Inspector</span><span>peek column</span></div><div class="spec-row"><span>Tool calls</span><span>narrow cards</span></div></div>
+        </div>
+        <div class="frame v3">
+          <div class="window-top"><span class="traffic"></span><span class="traffic"></span><span class="traffic"></span><span class="window-title">Orbit — Quiet Journal + Peek Inspector</span></div>
+          <div class="app">
+            <aside class="sidebar"><div class="brand"><div class="brand-left"><span class="orb"></span>orbit</div><button class="new">new</button></div><div class="search">Search sessions…</div><div class="section-label">Today</div><div class="session-list"><div class="session active"><div class="session-top"><span>Refactor billing flow</span><span class="status-dot"></span></div><div class="session-sub"><span>sonnet</span><span>feature/auth</span><span>41% ctx</span></div></div><div class="session"><div class="session-top"><span>Playwright flakes</span><span>•</span></div><div class="session-sub"><span>done</span><span>e2e</span></div></div><div class="session"><div class="session-top"><span>Landing copy pass</span><span>•</span></div><div class="session-sub"><span>draft</span><span>opencode</span></div></div></div><div class="foot">compact off • 4 active</div></aside>
+            <section class="main"><header class="topbar"><div class="crumb"><span class="title">Refactor billing flow</span><span class="meta">C:\orbit • feature/auth</span></div><div class="pills"><span class="pill green">running</span><span class="pill">sonnet</span></div></header><div class="timeline-wrap"><div class="timeline"><div class="event user"><div class="node"></div><div class="body"><div class="event-head"><span class="who">you</span><span>10:24</span></div><div class="text">Simplifica o billing flow e remove estado duplicado. Mantém os testes passando.</div></div></div><div class="event agent"><div class="node"></div><div class="body"><div class="event-head"><span class="who">orbit / claude</span><span>10:24</span></div><div class="text"><p>Vou mapear duplicação, centralizar seleção no store, e ajustar testes.</p><span class="thinking">thinking · checkout stores</span></div></div></div><div class="event tool"><div class="node"></div><div class="body"><div class="event-head"><span class="who">tool</span><span>read</span></div><div class="tool-card"><div class="tool-head"><span>read billing.ts</span><span>done</span></div><div class="tool-body"><div class="code-line">duplicated: selectedPlanId, draftPlanId</div></div></div></div></div><div class="event agent"><div class="node"></div><div class="body"><div class="event-head"><span class="who">orbit / claude</span><span>10:26</span></div><div class="text"><p>Trocarei estado local por derivação única do store e preservarei seleção otimista.</p></div></div></div><div class="event tool"><div class="node"></div><div class="body"><div class="event-head"><span class="who">tool</span><span>edit</span></div><div class="tool-card"><div class="tool-head"><span>edit CheckoutPanel</span><span>working</span></div><div class="tool-body"><div class="code-line">+ billing.actions.choosePlan</div></div></div></div></div></div></div><div class="composer"><div class="composer-box"><div class="placeholder">Message Orbit…</div><div class="composer-actions"><div class="btns"><button class="tiny">@ file</button><button class="tiny">/ command</button></div><div class="btns"><button class="send">send</button></div></div></div></div></section>
+            <aside class="peek"><div class="peek-card"><h4>Session</h4><div class="peek-row"><span>model</span><span>sonnet</span></div><div class="peek-row"><span>branch</span><span>feature/auth</span></div><div class="peek-row"><span>status</span><span style="color:var(--green)">running</span></div></div><div class="peek-card"><h4>Context</h4><div class="mini-bar"><span style="width:41%"></span></div><div class="peek-row"><span>used</span><span>82k</span></div><div class="peek-row"><span>max</span><span>200k</span></div></div><div class="peek-card"><h4>Recent tools</h4><div class="peek-row"><span>read</span><span>✓</span></div><div class="peek-row"><span>edit</span><span>…</span></div></div></aside>
+          </div>
+        </div>
+        <div class="notes"><div class="note"><b>Advantage</b><p>Preserva informação operacional sem abrir drawer.</p></div><div class="note"><b>Risk</b><p>Menos minimalista; pode recriar sensação de painel cheio em telas menores.</p></div><div class="note"><b>Best if</b><p>Você precisa ver tokens/context/tools o tempo todo.</p></div></div>
+      </section>
+    </main>
+  </body>
+</html>
