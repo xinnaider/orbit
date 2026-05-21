@@ -105,8 +105,8 @@ describe('Feed', () => {
       props: { entries: [], status: '', provider: 'claude-code', cwd: null },
     });
 
-    const rows = container.querySelectorAll('.row');
-    expect(rows.length).toBe(0);
+    const events = container.querySelectorAll('.timeline-event');
+    expect(events.length).toBe(0);
   });
 
   it('renders user entry', () => {
@@ -161,5 +161,42 @@ describe('Feed', () => {
     expect(toolCard).toBeTruthy();
     expect(toolCard!.textContent).toContain('bash');
     expect(toolCard!.textContent).toContain('echo hi');
+  });
+
+  // ═══════════════════════════════════════
+  //  Timeline & Compact
+  // ═══════════════════════════════════════
+
+  it('renders entries as Quiet Journal timeline events', () => {
+    const entries = [
+      makeEntry({ entryType: 'user', text: 'user prompt' }),
+      makeEntry({ entryType: 'assistant', text: 'assistant response' }),
+      makeEntry({ entryType: 'system', text: 'rate limit warning' }),
+    ];
+    const { container } = render(Feed, {
+      props: { entries, status: '', provider: 'claude-code', cwd: null },
+    });
+
+    expect(container.querySelector('.timeline')).toBeTruthy();
+    expect(container.querySelectorAll('.timeline-event').length).toBe(3);
+    expect(container.querySelector('.timeline-event.user')).toBeTruthy();
+    expect(container.querySelector('.timeline-event.assistant')).toBeTruthy();
+    expect(container.querySelector('.timeline-event.system')).toBeTruthy();
+  });
+
+  it('supports compact timeline density', () => {
+    const entries = [makeEntry({ entryType: 'user', text: 'compact prompt' })];
+    const { container } = render(Feed, {
+      props: { entries, status: '', provider: 'claude-code', cwd: null, compact: true },
+    });
+    expect(container.querySelector('.feed-scroller.compact')).toBeTruthy();
+  });
+
+  it('keeps working indicator inside timeline', () => {
+    const { container, getByText } = render(Feed, {
+      props: { entries: [], status: 'working', provider: 'claude-code', cwd: null },
+    });
+    expect(container.querySelector('.timeline-event.working')).toBeTruthy();
+    expect(getByText('working')).toBeTruthy();
   });
 });

@@ -10,6 +10,7 @@
   export let status: string = '';
   export let provider: string = 'claude-code';
   export let cwd: string | null = null;
+  export let compact = false;
 
   $: agentLabel = (() => {
     const direct = $backends.find((b) => b.id === provider);
@@ -62,6 +63,21 @@
 
   function ts(entry: JournalEntry) {
     return entry.timestamp?.slice(11, 16) ?? '';
+  }
+
+  function eventClass(entry: JournalEntry): string {
+    if (entry.entryType === 'toolCall') return 'tool';
+    if (entry.entryType === 'toolResult' || entry.entryType === 'progress') return 'tool-detail';
+    if (entry.entryType === 'assistant') return 'assistant';
+    if (entry.entryType === 'user') return 'user';
+    return 'system';
+  }
+
+  function actorLabel(entry: JournalEntry): string {
+    if (entry.entryType === 'user') return 'you';
+    if (entry.entryType === 'assistant') return `orbit / ${agentLabel}`;
+    if (entry.entryType === 'toolCall') return 'tool';
+    return entry.entryType;
   }
 
   let expandedThinking = new Set<number>();
@@ -215,111 +231,92 @@
   }
 </script>
 
-<div class="feed-scroller" bind:this={scrollerEl} onscroll={onScroll}>
-  {#if hasMore}
-    <div class="load-more">
-      <button onclick={loadMore}>↑ load earlier messages</button>
-    </div>
-  {/if}
-
-  {#each visibleItems as { entry: e, result: r, streaming: s }, i}
-    {@const absIdx = visibleFrom + i}
-    {#if e.entryType === 'user'}
-      <div class="row user">
-        <div class="row-meta">
-          <span class="row-who user-who"><MessageSquare size={10} /> YOU</span>
-          <span class="row-ts">{ts(e)}</span>
-        </div>
-        <div class="row-body">
-          <Markdown content={e.text ?? ''} />
-        </div>
-      </div>
-    {:else if e.entryType === 'thinking'}
-      {@const expanded = expandedThinking.has(absIdx)}
-      <div class="row thinking" class:expanded>
-        <div class="row-meta think-meta">
-          <span
-            class="think-dots-label"
-            onclick={() => toggleThinking(absIdx)}
-            role="button"
-            tabindex="0"
-            onkeydown={(e) => e.key === 'Enter' && toggleThinking(absIdx)}
-          >
-            <span class="think-dots">
-              <span></span><span></span><span></span>
-            </span>
-            <span class="think-preview-text">
-              {#if expanded}
-                {(e.thinking ?? '').split('\n')[0].slice(0, 60)}
-              {:else}
-                {(e.thinking ?? '').split('\n')[0].slice(0, 80)}…
-              {/if}
-            </span>
-          </span>
-          {#if e.thinkingDuration}
-            <span class="row-ts">{e.thinkingDuration.toFixed(1)}s</span>
-          {/if}
-          <button class="expand-btn" onclick={() => toggleThinking(absIdx)}>
-            {expanded ? '▼' : '▶'}
-          </button>
-        </div>
-        {#if expanded}
-          <div class="row-body think-body">{e.thinking}</div>
-        {/if}
-      </div>
-    {:else if e.entryType === 'assistant'}
-      <div class="row assistant">
-        <div class="row-meta">
-          <span class="row-who ai-who"><Sparkles size={10} /> {agentLabel}</span>
-          <span class="row-ts">{ts(e)}</span>
-        </div>
-        <div class="row-body">
-          <Markdown content={e.text ?? ''} />
-        </div>
-      </div>
-    {:else if e.entryType === 'toolCall'}
-      <div class="row tool">
-        <div class="row-meta tool-meta">
-          <span class="row-who tool-who"><Sparkles size={10} /> {agentLabel}</span>
-          <span class="row-ts">{ts(e)}</span>
-        </div>
-        <ToolCallEntry entry={e} resultEntry={r} streamingEntries={s} {cwd} />
-      </div>
-    {:else if e.entryType === 'system'}
-      <div class="row system">
-        <span class="system-text">{e.text}</span>
-      </div>
+<div class="feed-scroller" class:compact bind:this={scrollerEl} onscroll={onScroll}>
+  <div class="timeline">
+    {#if hasMore}
+      <button type="button" class="load-more" onclick={loadMore}>load earlier</button>
     {/if}
-  {/each}
 
-  {#if isWorking}
-    <div class="typing-row">
-      <span class="typing-dots">
-        <span></span><span></span><span></span>
-      </span>
-      <span class="typing-label">working</span>
-    </div>
-  {/if}
+    {#each visibleItems as item, i (visibleFrom + i)}
+      {@const entry = item.entry}
+      {@const absIdx = visibleFrom + i}
+      <article class="timeline-event {eventClass(entry)}" aria-label="{actorLabel(entry)} {ts(entry)}">
+        <div class="timeline-node" aria-hidden="true"></div>
+        <div class="timeline-body">
+          <div class="event-meta">
+            <span class="event-actor">{actorLabel(entry)}</span>
+            {#if ts(entry)}<span>{ts(entry)}</span>{/if}
+          </div>
+
+          {#if entry.entryType === 'toolCall'}
+            <ToolCallEntry entry={entry} resultEntry={item.result} streamingEntries={item.streaming} {cwd} {compact} />
+          {:else if entry.entryType === 'thinking'}
+            {@const expanded = expandedThinking.has(absIdx)}
+            <div class="thinking-inline" class:expanded>
+              <span
+                class="think-dots-label"
+                onclick={() => toggleThinking(absIdx)}
+                role="button"
+                tabindex="0"
+                onkeydown={(e) => e.key === 'Enter' && toggleThinking(absIdx)}
+              >
+                <span class="think-dots">
+                  <span></span><span></span><span></span>
+                </span>
+                <span class="think-preview-text">
+                  {#if expanded}
+                    {(entry.thinking ?? '').split('\n')[0].slice(0, 60)}
+                  {:else}
+                    {(entry.thinking ?? '').split('\n')[0].slice(0, 80)}…
+                  {/if}
+                </span>
+              </span>
+              {#if entry.thinkingDuration}
+                <span class="event-ts">{entry.thinkingDuration.toFixed(1)}s</span>
+              {/if}
+              <button class="expand-btn" onclick={() => toggleThinking(absIdx)}>
+                {expanded ? '▼' : '▶'}
+              </button>
+            </div>
+            {#if expanded}
+              <div class="event-text think-body">{entry.thinking}</div>
+            {/if}
+          {:else if entry.entryType === 'assistant'}
+            <div class="event-text assistant-text">
+              <Markdown content={entry.text ?? ''} />
+            </div>
+          {:else if entry.entryType === 'user'}
+            <div class="event-text user-text">{entry.text}</div>
+          {:else}
+            <div class="event-text system-text">{entry.text}</div>
+          {/if}
+        </div>
+      </article>
+    {/each}
+
+    {#if isWorking}
+      <article class="timeline-event working" aria-label="agent working">
+        <div class="timeline-node"></div>
+        <div class="timeline-body">
+          <div class="event-meta"><span class="event-actor">orbit / {agentLabel}</span></div>
+          <div class="working-pill"><Sparkles size={12} /> working</div>
+        </div>
+      </article>
+    {/if}
+  </div>
 </div>
 
 <style>
   .feed-scroller {
-    height: 100%;
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
     overflow-x: hidden;
-    display: flex;
-    flex-direction: column;
-    box-sizing: border-box;
   }
 
   .load-more {
-    display: flex;
-    justify-content: center;
-    padding: var(--sp-4) 0 var(--sp-2);
-    flex-shrink: 0;
-  }
-
-  .load-more button {
+    display: block;
+    margin: 0 auto 4px;
     background: none;
     border: 1px solid var(--bd1);
     border-radius: var(--radius-sm);
@@ -328,93 +325,122 @@
     padding: var(--sp-2) var(--sp-5);
     cursor: pointer;
   }
-
-  .load-more button:hover {
+  .load-more:hover {
     border-color: var(--ac);
     color: var(--ac);
   }
 
-  .row {
-    padding: var(--sp-6) var(--sp-7);
-    border-bottom: 1px solid var(--bd);
-    flex-shrink: 0;
-  }
-  .row:last-child {
-    border-bottom: none;
-  }
-  .row:hover {
-    background: rgba(255, 255, 255, 0.015);
+  .timeline {
+    width: min(900px, 100%);
+    margin: 0 auto;
+    padding: 28px 38px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 13px;
   }
 
-  .row-meta {
+  .timeline-event {
+    display: grid;
+    grid-template-columns: 20px 1fr;
+    gap: 16px;
+    position: relative;
+  }
+  .timeline-event:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    left: 9px;
+    top: 29px;
+    bottom: -14px;
+    width: 1px;
+    background: rgba(255, 255, 255, 0.07);
+  }
+
+  .timeline-node {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    margin-top: 4px;
+    border: 1px solid var(--bd);
+    background: var(--bg);
+  }
+  .timeline-node::after {
+    content: '';
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--t3);
+  }
+  .timeline-event.user .timeline-node::after {
+    background: var(--user-fg);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--user-fg), transparent 60%);
+  }
+  .timeline-event.assistant .timeline-node::after,
+  .timeline-event.working .timeline-node::after {
+    background: var(--ac);
+    box-shadow: 0 0 12px var(--ac-border);
+  }
+  .timeline-event.tool .timeline-node::after {
+    background: var(--tool-fg);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--tool-fg), transparent 70%);
+  }
+
+  .event-meta {
     display: flex;
     align-items: center;
-    gap: var(--sp-4);
-    margin-bottom: var(--sp-2);
-  }
-  .row-who {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-weight: 500;
-    text-transform: uppercase;
-    color: var(--t2);
-    letter-spacing: 0.04em;
-    font-size: 10.5px;
+    gap: 9px;
+    margin-bottom: 5px;
+    color: var(--t3);
     font-family: var(--mono);
+    font-size: 11px;
   }
-  .user-who {
-    color: var(--user-fg);
-  }
-  .tool-who {
-    color: var(--t2);
-    opacity: 0.65;
-  }
-  .tool-meta {
-    margin-bottom: var(--sp-1);
-  }
-  .ai-who {
+  .event-actor {
     color: var(--t1);
   }
-  .user-who {
-    color: var(--user-fg);
-  }
-  .tool-who {
-    color: var(--t2);
-    opacity: 0.55;
-  }
-  .tool-meta {
-    margin-bottom: var(--sp-1);
-  }
-  .row-ts {
+  .event-ts {
     font-size: var(--xs);
     color: var(--t3);
   }
 
-  .expand-btn {
-    background: none;
-    border: none;
-    color: var(--t2);
-    font-size: 10px;
-    cursor: pointer;
-    font-family: var(--mono);
-    padding: 0;
-    line-height: 1;
-    letter-spacing: 0.05em;
+  .event-text {
+    color: var(--t0);
+    font-size: 14px;
+    line-height: 1.62;
   }
-  .expand-btn:hover {
+  .user-text {
+    max-width: 680px;
+    width: fit-content;
+    border: 1px solid var(--bd);
+    border-radius: 18px;
+    padding: 12px 14px;
+    background: rgba(255, 255, 255, 0.045);
+  }
+  .system-text {
     color: var(--t1);
+    font-family: var(--mono);
+    font-size: 12px;
   }
 
-  /* ── Thinking block ── */
-  .row.thinking {
+  .working-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--think-fg);
     background: var(--think-bg);
-    padding: var(--sp-3) var(--sp-6);
+    border: 1px solid color-mix(in srgb, var(--think-fg), transparent 82%);
+    border-radius: 999px;
+    padding: 7px 10px;
+    font-family: var(--mono);
+    font-size: 11px;
   }
-  .think-meta {
-    gap: 6px;
+
+  /* ── Thinking inline ── */
+  .thinking-inline {
     display: flex;
     align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
   }
   .think-dots-label {
     display: inline-flex;
@@ -465,33 +491,11 @@
     text-overflow: ellipsis;
     font-family: var(--mono);
   }
-  .row.thinking.expanded .think-preview-text {
+  .thinking-inline.expanded .think-preview-text {
     opacity: 1;
     font-family: var(--mono);
     color: var(--think-fg);
   }
-  .think-body {
-    font-size: var(--md);
-    color: var(--think-fg);
-    white-space: pre-wrap;
-    line-height: 1.55;
-    padding-top: var(--sp-3);
-  }
-  .expand-btn:hover {
-    color: var(--t0);
-  }
-
-  .row-body {
-    font-size: var(--base);
-    line-height: var(--lh);
-    color: var(--t0);
-    padding-left: 0;
-  }
-
-  .user .row-body {
-    color: var(--t0);
-  }
-
   .think-body {
     color: var(--think-fg);
     white-space: pre-wrap;
@@ -503,70 +507,62 @@
     border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
     max-height: 280px;
     overflow-y: auto;
+    margin-top: 5px;
   }
 
-  .system {
-    padding: var(--sp-2) var(--sp-7);
-  }
-  .system-text {
-    font-size: var(--xs);
-    color: var(--t3);
-    font-style: italic;
-  }
-
-  .typing-row {
-    display: flex;
-    align-items: center;
-    gap: var(--sp-4);
-    padding: var(--sp-5) var(--sp-7);
-    flex-shrink: 0;
-  }
-  .typing-dots {
-    display: flex;
-    gap: var(--sp-2);
-    align-items: center;
-  }
-  .typing-dots span {
-    width: 4px;
-    height: 4px;
-    border-radius: 50%;
-    background: var(--ac);
-    display: block;
-    animation: td 1.2s ease-in-out infinite;
-    opacity: 0.4;
-  }
-  .typing-dots span:nth-child(2) {
-    animation-delay: 0.2s;
-  }
-  .typing-dots span:nth-child(3) {
-    animation-delay: 0.4s;
-  }
-  @keyframes td {
-    0%,
-    100% {
-      opacity: 0.4;
-      transform: none;
-    }
-    40% {
-      opacity: 1;
-      transform: translateY(-3px);
-    }
-  }
-  .typing-label {
-    font-size: var(--xs);
+  .expand-btn {
+    background: none;
+    border: none;
     color: var(--t2);
-    letter-spacing: 0.06em;
+    font-size: 10px;
+    cursor: pointer;
+    font-family: var(--mono);
+    padding: 0;
+    line-height: 1;
+    letter-spacing: 0.05em;
+  }
+  .expand-btn:hover {
+    color: var(--t1);
+  }
+
+  /* ── Compact density ── */
+  .feed-scroller.compact .timeline {
+    width: 100%;
+    padding: 18px 22px;
+    gap: 9px;
+  }
+  .feed-scroller.compact .timeline-event {
+    grid-template-columns: 16px 1fr;
+    gap: 11px;
+  }
+  .feed-scroller.compact .timeline-node {
+    width: 16px;
+    height: 16px;
+  }
+  .feed-scroller.compact .timeline-node::after {
+    width: 6px;
+    height: 6px;
+  }
+  .feed-scroller.compact .timeline-event:not(:last-child)::before {
+    left: 7px;
+    top: 24px;
+    bottom: -10px;
+  }
+  .feed-scroller.compact .event-text {
+    font-size: 12px;
+    line-height: 1.52;
+  }
+  .feed-scroller.compact .user-text {
+    border: 0;
+    background: transparent;
+    padding: 0;
+    max-width: none;
   }
 
   @media (max-width: 768px) {
-    .row {
-      padding: var(--sp-5) var(--sp-6);
-    }
-    .system {
-      padding: var(--sp-2) var(--sp-5);
-    }
-    .typing-row {
-      padding: var(--sp-4) var(--sp-5);
+    .timeline {
+      padding: 20px 18px 16px;
+      gap: 10px;
     }
     .think-body {
       max-height: 180px;

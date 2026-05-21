@@ -4,6 +4,9 @@
 
 ## May 2026
 
+### 05/21 · New — Chat feed rendered as Quiet Journal timeline
+The session feed now uses a timeline layout with vertical connecting lines, dot indicators, and compact density mode. Each entry shows an actor label and timestamp. User messages have a bubble-style appearance. The timeline improves visual hierarchy and saves vertical space in compact mode.
+
 ### 05/21 · New — Quiet pane header chrome
 Panel headers now use a taller layout (44px) with rounded pill badges for metadata
 and action buttons. When a panel is focused, a subtle accent-colored glow appears
