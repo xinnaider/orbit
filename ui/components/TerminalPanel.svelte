@@ -218,7 +218,9 @@
   >
     <span slot="leading" class="dot terminal-dot"></span>
     <div slot="meta"><span class="quiet-pill">pwsh</span></div>
-    <div slot="actions"><button class="terminal-action" type="button" title="New terminal">＋</button></div>
+    <div slot="actions">
+      <button class="terminal-action" type="button" title="New terminal">＋</button>
+    </div>
   </PanelHeader>
 
   <div class="terminal-body">

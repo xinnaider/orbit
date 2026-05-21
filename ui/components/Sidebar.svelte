@@ -207,8 +207,8 @@
         class="new-btn quiet-new"
         aria-label="New session"
         data-testid="new-session-button"
-        on:click={() => (showModal = true)}
-      >new</button>
+        on:click={() => (showModal = true)}>new</button
+      >
     </div>
   </header>
 
@@ -226,7 +226,9 @@
           <button
             type="button"
             class="session-item quiet-session"
-            class:active={$workspace.panes[$workspace.focusedPaneId ?? '']?.tabs.some((tab) => tab.target.kind === 'agent' && tab.target.sessionId === s.id)}
+            class:active={$workspace.panes[$workspace.focusedPaneId ?? '']?.tabs.some(
+              (tab) => tab.target.kind === 'agent' && tab.target.sessionId === s.id
+            )}
             draggable="true"
             data-testid="session-item"
             on:dragstart={(e) => {
@@ -237,12 +239,17 @@
           >
             <span class="session-topline">
               <span class="session-title">{displayName(s)}</span>
-              <span class="status-dot" style="background:{attentionColor(s.attention?.reason ?? null) || statusColor(s.status)}"></span>
+              <span
+                class="status-dot"
+                style="background:{attentionColor(s.attention?.reason ?? null) ||
+                  statusColor(s.status)}"
+              ></span>
             </span>
             <span class="session-subline">
               <span>{fmtModel(s.model)}</span>
               {#if branchLabel}<span>{branchLabel}</span>{/if}
-              {#if (s.contextPercent ?? 0) > 0}<span>{Math.round(s.contextPercent ?? 0)}% ctx</span>{/if}
+              {#if (s.contextPercent ?? 0) > 0}<span>{Math.round(s.contextPercent ?? 0)}% ctx</span
+                >{/if}
             </span>
           </button>
         {/each}
@@ -265,14 +272,26 @@
     flex-direction: column;
   }
 
-  .quiet-header { height: auto; padding: 0 6px 8px; border-bottom: 0; }
+  .quiet-header {
+    height: auto;
+    padding: 0 6px 8px;
+    border-bottom: 0;
+  }
   .brand {
     display: flex;
     align-items: center;
     gap: 10px;
   }
-  .brand-logo { width: 28px; height: 28px; color: var(--ac); filter: drop-shadow(0 0 12px var(--ac-d)); }
-  .brand-logo :global(svg) { width: 26px; height: 26px; }
+  .brand-logo {
+    width: 28px;
+    height: 28px;
+    color: var(--ac);
+    filter: drop-shadow(0 0 12px var(--ac-d));
+  }
+  .brand-logo :global(svg) {
+    width: 26px;
+    height: 26px;
+  }
   .brand-name {
     font-size: var(--md);
     font-weight: 600;
@@ -306,21 +325,110 @@
     align-items: center;
     gap: var(--sp-3);
   }
-  .quiet-new { width: auto; height: auto; padding: 6px 10px; border-radius: 999px; font-size: 12px; background: none; border: 1px solid var(--bd1); color: var(--t1); cursor: pointer; transition: border-color 0.15s, color 0.15s; font-family: var(--mono); }
-  .quiet-new:hover { border-color: var(--ac); color: var(--ac); }
-  .quiet-search { height: 34px; display: flex; align-items: center; padding: 0 12px; border-radius: 12px; background: rgba(255,255,255,0.045); color: var(--t3); font-size: 13px; }
-  .session-section { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
-  .section-label { padding: 0 8px; color: var(--t3); font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; }
-  .session-list { display: flex; flex-direction: column; gap: 4px; }
-  .empty { padding: var(--sp-8) var(--sp-6); font-size: var(--sm); color: var(--t3); }
+  .quiet-new {
+    width: auto;
+    height: auto;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    background: none;
+    border: 1px solid var(--bd1);
+    color: var(--t1);
+    cursor: pointer;
+    transition:
+      border-color 0.15s,
+      color 0.15s;
+    font-family: var(--mono);
+  }
+  .quiet-new:hover {
+    border-color: var(--ac);
+    color: var(--ac);
+  }
+  .quiet-search {
+    height: 34px;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.045);
+    color: var(--t3);
+    font-size: 13px;
+  }
+  .session-section {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .section-label {
+    padding: 0 8px;
+    color: var(--t3);
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .session-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .empty {
+    padding: var(--sp-8) var(--sp-6);
+    font-size: var(--sm);
+    color: var(--t3);
+  }
 
-  .quiet-session { width: 100%; border: 1px solid transparent; border-radius: 15px; padding: 10px 11px; background: transparent; color: var(--t1); text-align: left; cursor: pointer; }
-  .quiet-session:hover { background: rgba(255,255,255,0.03); }
-  .quiet-session.active { color: var(--t0); background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.075); }
-  .session-topline { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; }
-  .session-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .session-subline { margin-top: 4px; display: flex; gap: 7px; color: var(--t3); font-family: var(--mono); font-size: 11px; white-space: nowrap; overflow: hidden; }
-  .status-dot { width: 7px; height: 7px; flex-shrink: 0; border-radius: 50%; box-shadow: 0 0 12px currentColor; }
+  .quiet-session {
+    width: 100%;
+    border: 1px solid transparent;
+    border-radius: 15px;
+    padding: 10px 11px;
+    background: transparent;
+    color: var(--t1);
+    text-align: left;
+    cursor: pointer;
+  }
+  .quiet-session:hover {
+    background: rgba(255, 255, 255, 0.03);
+  }
+  .quiet-session.active {
+    color: var(--t0);
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.075);
+  }
+  .session-topline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 13px;
+  }
+  .session-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .session-subline {
+    margin-top: 4px;
+    display: flex;
+    gap: 7px;
+    color: var(--t3);
+    font-family: var(--mono);
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .status-dot {
+    width: 7px;
+    height: 7px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    box-shadow: 0 0 12px currentColor;
+  }
 
   .confirm-overlay {
     position: fixed;
@@ -372,7 +480,14 @@
     border-color: var(--s-error);
   }
 
-  .quiet-footer { margin-top: auto; padding: 10px 8px 0; border-top: 1px solid var(--bd); color: var(--t3); font-family: var(--mono); font-size: 11px; }
+  .quiet-footer {
+    margin-top: auto;
+    padding: 10px 8px 0;
+    border-top: 1px solid var(--bd);
+    color: var(--t3);
+    font-family: var(--mono);
+    font-size: 11px;
+  }
 
   @keyframes pulse {
     0%,

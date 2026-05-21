@@ -240,7 +240,10 @@
     {#each visibleItems as item, i (visibleFrom + i)}
       {@const entry = item.entry}
       {@const absIdx = visibleFrom + i}
-      <article class="timeline-event {eventClass(entry)}" aria-label="{actorLabel(entry)} {ts(entry)}">
+      <article
+        class="timeline-event {eventClass(entry)}"
+        aria-label="{actorLabel(entry)} {ts(entry)}"
+      >
         <div class="timeline-node" aria-hidden="true"></div>
         <div class="timeline-body">
           <div class="event-meta">
@@ -249,7 +252,13 @@
           </div>
 
           {#if entry.entryType === 'toolCall'}
-            <ToolCallEntry entry={entry} resultEntry={item.result} streamingEntries={item.streaming} {cwd} {compact} />
+            <ToolCallEntry
+              {entry}
+              resultEntry={item.result}
+              streamingEntries={item.streaming}
+              {cwd}
+              {compact}
+            />
           {:else if entry.entryType === 'thinking'}
             {@const expanded = expandedThinking.has(absIdx)}
             <div class="thinking-inline" class:expanded>

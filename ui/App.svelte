@@ -419,7 +419,11 @@
     {#if selected && $metaPanelVisible}
       <MetaPanel session={selected} />
     {:else if selected && !$metaPanelVisible}
-      <button class="meta-reopen quiet-inspector-reopen" on:click={() => metaPanelVisible.set(true)} title="Show inspector">⌘I</button>
+      <button
+        class="meta-reopen quiet-inspector-reopen"
+        on:click={() => metaPanelVisible.set(true)}
+        title="Show inspector">⌘I</button
+      >
     {/if}
   </div>
 {/if}

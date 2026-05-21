@@ -20,7 +20,12 @@
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<header class="panel-header quiet-pane-header" class:focused draggable={!!dragPayload} on:dragstart={handleDragStart}>
+<header
+  class="panel-header quiet-pane-header"
+  class:focused
+  draggable={!!dragPayload}
+  on:dragstart={handleDragStart}
+>
   <slot name="leading" />
 
   <div class="panel-title-block">
@@ -58,7 +63,9 @@
     background: color-mix(in srgb, var(--bg), white 1%);
     flex-shrink: 0;
     user-select: none;
-    transition: opacity 0.15s, box-shadow 0.15s;
+    transition:
+      opacity 0.15s,
+      box-shadow 0.15s;
   }
 
   .panel-header:not(.focused) {

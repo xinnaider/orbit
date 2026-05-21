@@ -672,8 +672,22 @@ If the user provides neither role nor name nor mission, ask one concise question
       data-testid="message-input"
     ></textarea>
     <div class="composer-chips">
-      <button type="button" class="composer-chip" on:click={() => { text = '@ '; textarea?.focus(); }}>@ file</button>
-      <button type="button" class="composer-chip" on:click={() => { text = '/ '; textarea?.focus(); }}>/ command</button>
+      <button
+        type="button"
+        class="composer-chip"
+        on:click={() => {
+          text = '@ ';
+          textarea?.focus();
+        }}>@ file</button
+      >
+      <button
+        type="button"
+        class="composer-chip"
+        on:click={() => {
+          text = '/ ';
+          textarea?.focus();
+        }}>/ command</button
+      >
     </div>
     <button
       class="send-btn"
@@ -781,10 +795,10 @@ If the user provides neither role nor name nor mission, ask one concise question
   .quiet-composer {
     width: min(840px, 100%);
     border: 1px solid var(--bd2);
-    background: rgba(255,255,255,0.055);
+    background: rgba(255, 255, 255, 0.055);
     border-radius: 22px;
     padding: 12px;
-    box-shadow: 0 24px 70px rgba(0,0,0,0.24);
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.24);
   }
   .quiet-composer textarea {
     font-size: 14px;
@@ -801,7 +815,7 @@ If the user provides neither role nor name nor mission, ask one concise question
   .composer-chip {
     border: 1px solid var(--bd1);
     color: var(--t1);
-    background: rgba(255,255,255,0.03);
+    background: rgba(255, 255, 255, 0.03);
     border-radius: 999px;
     padding: 6px 9px;
     font-family: var(--mono);
@@ -810,7 +824,7 @@ If the user provides neither role nor name nor mission, ask one concise question
     flex-shrink: 0;
   }
   .composer-chip:hover {
-    background: rgba(255,255,255,0.08);
+    background: rgba(255, 255, 255, 0.08);
     color: var(--t0);
   }
   .quiet-composer.compact {
