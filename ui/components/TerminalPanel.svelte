@@ -215,7 +215,11 @@
     })}
     {onClose}
     {focused}
-  />
+  >
+    <span slot="leading" class="dot terminal-dot"></span>
+    <div slot="meta"><span class="quiet-pill">pwsh</span></div>
+    <div slot="actions"><button class="terminal-action" type="button" title="New terminal">＋</button></div>
+  </PanelHeader>
 
   <div class="terminal-body">
     {#if loading}
@@ -257,14 +261,20 @@
   }
 
   .terminal-body {
-    display: flex;
     flex: 1;
-    width: 100%;
     min-height: 0;
+    padding: 14px 16px;
+    background: #090a0a;
+    display: flex;
+    width: 100%;
     overflow: hidden;
     margin: 0;
     border: none;
     outline: none;
+  }
+
+  .terminal-shell :global(.xterm) {
+    font-family: var(--mono);
   }
 
   .terminal-panel {
@@ -320,5 +330,33 @@
   .retry-btn:hover {
     background: var(--bg4);
     border-color: color-mix(in srgb, var(--ac), transparent 60%);
+  }
+
+  .terminal-shell :global(.terminal-dot) {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--ac);
+    box-shadow: 0 0 12px var(--ac-border);
+    display: inline-block;
+  }
+
+  .terminal-action {
+    width: 24px;
+    height: 24px;
+    border-radius: 8px;
+    border: 1px solid var(--bd1);
+    background: color-mix(in srgb, var(--bg2), transparent 24%);
+    color: var(--t2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 14px;
+  }
+
+  .terminal-action:hover {
+    color: var(--t0);
+    border-color: var(--ac);
   }
 </style>
