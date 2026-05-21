@@ -27,5 +27,9 @@ test.describe('Orbit smoke flows', () => {
 
     await expect(page.getByText('Create an E2E smoke response')).toBeVisible({ timeout: 15_000 });
     await expect(page.getByTestId('message-input')).toBeVisible({ timeout: 15_000 });
+
+    await expect(page.getByTestId('quiet-sidebar')).toBeVisible();
+    await expect(page.locator('.timeline')).toBeVisible();
+    await expect(page.getByTitle('Show inspector')).toBeVisible();
   });
 });
