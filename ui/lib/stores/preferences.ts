@@ -47,10 +47,9 @@ function createThemeStore() {
   };
 }
 
-function createMetaPanelVisibleStore() {
-  const stored =
-    typeof localStorage !== 'undefined' ? localStorage.getItem('metaPanelVisible') : null;
-  const initial = stored === null ? true : stored === 'true';
+function createBooleanPreferenceStore(key: string, defaultValue: boolean) {
+  const stored = typeof localStorage !== 'undefined' ? localStorage.getItem(key) : null;
+  const initial = stored === null ? defaultValue : stored === 'true';
   const { subscribe, set } = writable<boolean>(initial);
 
   return {
@@ -58,29 +57,13 @@ function createMetaPanelVisibleStore() {
     set(value: boolean) {
       set(value);
       if (typeof localStorage !== 'undefined') {
-        localStorage.setItem('metaPanelVisible', String(value));
-      }
-    },
-  };
-}
-
-function createSidebarVisibleStore() {
-  const stored =
-    typeof localStorage !== 'undefined' ? localStorage.getItem('sidebarVisible') : null;
-  const initial = stored === null ? true : stored === 'true';
-  const { subscribe, set } = writable<boolean>(initial);
-
-  return {
-    subscribe,
-    set(value: boolean) {
-      set(value);
-      if (typeof localStorage !== 'undefined') {
-        localStorage.setItem('sidebarVisible', String(value));
+        localStorage.setItem(key, String(value));
       }
     },
   };
 }
 
 export const theme = createThemeStore();
-export const metaPanelVisible = createMetaPanelVisibleStore();
-export const sidebarVisible = createSidebarVisibleStore();
+export const metaPanelVisible = createBooleanPreferenceStore('metaPanelVisible', false);
+export const sidebarVisible = createBooleanPreferenceStore('sidebarVisible', true);
+export const compactDensity = createBooleanPreferenceStore('compactDensity', false);
