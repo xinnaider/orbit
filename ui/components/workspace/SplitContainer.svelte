@@ -111,12 +111,10 @@
   .resize-handle {
     flex-shrink: 0;
     position: relative;
-    background: var(--bd1);
+    background: transparent;
     z-index: 2;
-    transition: background 0.15s;
   }
 
-  /* Thin visible line */
   .handle-horizontal {
     width: 2px;
     cursor: col-resize;
@@ -127,27 +125,36 @@
     cursor: row-resize;
   }
 
-  /* Wider invisible hit area via pseudo-element */
+  /* Thin visible line via pseudo-element */
   .resize-handle::after {
     content: '';
     position: absolute;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 999px;
+    transition: background 0.15s;
   }
 
   .handle-horizontal::after {
+    width: 1px;
+    height: 100%;
     top: 0;
     bottom: 0;
     left: -3px;
     right: -3px;
+    margin: auto;
   }
 
   .handle-vertical::after {
+    width: 100%;
+    height: 1px;
     left: 0;
     right: 0;
     top: -3px;
     bottom: -3px;
+    margin: auto;
   }
 
-  .resize-handle:hover {
-    background: var(--bd2);
+  .resize-handle:hover::after {
+    background: color-mix(in srgb, var(--ac), transparent 65%);
   }
 </style>

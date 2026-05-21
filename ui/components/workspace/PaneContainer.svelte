@@ -30,6 +30,8 @@
     return $sessions.find((s) => s.id === target.sessionId) ?? null;
   })();
 
+  $: compactPane = pane ? pane.tabs.length > 1 || Object.keys($workspace.panes).length > 1 : false;
+
   let dragOver = false;
   let dragEnterCount = 0;
 
@@ -138,6 +140,7 @@
 <div
   class="pane-container"
   class:focused={isFocused}
+  class:compact-pane={compactPane}
   role="region"
   on:click={() => focusPane(paneId)}
   on:keydown={() => focusPane(paneId)}
@@ -176,6 +179,7 @@
         {session}
         {paneId}
         focused={isFocused}
+        compact={compactPane}
         onClose={canClose ? () => closePane(paneId) : null}
       />
     {:else}

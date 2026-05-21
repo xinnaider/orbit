@@ -192,6 +192,19 @@ describe('Feed', () => {
     expect(container.querySelector('.feed-scroller.compact')).toBeTruthy();
   });
 
+  it('uses compact class only when compact prop is true', () => {
+    const entries = [makeEntry({ entryType: 'assistant', text: 'normal' })];
+    const normal = render(Feed, {
+      props: { entries, status: '', provider: 'claude-code', cwd: null },
+    });
+    expect(normal.container.querySelector('.feed-scroller.compact')).toBeNull();
+    cleanup();
+    const compact = render(Feed, {
+      props: { entries, status: '', provider: 'claude-code', cwd: null, compact: true },
+    });
+    expect(compact.container.querySelector('.feed-scroller.compact')).toBeTruthy();
+  });
+
   it('keeps working indicator inside timeline', () => {
     const { container, getByText } = render(Feed, {
       props: { entries: [], status: 'working', provider: 'claude-code', cwd: null },

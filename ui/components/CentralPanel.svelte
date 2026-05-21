@@ -20,6 +20,7 @@
   export let onClose: (() => void) | null = null;
   export let paneId: string = '';
   export let focused: boolean = true;
+  export let compact: boolean = false;
 
   let feedComponent: Feed;
   let atBottom = true;
@@ -246,6 +247,7 @@
           status={session.status}
           provider={session.provider ?? 'claude-code'}
           cwd={session.cwd}
+          {compact}
           on:bottomchange={(e) => (atBottom = e.detail.atBottom)}
         />
       {/key}
@@ -269,6 +271,7 @@
     sessionStatus={session.status}
     provider={session.provider}
     providerModels={providerModelIds}
+    {compact}
   />
 </div>
 
