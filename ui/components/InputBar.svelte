@@ -668,12 +668,14 @@ If the user provides neither role nor name nor mission, ask one concise question
           : 'message... (/ for commands, @ for files)'}
       rows="1"
       disabled={sessionStatus === 'initializing'}
+      data-testid="message-input"
     ></textarea>
     <button
       class="send-btn"
       on:click={send}
       disabled={!text.trim() || sessionStatus === 'initializing'}
-      title="Enter">⏎</button
+      title="Enter"
+      data-testid="send-message-button">⏎</button
     >
   </div>
 

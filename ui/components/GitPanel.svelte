@@ -215,7 +215,7 @@
   });
 </script>
 
-<section class="git-panel">
+<section class="git-panel" data-testid="git-panel">
   <PanelHeader
     title={overview?.branch ?? 'Git'}
     status={overview?.branch ? 'main' : null}
@@ -255,6 +255,7 @@
             bind:value={query}
             placeholder="Search files or tags..."
             aria-label="Search Git files or tags"
+            data-testid="git-search-input"
           />
           <div class="tag-actions">
             <Tag size={12} />
@@ -374,7 +375,7 @@
             </div>
           {/if}
         </div>
-        <div class="diff-body">
+        <div class="diff-body" data-testid="git-diff-view">
           {#if !diff && !diffLoading}
             <div class="state">Select a file to view its diff.</div>
           {:else if diffError && !diffLoading}

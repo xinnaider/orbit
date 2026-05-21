@@ -42,7 +42,12 @@
     <Terminal size={14} />
     New terminal
   </button>
-  <button class="menu-item" role="menuitem" on:click={() => select('git')}>
+  <button
+    class="menu-item"
+    data-testid="add-git-tab-option"
+    role="menuitem"
+    on:click={() => select('git')}
+  >
     <GitBranch size={14} />
     Git overview
   </button>

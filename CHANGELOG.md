@@ -5,7 +5,7 @@
 ## May 2026
 
 ### 05/20 · Fix — User's first message now appears in chat
-The initial prompt that creates a session and follow-up messages were missing from the chat feed. Both now appear immediately as user entries before the agent responds.
+The initial prompt that creates a session and follow-up messages were missing from the chat feed. Both now appear immediately as user entries before the agent responds. This also fixes the browser preview mode where messages would disappear due to a deduplication collision in the mock backend.
 
 ### 05/20 · Fix — Double-session spawn prevented
 A race condition could cause the same session to be spawned twice, creating duplicate processes. A spawning guard now prevents concurrent spawns for the same session.

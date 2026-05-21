@@ -115,6 +115,29 @@ describe('JournalHarness — component-level reactivity', () => {
     expect(getByTestId('entry-1').textContent).toBe('hello');
   });
 
+  it('does NOT clear pendingMessages for pre-existing entries (regression)', async () => {
+    // Pre-populate the journal with an existing user entry (simulates the
+    // initial session prompt having already arrived).
+    simulateSessionOutput(SID, makeUserEntry(1, 'initial prompt'));
+
+    const { getByTestId } = render(JournalHarness, { session: { id: SID } });
+    await waitFor(() => {
+      expect(getByTestId('feed')).toBeTruthy();
+    });
+
+    // User types a follow-up message — NOT yet echoed by backend
+    pendingMessages.add('follow-up message');
+    await waitFor(() => {
+      expect(getByTestId('pending')).toBeTruthy();
+    });
+
+    // The pending message should survive: pre-existing entries must NOT
+    // trigger pendingMessages.clear(). Only a *new* entry should clear it.
+    await new Promise((r) => setTimeout(r, 200));
+    expect(getByTestId('pending')).toBeTruthy();
+    expect(getByTestId('counts').dataset.pending).toBe('1');
+  });
+
   it('handles multiple entries arriving in sequence', async () => {
     const { getByTestId, queryByTestId } = render(JournalHarness, {
       session: { id: SID },

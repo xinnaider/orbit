@@ -29,6 +29,14 @@ export default [
     },
   },
 
+  // Test files — relax strictness for mock data patterns
+  {
+    files: ['ui/**/*.test.ts', 'ui/**/*.spec.ts'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+    },
+  },
+
   // Svelte files — type checking is handled by svelte-check, not ESLint
   {
     files: ['ui/**/*.svelte'],

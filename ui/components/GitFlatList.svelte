@@ -29,6 +29,7 @@
     <div
       class="flat-row"
       class:selected={selectedFile?.id === file.id}
+      data-testid="git-file-row"
       role="button"
       tabindex="0"
       on:click={() => onSelectFile(file)}
