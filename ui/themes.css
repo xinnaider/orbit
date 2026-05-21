@@ -1,36 +1,37 @@
 /* ===== Dark (default) ===== */
 :root,
 [data-theme='dark'] {
-  --bg: #080808;
-  --bg1: #0d0d0d;
-  --bg2: #121212;
-  --bg3: #181818;
-  --bg4: #1e1e1e;
-  --bd: #1a1a1a;
-  --bd1: #242424;
-  --bd2: #2e2e2e;
-  --t0: #e0e0e0;
-  --t1: #888;
-  --t2: #666;
-  --t3: #444;
-  --ac: #00d47e;
-  --ac-d: rgba(0, 212, 126, 0.1);
-  --ac-d2: rgba(0, 212, 126, 0.05);
-  --ac-border: rgba(0, 212, 126, 0.25);
-  --s-working: #00d47e;
-  --s-input: #e8a030;
-  --s-idle: #404040;
-  --s-error: #e04848;
-  --s-init: #4888e0;
-  --s-done: #383838;
-  --user-fg: #7eb8f7;
-  --user-bg: rgba(126, 184, 247, 0.05);
-  --think-fg: #9980d4;
-  --think-bg: rgba(153, 128, 212, 0.06);
-  --tool-fg: #e8a030;
-  --tool-bg: rgba(232, 160, 48, 0.05);
-  --result-fg: #606060;
-  --result-bg: rgba(255, 255, 255, 0.02);
+  --bg: #090a0a;
+  --bg1: #0c0d0d;
+  --bg2: #101111;
+  --bg3: #141515;
+  --bg4: #191a1a;
+  --bg-sidebar: #0c0d0d;
+  --bd: rgba(241, 236, 227, 0.1);
+  --bd1: rgba(241, 236, 227, 0.14);
+  --bd2: rgba(241, 236, 227, 0.18);
+  --t0: #f1ece3;
+  --t1: #a19a90;
+  --t2: #7a736b;
+  --t3: #67615a;
+  --ac: #7bd99d;
+  --ac-d: rgba(123, 217, 157, 0.1);
+  --ac-d2: rgba(123, 217, 157, 0.05);
+  --ac-border: rgba(123, 217, 157, 0.22);
+  --s-working: #7bd99d;
+  --s-input: #d9b56c;
+  --s-idle: #67615a;
+  --s-error: #e47770;
+  --s-init: #8dbbf7;
+  --s-done: #3b3d3d;
+  --user-fg: #8dbbf7;
+  --user-bg: rgba(141, 187, 247, 0.07);
+  --think-fg: #b9a1f4;
+  --think-bg: rgba(185, 161, 244, 0.07);
+  --tool-fg: #d9b56c;
+  --tool-bg: rgba(217, 181, 108, 0.055);
+  --result-fg: #7a736b;
+  --result-bg: rgba(255, 255, 255, 0.025);
 }
 
 /* ===== Light — Paper & Ink ===== */
