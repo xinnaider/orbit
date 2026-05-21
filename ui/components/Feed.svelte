@@ -4,7 +4,7 @@
   import Markdown from './Markdown.svelte';
   import ToolCallEntry from './ToolCallEntry.svelte';
   import { backends } from '../lib/stores/providers';
-  import { Bot, MessageSquare, Sparkles } from 'lucide-svelte';
+  import { Sparkles } from 'lucide-svelte';
 
   export let entries: JournalEntry[] = [];
   export let status: string = '';
