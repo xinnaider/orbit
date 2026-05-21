@@ -9,16 +9,15 @@ describe('PanelHeader', () => {
       props: {
         title: 'Refactor billing flow',
         status: 'running',
-        closeLabel: 'Close chat pane',
         onClose,
         focused: true,
       },
     });
 
-    expect(container.querySelector('.panel-header.quiet-pane-header')).toBeTruthy();
+    expect(container.querySelector('header.quiet-topbar')).toBeTruthy();
     expect(getByText('Refactor billing flow')).toBeTruthy();
     expect(getByText('running')).toBeTruthy();
-    await fireEvent.click(getByLabelText('Close chat pane'));
+    await fireEvent.click(getByLabelText('Close panel'));
     expect(onClose).toHaveBeenCalledOnce();
   });
 });

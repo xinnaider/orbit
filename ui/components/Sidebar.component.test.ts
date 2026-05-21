@@ -8,6 +8,7 @@ const {
   mockWorkspaceStore,
   mockMutedSessionsObj,
   mockSessionEffortObj,
+  mockPinnedSessionsObj,
   mockBackendsStore,
   mockProviderCapsStore,
 } = vi.hoisted(() => {
@@ -50,6 +51,11 @@ const {
       get: vi.fn(() => 'high'),
       set: vi.fn(),
     },
+    mockPinnedSessionsObj: {
+      subscribe: createStore(new Set<string>()).subscribe,
+      toggle: vi.fn(),
+      isPinned: vi.fn((set: Set<string>, id: string) => set.has(id)),
+    },
   };
 });
 
@@ -89,6 +95,7 @@ vi.mock('$lib/stores/session-actions', () => ({
 vi.mock('$lib/stores/ui', () => ({
   mutedSessions: mockMutedSessionsObj,
   sessionEffort: mockSessionEffortObj,
+  pinnedSessions: mockPinnedSessionsObj,
 }));
 
 vi.mock('$lib/stores/preferences', () => {
@@ -253,7 +260,7 @@ describe('Sidebar', () => {
 
     expect(getByTestId('orbit-brand-icon')).toBeTruthy();
     expect(getByText('orbit')).toBeTruthy();
-    expect(getByText('Today')).toBeTruthy();
+    expect(getByText('Recent sessions')).toBeTruthy();
     expect(getByText('Refactor billing flow')).toBeTruthy();
     expect(getByText('feature/auth')).toBeTruthy();
     expect(getByText('41% ctx')).toBeTruthy();
