@@ -224,6 +224,19 @@
     opacity: 1;
   }
 
+  .pane-container.compact-pane {
+    border-left: 1px solid var(--bd);
+  }
+
+  .pane-container.compact-pane::before {
+    height: 1px;
+    opacity: 0.5;
+  }
+
+  .pane-container.compact-pane.focused::before {
+    opacity: 0.5;
+  }
+
   .pane-content {
     display: flex;
     flex: 1;
