@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy, tick } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import {
     sendSessionMessage,
     getSlashCommands,
@@ -13,6 +13,7 @@
   import { journal } from '../lib/stores/journal';
   import { pendingMessages } from '../lib/stores/journal';
   import { sessionEffort } from '../lib/stores/ui';
+  import { compactDensity } from '../lib/stores/preferences';
   import type { SlashCommand } from '../lib/types';
   import type { JournalEntry } from '../lib/types';
   import { providerCaps, getCaps, backends as backendsStore } from '../lib/stores/providers';
@@ -330,32 +331,6 @@ If the user provides neither role nor name nor mission, ask one concise question
     });
   }
 
-  const hints = [
-    'Orbit keeps all your agents in sync — one dashboard, infinite sessions',
-    'Each agent runs in its own orbit — isolated, parallel, always tracked',
-    'Real-time log streaming — watch your agents compute at the speed of light',
-    'Token usage and cost tracked per session — every bit accounted for',
-    'Use @ to attach files directly to your message',
-    'Use / to trigger slash commands inside any session',
-    'Sessions persist — your agents remember where they left off',
-    'Switch between agents without losing orbital momentum',
-    'Multiple agents, one control center — mission control for AI',
-    'Your agents orbit the same codebase, each on their own trajectory',
-  ];
-  let hintIdx = 0;
-  let currentHint = hints[0];
-  let hintVisible = true;
-
-  const hintTimer = setInterval(() => {
-    hintVisible = false;
-    setTimeout(() => {
-      hintIdx = (hintIdx + 1) % hints.length;
-      currentHint = hints[hintIdx];
-      hintVisible = true;
-    }, 300);
-  }, 5000);
-  onDestroy(() => clearInterval(hintTimer));
-
   onMount(async () => {
     try {
       const remote = await getSlashCommands(provider);
@@ -656,7 +631,6 @@ If the user provides neither role nor name nor mission, ask one concise question
   />
 
   <div class="input-row">
-    <span class="prompt-char" class:dim={sessionStatus === 'initializing'}>›</span>
     <textarea
       bind:this={textarea}
       bind:value={text}
@@ -665,16 +639,20 @@ If the user provides neither role nor name nor mission, ask one concise question
       placeholder={sessionStatus === 'initializing'
         ? 'waiting for session to start...'
         : sessionStatus === 'stopped'
-          ? 'session stopped — type to resume...'
-          : 'message... (/ for commands, @ for files)'}
+          ? 'Session stopped — type to resume...'
+          : 'Message Orbit…'}
       rows="1"
       disabled={sessionStatus === 'initializing'}
       data-testid="message-input"
     ></textarea>
-    <div class="composer-chips">
+  </div>
+
+  <div class="composer-actions">
+    <div class="btns">
       <button
         type="button"
         class="composer-chip"
+        disabled={sessionStatus === 'initializing'}
         on:click={() => {
           text = '@ ';
           textarea?.focus();
@@ -683,24 +661,39 @@ If the user provides neither role nor name nor mission, ask one concise question
       <button
         type="button"
         class="composer-chip"
+        disabled={sessionStatus === 'initializing'}
         on:click={() => {
           text = '/ ';
           textarea?.focus();
         }}>/ command</button
       >
+      <button
+        type="button"
+        class="composer-chip"
+        disabled={sessionStatus === 'initializing'}
+        on:click={() => {
+          text = '/model ';
+          textarea?.focus();
+        }}>model</button
+      >
     </div>
-    <button
-      class="send-btn"
-      on:click={send}
-      disabled={!text.trim() || sessionStatus === 'initializing'}
-      title="Enter"
-      data-testid="send-message-button">⏎</button
-    >
-  </div>
-
-  <div class="hint-bar" class:fade-out={!hintVisible}>
-    <span class="hint-icon">◎</span>
-    {currentHint}
+    <div class="btns">
+      <button
+        type="button"
+        class="composer-chip"
+        class:active={$compactDensity}
+        disabled={sessionStatus === 'initializing'}
+        on:click={() => compactDensity.set(!$compactDensity)}>compact</button
+      >
+      <button
+        type="button"
+        class="send-btn"
+        on:click={send}
+        disabled={!text.trim() || sessionStatus === 'initializing'}
+        title="Enter"
+        data-testid="send-message-button">send</button
+      >
+    </div>
   </div>
 </div>
 
@@ -725,25 +718,13 @@ If the user provides neither role nor name nor mission, ask one concise question
     gap: 0;
     padding: var(--sp-4) var(--sp-5) var(--sp-3);
   }
-  .prompt-char {
-    color: var(--t2);
-    font-size: var(--lg);
-    line-height: 1;
-    margin-bottom: var(--sp-3);
-    margin-right: var(--sp-4);
-    flex-shrink: 0;
-    transition: color 0.2s;
-  }
-  .prompt-char.dim {
-    color: var(--t3);
-  }
   textarea {
     flex: 1;
     background: none;
     border: none;
     color: var(--t0);
     font-size: var(--base);
-    font-family: var(--mono);
+    font-family: var(--sans);
     padding: var(--sp-2) 0;
     resize: none;
     outline: none;
@@ -755,85 +736,89 @@ If the user provides neither role nor name nor mission, ask one concise question
     color: var(--t3);
   }
   .send-btn {
-    background: none;
-    border: none;
-    color: var(--t2);
-    font-size: var(--lg);
-    padding: var(--sp-1) var(--sp-2);
-    margin-bottom: var(--sp-2);
+    border: 0;
+    background: var(--ac);
+    color: var(--bg);
+    border-radius: 999px;
+    padding: 7px 13px;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
     flex-shrink: 0;
   }
   .send-btn:hover:not(:disabled) {
-    color: var(--ac);
+    filter: brightness(1.06);
   }
   .send-btn:disabled {
-    opacity: 0.3;
-  }
-
-  .hint-bar {
-    padding: 0 var(--sp-5) var(--sp-3);
-    font-size: var(--xs);
-    color: var(--t3);
-    opacity: 1;
-    transition: opacity 0.3s ease;
-    display: flex;
-    align-items: center;
-    gap: var(--sp-3);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .hint-bar.fade-out {
-    opacity: 0;
-  }
-  .hint-icon {
-    color: var(--ac);
-    font-size: 10px;
-    flex-shrink: 0;
+    cursor: default;
+    opacity: 0.55;
   }
 
   .quiet-composer {
-    width: min(840px, 100%);
+    width: calc(100% - 76px);
+    margin: 14px 38px 24px;
     border: 1px solid var(--bd2);
-    background: rgba(255, 255, 255, 0.055);
-    border-radius: 22px;
+    background: color-mix(in srgb, var(--t0), transparent 94%);
+    border-radius: var(--radius-md);
     padding: 12px;
     box-shadow: 0 24px 70px rgba(0, 0, 0, 0.24);
   }
+  .quiet-composer .input-row {
+    align-items: flex-start;
+    padding: 4px 6px 14px;
+  }
   .quiet-composer textarea {
-    font-size: 14px;
+    font-size: 13px;
     line-height: 1.55;
     color: var(--t0);
+    padding: 0;
   }
-  .composer-chips {
+  .composer-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+  .btns {
     display: flex;
     gap: 6px;
-    align-items: flex-end;
-    margin-bottom: var(--sp-2);
+    align-items: center;
+    min-width: 0;
     flex-shrink: 0;
   }
   .composer-chip {
     border: 1px solid var(--bd1);
     color: var(--t1);
-    background: rgba(255, 255, 255, 0.03);
-    border-radius: 999px;
+    background: color-mix(in srgb, var(--t0), transparent 97%);
+    border-radius: var(--radius-sm);
     padding: 6px 9px;
     font-family: var(--mono);
-    font-size: 11px;
+    font-size: 10px;
     cursor: pointer;
     flex-shrink: 0;
   }
   .composer-chip:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: color-mix(in srgb, var(--t0), transparent 92%);
     color: var(--t0);
   }
+  .composer-chip.active {
+    background: var(--ac-d);
+    border-color: var(--ac-border);
+    color: var(--ac);
+  }
+  .composer-chip:disabled {
+    cursor: default;
+    opacity: 0.45;
+  }
   .quiet-composer.compact {
+    width: calc(100% - 76px);
+    margin: 10px 38px 16px;
     min-height: 58px;
-    border-radius: 16px;
+    border-radius: var(--radius-md);
     padding: 10px;
   }
   .quiet-composer.compact textarea {
-    font-size: 12px;
+    font-size: 11px;
   }
   .quiet-composer.compact .composer-chip {
     padding: 5px 8px;
@@ -841,6 +826,17 @@ If the user provides neither role nor name nor mission, ask one concise question
   }
 
   @media (max-width: 768px) {
+    .quiet-composer {
+      width: calc(100% - 24px);
+      margin: 10px auto 14px;
+    }
+    .composer-actions {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+    .btns {
+      flex-wrap: wrap;
+    }
     .input-row {
       padding: var(--sp-5) var(--sp-5) var(--sp-4);
     }
@@ -849,11 +845,8 @@ If the user provides neither role nor name nor mission, ask one concise question
       max-height: 160px;
     }
     .send-btn {
-      font-size: 20px;
-      padding: var(--sp-3) var(--sp-4);
-    }
-    .hint-bar {
-      display: none;
+      font-size: 12px;
+      padding: 8px 14px;
     }
   }
 </style>

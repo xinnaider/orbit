@@ -201,15 +201,16 @@
 <style>
   .dropdown {
     position: absolute;
-    bottom: 100%;
+    bottom: calc(100% + 10px);
     left: 0;
     right: 0;
+    z-index: 20;
     background: var(--bg2);
     border: 1px solid var(--bd1);
-    border-bottom: none;
-    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    border-radius: var(--radius-md);
     max-height: 200px;
     overflow-y: auto;
+    box-shadow: 0 18px 46px rgba(0, 0, 0, 0.32);
   }
   .drop-item {
     display: flex;
@@ -222,6 +223,9 @@
     padding: var(--sp-3) var(--sp-6);
     cursor: pointer;
     border-bottom: 1px solid var(--bd);
+  }
+  .drop-item:last-child {
+    border-bottom: 0;
   }
   .drop-item:hover,
   .drop-item.sel {

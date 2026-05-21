@@ -76,6 +76,15 @@
     copyToClipboard(await getCopyContent());
   }
 
+  function handleCopyResult() {
+    if (!resultEntry?.output) return;
+    if (isReadTool) {
+      copyToClipboard(stripLineNumbers(resultEntry.output).code);
+    } else {
+      copyToClipboard(resultEntry.output);
+    }
+  }
+
   function resolveFilePath(filePath: string, cwd: string | null): string {
     if (!cwd || filePath.startsWith('/') || /^[A-Za-z]:/.test(filePath)) {
       return filePath;
@@ -200,9 +209,17 @@
     return '';
   }
 
-  function shortPath(p: string): string {
-    const parts = p.replace(/\\/g, '/').split('/');
-    return parts.length > 2 ? parts.slice(-2).join('/') : p;
+  function shortPath(p: string, tool?: string): string {
+    if (tool === 'bash') {
+      let out = p.replace(/['"]+/g, '').replace(/\s+/g, ' ');
+      if (out.length > 50) out = out.slice(0, 47) + '...';
+      return out;
+    }
+    let clean = p.replace(/['"]+/g, '').replace(/\\/g, '/');
+    const parts = clean.split('/');
+    let out = parts.length > 2 ? parts.slice(-2).join('/') : clean;
+    if (out.length > 50) out = out.slice(0, 47) + '...';
+    return out;
   }
 
   function detectLang(filePath: string): string {
@@ -309,8 +326,42 @@
 
 <div class="tc-card quiet-tool-card" class:compact>
   <div class="tc-header quiet-tool-head">
-    <span class="tc-title">{entry.tool ?? 'tool'}</span>
+    <span
+      class="tc-title"
+      onclick={() => (modalOpen = true)}
+      role="button"
+      tabindex="0"
+      onkeydown={(e) => e.key === 'Enter' && (modalOpen = true)}
+    >
+      <span class="tc-tool">{entry.tool ?? 'tool'}</span>
+      {#if target}
+        <span class="tc-sep">→</span>
+        <span class="tc-target">{shortPath(target, toolClass)}</span>
+      {/if}
+    </span>
     <span class="tc-state" class:failed={toolState === 'failed'}>{toolState}</span>
+    <span class="tc-actions">
+      <button
+        class="tc-expand tc-action--label"
+        onclick={handleCopy}
+        title="Copy command"
+        aria-label="Copy command"><Copy size={10} /><span class="actxt">cmd</span></button
+      >
+      {#if resultEntry?.output}
+        <button
+          class="tc-expand tc-action--label"
+          onclick={handleCopyResult}
+          title="Copy output"
+          aria-label="Copy output"><Copy size={10} /><span class="actxt">out</span></button
+        >
+      {/if}
+      <button
+        class="tc-expand"
+        onclick={() => (modalOpen = true)}
+        title="View full"
+        aria-label="View full"><Maximize2 size={11} /></button
+      >
+    </span>
   </div>
 
   {#if hasDetail || resultEntry?.output}
@@ -439,7 +490,10 @@
         <div class="modal-title">
           <span class="tool-icon {toolClass}"><ToolIcon size={13} /></span>
           <span class="tool {toolClass}">{entry.tool}</span>
-          <span class="target mono">{target}</span>
+          {#if target}
+            <span class="tc-sep">→</span>
+            <span class="target mono">{shortPath(target, toolClass)}</span>
+          {/if}
         </div>
         <button class="modal-close" onclick={() => (modalOpen = false)}>✕</button>
       </div>
@@ -572,6 +626,7 @@
     font-size: 10.5px;
     font-family: var(--mono);
     min-height: 28px;
+    overflow: hidden;
   }
 
   .tc-icon {
@@ -597,13 +652,20 @@
   }
 
   .tc-title {
-    display: flex;
+    cursor: pointer;
+    display: inline-flex;
     align-items: center;
     gap: 4px;
-    flex: 1;
     min-width: 0;
     overflow: hidden;
     white-space: nowrap;
+    margin-right: auto;
+  }
+  .tc-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
   }
   .tc-tool {
     font-weight: 600;
@@ -617,7 +679,7 @@
   .tc-target {
     color: var(--t1);
     overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .tc-spacer {
@@ -661,14 +723,6 @@
   .tc-action:hover {
     background: var(--bg3);
     color: var(--t0);
-  }
-  .tc-action--label {
-    width: auto;
-    gap: 3px;
-    padding: 0 5px;
-    font-size: 9px;
-    font-family: var(--mono);
-    font-weight: 500;
   }
   .tc-action--darker {
     background: var(--bg3);
@@ -854,7 +908,7 @@
   .modal {
     background: var(--bg1);
     border: 1px solid var(--bd);
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-sm);
     width: 90vw;
     max-width: 900px;
     height: 85vh;
@@ -986,9 +1040,9 @@
   .quiet-tool-card {
     border: 1px solid color-mix(in srgb, var(--tool-fg), transparent 84%);
     background: var(--tool-bg);
-    border-radius: 16px;
+    border-radius: var(--radius-md);
     overflow: hidden;
-    max-width: 720px;
+    max-width: 100%;
   }
   .quiet-tool-head {
     display: flex;
@@ -998,7 +1052,7 @@
     border-bottom: 1px solid color-mix(in srgb, var(--tool-fg), transparent 90%);
     color: var(--tool-fg);
     font-family: var(--mono);
-    font-size: 12px;
+    font-size: 11px;
   }
   .tc-state {
     color: var(--t2);
@@ -1006,24 +1060,61 @@
   .tc-state.failed {
     color: var(--s-error);
   }
+  .tc-expand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--t3);
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
+    padding: 0;
+    flex-shrink: 0;
+    transition: all 0.12s;
+  }
+  .tc-expand:hover {
+    border-color: var(--bd1);
+    color: var(--t1);
+    background: color-mix(in srgb, var(--t0), transparent 95%);
+  }
+  .tc-action--label {
+    width: auto;
+    gap: 4px;
+    padding: 0 6px;
+    font-size: 9px;
+    font-family: var(--mono);
+    font-weight: 500;
+    background: color-mix(in srgb, var(--t0), transparent 94%);
+    border-color: color-mix(in srgb, var(--t0), transparent 88%);
+  }
+  .tc-action--label:hover {
+    background: color-mix(in srgb, var(--t0), transparent 88%);
+  }
+  .actxt {
+    line-height: 1;
+  }
   .quiet-tool-body {
     padding: 12px;
     background: rgba(0, 0, 0, 0.12);
     color: var(--t1);
     font-family: var(--mono);
-    font-size: 12px;
+    font-size: 11px;
     line-height: 1.55;
   }
   .quiet-tool-card.compact {
-    border-radius: 13px;
-    max-width: 100%;
+    border-radius: var(--radius-md);
   }
   .quiet-tool-card.compact .quiet-tool-head {
     padding: 8px 10px;
-    font-size: 11px;
+    font-size: 10px;
   }
   .quiet-tool-card.compact .quiet-tool-body {
     padding: 9px 10px;
-    font-size: 11px;
+    font-size: 10px;
   }
 </style>

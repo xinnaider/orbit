@@ -66,9 +66,9 @@
     display: flex;
     align-items: center;
     gap: 5px;
-    padding: 0 8px;
-    height: 26px;
-    min-width: 70px;
+    padding: 0 12px;
+    height: 100%;
+    min-width: 60px;
     max-width: 160px;
     cursor: pointer;
     user-select: none;
@@ -76,37 +76,54 @@
     font-size: 11px;
     font-weight: 450;
     color: var(--t2);
-    border-radius: var(--radius-sm);
     border: none;
+    border-right: 1px solid var(--bd);
     background: transparent;
     flex-shrink: 0;
     white-space: nowrap;
     overflow: hidden;
+    position: relative;
     transition:
       background 0.1s,
       color 0.1s;
   }
 
   .tab-item:hover {
-    background: var(--bg3);
+    background: color-mix(in srgb, var(--bg), white 4%);
     color: var(--t1);
   }
 
   .tab-item.active {
-    background: var(--bg3);
+    background: var(--bg);
     color: var(--t0);
     font-weight: 500;
+    border-bottom: none;
+  }
+
+  .tab-item.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--ac);
+    z-index: 1;
   }
 
   /* Unfocused pane — subdued tabs */
   .tab-item:not(.focused) {
-    opacity: 0.75;
+    opacity: 0.7;
   }
 
   .tab-item:not(.focused).active {
-    background: var(--bg3);
+    background: var(--bg);
     color: var(--t1);
-    opacity: 0.6;
+    opacity: 0.7;
+  }
+
+  .tab-item:not(.focused).active::after {
+    opacity: 0.4;
   }
 
   .tab-icon {
@@ -140,15 +157,20 @@
       color 0.15s,
       opacity 0.15s,
       background 0.15s;
+    opacity: 0;
+  }
+
+  .tab-item.active .tab-close {
     opacity: 0.5;
   }
 
   .tab-item:hover .tab-close {
-    opacity: 0.8;
+    opacity: 0.7;
   }
 
   .tab-close:hover {
     color: var(--t0);
     background: var(--bg3);
+    opacity: 1;
   }
 </style>

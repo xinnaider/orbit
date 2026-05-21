@@ -65,3 +65,42 @@ function createSessionEffortStore() {
 }
 
 export const sessionEffort = createSessionEffortStore();
+
+function createPinnedSessionsStore() {
+  const stored =
+    typeof localStorage !== 'undefined'
+      ? new Set<string>(JSON.parse(localStorage.getItem('pinnedSessions') ?? '[]'))
+      : new Set<string>();
+
+  const { subscribe, update } = writable<Set<string>>(stored);
+
+  subscribe((val) => {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('pinnedSessions', JSON.stringify([...val]));
+    }
+  });
+
+  return {
+    subscribe,
+    toggle(sessionId: string) {
+      update((s) => {
+        const next = new Set(s);
+        if (next.has(sessionId)) {
+          next.delete(sessionId);
+        } else {
+          next.add(sessionId);
+        }
+        return next;
+      });
+    },
+    isPinned(set: Set<string>, sessionId: string): boolean {
+      return set.has(sessionId);
+    },
+  };
+}
+
+export const pinnedSessions = createPinnedSessionsStore();
+
+export function togglePin(sessionId: string) {
+  pinnedSessions.toggle(sessionId);
+}

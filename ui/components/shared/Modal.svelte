@@ -50,7 +50,7 @@
   .modal {
     background: var(--bg1);
     border: 1px solid var(--bd1);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-sm);
     max-width: 94vw;
     max-height: 90vh;
     overflow-y: auto;

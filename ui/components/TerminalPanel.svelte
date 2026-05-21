@@ -10,14 +10,12 @@
     sessionId = 0,
     terminalId = '',
     cwd = '.',
-    paneId = '',
     focused = true,
     onClose = null,
   }: {
     sessionId?: number;
     terminalId?: string;
     cwd?: string;
-    paneId?: string;
     focused?: boolean;
     onClose?: (() => void) | null;
   } = $props();
@@ -206,22 +204,7 @@
 </script>
 
 <section class="terminal-shell">
-  <PanelHeader
-    title="Terminal"
-    status={cwd}
-    dragPayload={JSON.stringify({
-      sourcePaneId: paneId,
-      target: { kind: 'terminal', terminalId, cwd },
-    })}
-    {onClose}
-    {focused}
-  >
-    <span slot="leading" class="dot terminal-dot"></span>
-    <div slot="meta"><span class="quiet-pill">pwsh</span></div>
-    <div slot="actions">
-      <button class="terminal-action" type="button" title="New terminal">＋</button>
-    </div>
-  </PanelHeader>
+  <PanelHeader title="Terminal" meta={cwd} {onClose} {focused} />
 
   <div class="terminal-body">
     {#if loading}
@@ -266,7 +249,7 @@
     flex: 1;
     min-height: 0;
     padding: 14px 16px;
-    background: #090a0a;
+    background: var(--bg);
     display: flex;
     width: 100%;
     overflow: hidden;
@@ -341,24 +324,5 @@
     background: var(--ac);
     box-shadow: 0 0 12px var(--ac-border);
     display: inline-block;
-  }
-
-  .terminal-action {
-    width: 24px;
-    height: 24px;
-    border-radius: 8px;
-    border: 1px solid var(--bd1);
-    background: color-mix(in srgb, var(--bg2), transparent 24%);
-    color: var(--t2);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    font-size: 14px;
-  }
-
-  .terminal-action:hover {
-    color: var(--t0);
-    border-color: var(--ac);
   }
 </style>

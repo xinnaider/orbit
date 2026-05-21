@@ -8,7 +8,7 @@
   import ContextMenu from './ContextMenu.svelte';
   import RenameSessionModal from './RenameSessionModal.svelte';
   import { deleteSession, stopSession, getAppVersion } from '../lib/tauri';
-  import { mutedSessions } from '../lib/stores/ui';
+  import { mutedSessions, pinnedSessions, togglePin } from '../lib/stores/ui';
   import { modelShortName } from '../lib/status';
   import { onMount } from 'svelte';
   import { clearAttention } from '../lib/tauri/attention';
@@ -51,6 +51,14 @@
   const CTX_STOP = ctxIcon(
     `<rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>`,
     'Force Stop'
+  );
+  const CTX_PIN = ctxIcon(
+    `<path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2z"/>`,
+    'Pin'
+  );
+  const CTX_UNPIN = ctxIcon(
+    `<path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2z"/><line x1="2" y1="2" x2="22" y2="22"/>`,
+    'Unpin'
   );
   const CTX_DELETE = ctxIcon(
     `<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>`,
@@ -108,6 +116,8 @@
       }
     } else if (action === 'mute') {
       mutedSessions.toggle(String(sessionId));
+    } else if (action === 'pin') {
+      togglePin(String(sessionId));
     }
   }
 
@@ -127,6 +137,15 @@
   function displayName(s: (typeof $sessions)[0]): string {
     return s.name ?? s.projectName ?? s.cwd?.split(/[/\\]/).pop() ?? `#${s.id}`;
   }
+
+  // Derived lists for session sections
+  $: rootSessions = $sessions.filter((s) => !s.parentSessionId);
+  $: pinnedList = rootSessions.filter((s) =>
+    pinnedSessions.isPinned($pinnedSessions, String(s.id))
+  );
+  $: recentList = rootSessions.filter(
+    (s) => !pinnedSessions.isPinned($pinnedSessions, String(s.id))
+  );
 </script>
 
 {#if showModal}
@@ -174,10 +193,12 @@
 
 {#if ctxMenu}
   {@const isMuted = mutedSessions.isMuted($mutedSessions, String(ctxMenu.sessionId))}
+  {@const isPinned = pinnedSessions.isPinned($pinnedSessions, String(ctxMenu.sessionId))}
   <ContextMenu
     x={ctxMenu.x}
     y={ctxMenu.y}
     items={[
+      { label: isPinned ? CTX_UNPIN : CTX_PIN, action: 'pin', danger: false, html: true },
       { label: CTX_RENAME, action: 'rename', danger: false, html: true },
       { label: isMuted ? CTX_UNMUTE : CTX_MUTE, action: 'mute', danger: false, html: true },
       { label: CTX_STOP, action: 'stop', danger: false, html: true },
@@ -202,25 +223,69 @@
     </div>
     <div class="header-actions">
       <ThemePicker />
-      <button
-        type="button"
-        class="new-btn quiet-new"
-        aria-label="New session"
-        data-testid="new-session-button"
-        on:click={() => (showModal = true)}>new</button
-      >
     </div>
   </header>
 
   <div class="quiet-search" aria-label="Search sessions">Search sessions…</div>
 
-  <section class="session-section" aria-label="Today sessions">
-    <div class="section-label">Today</div>
+  <button
+    type="button"
+    class="new-session-btn"
+    aria-label="New session"
+    data-testid="new-session-button"
+    on:click={() => (showModal = true)}>+ New session</button
+  >
+
+  {#if pinnedList.length > 0}
+    <section class="session-section" aria-label="Pinned sessions">
+      <div class="section-label">Pinned</div>
+      <div class="session-list">
+        {#each pinnedList as s (s.id)}
+          {@const hasChildren = getChildren($sessions, s.id).length > 0}
+          {@const branchLabel = s.branchName ?? s.gitBranch ?? null}
+          <button
+            type="button"
+            class="session-item quiet-session pinned"
+            class:active={$workspace.panes[$workspace.focusedPaneId ?? '']?.tabs.some(
+              (tab) => tab.target.kind === 'agent' && tab.target.sessionId === s.id
+            )}
+            draggable="true"
+            data-testid="session-item"
+            on:dragstart={(e) => {
+              e.dataTransfer?.setData('text/plain', JSON.stringify({ sessionId: s.id }));
+            }}
+            on:click={() => selectOrToggle(s, hasChildren)}
+            on:contextmenu={(e) => onContextMenu(e, s)}
+          >
+            <span class="session-topline">
+              <span class="session-title">{displayName(s)}</span>
+              <span
+                class="status-dot"
+                style="background:{attentionColor(s.attention?.reason ?? null) ||
+                  statusColor(s.status)}"
+              ></span>
+            </span>
+            <span class="session-subline">
+              <span>{fmtModel(s.model)}</span>
+              {#if branchLabel}<span>{branchLabel}</span>{/if}
+              {#if (s.contextPercent ?? 0) > 0}<span>{Math.round(s.contextPercent ?? 0)}% ctx</span
+                >{/if}
+            </span>
+          </button>
+        {/each}
+      </div>
+    </section>
+  {/if}
+
+  <section class="session-section" aria-label="Recent sessions">
+    <div class="section-label">Recent sessions</div>
     <div class="session-list">
-      {#if $sessions.length === 0}
+      {#if rootSessions.length === 0}
         <div class="empty quiet-empty">No sessions yet</div>
+      {:else if recentList.length === 0}
+        <div class="empty quiet-empty">All sessions pinned</div>
       {:else}
-        {#each $sessions.filter((s) => !s.parentSessionId) as s (s.id)}
+        {#each recentList as s (s.id)}
           {@const hasChildren = getChildren($sessions, s.id).length > 0}
           {@const branchLabel = s.branchName ?? s.gitBranch ?? null}
           <button
@@ -273,8 +338,11 @@
   }
 
   .quiet-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     height: auto;
-    padding: 0 6px 8px;
+    padding: 0 6px 10px;
     border-bottom: 0;
   }
   .brand {
@@ -286,7 +354,7 @@
     width: 28px;
     height: 28px;
     color: var(--ac);
-    filter: drop-shadow(0 0 12px var(--ac-d));
+    filter: drop-shadow(0 0 14px color-mix(in srgb, var(--ac), transparent 48%));
   }
   .brand-logo :global(svg) {
     width: 26px;
@@ -325,41 +393,44 @@
     align-items: center;
     gap: var(--sp-3);
   }
-  .quiet-new {
-    width: auto;
-    height: auto;
-    padding: 6px 10px;
-    border-radius: 999px;
-    font-size: 12px;
-    background: none;
-    border: 1px solid var(--bd1);
+  .new-session-btn {
+    display: block;
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: var(--radius-md);
+    font-size: 11px;
+    font-weight: 500;
+    background: color-mix(in srgb, var(--t0), transparent 96%);
     color: var(--t1);
     cursor: pointer;
-    transition:
-      border-color 0.15s,
-      color 0.15s;
+    text-align: center;
     font-family: var(--mono);
+    border: none;
+    transition: all 0.15s;
   }
-  .quiet-new:hover {
-    border-color: var(--ac);
-    color: var(--ac);
+  .new-session-btn:hover {
+    background: color-mix(in srgb, var(--t0), transparent 93%);
+    color: var(--t0);
   }
   .quiet-search {
     height: 34px;
     display: flex;
     align-items: center;
     padding: 0 12px;
-    border-radius: 12px;
-    background: rgba(255, 255, 255, 0.045);
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--t0), transparent 95%);
     color: var(--t3);
-    font-size: 13px;
+    font-size: 12px;
   }
   .session-section {
-    flex: 1;
-    overflow-y: auto;
     display: flex;
     flex-direction: column;
     gap: 8px;
+  }
+  .session-section:last-child {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
   }
   .section-label {
     padding: 0 8px;
@@ -373,7 +444,7 @@
   .session-list {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 6px;
   }
   .empty {
     padding: var(--sp-8) var(--sp-6);
@@ -384,7 +455,7 @@
   .quiet-session {
     width: 100%;
     border: 1px solid transparent;
-    border-radius: 15px;
+    border-radius: var(--radius-md);
     padding: 10px 11px;
     background: transparent;
     color: var(--t1);
@@ -392,19 +463,19 @@
     cursor: pointer;
   }
   .quiet-session:hover {
-    background: rgba(255, 255, 255, 0.03);
+    background: color-mix(in srgb, var(--t0), transparent 97%);
   }
   .quiet-session.active {
     color: var(--t0);
-    background: rgba(255, 255, 255, 0.06);
-    border-color: rgba(255, 255, 255, 0.075);
+    background: color-mix(in srgb, var(--t0), transparent 94%);
+    border-color: color-mix(in srgb, var(--t0), transparent 92%);
   }
   .session-topline {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 10px;
-    font-size: 13px;
+    font-size: 12px;
   }
   .session-title {
     min-width: 0;
@@ -418,16 +489,18 @@
     gap: 7px;
     color: var(--t3);
     font-family: var(--mono);
-    font-size: 11px;
+    font-size: 10px;
     white-space: nowrap;
     overflow: hidden;
   }
   .status-dot {
-    width: 7px;
-    height: 7px;
+    width: 8px;
+    height: 8px;
     flex-shrink: 0;
     border-radius: 50%;
-    box-shadow: 0 0 12px currentColor;
+    box-shadow:
+      0 0 0 3px color-mix(in srgb, currentColor, transparent 84%),
+      0 0 14px currentColor;
   }
 
   .confirm-overlay {
@@ -486,7 +559,7 @@
     border-top: 1px solid var(--bd);
     color: var(--t3);
     font-family: var(--mono);
-    font-size: 11px;
+    font-size: 10px;
   }
 
   @keyframes pulse {

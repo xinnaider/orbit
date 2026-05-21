@@ -413,7 +413,7 @@
   .status-badge {
     align-self: flex-start;
     padding: var(--sp-2) var(--sp-4);
-    border-radius: 999px;
+    border-radius: var(--radius-sm);
     font-size: var(--xs);
     letter-spacing: 0.08em;
     text-transform: uppercase;

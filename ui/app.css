@@ -7,11 +7,11 @@
   --mono: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
 
   /* Typography */
-  --xs: 10px;
-  --sm: 11px;
-  --md: 12px;
-  --base: 13px;
-  --lg: 14px;
+  --xs: 9px;
+  --sm: 10px;
+  --md: 11px;
+  --base: 12px;
+  --lg: 13px;
   --lh: 1.6;
 
   /* Spacing */
@@ -26,9 +26,9 @@
   --sp-9: 20px;
 
   /* Radius */
-  --radius-sm: 6px;
-  --radius-md: 12px;
-  --radius-lg: 18px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
 }
 
 *,
@@ -50,7 +50,7 @@ body {
 }
 
 body {
-  font-family: var(--mono);
+  font-family: var(--sans);
   font-size: var(--base);
   color: var(--t0);
   -webkit-font-smoothing: antialiased;
@@ -124,9 +124,9 @@ select {
 
 @media (max-width: 768px) {
   :root {
-    --xs: 11px;
-    --sm: 12px;
-    --md: 13px;
-    --base: 14px;
+    --xs: 10px;
+    --sm: 11px;
+    --md: 12px;
+    --base: 13px;
   }
 }

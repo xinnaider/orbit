@@ -418,12 +418,6 @@
     {/if}
     {#if selected && $metaPanelVisible}
       <MetaPanel session={selected} />
-    {:else if selected && !$metaPanelVisible}
-      <button
-        class="meta-reopen quiet-inspector-reopen"
-        on:click={() => metaPanelVisible.set(true)}
-        title="Show inspector">⌘I</button
-      >
     {/if}
   </div>
 {/if}
@@ -534,28 +528,6 @@
     color: var(--t0);
     background: var(--bg2);
   }
-  .meta-reopen {
-    flex-shrink: 0;
-    width: 20px;
-    background: var(--bg1);
-    border: none;
-    border-left: 1px solid var(--bd);
-    color: var(--t2);
-    font-size: 14px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    transition:
-      color 0.15s,
-      background 0.15s;
-  }
-  .meta-reopen:hover {
-    color: var(--t0);
-    background: var(--bg2);
-  }
-
   /* ── Mobile ──────────────────────────────────────────────── */
   .sidebar-overlay {
     position: fixed;
@@ -615,10 +587,6 @@
   }
 
   .layout.mobile .sidebar-reopen {
-    display: none;
-  }
-
-  .layout.mobile .meta-reopen {
     display: none;
   }
 

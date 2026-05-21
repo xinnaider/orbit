@@ -1,18 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import {
-    FileDiff,
-    GitBranch,
-    List,
-    FolderTree,
-    PanelLeftClose,
-    PanelLeftOpen,
-    Pencil,
-    RefreshCw,
-    Tag,
-    Timer,
-    TimerOff,
-  } from 'lucide-svelte';
+  import { FileDiff, List, FolderTree, Pencil, Tag, Timer, TimerOff } from 'lucide-svelte';
   import MonacoDiffViewer from './MonacoDiffViewer.svelte';
   import PanelHeader from './workspace/PanelHeader.svelte';
   import TreeNode from './GitTreeNode.svelte';
@@ -39,7 +27,6 @@
   } from '../lib/git-tags';
 
   export let cwd: string;
-  export let paneId = '';
   export let onClose: (() => void) | null = null;
   export let focused: boolean = true;
 
@@ -218,30 +205,10 @@
 <section class="git-panel" data-testid="git-panel">
   <PanelHeader
     title={overview?.branch ?? 'Git'}
-    status={overview?.branch ? 'main' : null}
-    dragPayload={JSON.stringify({ sourcePaneId: paneId, target: { kind: 'git', cwd } })}
+    meta={totalChanged > 0 ? `${totalChanged} file${totalChanged !== 1 ? 's' : ''}` : null}
     {onClose}
     {focused}
-  >
-    <div slot="leading" class="git-header-icon">
-      <GitBranch size={12} />
-    </div>
-    <div slot="meta" class="git-header-right">
-      <span class="hdr-stat">{totalChanged} file{totalChanged !== 1 ? 's' : ''}</span>
-    </div>
-    <div slot="actions">
-      <button type="button" class="hdr-action" aria-label="Toggle file tree" on:click={toggleTree}>
-        {#if treeCollapsed}
-          <PanelLeftOpen size={11} />
-        {:else}
-          <PanelLeftClose size={11} />
-        {/if}
-      </button>
-      <button type="button" class="hdr-action" aria-label="Refresh Git status" on:click={refresh}>
-        <RefreshCw size={11} />
-      </button>
-    </div>
-  </PanelHeader>
+  />
 
   {#if loading}
     <div class="state">Loading Git status...</div>
@@ -441,25 +408,6 @@
     font-weight: 500;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-
-  .git-header-icon {
-    display: flex;
-    color: var(--t1);
-    flex-shrink: 0;
-  }
-
-  .git-header-right {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .hdr-stat {
-    font-family: var(--mono);
-    font-size: 9.5px;
-    color: var(--t2);
-    font-variant-numeric: tabular-nums;
   }
 
   .tree-empty {

@@ -1,161 +1,125 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
-  import { X } from 'lucide-svelte';
-
   export let title: string;
+  export let meta: string | null = null;
   export let status: string | null = null;
-  export let dragPayload: string | null = null;
-  export let closeLabel = 'Close panel';
+  export let model: string | null = null;
+  export let contextPercent: number | null = null;
+  export let statusColor: string | null = null;
   export let onClose: (() => void) | null = null;
   export let focused: boolean = true;
-
-  const dispatch = createEventDispatcher<{ dragstart: DragEvent }>();
-
-  function handleDragStart(e: DragEvent) {
-    if (!dragPayload) return;
-    e.dataTransfer?.setData('text/plain', dragPayload);
-    if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
-    dispatch('dragstart', e);
-  }
 </script>
 
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-<header
-  class="panel-header quiet-pane-header"
-  class:focused
-  draggable={!!dragPayload}
-  on:dragstart={handleDragStart}
->
-  <slot name="leading" />
-
-  <div class="panel-title-block">
-    <span class="panel-title-row">
-      <span class="panel-title">{title}</span>
-      {#if status}
-        <span class="panel-title-sep">/</span>
-        <span class="panel-subtitle">{status}</span>
-      {/if}
-    </span>
+<header class="topbar quiet-topbar" class:focused>
+  <div class="crumb">
+    <span class="crumb-title" {title}>{title}</span>
+    {#if meta}
+      <span class="crumb-meta" title={meta}>{meta}</span>
+    {/if}
   </div>
-
-  <div class="panel-meta">
-    <slot name="meta" />
-  </div>
-
-  <div class="panel-actions">
-    <slot name="actions" />
+  <div class="pills">
+    {#if status}
+      <span
+        class="pill pill-status"
+        style={statusColor
+          ? `color:${statusColor};border-color:color-mix(in srgb, ${statusColor}, transparent 72%);background:color-mix(in srgb, ${statusColor}, transparent 90%)`
+          : ''}>{status}</span
+      >
+    {/if}
+    {#if model}
+      <span class="pill pill-model">{model}</span>
+    {/if}
+    {#if contextPercent != null && contextPercent > 0}
+      <span class="pill pill-ctx">{Math.round(contextPercent)}% ctx</span>
+    {/if}
     {#if onClose}
-      <button class="panel-icon-button" type="button" aria-label={closeLabel} on:click={onClose}>
-        <X size={14} />
-      </button>
+      <button class="close-btn" type="button" aria-label="Close panel" on:click={onClose}>✕</button>
     {/if}
   </div>
 </header>
 
 <style>
-  .panel-header {
+  .topbar {
     display: flex;
     align-items: center;
-    gap: 9px;
-    height: 44px;
-    padding: 0 14px;
+    justify-content: space-between;
+    height: 58px;
+    padding: 0 24px;
     border-bottom: 1px solid var(--bd);
-    background: color-mix(in srgb, var(--bg), white 1%);
+    background: rgba(255, 255, 255, 0.006);
     flex-shrink: 0;
     user-select: none;
-    transition:
-      opacity 0.15s,
-      box-shadow 0.15s;
+    min-width: 0;
   }
-
-  .panel-header:not(.focused) {
+  .topbar:not(.focused) {
     opacity: 0.65;
   }
-
-  .panel-header.focused {
+  .topbar.focused {
     box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ac), transparent 84%);
   }
 
-  .panel-header[draggable='true'] {
-    cursor: grab;
-  }
-
-  .panel-title-block {
+  .crumb {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 10px;
     min-width: 0;
-    flex: 1;
     overflow: hidden;
   }
-
-  .panel-title-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .panel-title {
-    overflow: hidden;
-    color: var(--t0);
-    font-family: var(--sans);
-    font-size: 13px;
+  .crumb-title {
     font-weight: 700;
-    text-overflow: ellipsis;
+    letter-spacing: -0.02em;
+    color: var(--t0);
     white-space: nowrap;
-  }
-
-  .panel-title-sep {
-    display: none;
-  }
-
-  .panel-subtitle {
     overflow: hidden;
-    color: var(--t2);
-    font-family: var(--mono);
-    font-size: 11px;
     text-overflow: ellipsis;
-    white-space: nowrap;
   }
-
-  .panel-meta,
-  .panel-actions {
-    display: flex;
-    align-items: center;
-    gap: var(--sp-2);
-    flex-shrink: 0;
-  }
-
-  .panel-meta :global(.quiet-pill),
-  .panel-actions :global(.quiet-pill) {
-    border: 1px solid var(--bd1);
-    border-radius: 999px;
-    padding: 4px 8px;
-    background: color-mix(in srgb, var(--bg2), transparent 28%);
-    color: var(--t1);
+  .crumb-meta {
+    color: var(--t3);
     font-family: var(--mono);
     font-size: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
-  .panel-icon-button {
+  .pills {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .pill {
+    border: 1px solid var(--bd);
+    color: var(--t2);
+    border-radius: 999px;
+    padding: 5px 9px;
+    font-family: var(--mono);
+    font-size: 10px;
+    background: rgba(255, 255, 255, 0.025);
+    white-space: nowrap;
+  }
+  .pill-status {
+    color: var(--ac);
+    background: color-mix(in srgb, var(--ac), transparent 90%);
+    border-color: color-mix(in srgb, var(--ac), transparent 72%);
+  }
+
+  .close-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 24px;
-    height: 24px;
-    border: 1px solid var(--bd1);
+    width: 22px;
+    height: 22px;
+    border: 1px solid var(--bd);
     border-radius: 8px;
-    background: color-mix(in srgb, var(--bg2), transparent 24%);
-    color: var(--t2);
-    transition:
-      border-color 0.15s,
-      background 0.15s,
-      color 0.15s;
+    background: transparent;
+    color: var(--t3);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.12s;
   }
-
-  .panel-icon-button:hover {
-    border-color: color-mix(in srgb, var(--ac), transparent 70%);
-    background: color-mix(in srgb, var(--ac), transparent 90%);
+  .close-btn:hover {
+    border-color: var(--t2);
     color: var(--t0);
+    background: var(--bg2);
   }
 </style>

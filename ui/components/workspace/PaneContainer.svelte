@@ -162,7 +162,6 @@
     {#if activeTab?.target.kind === 'git'}
       <GitPanel
         cwd={activeTab.target.cwd}
-        {paneId}
         focused={isFocused}
         onClose={() => closeTab(paneId, activeTab.id)}
       />
@@ -170,14 +169,12 @@
       <TerminalPanel
         terminalId={activeTab.target.terminalId}
         cwd={activeTab.target.cwd}
-        {paneId}
         focused={isFocused}
         onClose={() => closeTab(paneId, activeTab.id)}
       />
     {:else if activeTab?.target.kind === 'agent' && session}
       <CentralPanel
         {session}
-        {paneId}
         focused={isFocused}
         compact={compactPane}
         onClose={canClose ? () => closePane(paneId) : null}

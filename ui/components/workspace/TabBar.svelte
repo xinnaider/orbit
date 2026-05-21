@@ -131,9 +131,9 @@
   .tab-bar {
     display: flex;
     align-items: center;
-    height: 36px;
-    padding: 0 6px;
-    gap: 3px;
+    height: 35px;
+    padding: 0;
+    gap: 0;
     border-bottom: 1px solid var(--bd);
     background: var(--bg1);
     flex-shrink: 0;
@@ -142,11 +142,12 @@
 
   .tab-list {
     display: flex;
-    align-items: center;
+    align-items: stretch;
     flex: 1;
     overflow-x: auto;
     scrollbar-width: none;
-    gap: 3px;
+    gap: 0;
+    height: 100%;
   }
 
   .tab-list::-webkit-scrollbar {
@@ -155,7 +156,7 @@
 
   .drop-zone {
     display: flex;
-    align-items: center;
+    align-items: stretch;
     position: relative;
     flex-shrink: 0;
   }
@@ -192,17 +193,17 @@
     justify-content: center;
     width: 22px;
     height: 22px;
-    border: 1px dashed var(--bd1);
+    border: none;
     background: transparent;
     color: var(--t3);
     cursor: pointer;
     flex-shrink: 0;
-    border-radius: var(--radius-sm);
+    border-radius: 0;
     transition: all 0.12s;
+    margin: 0 4px;
   }
 
   .add-button:hover {
-    border-color: var(--ac);
-    color: var(--ac);
+    color: var(--t1);
   }
 </style>

@@ -244,10 +244,10 @@
         class="timeline-event {eventClass(entry)}"
         aria-label="{actorLabel(entry)} {ts(entry)}"
       >
-        <div class="timeline-node" aria-hidden="true"></div>
+        <div class="timeline-node {eventClass(entry)}" aria-hidden="true"></div>
         <div class="timeline-body">
           <div class="event-meta">
-            <span class="event-actor">{actorLabel(entry)}</span>
+            <span class="event-actor {eventClass(entry)}">{actorLabel(entry)}</span>
             {#if ts(entry)}<span>{ts(entry)}</span>{/if}
           </div>
 
@@ -305,9 +305,11 @@
 
     {#if isWorking}
       <article class="timeline-event working" aria-label="agent working">
-        <div class="timeline-node"></div>
+        <div class="timeline-node working"></div>
         <div class="timeline-body">
-          <div class="event-meta"><span class="event-actor">orbit / {agentLabel}</span></div>
+          <div class="event-meta">
+            <span class="event-actor working">orbit / {agentLabel}</span>
+          </div>
           <div class="working-pill"><Sparkles size={12} /> working</div>
         </div>
       </article>
@@ -340,8 +342,7 @@
   }
 
   .timeline {
-    width: min(900px, 100%);
-    margin: 0 auto;
+    width: 100%;
     padding: 28px 38px 22px;
     display: flex;
     flex-direction: column;
@@ -376,21 +377,34 @@
   }
   .timeline-node::after {
     content: '';
-    width: 7px;
-    height: 7px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
     background: var(--t3);
   }
-  .timeline-event.user .timeline-node::after {
+  .timeline-node.user::after {
     background: var(--user-fg);
-    box-shadow: 0 0 12px color-mix(in srgb, var(--user-fg), transparent 60%);
+    box-shadow:
+      0 0 0 3px color-mix(in srgb, var(--user-fg), transparent 78%),
+      0 0 16px color-mix(in srgb, var(--user-fg), transparent 32%);
   }
-  .timeline-event.assistant .timeline-node::after,
-  .timeline-event.working .timeline-node::after {
+  .timeline-node.assistant::after,
+  .timeline-node.working::after {
     background: var(--ac);
-    box-shadow: 0 0 12px var(--ac-border);
+    box-shadow:
+      0 0 0 3px color-mix(in srgb, var(--ac), transparent 78%),
+      0 0 16px color-mix(in srgb, var(--ac), transparent 32%);
   }
-  .timeline-event.tool .timeline-node::after {
+  .timeline-node.user {
+    border-color: color-mix(in srgb, var(--user-fg), transparent 36%);
+    background: color-mix(in srgb, var(--user-fg), transparent 86%);
+  }
+  .timeline-node.assistant,
+  .timeline-node.working {
+    border-color: color-mix(in srgb, var(--ac), transparent 36%);
+    background: color-mix(in srgb, var(--ac), transparent 86%);
+  }
+  .timeline-node.tool::after {
     background: var(--tool-fg);
     box-shadow: 0 0 12px color-mix(in srgb, var(--tool-fg), transparent 70%);
   }
@@ -402,10 +416,17 @@
     margin-bottom: 5px;
     color: var(--t3);
     font-family: var(--mono);
-    font-size: 11px;
+    font-size: 10px;
   }
   .event-actor {
     color: var(--t1);
+  }
+  .event-actor.user {
+    color: var(--user-fg);
+  }
+  .event-actor.assistant,
+  .event-actor.working {
+    color: var(--ac);
   }
   .event-ts {
     font-size: var(--xs);
@@ -414,8 +435,8 @@
 
   .event-text {
     color: var(--t0);
-    font-size: 14px;
-    line-height: 1.62;
+    font-size: 13px;
+    line-height: 1.58;
   }
   .user-text {
     max-width: 680px;
@@ -423,7 +444,7 @@
     border: 1px solid var(--bd);
     border-radius: 18px;
     padding: 12px 14px;
-    background: rgba(255, 255, 255, 0.045);
+    background: color-mix(in srgb, var(--t0), transparent 95%);
   }
   .system-text {
     color: var(--t1);
@@ -441,7 +462,36 @@
     border-radius: 999px;
     padding: 7px 10px;
     font-family: var(--mono);
-    font-size: 11px;
+    font-size: 10px;
+    animation: workingPulse 2.4s ease-in-out infinite;
+  }
+
+  @keyframes workingPulse {
+    0%,
+    100% {
+      opacity: 0.7;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+
+  .timeline-node.working::after {
+    animation: workingGlow 2.4s ease-in-out infinite;
+  }
+
+  @keyframes workingGlow {
+    0%,
+    100% {
+      box-shadow:
+        0 0 0 3px color-mix(in srgb, var(--ac), transparent 78%),
+        0 0 12px color-mix(in srgb, var(--ac), transparent 60%);
+    }
+    50% {
+      box-shadow:
+        0 0 0 3px color-mix(in srgb, var(--ac), transparent 70%),
+        0 0 20px color-mix(in srgb, var(--ac), transparent 30%);
+    }
   }
 
   /* ── Thinking inline ── */

@@ -14,22 +14,22 @@
   --t1: #a19a90;
   --t2: #7a736b;
   --t3: #67615a;
-  --ac: #7bd99d;
-  --ac-d: rgba(123, 217, 157, 0.1);
-  --ac-d2: rgba(123, 217, 157, 0.05);
-  --ac-border: rgba(123, 217, 157, 0.22);
-  --s-working: #7bd99d;
-  --s-input: #d9b56c;
+  --ac: #7cff9e;
+  --ac-d: rgba(124, 255, 158, 0.12);
+  --ac-d2: rgba(124, 255, 158, 0.06);
+  --ac-border: rgba(124, 255, 158, 0.32);
+  --s-working: #7cff9e;
+  --s-input: #f2c96f;
   --s-idle: #67615a;
   --s-error: #e47770;
-  --s-init: #8dbbf7;
+  --s-init: #4da3ff;
   --s-done: #3b3d3d;
-  --user-fg: #8dbbf7;
-  --user-bg: rgba(141, 187, 247, 0.07);
-  --think-fg: #b9a1f4;
-  --think-bg: rgba(185, 161, 244, 0.07);
-  --tool-fg: #d9b56c;
-  --tool-bg: rgba(217, 181, 108, 0.055);
+  --user-fg: #4da3ff;
+  --user-bg: rgba(77, 163, 255, 0.1);
+  --think-fg: #c8a8ff;
+  --think-bg: rgba(200, 168, 255, 0.08);
+  --tool-fg: #f2c96f;
+  --tool-bg: rgba(242, 201, 111, 0.07);
   --result-fg: #7a736b;
   --result-bg: rgba(255, 255, 255, 0.025);
 }
@@ -43,6 +43,7 @@
   --bg2: #e8e2da;
   --bg3: #dfd8ce;
   --bg4: #d4ccc0;
+  --bg-sidebar: #f0ebe4;
   --bd: #d6cfc5;
   --bd1: #c4bcb0;
   --bd2: #afa69a;
@@ -77,6 +78,7 @@
   --bg2: #3b4252;
   --bg3: #434c5e;
   --bg4: #4c566a;
+  --bg-sidebar: #2b3039;
   --bd: #3b4252;
   --bd1: #434c5e;
   --bd2: #4c566a;
@@ -94,7 +96,7 @@
   --s-error: #bf616a;
   --s-init: #81a1c1;
   --s-done: #3b4252;
-  --user-fg: #88c0d0;
+  --user-fg: #5e81ac;
   --user-bg: rgba(136, 192, 208, 0.06);
   --think-fg: #b48ead;
   --think-bg: rgba(180, 142, 173, 0.08);
@@ -111,6 +113,7 @@
   --bg2: #2d2f3d;
   --bg3: #343746;
   --bg4: #44475a;
+  --bg-sidebar: #21222c;
   --bd: #343746;
   --bd1: #44475a;
   --bd2: #6272a4;
@@ -145,6 +148,7 @@
   --bg2: #232336;
   --bg3: #2a2a3c;
   --bg4: #313244;
+  --bg-sidebar: #181825;
   --bd: #2a2a3c;
   --bd1: #313244;
   --bd2: #45475a;
@@ -180,6 +184,7 @@
   --bg2: #15181f;
   --bg3: #1c1f28;
   --bg4: #232733;
+  --bg-sidebar: #0f1116;
   --bd: #1a1d26;
   --bd1: #242836;
   --bd2: #303447;
@@ -197,8 +202,8 @@
   --s-error: #e85a5a;
   --s-init: #4f8cff;
   --s-done: #1c1f28;
-  --user-fg: #4f8cff;
-  --user-bg: rgba(79, 140, 255, 0.06);
+  --user-fg: #5fc8c8;
+  --user-bg: rgba(95, 200, 200, 0.06);
   --think-fg: #e8b84c;
   --think-bg: rgba(232, 184, 76, 0.06);
   --tool-fg: #e8b84c;

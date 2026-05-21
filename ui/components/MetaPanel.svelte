@@ -287,6 +287,11 @@
     flex-direction: column;
     gap: 0;
   }
+
+  .inspector .stats {
+    gap: 12px;
+    padding: var(--sp-5) 0;
+  }
   .stat-group {
     padding: var(--sp-4) var(--sp-6);
     border-bottom: 1px solid var(--bd);
@@ -426,7 +431,7 @@
   .inspector .stat-group {
     border: 1px solid var(--bd);
     border-radius: 18px;
-    background: rgba(255, 255, 255, 0.025);
+    background: color-mix(in srgb, var(--t0), transparent 97%);
     padding: 14px;
   }
 </style>
