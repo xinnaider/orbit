@@ -4,6 +4,11 @@
 
 ## May 2026
 
+### 05/21 · New — Quiet pane header chrome
+Panel headers now use a taller layout (44px) with rounded pill badges for metadata
+and action buttons. When a panel is focused, a subtle accent-colored glow appears
+at the top edge. Titles use the app's sans-serif font at 13px bold.
+
 ### 05/20 · Fix — User's first message now appears in chat
 The initial prompt that creates a session and follow-up messages were missing from the chat feed. Both now appear immediately as user entries before the agent responds. This also fixes the browser preview mode where messages would disappear due to a deduplication collision in the mock backend.
 

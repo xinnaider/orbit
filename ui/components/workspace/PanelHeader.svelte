@@ -20,7 +20,7 @@
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<header class="panel-header" class:focused draggable={!!dragPayload} on:dragstart={handleDragStart}>
+<header class="panel-header quiet-pane-header" class:focused draggable={!!dragPayload} on:dragstart={handleDragStart}>
   <slot name="leading" />
 
   <div class="panel-title-block">
@@ -51,18 +51,22 @@
   .panel-header {
     display: flex;
     align-items: center;
-    gap: 7px;
-    height: 34px;
-    padding: 0 10px;
+    gap: 9px;
+    height: 44px;
+    padding: 0 14px;
     border-bottom: 1px solid var(--bd);
-    background: var(--bg);
+    background: color-mix(in srgb, var(--bg), white 1%);
     flex-shrink: 0;
     user-select: none;
-    transition: opacity 0.15s;
+    transition: opacity 0.15s, box-shadow 0.15s;
   }
 
   .panel-header:not(.focused) {
     opacity: 0.65;
+  }
+
+  .panel-header.focused {
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ac), transparent 84%);
   }
 
   .panel-header[draggable='true'] {
@@ -87,19 +91,15 @@
   .panel-title {
     overflow: hidden;
     color: var(--t0);
-    font-family: var(--mono);
-    font-size: 12px;
-    font-weight: 500;
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 700;
     text-overflow: ellipsis;
     white-space: nowrap;
-    letter-spacing: -0.01em;
   }
 
   .panel-title-sep {
-    color: var(--t3);
-    font-family: var(--mono);
-    font-size: 11px;
-    flex-shrink: 0;
+    display: none;
   }
 
   .panel-subtitle {
@@ -119,15 +119,26 @@
     flex-shrink: 0;
   }
 
+  .panel-meta :global(.quiet-pill),
+  .panel-actions :global(.quiet-pill) {
+    border: 1px solid var(--bd1);
+    border-radius: 999px;
+    padding: 4px 8px;
+    background: color-mix(in srgb, var(--bg2), transparent 28%);
+    color: var(--t1);
+    font-family: var(--mono);
+    font-size: 10px;
+  }
+
   .panel-icon-button {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
     border: 1px solid var(--bd1);
-    border-radius: 4px;
-    background: var(--bg2);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--bg2), transparent 24%);
     color: var(--t2);
     transition:
       border-color 0.15s,
