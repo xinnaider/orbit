@@ -7,6 +7,11 @@ export function initLenis() {
     return null;
   }
 
+  if (window.matchMedia('(max-width: 760px), (pointer: coarse)').matches) {
+    document.documentElement.classList.add('native-scroll');
+    return null;
+  }
+
   const lenis = new Lenis({
     anchors: { offset: -84 },
     autoRaf: false,

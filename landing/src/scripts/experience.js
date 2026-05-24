@@ -12,6 +12,8 @@ function hideLoader() {
 }
 
 function initAnchorFallback(lenis, snapToSectionId) {
+  if (window.matchMedia('(max-width: 760px), (pointer: coarse)').matches) return;
+
   document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
     anchor.addEventListener('click', (event) => {
       const href = anchor.getAttribute('href');
@@ -34,7 +36,13 @@ function initAnchorFallback(lenis, snapToSectionId) {
 }
 
 function initSectionSnap(lenis) {
-  if (!lenis || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (
+    !lenis ||
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
+    window.matchMedia('(max-width: 760px), (pointer: coarse)').matches
+  ) {
+    return;
+  }
 
   const sections = [...document.querySelectorAll('[data-snap-section]')];
   if (sections.length < 2) return;

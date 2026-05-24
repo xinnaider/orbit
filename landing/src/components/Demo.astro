@@ -38,8 +38,10 @@
     border: 1px solid var(--line);
     border-radius: 8px;
     box-shadow: 0 42px 130px rgba(0, 0, 0, 0.52);
-    margin-top: 54px;
+    margin: 54px auto 0;
+    max-width: 1120px;
     overflow: hidden;
+    width: 100%;
   }
 
   .frame-bar {
@@ -82,9 +84,10 @@
   }
 
   .product-frame img {
-    aspect-ratio: 16 / 9;
+    aspect-ratio: 16 / 10;
     background: rgba(244, 239, 228, 0.04);
-    object-fit: cover;
+    height: auto;
+    object-fit: contain;
     width: 100%;
   }
 
