@@ -52,6 +52,11 @@ export function gitBranch(cwd: string): Promise<string | null> {
   return invoke<string | null>('git_branch', { cwd });
 }
 
+/** Validate git configuration before operations. */
+export function validateGitConfig(cwd: string): Promise<boolean> {
+  return invoke<boolean>('git_validate_config', { cwd });
+}
+
 export function gitOverview(cwd: string): Promise<GitOverview> {
   return invoke<GitOverview>('git_overview', { cwd });
 }
