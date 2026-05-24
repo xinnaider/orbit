@@ -52,11 +52,6 @@ export function gitBranch(cwd: string): Promise<string | null> {
   return invoke<string | null>('git_branch', { cwd });
 }
 
-/** Validate git configuration before operations. */
-export function validateGitConfig(cwd: string): Promise<boolean> {
-  return invoke<boolean>('git_validate_config', { cwd });
-}
-
 export function gitOverview(cwd: string): Promise<GitOverview> {
   return invoke<GitOverview>('git_overview', { cwd });
 }
@@ -76,4 +71,44 @@ export function gitDiffFile(
 
 export function writeFileContent(path: string, content: string): Promise<void> {
   return invoke<void>('write_file_content', { path, content });
+}
+
+/** Stage all unstaged changes to git index */
+export function gitStageAll(cwd: string): Promise<void> {
+  return invoke<void>('git_stage_all', { cwd });
+}
+
+/** Reset all staged changes from git index */
+export function gitResetStaged(cwd: string): Promise<void> {
+  return invoke<void>('git_reset_staged', { cwd });
+}
+
+/** Commit staged changes with optional message */
+export function gitCommit(cwd: string, message?: string): Promise<void> {
+  return invoke<void>('git_commit', { cwd, message });
+}
+
+/** Get formatted diff output for a file */
+export function gitDiffFormatted(cwd: string, filePath: string): Promise<string> {
+  return invoke<string>('git_diff_formatted', { cwd, filePath });
+}
+
+/** Validate git configuration before operations */
+export function validateGitConfig(cwd: string): Promise<boolean> {
+  return invoke<boolean>('git_validate_config', { cwd });
+}
+
+/** Quick commit with auto-generated message from file changes */
+export function gitQuickCommit(cwd: string): Promise<void> {
+  return invoke<void>('git_quick_commit', { cwd });
+}
+
+/** Reset all working tree changes */
+export function gitResetWorkingTree(cwd: string): Promise<void> {
+  return invoke<void>('git_reset_working_tree', { cwd });
+}
+
+/** Chain git commands to handle PowerShell 5.1 limitations (convert && to ; if ($?) { }) */
+export function chainGitCommands(commands: string[]): string[] {
+  return commands.map(cmd => cmd.replace(/&&/g, '; if ($?) { }'));
 }

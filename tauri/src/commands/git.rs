@@ -348,3 +348,120 @@ pub fn git_snapshot(cwd: String) -> Result<crate::services::git_service::GitSnap
     let snap = crate::services::git_service::GitWatcher::poll_snapshot(&p);
     Ok(snap)
 }
+
+/// Stage all unstaged changes to git index
+#[tauri::command]
+pub fn git_stage_all(cwd: String) -> Result<(), String> {
+    run_git(&cwd, &["add", "."])
+    .map(|_| ())
+    .map_err(|e| format!("Failed to stage all files: {}", e))
+}
+
+/// Reset all staged changes from git index
+#[tauri::command]
+pub fn git_reset_staged(cwd: String) -> Result<(), String> {
+    run_git(&cwd, &["reset", "HEAD"])
+    .map(|_| ())
+    .map_err(|e| format!("Failed to reset staged files: {}", e))
+}
+
+/// Commit staged changes with optional message
+#[tauri::command]
+pub fn git_commit(cwd: String, message: Option<String>) -> Result<(), String> {
+    let commit_args: Vec<&str> = message
+        .as_ref()
+        .map(|m| vec!["-m", m.trim()])
+        .unwrap_or_default();
+    
+    run_git(&cwd, &["commit"]
+        .iter()
+        .chain(commit_args.iter())
+        .copied()
+        .collect::<Vec<_>>()
+        .as_slice()
+    )
+    .map(|_| ())
+    .map_err(|e| format!("Failed to commit: {}", e))
+}
+
+/// Get formatted diff output for a file with syntax highlighting
+#[tauri::command]
+pub fn git_diff_formatted(cwd: String, file_path: String) -> Result<String, String> {
+    run_git(&cwd, &["diff", "--unified=3", "--no-index", "-u", "HEAD", &file_path])
+        .map(|output| {
+            // Add markdown formatting
+            format!("\`\`\`{}\ndiff --git a/{} b/{}\\n{}\`\`\`\n", 
+                    get_language_for(path: &file_path),
+                    normalize_path(&file_path),
+                    normalize_path(&file_path),
+                    output
+            )
+        })
+        .map_err(|e| format!("Failed to get diff: {}", e))
+}
+
+/// Quick commit with auto-generated message from file changes
+#[tauri::command]
+pub fn git_quick_commit(cwd: String) -> Result<(), String> {
+    // Get list of changed files
+    let status = run_git(&cwd, &["status", "--short"])
+        .map_err(|e| format!("Failed to get status: {}", e))?;
+    
+    let files: Vec<&str> = status
+        .lines()
+        .filter(|line| line.len() >= 3)
+        .map(|line| &line[3..])
+        .collect();
+    
+    if files.is_empty() {
+        return Ok(());
+    }
+    
+    // Generate message from file changes
+    let mut message = "Update".to_string();
+    for file in &files {
+        message = format!("{} {}", message, file);
+    }
+    
+    git_commit(cwd, Some(message))
+}
+
+/// Reset all working tree changes
+#[tauri::command]
+pub fn git_reset_working_tree(cwd: String) -> Result<(), String> {
+    run_git(&cwd, &["checkout", "--", "."])
+    .map(|_| ())
+    .map_err(|e| format!("Failed to reset working tree: {}", e))
+}
+
+/// Chain git commands to handle PowerShell 5.1 limitations
+/// Converts && to ; if ($?) { } pattern
+pub fn chain_git_commands(commands: Vec<String>) -> Vec<String> {
+    commands
+        .into_iter()
+        .map(|cmd| cmd.replace("&&", "; if ($?) { }"))
+        .collect()
+}
+
+/// Get language for syntax highlighting based on file extension
+fn get_language_for(path: &str) -> String {
+    match path.rsplit('.').next() {
+        Some("svelte") => "svelte",
+        Some("ts") => "typescript",
+        Some("js") => "javascript",
+        Some("rs") => "rust",
+        Some("json") => "json",
+        Some("md") => "markdown",
+        Some("css") => "css",
+        Some("html") => "html",
+        Some("sh") => "shell",
+        Some("py") => "python",
+        _ => "text",
+    }
+}
+
+/// Normalize path separators for cross-platform compatibility
+fn normalize_path(path: &str) -> String {
+    path.replace('\\', "/")
+}
+
