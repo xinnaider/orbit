@@ -1,413 +1,364 @@
----
-// No props
----
+<section class="hero" id="hero" data-snap-section>
+  <div class="hero-inner">
+    <div class="hero-copy-panel">
+      <p class="hero-kicker">multi-provider desktop control room</p>
+      <h1 class="hero-title">Orbit</h1>
+      <p class="hero-copy">
+        Run multiple AI coding agents in parallel, inspect their work in real time, and keep every
+        session, token, cost, and spawned sub-agent under one desktop surface.
+      </p>
 
-<section class="hero" id="hero" data-section>
-
-  <div class="orbit-wrap" aria-hidden="true">
-    <svg viewBox="0 0 300 300" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <filter id="glow">
-          <feGaussianBlur stdDeviation="3" result="b"/>
-          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-        </filter>
-        <filter id="glow-sm">
-          <feGaussianBlur stdDeviation="2" result="b"/>
-          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-        </filter>
-      </defs>
-      <g class="ring-outer">
-        <ellipse cx="150" cy="150" rx="138" ry="53"
-          stroke="#00d47e" stroke-width="1.2" opacity="0.35"
-          transform="rotate(-38 150 150)"/>
-      </g>
-      <g class="ring-inner">
-        <ellipse cx="150" cy="150" rx="88" ry="34"
-          stroke="#00d47e" stroke-width="0.8" opacity="0.18"
-          transform="rotate(-38 150 150)"/>
-      </g>
-      <g class="satellite">
-        <circle cx="279" cy="117" r="4.5"
-          fill="#00d47e" opacity="0.9" filter="url(#glow-sm)"/>
-      </g>
-      <circle cx="150" cy="150" r="20" fill="#00d47e" opacity="0.10"/>
-      <circle cx="150" cy="150" r="12" fill="#00d47e" opacity="0.15"/>
-      <circle cx="150" cy="150" r="6"  fill="#00d47e" filter="url(#glow)"/>
-    </svg>
-  </div>
-
-  <p class="eyebrow">● multi-agent dashboard</p>
-  <h1>orbit</h1>
-  <p class="subtitle">
-    Manage multiple AI coding agents simultaneously.<br/>
-    Claude Code, Codex, OpenCode — real-time feed, persistent history, token tracking.
-  </p>
-
-  <div class="cta-group">
-    <a href="https://github.com/xinnaider/orbit" class="btn-github" id="github-star-btn">
-      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38
-          0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13
-          -.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66
-          .07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15
-          -.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27
-          .68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12
-          .51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48
-          0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8
-          c0-4.42-3.58-8-8-8z"/>
-      </svg>
-      Star on GitHub
-      <span class="star-count" id="star-count" style="display:none"></span>
-    </a>
-
-    <div class="install-wrap">
-      <button class="btn-install" id="btn-install">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-          <polyline points="7 10 12 15 17 10"/>
-          <line x1="12" y1="15" x2="12" y2="3"/>
-        </svg>
-        <span id="install-label">Install for Windows</span>
-        <svg class="chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="6 9 12 15 18 9"/>
-        </svg>
-      </button>
-      <div class="dropdown" id="os-dropdown">
-        <button class="dropdown-item" data-os="win">
-          <svg width="13" height="13" viewBox="0 0 88 88" fill="currentColor" aria-hidden="true">
-            <path d="M0 0h42v42H0V0z" opacity="0.9"/>
-            <path d="M46 0h42v42H46V0z" opacity="0.9"/>
-            <path d="M0 46h42v42H0V46z" opacity="0.9"/>
-            <path d="M46 46h42v42H46V46z" opacity="0.9"/>
+      <div class="hero-actions">
+        <a class="button button-primary" href="https://github.com/xinnaider/orbit/releases">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <path d="m7 10 5 5 5-5"></path>
+            <path d="M12 15V3"></path>
           </svg>
-          Windows <span class="os-tag">10+</span>
-        </button>
-        <button class="dropdown-item" data-os="mac">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+          Install Orbit
+        </a>
+
+        <a class="button button-secondary" href="https://github.com/xinnaider/orbit">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"></path>
           </svg>
-          macOS <span class="os-tag">13+</span>
-        </button>
-        <button class="dropdown-item" data-os="linux">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
+          View repo
+        </a>
+
+        <a class="button button-ghost" href="#product">
+          See product
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M5 12h14"></path>
+            <path d="m12 5 7 7-7 7"></path>
           </svg>
-          Linux <span class="os-tag">AppImage</span>
-        </button>
+        </a>
+      </div>
+
+      <div class="install-panel hero-proof" data-install>
+        <div class="install-head">
+          <div>
+            <strong>Install directly</strong>
+            <span data-install-label>Windows selected</span>
+          </div>
+          <span class="install-live">ready</span>
+        </div>
+
+        <div class="os-grid" aria-label="Operating system">
+          <button class="os-chip" type="button" data-os="win">Windows <span>10+</span></button>
+          <button class="os-chip" type="button" data-os="mac">macOS <span>13+</span></button>
+          <button class="os-chip" type="button" data-os="linux">Linux <span>AppImage</span></button>
+        </div>
+
+        <div class="install-command" aria-label="Install command">
+          <span class="prompt" data-install-prompt>PS&gt;</span>
+          <code data-install-command></code>
+          <button class="copy-command" type="button" aria-label="Copy install command" data-copy-install>
+            <svg class="copy-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="9" y="9" width="13" height="13" rx="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+            <svg class="done-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="m20 6-11 11-5-5"></path>
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
-
-    <div class="install-cmd" id="install-cmd">
-      <span class="install-prompt" id="install-prompt">$</span>
-      <span class="install-text" id="install-text"></span>
-      <button class="copy-btn" id="copy-btn" aria-label="Copy install command">
-        <svg id="copy-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-          <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
-        </svg>
-        <svg id="check-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:none">
-          <polyline points="20 6 9 17 4 12"/>
-        </svg>
-      </button>
-    </div>
-
-    <span class="meta">Windows 10+ · macOS 13+ · Ubuntu 22.04+ · MIT</span>
-  </div>
-
-  <div class="scroll-down" aria-hidden="true">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
-      <polyline points="6 9 12 15 18 9"/>
-    </svg>
   </div>
 </section>
 
 <style>
   .hero {
-    min-height: 100vh;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    position: relative; overflow: hidden;
-    padding: 120px 24px 80px;
-    text-align: center;
+    align-items: center;
+    display: flex;
+    min-height: 100svh;
+    overflow: hidden;
+    padding: 128px 40px 74px;
+    position: relative;
   }
 
-  .orbit-wrap {
-    width: 300px; height: 300px;
-    margin: 0 auto 44px; flex-shrink: 0;
-    position: relative; z-index: 1;
-  }
-  .orbit-wrap svg { width: 100%; height: 100%; overflow: visible; }
-
-  .eyebrow {
-    font-size: 10px; letter-spacing: 0.25em;
-    color: var(--ac); text-transform: uppercase;
-    margin-bottom: 14px; position: relative; z-index: 1;
-  }
-  h1 {
-    font-size: clamp(40px, 8vw, 72px);
-    font-weight: 600; letter-spacing: 0.12em;
-    color: var(--t0); line-height: 1.1; margin-bottom: 18px;
-    position: relative; z-index: 1;
-  }
-  .subtitle {
-    font-size: 13px; color: var(--t2);
-    max-width: 420px; line-height: 1.8; margin-bottom: 36px;
-    position: relative; z-index: 1;
-  }
-
-  .cta-group {
-    display: flex; flex-direction: column;
-    align-items: center; gap: 10px;
-    position: relative; z-index: 1;
-    width: 360px; max-width: 100%;
-  }
-  .btn-github {
-    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-    border-radius: 4px; font-family: var(--font);
-    cursor: pointer; transition: all 0.2s;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.1);
-    color: var(--t1); padding: 11px 24px; font-size: 13px;
-    letter-spacing: 0.06em; width: 100%;
-  }
-  .btn-github:hover {
-    background: rgba(255,255,255,0.07);
-    border-color: rgba(255,255,255,0.18);
-    color: var(--t0);
-  }
-  .star-count {
-    background: rgba(255,255,255,0.08);
-    border: 1px solid rgba(255,255,255,0.12);
-    border-radius: 3px;
-    padding: 1px 6px;
-    font-size: 11px;
-    letter-spacing: 0.04em;
-    margin-left: 2px;
-  }
-
-  /* ── Install CTA + dropdown ── */
-  .install-wrap {
-    position: relative; width: 100%;
-  }
-  .btn-install {
-    display: flex; align-items: center; justify-content: center; gap: 10px;
+  .hero-inner {
+    display: grid;
+    gap: clamp(28px, 4vw, 56px);
+    grid-template-columns: minmax(0, 690px) minmax(260px, 390px);
+    margin: 0 auto;
+    max-width: 1160px;
+    min-height: calc(100svh - 204px);
+    position: relative;
     width: 100%;
-    border-radius: 4px; font-family: var(--font);
-    cursor: pointer; transition: all 0.2s;
-    background: var(--ac-dim);
-    border: 1px solid rgba(0, 212, 126, 0.4);
-    color: var(--ac); padding: 13px 24px; font-size: 14px;
-    font-weight: 600; letter-spacing: 0.06em;
-  }
-  .btn-install:hover {
-    background: rgba(0, 212, 126, 0.18);
-    border-color: rgba(0, 212, 126, 0.7);
-    box-shadow: 0 0 24px rgba(0, 212, 126, 0.12);
-  }
-  .btn-install .chevron {
-    transition: transform 0.2s;
-  }
-  .install-wrap.open .btn-install .chevron {
-    transform: rotate(180deg);
-  }
-  .dropdown {
-    position: absolute; top: calc(100% + 4px); left: 0; right: 0;
-    background: #111; border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 4px; overflow: hidden;
-    opacity: 0; transform: translateY(-4px);
-    pointer-events: none;
-    transition: opacity 0.2s, transform 0.2s;
-    z-index: 10;
-  }
-  .install-wrap.open .dropdown {
-    opacity: 1; transform: translateY(0);
-    pointer-events: auto;
-  }
-  .dropdown-item {
-    display: flex; align-items: center; gap: 10px;
-    width: 100%; padding: 11px 16px;
-    background: none; border: none;
-    font-family: var(--font); font-size: 12px;
-    color: var(--t1); cursor: pointer;
-    letter-spacing: 0.04em;
-    transition: background 0.15s;
-  }
-  .dropdown-item:hover {
-    background: rgba(255,255,255,0.06);
-  }
-  .dropdown-item.active {
-    color: var(--ac);
-  }
-  .dropdown-item + .dropdown-item {
-    border-top: 1px solid rgba(255,255,255,0.05);
-  }
-  .os-tag {
-    font-size: 9px; color: var(--t3);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 3px; padding: 1px 5px;
-    margin-left: auto;
+    z-index: 1;
   }
 
-  /* Install command bar */
-  .install-cmd {
-    display: flex; align-items: center; gap: 8px;
-    width: 100%;
-    background: rgba(0,0,0,0.35);
-    border: 1px solid rgba(255,255,255,0.06);
-    border-radius: 4px;
-    padding: 8px 12px;
-    font-family: 'Courier New', Courier, monospace;
-    font-size: 10.5px;
+  .hero-copy-panel {
+    align-self: center;
+    grid-column: 1;
+    max-width: 690px;
+  }
+
+  .hero-kicker {
+    color: var(--green);
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0;
+    margin: 0 0 14px;
+  }
+
+  .hero-title {
+    color: var(--text);
+    font-family: var(--display);
+    font-size: clamp(76px, 9vw, 136px);
+    font-weight: 700;
+    letter-spacing: 0;
+    line-height: 0.82;
+    margin: 0;
+    text-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+  }
+
+  .hero-copy {
+    color: var(--muted);
+    font-size: 17px;
+    line-height: 1.48;
+    margin: 28px 0 0;
+    max-width: 680px;
+  }
+
+  .hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 28px;
+  }
+
+  .button-ghost {
+    background: transparent;
+    color: var(--muted);
+  }
+
+  .button-ghost:hover {
+    background: rgba(241, 236, 227, 0.05);
+    border-color: var(--line-strong);
+    color: var(--text);
+  }
+
+  .install-panel {
+    backdrop-filter: blur(18px);
+    background: rgba(12, 13, 13, 0.66);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: 0 28px 90px rgba(0, 0, 0, 0.28);
+    margin-top: 24px;
+    max-width: 620px;
     overflow: hidden;
   }
-  .install-prompt {
-    color: var(--ac); flex-shrink: 0; user-select: none;
-  }
-  .install-text {
-    color: var(--t2); flex: 1;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .copy-btn {
-    flex-shrink: 0; background: none; border: none; cursor: pointer;
-    color: var(--t3); padding: 2px;
-    display: flex; align-items: center; transition: color 0.15s;
-  }
-  .copy-btn:hover { color: var(--ac); }
-  .meta {
-    margin-top: 4px;
-    font-size: 10px; color: var(--t3); letter-spacing: 0.1em;
+
+  .install-head {
+    align-items: center;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    padding: 14px 15px;
   }
 
-  .scroll-down {
-    position: absolute; bottom: 28px;
-    color: var(--t3);
-    animation: bounce-down 2s ease-in-out infinite;
-  }
-  @keyframes bounce-down {
-    0%, 100% { transform: translateY(0); opacity: 0.3; }
-    50% { transform: translateY(6px); opacity: 0.7; }
+  .install-head div {
+    display: grid;
+    gap: 2px;
   }
 
-  @media (max-width: 768px) {
-    .hero { padding: 100px 20px 60px; }
-    .orbit-wrap { width: 180px; height: 180px; margin-bottom: 24px; }
-    .subtitle { font-size: 12px; max-width: 320px; }
-    .cta-group { width: 100%; }
-    .btn-github { padding: 10px 16px; font-size: 12px; }
-    .btn-install { padding: 11px 16px; font-size: 13px; }
-    .dropdown-item { padding: 10px 14px; font-size: 11px; }
-    .install-cmd { font-size: 9px; padding: 7px 10px; }
-    .install-text { font-size: 9px; }
+  .install-head strong {
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 700;
   }
-  @media (max-width: 480px) {
-    h1 { letter-spacing: 0.06em; font-size: 36px; }
-    .orbit-wrap { width: 150px; height: 150px; margin-bottom: 20px; }
-    .eyebrow { font-size: 8px; }
+
+  .install-head span,
+  .install-live {
+    color: var(--quiet);
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+
+  .install-live {
+    color: var(--green);
+  }
+
+  .os-grid {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    padding: 12px 14px 0;
+  }
+
+  .os-chip {
+    background: rgba(241, 236, 227, 0.045);
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    color: var(--muted);
+    cursor: pointer;
+    display: grid;
+    font-weight: 700;
+    gap: 3px;
+    min-height: 56px;
+    padding: 10px 8px;
+    place-items: center;
+    transition:
+      background 0.18s var(--ease),
+      border-color 0.18s var(--ease),
+      color 0.18s var(--ease);
+  }
+
+  .os-chip span {
+    color: var(--quiet);
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 500;
+  }
+
+  .os-chip:hover,
+  .os-chip.is-active {
+    background: var(--green-soft);
+    border-color: rgba(124, 255, 158, 0.34);
+    color: var(--green);
+  }
+
+  .install-command {
+    align-items: center;
+    background: rgba(0, 0, 0, 0.24);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    display: flex;
+    gap: 10px;
+    margin: 12px 14px 14px;
+    min-height: 48px;
+    overflow: hidden;
+    padding: 0 10px 0 15px;
+  }
+
+  .prompt {
+    color: var(--green);
+    flex: 0 0 auto;
+    font-family: var(--mono);
+    font-weight: 600;
+  }
+
+  .install-command code {
+    color: var(--muted);
+    flex: 1 1 auto;
+    font-family: var(--mono);
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .copy-command {
+    align-items: center;
+    background: rgba(241, 236, 227, 0.04);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--quiet);
+    cursor: pointer;
+    display: flex;
+    flex: 0 0 auto;
+    height: 32px;
+    justify-content: center;
+    transition:
+      border-color 0.18s var(--ease),
+      color 0.18s var(--ease);
+    width: 32px;
+  }
+
+  .copy-command:hover {
+    border-color: rgba(143, 255, 178, 0.34);
+    color: var(--green);
+  }
+
+  .done-icon {
+    display: none;
+  }
+
+  .copy-command[data-state='copied'] .copy-icon {
+    display: none;
+  }
+
+  .copy-command[data-state='copied'] .done-icon {
+    display: block;
+  }
+
+  @media (max-width: 940px) {
+    .hero {
+      padding: 126px 24px 66px;
+    }
+
+    .hero-inner {
+      gap: 34px;
+      grid-template-columns: minmax(0, 1fr) minmax(120px, 0.28fr);
+      min-height: calc(100svh - 192px);
+    }
+  }
+
+  @media (max-width: 640px) {
+    .hero {
+      align-items: center;
+      padding: 112px 18px 46px;
+    }
+
+    .hero-inner {
+      display: block;
+      min-height: 0;
+    }
+
+    .hero-copy-panel {
+      margin-left: 0;
+      max-width: none;
+    }
+
+    .hero-title {
+      font-size: clamp(58px, 18vw, 84px);
+    }
+
+    .hero-copy {
+      font-size: 14px;
+      margin-top: 22px;
+    }
+
+    .hero-actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      margin-top: 24px;
+    }
+
+    .hero-actions .button {
+      min-width: 0;
+      padding: 0 12px;
+      width: auto;
+    }
+
+    .hero-actions .button-ghost {
+      grid-column: 1 / -1;
+    }
+
+    .install-command {
+      align-items: flex-start;
+      min-height: 0;
+      padding: 12px;
+    }
+
+    .install-command code {
+      white-space: normal;
+      word-break: break-word;
+    }
+  }
+
+  @media (max-width: 420px) {
+    .os-chip {
+      font-size: 12px;
+      min-height: 50px;
+      padding: 8px 4px;
+    }
+
+    .os-chip span {
+      display: none;
+    }
   }
 </style>
-
-<script>
-  // ── GitHub stars ──
-  const CACHE_KEY = 'orbit_gh_stars';
-  const CACHE_TTL = 60 * 60 * 1000;
-  function showStars(count: number) {
-    const el = document.getElementById('star-count');
-    if (el) {
-      el.textContent = count >= 1000 ? `${(count / 1000).toFixed(1)}k` : String(count);
-      el.style.display = 'inline';
-    }
-  }
-  try {
-    const cached = localStorage.getItem(CACHE_KEY);
-    if (cached) {
-      const { count, ts } = JSON.parse(cached);
-      if (Date.now() - ts < CACHE_TTL) showStars(count);
-      else throw new Error('stale');
-    } else throw new Error('miss');
-  } catch {
-    fetch('https://api.github.com/repos/xinnaider/orbit')
-      .then((r) => r.json())
-      .then((data) => {
-        const count = data?.stargazers_count;
-        if (typeof count === 'number') {
-          showStars(count);
-          localStorage.setItem(CACHE_KEY, JSON.stringify({ count, ts: Date.now() }));
-        }
-      }).catch(() => {});
-  }
-
-  // ── OS detection + Install CTA ──
-  type OS = 'win' | 'mac' | 'linux';
-  const CMDS: Record<OS, string> = {
-    win:   'irm https://raw.githubusercontent.com/xinnaider/orbit/master/scripts/install-windows.ps1 | iex',
-    mac:   'curl -fsSL https://raw.githubusercontent.com/xinnaider/orbit/master/scripts/install-macos.sh | bash',
-    linux: 'curl -fsSL https://raw.githubusercontent.com/xinnaider/orbit/master/scripts/install-linux.sh | bash',
-  };
-  const PROMPTS: Record<OS, string> = { win: 'PS>', mac: '$', linux: '$' };
-  const OS_LABELS: Record<OS, string> = {
-    win: 'Install for Windows',
-    mac: 'Install for macOS',
-    linux: 'Install for Linux',
-  };
-
-  const installWrap  = document.querySelector('.install-wrap');
-  const btnInstall   = document.getElementById('btn-install');
-  const installLabel = document.getElementById('install-label');
-  const dropdown     = document.getElementById('os-dropdown');
-  const installPrompt = document.getElementById('install-prompt');
-  const installText   = document.getElementById('install-text');
-  const copyBtn    = document.getElementById('copy-btn');
-  const copyIcon   = document.getElementById('copy-icon');
-  const checkIcon  = document.getElementById('check-icon');
-
-  function detectOS(): OS {
-    const ua = navigator.userAgent;
-    if (ua.includes('Mac')) return 'mac';
-    if (ua.includes('Win')) return 'win';
-    return 'linux';
-  }
-
-  let currentOS: OS = detectOS();
-
-  function setOS(os: OS) {
-    currentOS = os;
-    if (installLabel) installLabel.textContent = OS_LABELS[os];
-    if (installPrompt) installPrompt.textContent = PROMPTS[os];
-    if (installText) installText.textContent = CMDS[os];
-    dropdown?.querySelectorAll('.dropdown-item').forEach((item) => {
-      item.classList.toggle('active', (item as HTMLElement).dataset.os === os);
-    });
-    installWrap?.classList.remove('open');
-  }
-
-  // Toggle dropdown
-  btnInstall?.addEventListener('click', () => {
-    installWrap?.classList.toggle('open');
-  });
-  // Close on click outside
-  document.addEventListener('click', (e) => {
-    if (!installWrap?.contains(e.target as Node)) {
-      installWrap?.classList.remove('open');
-    }
-  });
-  // OS selection
-  dropdown?.querySelectorAll('.dropdown-item').forEach((item) => {
-    item.addEventListener('click', () => {
-      setOS((item as HTMLElement).dataset.os as OS);
-    });
-  });
-
-  setOS(currentOS);
-
-  // Copy
-  copyBtn?.addEventListener('click', () => {
-    navigator.clipboard.writeText(CMDS[currentOS]).then(() => {
-      if (copyIcon) copyIcon.style.display = 'none';
-      if (checkIcon) checkIcon.style.display = 'block';
-      setTimeout(() => {
-        if (copyIcon) copyIcon.style.display = 'block';
-        if (checkIcon) checkIcon.style.display = 'none';
-      }, 2000);
-    }).catch(() => {});
-  });
-</script>

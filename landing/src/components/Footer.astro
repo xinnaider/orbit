@@ -1,35 +1,71 @@
 ---
-// No props
+const links = [
+  ['GitHub', 'https://github.com/xinnaider/orbit'],
+  ['Releases', 'https://github.com/xinnaider/orbit/releases'],
+  ['Issues', 'https://github.com/xinnaider/orbit/issues'],
+];
 ---
 
-<footer>
-  <span class="copy">orbit · MIT · © josefernando</span>
-  <div class="links">
-    <a href="https://github.com/xinnaider/orbit">GitHub</a>
-    <a href="https://github.com/xinnaider/orbit/releases">Releases</a>
-    <a href="https://github.com/xinnaider/orbit/issues">Issues</a>
+<footer class="footer" id="footer">
+  <div>
+    <strong>Orbit</strong>
+    <span>Desktop AI agent dashboard. MIT licensed.</span>
   </div>
+  <nav aria-label="Footer navigation">
+    {links.map(([label, href]) => <a href={href}>{label}</a>)}
+  </nav>
 </footer>
 
 <style>
-  footer {
-    display: flex; align-items: center; justify-content: space-between;
-    max-width: 960px; margin: 0 auto;
-    padding: 24px 48px;
-    border-top: 1px solid var(--bd);
+  .footer {
+    align-items: center;
+    border-top: 1px solid rgba(244, 239, 228, 0.12);
+    display: flex;
+    justify-content: space-between;
+    margin-top: 72px;
+    padding: 30px 0 0;
+    width: 100%;
   }
-  .copy { font-size: 10px; color: var(--t3); letter-spacing: 0.08em; }
-  .links { display: flex; gap: 20px; }
-  .links a {
-    font-size: 10px; color: var(--t3); letter-spacing: 0.08em;
-    transition: color 0.15s;
-  }
-  .links a:hover { color: var(--t2); }
 
-  @media (max-width: 768px) {
-    footer {
-      flex-direction: column; gap: 12px;
-      text-align: center; padding: 20px;
+  .footer div {
+    display: grid;
+    gap: 4px;
+  }
+
+  .footer strong {
+    color: var(--text);
+    font-family: var(--display);
+    font-size: 18px;
+  }
+
+  .footer span,
+  .footer a {
+    color: var(--quiet);
+  }
+
+  .footer nav {
+    display: flex;
+    gap: 18px;
+  }
+
+  .footer a {
+    transition: color 0.18s var(--ease);
+  }
+
+  .footer a:hover {
+    color: var(--green);
+  }
+
+  @media (max-width: 640px) {
+    .footer {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 18px;
+      padding-top: 28px;
+    }
+
+    .footer nav {
+      flex-wrap: wrap;
     }
   }
 </style>
