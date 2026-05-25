@@ -250,7 +250,7 @@
   .scroll-btn {
     position: absolute;
     bottom: 14px;
-    left: 38px;
+    right: 38px;
     z-index: 10;
     background: var(--bg2);
     border: 1px solid var(--bd1);
@@ -267,7 +267,7 @@
 
   @media (max-width: 768px) {
     .scroll-btn {
-      left: 18px;
+      right: 18px;
       bottom: 10px;
     }
   }
