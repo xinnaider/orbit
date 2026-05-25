@@ -120,5 +120,5 @@ export function gitUnstageFile(cwd: string, filePath: string): Promise<void> {
 
 /** Chain git commands to handle PowerShell 5.1 limitations (convert && to ; if ($?) { }) */
 export function chainGitCommands(commands: string[]): string[] {
-  return commands.map(cmd => cmd.replace(/&&/g, '; if ($?) { }'));
+  return commands.map((cmd) => cmd.replace(/&&/g, '; if ($?) { }'));
 }

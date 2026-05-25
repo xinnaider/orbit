@@ -42,10 +42,9 @@
       {#if status || model || (contextPercent != null && contextPercent > 0)}
         <span class="ticks" aria-label="Session stats">
           {#if status}
-            <span
-              class="tick-status"
-              style={statusColor ? `color:${statusColor}` : undefined}
-            >{status}</span>
+            <span class="tick-status" style={statusColor ? `color:${statusColor}` : undefined}
+              >{status}</span
+            >
           {/if}
           {#if status && (model || (contextPercent != null && contextPercent > 0))}
             <span class="tick-sep" aria-hidden="true">·</span>
@@ -62,7 +61,9 @@
         </span>
       {/if}
       {#if onClose}
-        <button class="close-btn" type="button" aria-label="Close panel" on:click={onClose}>✕</button>
+        <button class="close-btn" type="button" aria-label="Close panel" on:click={onClose}
+          >✕</button
+        >
       {/if}
     </div>
   {/if}

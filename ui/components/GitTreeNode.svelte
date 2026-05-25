@@ -92,9 +92,7 @@
       aria-label={node.change.group === 'staged' ? 'Unstage file' : 'Stage file'}
       data-testid={node.change.group === 'staged' ? 'git-unstage-file' : 'git-stage-file'}
       on:click|stopPropagation={() =>
-        node.change.group === 'staged'
-          ? onUnstageFile(node.change)
-          : onStageFile(node.change)}
+        node.change.group === 'staged' ? onUnstageFile(node.change) : onStageFile(node.change)}
     >
       {#if node.change.group === 'staged'}
         <Minus size={11} />

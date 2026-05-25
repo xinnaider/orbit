@@ -79,7 +79,11 @@
   {:else}
     {#each subagents as agent}
       {@const mcp = isMcpSubagent(agent)}
-      <button class="agent {cls(agent.status)}" class:mcp-agent={mcp} on:click={() => handleAgentClick(agent)}>
+      <button
+        class="agent {cls(agent.status)}"
+        class:mcp-agent={mcp}
+        on:click={() => handleAgentClick(agent)}
+      >
         <span class="agent-icon">{icon(agent.status)}</span>
         <span class="agent-name">
           {#if mcp}<span class="mcp-tag">mcp</span>{/if}

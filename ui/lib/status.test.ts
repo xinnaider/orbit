@@ -3,9 +3,9 @@ import { sessionStatusDotColor, statusColor } from './status';
 
 describe('sessionStatusDotColor', () => {
   it('uses live status when attention reason is null', () => {
-    expect(
-      sessionStatusDotColor('waiting', { requiresAttention: true, reason: null })
-    ).toBe(statusColor('waiting'));
+    expect(sessionStatusDotColor('waiting', { requiresAttention: true, reason: null })).toBe(
+      statusColor('waiting')
+    );
   });
 
   it('uses live status when attention is missing', () => {

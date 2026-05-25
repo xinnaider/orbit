@@ -72,7 +72,8 @@
     {#if isMcpChild}<span class="mcp-badge" title="MCP child session">mcp</span>{/if}
     {#if branchLabel}<span>{branchLabel}</span>{/if}
     {#if session.gitDirty}<span class="git-dirty" title="Uncommitted changes">●</span>{/if}
-    {#if (session.contextPercent ?? 0) > 0}<span>{Math.round(session.contextPercent ?? 0)}% ctx</span
+    {#if (session.contextPercent ?? 0) > 0}<span
+        >{Math.round(session.contextPercent ?? 0)}% ctx</span
       >{/if}
   </span>
 </button>

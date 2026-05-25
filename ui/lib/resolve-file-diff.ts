@@ -43,7 +43,12 @@ export async function resolveFileDiff(options: {
     return { source: 'inline', path: options.path, ...inline };
   }
 
-  if (options.sessionId && options.fileHash != null && options.fromVersion != null && options.toVersion != null) {
+  if (
+    options.sessionId &&
+    options.fileHash != null &&
+    options.fromVersion != null &&
+    options.toVersion != null
+  ) {
     try {
       const result = await getDiff(
         options.sessionId,
@@ -67,11 +72,7 @@ export async function resolveFileDiff(options: {
 
   if (options.cwd && options.gitFile) {
     try {
-      const gitDiff = await gitDiffFile(
-        options.cwd,
-        options.gitFile,
-        options.statusOutput
-      );
+      const gitDiff = await gitDiffFile(options.cwd, options.gitFile, options.statusOutput);
       return {
         source: 'git',
         path: options.path,

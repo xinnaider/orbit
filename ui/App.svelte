@@ -298,12 +298,7 @@
     });
 
     const u12 = onSessionStderr(({ sessionId, line }) => {
-      const harmless = [
-        '[rtk]',
-        'extension.js.map',
-        'ENOENT',
-        '--dangerously-skip-permissions',
-      ];
+      const harmless = ['[rtk]', 'extension.js.map', 'ENOENT', '--dangerously-skip-permissions'];
       if (harmless.some((h) => line.includes(h))) return;
 
       const trimmed = line.trim();
