@@ -98,6 +98,17 @@ jobs:
           shared-key: 'rust-windows'
           cache-on-failure: true
 
+      - name: Create sidecar placeholder for Tauri build validation
+        shell: pwsh
+        run: |
+          $triple = rustc -vV | Select-String '^host:' | ForEach-Object { ($_ -split ':')[1].Trim() }
+          $ext = if ($triple -match 'windows') { '.exe' } else { '' }
+          $dir = 'tauri/binaries'
+          New-Item -ItemType Directory -Path $dir -Force | Out-Null
+          $path = Join-Path $dir "orbit-mcp-$triple$ext"
+          if (-not (Test-Path $path)) { New-Item -ItemType File -Path $path -Force | Out-Null }
+          Write-Host "Created placeholder: $path"
+
       - name: Run Rust tests
         run: cargo test --manifest-path tauri/Cargo.toml
 

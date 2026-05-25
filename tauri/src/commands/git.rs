@@ -217,7 +217,7 @@ fn make_change(
 
 fn numstat_map(cwd: &str) -> Result<std::collections::HashMap<String, (u32, u32)>, String> {
     let mut map = std::collections::HashMap::new();
-    for line in run_git(cwd, &["diff", "--numstat", "HEAD"])? .lines() {
+    for line in run_git(cwd, &["diff", "--numstat", "HEAD"])?.lines() {
         let parts: Vec<&str> = line.split('\t').collect();
         if parts.len() >= 3 {
             let adds = parts[0].parse().unwrap_or(0);
@@ -225,20 +225,21 @@ fn numstat_map(cwd: &str) -> Result<std::collections::HashMap<String, (u32, u32)
             map.insert(normalize_path(parts[2]), (adds, dels));
         }
     }
-    for line in run_git(cwd, &["diff", "--numstat"])? .lines() {
+    for line in run_git(cwd, &["diff", "--numstat"])?.lines() {
         let parts: Vec<&str> = line.split('\t').collect();
         if parts.len() >= 3 {
             let path = normalize_path(parts[2]);
-            map.entry(path).or_insert((
-                parts[0].parse().unwrap_or(0),
-                parts[1].parse().unwrap_or(0),
-            ));
+            map.entry(path)
+                .or_insert((parts[0].parse().unwrap_or(0), parts[1].parse().unwrap_or(0)));
         }
     }
     Ok(map)
 }
 
-fn apply_numstat(files: &mut [GitFileChange], stats: &std::collections::HashMap<String, (u32, u32)>) {
+fn apply_numstat(
+    files: &mut [GitFileChange],
+    stats: &std::collections::HashMap<String, (u32, u32)>,
+) {
     for file in files.iter_mut() {
         if let Some((adds, dels)) = stats.get(&file.path) {
             file.additions = Some(*adds);
@@ -396,16 +397,16 @@ pub fn git_snapshot(cwd: String) -> Result<crate::services::git_service::GitSnap
 #[tauri::command]
 pub fn git_stage_all(cwd: String) -> Result<(), String> {
     run_git(&cwd, &["add", "."])
-    .map(|_| ())
-    .map_err(|e| format!("Failed to stage all files: {}", e))
+        .map(|_| ())
+        .map_err(|e| format!("Failed to stage all files: {}", e))
 }
 
 /// Reset all staged changes from git index
 #[tauri::command]
 pub fn git_reset_staged(cwd: String) -> Result<(), String> {
     run_git(&cwd, &["reset", "HEAD"])
-    .map(|_| ())
-    .map_err(|e| format!("Failed to reset staged files: {}", e))
+        .map(|_| ())
+        .map_err(|e| format!("Failed to reset staged files: {}", e))
 }
 
 /// Commit staged changes with optional message
@@ -428,7 +429,8 @@ const NULL_DEVICE: &str = "NUL";
 #[tauri::command]
 pub fn git_diff_formatted(cwd: String, file_path: String) -> Result<String, String> {
     let path = normalize_path(&file_path);
-    let staged = run_git(&cwd, &["diff", "--cached", "--unified=3", "--", &path]).unwrap_or_default();
+    let staged =
+        run_git(&cwd, &["diff", "--cached", "--unified=3", "--", &path]).unwrap_or_default();
     let unstaged = run_git(&cwd, &["diff", "--unified=3", "--", &path]).unwrap_or_default();
     let output = if !staged.is_empty() {
         staged
@@ -449,8 +451,8 @@ pub fn git_diff_formatted(cwd: String, file_path: String) -> Result<String, Stri
 /// Quick commit with auto-generated message from file changes
 #[tauri::command]
 pub fn git_quick_commit(cwd: String) -> Result<(), String> {
-    let status = run_git(&cwd, &["status", "--short"])
-        .map_err(|e| format!("Failed to get status: {e}"))?;
+    let status =
+        run_git(&cwd, &["status", "--short"]).map_err(|e| format!("Failed to get status: {e}"))?;
 
     let files: Vec<String> = status
         .lines()
@@ -484,8 +486,8 @@ pub fn git_quick_commit(cwd: String) -> Result<(), String> {
 #[tauri::command]
 pub fn git_reset_working_tree(cwd: String) -> Result<(), String> {
     run_git(&cwd, &["checkout", "--", "."])
-    .map(|_| ())
-    .map_err(|e| format!("Failed to reset working tree: {}", e))
+        .map(|_| ())
+        .map_err(|e| format!("Failed to reset working tree: {}", e))
 }
 
 /// Validate git configuration before operations
@@ -554,4 +556,3 @@ mod tests {
         assert_eq!(out[0], "git add . ; if ($?) { } git commit");
     }
 }
-
