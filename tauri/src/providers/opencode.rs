@@ -20,35 +20,31 @@ impl Provider for OpenCodeProvider {
             SpawnMode::Local => spawn_opencode(OpenCodeConfig {
                 session_id: config.session_id,
                 cwd: config.cwd,
+                provider_id: config.provider_id.clone(),
                 model: config.model,
                 prompt: config.prompt,
                 opencode_session_id: config.resume_id,
                 extra_env: config.extra_env,
             }),
             SpawnMode::Ssh { ref host, ref user } => {
-                let mut parts = vec![
-                    "opencode".to_string(),
-                    "run".to_string(),
-                    "--format".to_string(),
-                    "json".to_string(),
-                ];
-
                 let cwd_str = config.cwd.to_string_lossy();
-                parts.extend([
-                    "--dir".to_string(),
-                    ssh::posix_escape(&cwd_str),
-                    "-m".to_string(),
-                    ssh::posix_escape(&config.model),
-                ]);
-
-                if let Some(ref sid) = config.resume_id {
-                    parts.extend([
-                        "--continue".to_string(),
-                        "-s".to_string(),
-                        ssh::posix_escape(sid),
-                    ]);
-                }
-
+                let cli_model = crate::services::spawn_manager::opencode_cli_model_arg(
+                    &config.provider_id,
+                    &config.model,
+                );
+                let mut parts: Vec<String> =
+                    crate::services::spawn_manager::opencode_ssh_command_tokens(
+                        &cwd_str,
+                        &cli_model,
+                        config.resume_id.as_deref(),
+                    )
+                    .into_iter()
+                    .map(|token| match token.as_str() {
+                        "opencode" | "run" | "--format" | "json" | "--dir" | "-m"
+                        | "--continue" | "-s" => token,
+                        _ => ssh::posix_escape(&token),
+                    })
+                    .collect();
                 parts.push(ssh::posix_escape(&config.prompt));
 
                 // Inline env vars: KEY=val KEY2=val2 cmd args
@@ -123,46 +119,49 @@ impl Provider for OpenCodeProvider {
         crate::journal::process_line_opencode
     }
     fn format_model(&self, raw_model: &str, provider_id: &str) -> String {
+        let raw = crate::services::spawn_manager::normalize_opencode_model_ref(raw_model);
+        if raw.is_empty() {
+            return raw;
+        }
+
         if provider_id == "opencode" {
-            if raw_model
+            if raw
                 .split_once('/')
                 .is_some_and(|(provider, _)| provider != "opencode")
             {
-                return raw_model.to_string();
+                return raw;
             }
-            if raw_model.starts_with("opencode/") {
-                return raw_model.to_string();
+            if raw.starts_with("opencode/") {
+                return raw;
             }
 
-            if let Some(model) = crate::commands::providers::resolve_opencode_request(
-                Some(provider_id),
-                Some(raw_model),
-            )
-            .and_then(|resolved| resolved.model)
+            if let Some(model) =
+                crate::commands::providers::resolve_opencode_request(Some(provider_id), Some(&raw))
+                    .and_then(|resolved| resolved.model)
             {
-                return model;
+                return crate::services::spawn_manager::normalize_opencode_model_ref(&model);
             }
-        } else if raw_model.starts_with(&format!("{provider_id}/")) {
-            return raw_model.to_string();
-        } else if !raw_model.contains('/') {
-            if let Some(model) = crate::commands::providers::resolve_opencode_request(
-                Some(provider_id),
-                Some(raw_model),
-            )
-            .and_then(|resolved| resolved.model)
+        } else if raw.starts_with(&format!("{provider_id}/")) {
+            return raw;
+        } else if !raw.contains('/') {
+            if let Some(model) =
+                crate::commands::providers::resolve_opencode_request(Some(provider_id), Some(&raw))
+                    .and_then(|resolved| resolved.model)
             {
-                return model;
+                return crate::services::spawn_manager::normalize_opencode_model_ref(&model);
             }
         }
 
-        if raw_model.split_once('/').is_some_and(|(provider, _)| {
-            crate::commands::providers::opencode_subproviders()
-                .iter()
-                .any(|sub| sub.id == provider)
-        }) {
-            raw_model.to_string()
+        if provider_id == "opencode"
+            && raw.split_once('/').is_some_and(|(provider, _)| {
+                crate::commands::providers::opencode_subproviders()
+                    .iter()
+                    .any(|sub| sub.id == provider)
+            })
+        {
+            raw
         } else {
-            format!("{provider_id}/{raw_model}")
+            format!("{provider_id}/{raw}")
         }
     }
     fn cli_name(&self) -> &str {
@@ -226,6 +225,20 @@ mod tests {
             "entry type is Assistant",
             state.entries[0].entry_type,
             crate::models::JournalEntryType::Assistant,
+        );
+    }
+
+    #[test]
+    fn should_normalize_trailing_slash_in_format_model() {
+        let mut t = TestCase::new("should_normalize_trailing_slash_in_format_model");
+        let provider = OpenCodeProvider;
+        t.phase("Assert");
+        t.eq(
+            "no trailing slash",
+            provider
+                .format_model("kimi-k2.6-precision/", "crof")
+                .as_str(),
+            "crof/kimi-k2.6-precision",
         );
     }
 

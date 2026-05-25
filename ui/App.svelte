@@ -20,6 +20,17 @@
   import { rawJournal } from './lib/stores/rawJournal';
   import { taskUpdateTrigger } from './lib/stores/tasks';
   import { addToast } from './lib/stores/toasts';
+  import { appendSessionFeedMessage, isSessionOpenInWorkspace } from './lib/session-feed';
+  import { expandParentSession } from './lib/stores/mcp-ui';
+  import { notificationsEnabled } from './lib/stores/preferences';
+  import {
+    initDesktopNotifications,
+    notifyAttentionOnce,
+    notifyDesktop,
+    sessionDisplayName,
+    syncNotificationsEnabled,
+  } from './lib/notifications';
+  import { getDesktopNotificationsEnabled } from './lib/tauri/desktop';
   import {
     listSessions,
     checkClaude,
@@ -37,6 +48,7 @@
     onSessionRawOutput,
     onSessionStderr,
     onSessionGitUpdate,
+    onSessionSubagentCreated,
     getAppVersion,
     getChangelog,
   } from './lib/tauri';
@@ -68,6 +80,7 @@
   let updateToastId: string | null = null;
   let showMobileBetaModal = false;
   const stderrLastToast = new Map<number, number>();
+  const taskNotifyAt = new Map<number, number>();
 
   const CHANGELOG_VERSION_KEY = 'orbit:lastSeenChangelogVersion';
 
@@ -122,11 +135,27 @@
     }
 
     claudeCheck = check;
+    if (HAS_TAURI) {
+      await initDesktopNotifications();
+      try {
+        const enabled = await getDesktopNotificationsEnabled();
+        syncNotificationsEnabled(enabled);
+      } catch {
+        syncNotificationsEnabled($notificationsEnabled);
+      }
+    }
     sessions.set(existing);
     restoreWorkspace(new Set(existing.map((s) => s.id)));
     if (existing.length > 0 && !$selectedSessionId) {
       const ws = get(workspace);
       if (ws.focusedPaneId) assignSession(ws.focusedPaneId, existing[0].id);
+    }
+
+    let uTrayNotify: (() => void) | null = null;
+    if (HAS_TAURI) {
+      uTrayNotify = await listen<boolean>('desktop:notifications-changed', (event) => {
+        syncNotificationsEnabled(event.payload);
+      });
     }
 
     const u1 = onSessionCreated(upsertSessionFromEvent);
@@ -146,9 +175,16 @@
         if (!mutedSessions.isMuted($mutedSessions, String(p.sessionId))) beep();
       }
       prevStatuses[p.sessionId] = p.status;
-      // 'idle' and 'new' are agent-level pauses emitted while the process is still running.
-      // Map them to 'running' so the working indicator stays visible until session:stopped fires.
-      const sessionStatus = p.status === 'idle' || p.status === 'new' ? 'running' : p.status;
+      // Agent finished a turn (idle/new) but the CLI may still be alive for resume — show as waiting,
+      // not running, so the feed typing indicator does not stick after the reply.
+      const sessionStatus =
+        p.status === 'idle' || p.status === 'new'
+          ? 'waiting'
+          : p.status === 'working'
+            ? 'working'
+            : p.status === 'input'
+              ? 'waiting'
+              : p.status;
       sessions.update((l) =>
         updateSessionState(l, p.sessionId, {
           status: sessionStatus as any,
@@ -167,6 +203,40 @@
           ...(p.costUsd != null ? { costUsd: p.costUsd } : {}),
         })
       );
+
+      if (p.attention?.requiresAttention && p.attention.reason) {
+        const name = sessionDisplayName(p.sessionId);
+        const reason = p.attention.reason;
+        if (reason === 'completed') {
+          void notifyAttentionOnce(
+            p.sessionId,
+            reason,
+            'Orbit — session finished',
+            `${name} completed`
+          );
+        } else if (reason === 'permission') {
+          void notifyAttentionOnce(
+            p.sessionId,
+            reason,
+            'Orbit — approval needed',
+            `${name} is waiting for permission`
+          );
+        } else if (reason === 'error') {
+          void notifyAttentionOnce(
+            p.sessionId,
+            reason,
+            'Orbit — session error',
+            `${name} reported an error`
+          );
+        } else if (reason === 'rateLimit') {
+          void notifyAttentionOnce(
+            p.sessionId,
+            reason,
+            'Orbit — rate limit',
+            `${name} hit a rate limit`
+          );
+        }
+      }
     });
 
     const u4 = onSessionStopped((id) => {
@@ -179,11 +249,19 @@
 
     const u6 = onSessionError((id, error) => {
       sessions.update((l) => updateSessionState(l, id, { status: 'error' }));
-      addToast({
-        type: 'error',
-        message: `session #${id} failed to spawn: ${error}`,
-        autoDismiss: false,
+      appendSessionFeedMessage(id, `Session failed to start: ${error}`, { error: true });
+      void notifyDesktop({
+        sessionId: id,
+        title: 'Orbit — session failed',
+        body: `${sessionDisplayName(id)}: ${error}`,
       });
+      if (!isSessionOpenInWorkspace(id)) {
+        addToast({
+          type: 'error',
+          message: `session #${id} failed to spawn: ${error}`,
+          autoDismiss: false,
+        });
+      }
     });
 
     const u7 = onSessionRateLimit((_id) => {
@@ -192,6 +270,14 @@
 
     const u8 = onSessionTaskUpdate((id) => {
       taskUpdateTrigger.set(id);
+      const now = Date.now();
+      if (now - (taskNotifyAt.get(id) ?? 0) < 8000) return;
+      taskNotifyAt.set(id, now);
+      void notifyDesktop({
+        sessionId: id,
+        title: 'Orbit — tasks updated',
+        body: `${sessionDisplayName(id)} task list changed`,
+      });
     });
 
     const u9 = onSessionReset(() => {
@@ -212,29 +298,42 @@
     });
 
     const u12 = onSessionStderr(({ sessionId, line }) => {
-      // Filter known harmless messages to avoid toast spam
-      const harmless = [
-        '[rtk]', // RTK plugin not found
-        'extension.js.map', // Missing extension maps
-        'ENOENT', // File not found (harmless warnings)
-        '--dangerously-skip-permissions',
-      ];
+      const harmless = ['[rtk]', 'extension.js.map', 'ENOENT', '--dangerously-skip-permissions'];
       if (harmless.some((h) => line.includes(h))) return;
 
-      // Rate-limit: skip if same session emitted stderr in last 10s
-      const now = Date.now();
-      const last = stderrLastToast.get(sessionId) ?? 0;
-      if (now - last < 10_000) return;
-      stderrLastToast.set(sessionId, now);
+      const trimmed = line.trim();
+      if (!trimmed) return;
 
+      appendSessionFeedMessage(
+        sessionId,
+        trimmed.length > 500 ? `${trimmed.slice(0, 500)}…` : trimmed,
+        { error: true }
+      );
+
+      if (!isSessionOpenInWorkspace(sessionId)) {
+        const now = Date.now();
+        const last = stderrLastToast.get(sessionId) ?? 0;
+        if (now - last < 10_000) return;
+        stderrLastToast.set(sessionId, now);
+        addToast({
+          type: 'warning',
+          message: `session #${sessionId}: ${line.slice(0, 200)}`,
+          autoDismiss: true,
+        });
+      }
+    });
+
+    const u13 = onSessionSubagentCreated(({ parentSessionId, description, tool }) => {
+      expandParentSession(parentSessionId);
+      const short = description.length > 60 ? `${description.slice(0, 60)}…` : description;
       addToast({
-        type: 'warning',
-        message: `session #${sessionId}: ${line.slice(0, 200)}`,
+        type: 'info',
+        message: `Subagent spawned (${tool}): ${short}`,
         autoDismiss: true,
       });
     });
 
-    const u13 = onSessionGitUpdate(({ sessionId, snapshot }) => {
+    const u14 = onSessionGitUpdate(({ sessionId, snapshot }) => {
       // Update session with git branch/dirty state in real-time
       sessions.update((l) =>
         updateSessionState(l, sessionId, {
@@ -245,8 +344,9 @@
     });
 
     // Resolve all unlisten functions and store for cleanup
-    Promise.all([u1, u2, u3, u4, u5, u6, u7, u8, u9, u10, u11, u12, u13]).then((fns) => {
+    Promise.all([u1, u2, u3, u4, u5, u6, u7, u8, u9, u10, u11, u12, u13, u14]).then((fns) => {
       unlisteners = fns;
+      if (uTrayNotify) unlisteners.push(uTrayNotify);
     });
 
     async function tryCheckUpdate() {

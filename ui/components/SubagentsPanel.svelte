@@ -1,17 +1,28 @@
 <script lang="ts">
   import type { SubagentInfo, JournalEntry } from '../lib/types';
   import { getSubagentJournal } from '../lib/tauri';
+  import { isMcpSubagent, mcpChildSessionId } from '../lib/mcp';
   import Feed from './Feed.svelte';
 
   export let sessionId: number;
   export let subagents: SubagentInfo[];
   export let refreshing = false;
   export let onRefresh: (() => void) | null = null;
+  export let onOpenMcpSession: ((childSessionId: number) => void) | null = null;
   export let cwd: string | null = null;
 
   let modalAgent: SubagentInfo | null = null;
   let modalEntries: JournalEntry[] = [];
   let loading = false;
+
+  function handleAgentClick(agent: SubagentInfo) {
+    const childId = mcpChildSessionId(agent);
+    if (isMcpSubagent(agent) && childId != null && onOpenMcpSession) {
+      onOpenMcpSession(childId);
+      return;
+    }
+    void openLog(agent);
+  }
 
   async function openLog(agent: SubagentInfo) {
     modalAgent = agent;
@@ -67,9 +78,17 @@
     <p class="empty">no sub-agents</p>
   {:else}
     {#each subagents as agent}
-      <button class="agent {cls(agent.status)}" on:click={() => openLog(agent)}>
+      {@const mcp = isMcpSubagent(agent)}
+      <button
+        class="agent {cls(agent.status)}"
+        class:mcp-agent={mcp}
+        on:click={() => handleAgentClick(agent)}
+      >
         <span class="agent-icon">{icon(agent.status)}</span>
-        <span class="agent-name">{agent.description || agent.agentType}</span>
+        <span class="agent-name">
+          {#if mcp}<span class="mcp-tag">mcp</span>{/if}
+          {agent.description || agent.agentType}
+        </span>
       </button>
     {/each}
   {/if}
@@ -202,6 +221,20 @@
     color: var(--t1);
     line-height: 1.4;
     transition: color 0.1s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .mcp-tag {
+    font-size: 9px;
+    color: var(--ac);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+  .mcp-agent:hover .agent-name {
+    color: var(--ac);
   }
   .done .agent-name {
     color: var(--t2);

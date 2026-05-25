@@ -13,6 +13,14 @@ export async function listProjectFiles(cwd: string): Promise<string[]> {
   return await invoke('list_project_files', { cwd });
 }
 
+export async function searchProjectFiles(
+  cwd: string,
+  query: string,
+  limit?: number
+): Promise<string[]> {
+  return await invoke('search_project_files', { cwd, query, limit: limit ?? null });
+}
+
 export async function getSubagents(sessionId: number): Promise<SubagentInfo[]> {
   return await invoke('get_subagents', { sessionId });
 }

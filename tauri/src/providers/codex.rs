@@ -8,6 +8,47 @@ pub struct CodexProvider;
 
 const CODEX_EFFORT_LEVELS: &[&str] = &["low", "medium", "high", "xhigh"];
 
+/// argv tokens for `codex` over SSH (before shell escaping).
+pub(crate) fn codex_ssh_command_tokens(
+    resume_id: Option<&str>,
+    skip_permissions: bool,
+    model: &str,
+    effort: Option<&str>,
+) -> Vec<String> {
+    let mut parts = vec!["codex".to_string()];
+    if let Some(sid) = resume_id {
+        parts.extend([
+            "exec".to_string(),
+            "resume".to_string(),
+            "--json".to_string(),
+        ]);
+        if skip_permissions {
+            parts.push("--dangerously-bypass-approvals-and-sandbox".to_string());
+        }
+        if let Some(effort) = effort {
+            parts.push("--config".to_string());
+            parts.push(format!("model_reasoning_effort=\"{effort}\""));
+        }
+        if model != "auto" && !model.is_empty() {
+            parts.extend(["-m".to_string(), model.to_string()]);
+        }
+        parts.push(sid.to_string());
+    } else {
+        parts.extend(["exec".to_string(), "--json".to_string()]);
+        if skip_permissions {
+            parts.push("--dangerously-bypass-approvals-and-sandbox".to_string());
+        }
+        if let Some(effort) = effort {
+            parts.push("--config".to_string());
+            parts.push(format!("model_reasoning_effort=\"{effort}\""));
+        }
+        if model != "auto" && !model.is_empty() {
+            parts.extend(["-m".to_string(), model.to_string()]);
+        }
+    }
+    parts
+}
+
 impl Provider for CodexProvider {
     fn id(&self) -> &str {
         "codex"
@@ -29,42 +70,25 @@ impl Provider for CodexProvider {
                 skip_permissions: config.skip_permissions,
             }),
             SpawnMode::Ssh { ref host, ref user } => {
-                let mut parts = vec!["codex".to_string()];
-                if let Some(ref sid) = config.resume_id {
-                    parts.extend([
-                        "exec".to_string(),
-                        "resume".to_string(),
-                        "--json".to_string(),
-                    ]);
-                    if config.skip_permissions {
-                        parts.push("--dangerously-bypass-approvals-and-sandbox".to_string());
-                    }
-                    if let Some(ref effort) = config.effort {
-                        parts.push("--config".to_string());
-                        parts.push(ssh::posix_escape(&format!(
-                            "model_reasoning_effort=\"{effort}\""
-                        )));
-                    }
-                    if config.model != "auto" && !config.model.is_empty() {
-                        parts.extend(["-m".to_string(), ssh::posix_escape(&config.model)]);
-                    }
-                    parts.extend([ssh::posix_escape(sid), ssh::posix_escape(&config.prompt)]);
-                } else {
-                    parts.extend(["exec".to_string(), "--json".to_string()]);
-                    if config.skip_permissions {
-                        parts.push("--dangerously-bypass-approvals-and-sandbox".to_string());
-                    }
-                    if let Some(ref effort) = config.effort {
-                        parts.push("--config".to_string());
-                        parts.push(ssh::posix_escape(&format!(
-                            "model_reasoning_effort=\"{effort}\""
-                        )));
-                    }
-                    if config.model != "auto" && !config.model.is_empty() {
-                        parts.extend(["-m".to_string(), ssh::posix_escape(&config.model)]);
-                    }
-                    parts.push(ssh::posix_escape(&config.prompt));
-                }
+                let mut parts: Vec<String> = codex_ssh_command_tokens(
+                    config.resume_id.as_deref(),
+                    config.skip_permissions,
+                    &config.model,
+                    config.effort.as_deref(),
+                )
+                .into_iter()
+                .map(|token| match token.as_str() {
+                    "codex"
+                    | "exec"
+                    | "resume"
+                    | "--json"
+                    | "--dangerously-bypass-approvals-and-sandbox"
+                    | "--config"
+                    | "-m" => token,
+                    _ => ssh::posix_escape(&token),
+                })
+                .collect();
+                parts.push(ssh::posix_escape(&config.prompt));
 
                 let cwd_str = config.cwd.to_string_lossy();
                 let remote_script = format!("cd {} && {}", cwd_str, parts.join(" "));
@@ -195,6 +219,29 @@ mod tests {
         t.phase("Assert");
         let window = provider.context_window("gpt-5.4");
         t.none("runtime context window is unknown for codex", &window);
+    }
+
+    #[test]
+    fn codex_ssh_command_tokens_should_resume_with_model_and_effort() {
+        let mut t = TestCase::new("codex_ssh_command_tokens_should_resume_with_model_and_effort");
+        t.phase("Act");
+        let parts = codex_ssh_command_tokens(Some("thread-9"), true, "gpt-5.4", Some("xhigh"));
+        t.phase("Assert");
+        t.ok(
+            "resume branch",
+            parts.windows(3).any(|w| w == ["exec", "resume", "--json"]),
+        );
+        t.ok(
+            "model flag",
+            parts.windows(2).any(|w| w == ["-m", "gpt-5.4"]),
+        );
+        t.ok(
+            "effort config",
+            parts
+                .iter()
+                .any(|p| p.contains("model_reasoning_effort=\"xhigh\"")),
+        );
+        t.ok("thread id", parts.contains(&"thread-9".to_string()));
     }
 
     #[test]

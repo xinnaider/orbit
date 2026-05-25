@@ -1,6 +1,6 @@
 [package]
 name = "orbit"
-version = "0.6.0"
+version = "6.0.1"
 description = "Orbit — Claude agent dashboard"
 authors = ["you"]
 license = "MIT"
@@ -14,15 +14,14 @@ rust-version = "1.85"
 name = "orbit_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
-[[bin]]
-name = "orbit-mcp"
-path = "src/bin/orbit_mcp.rs"
+# MCP stdio mode: orbit.exe --mcp-stdio (no separate orbit-mcp binary — saves compile + disk)
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["image-png", "devtools"] }
+tauri = { version = "2", features = ["image-png", "devtools", "tray-icon"] }
+tauri-plugin-notification = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-updater = "2"
@@ -49,7 +48,17 @@ hyper = "1"
 uuid = { version = "1", features = ["v4"] }
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Diagnostics_ToolHelp"] }
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_System_Diagnostics_ToolHelp",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc = "0.2"
+
+[target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))'.dependencies]
+gtk = { version = "0.18", features = ["v3_24"] }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

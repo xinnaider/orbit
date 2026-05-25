@@ -1,5 +1,11 @@
 <script lang="ts">
-  import { theme, THEME_OPTIONS, THEME_LABELS, type Theme } from '../lib/stores/preferences';
+  import {
+    theme,
+    windowOpacity,
+    THEME_OPTIONS,
+    THEME_LABELS,
+    type Theme,
+  } from '../lib/stores/preferences';
   import { Palette } from 'lucide-svelte';
 
   let open = false;
@@ -41,6 +47,22 @@
           {THEME_LABELS[t]}
         </button>
       {/each}
+      <div class="opacity-section">
+        <label class="opacity-label" for="window-opacity-range">
+          Window opacity
+          <span class="opacity-value">{$windowOpacity}%</span>
+        </label>
+        <input
+          id="window-opacity-range"
+          type="range"
+          min="0"
+          max="100"
+          step="1"
+          value={$windowOpacity}
+          oninput={(e) => windowOpacity.set(Number(e.currentTarget.value))}
+        />
+        <p class="opacity-hint">See through the window behind Orbit. Works with any theme.</p>
+      </div>
     </div>
   {/if}
 </div>
@@ -135,5 +157,41 @@
   .swatch[data-theme-preview='steel'] {
     background: #0b0d10;
     border-color: #303447;
+  }
+
+  .opacity-section {
+    margin-top: var(--sp-2);
+    padding-top: var(--sp-4);
+    border-top: 1px solid var(--bd1);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-3);
+  }
+
+  .opacity-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: var(--xs);
+    color: var(--t1);
+    gap: var(--sp-4);
+  }
+
+  .opacity-value {
+    color: var(--ac);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .opacity-section input[type='range'] {
+    width: 100%;
+    accent-color: var(--ac);
+    cursor: pointer;
+  }
+
+  .opacity-hint {
+    font-size: var(--xs);
+    color: var(--t3);
+    line-height: 1.4;
+    margin: 0;
   }
 </style>

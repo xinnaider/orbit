@@ -271,8 +271,8 @@ describe('tauri mock wrapper', () => {
 
     it('should include source files', async () => {
       const files = await listProjectFiles('/some/path');
-      expect(files).toContain('src/index.ts');
-      expect(files).toContain('package.json');
+      expect(files).toContain('src/auth/auth.ts');
+      expect(files).toContain('ui/lib/tauri/git.ts');
     });
   });
 

@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Orbit — Topbar & TabBar concepts</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --sans: 'Atkinson Hyperlegible', system-ui, sans-serif;
+        --mono: 'JetBrains Mono', monospace;
+        --bg: #090a0a;
+        --bg1: #0c0d0d;
+        --bg2: #101111;
+        --bd: rgba(241, 236, 227, 0.1);
+        --bd1: rgba(241, 236, 227, 0.14);
+        --t0: #f1ece3;
+        --t1: #a19a90;
+        --t2: #7a736b;
+        --t3: #67615a;
+        --ac: #7cff9e;
+        --s-working: #7cff9e;
+        --s-input: #f2c96f;
+        --radius-sm: 4px;
+        --radius-md: 8px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: var(--sans);
+        background: var(--bg);
+        color: var(--t0);
+        padding: 24px;
+        line-height: 1.5;
+      }
+      h1 {
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        margin: 0 0 6px;
+      }
+      .intro {
+        color: var(--t2);
+        font-size: 12px;
+        max-width: 720px;
+        margin-bottom: 28px;
+      }
+      .intro strong {
+        color: var(--ac);
+      }
+      .baseline {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        font-family: var(--mono);
+        font-size: 10px;
+        color: var(--t3);
+        margin-bottom: 32px;
+        padding: 10px 14px;
+        border: 1px dashed var(--bd1);
+        border-radius: var(--radius-md);
+      }
+      .baseline span {
+        color: var(--t1);
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+        gap: 20px;
+      }
+      .card {
+        border: 1px solid var(--bd);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+        background: var(--bg1);
+      }
+      .card-head {
+        padding: 12px 14px 10px;
+        border-bottom: 1px solid var(--bd);
+      }
+      .card-head h2 {
+        margin: 0;
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .card-head p {
+        margin: 4px 0 0;
+        font-size: 10px;
+        color: var(--t2);
+        font-family: var(--mono);
+      }
+      .card-head .h {
+        color: var(--ac);
+      }
+      .mock-pane {
+        background: var(--bg);
+        min-height: 120px;
+      }
+      .mock-feed {
+        padding: 16px 18px;
+        font-size: 12px;
+        color: var(--t2);
+        border-top: 1px solid var(--bd);
+      }
+      .mock-feed::before {
+        content: 'feed…';
+        font-family: var(--mono);
+        font-size: 10px;
+        color: var(--t3);
+      }
+
+      /* ── CURRENT (baseline) ── */
+      .v0-tabs {
+        display: flex;
+        height: 35px;
+        background: var(--bg1);
+        border-bottom: 1px solid var(--bd);
+      }
+      .v0-tab {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 0 12px;
+        font-family: var(--mono);
+        font-size: 10.5px;
+        color: var(--t2);
+        border-right: 1px solid var(--bd);
+      }
+      .v0-tab.on {
+        background: var(--bg);
+        color: var(--t0);
+        box-shadow: inset 0 -2px 0 var(--ac);
+      }
+      .v0-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 58px;
+        padding: 0 20px;
+        border-bottom: 1px solid var(--bd);
+      }
+      .v0-title {
+        font-weight: 700;
+        font-size: 14px;
+      }
+      .v0-meta {
+        font-family: var(--mono);
+        font-size: 10px;
+        color: var(--t3);
+        margin-left: 8px;
+      }
+      .v0-pills {
+        display: flex;
+        gap: 6px;
+      }
+      .pill {
+        border: 1px solid var(--bd1);
+        border-radius: 999px;
+        padding: 4px 8px;
+        font-family: var(--mono);
+        font-size: 9px;
+        color: var(--t2);
+        background: rgba(255, 255, 255, 0.03);
+      }
+      .pill.ac {
+        color: var(--ac);
+        border-color: rgba(124, 255, 158, 0.35);
+        background: rgba(124, 255, 158, 0.08);
+      }
+
+      /* ── 1 Unified rail ── */
+      .v1-rail {
+        display: flex;
+        align-items: center;
+        height: 40px;
+        padding: 0 8px 0 6px;
+        gap: 8px;
+        border-bottom: 1px solid var(--bd);
+        background: linear-gradient(180deg, var(--bg1) 0%, var(--bg) 100%);
+      }
+      .v1-seg {
+        display: flex;
+        background: var(--bg2);
+        border-radius: var(--radius-sm);
+        padding: 2px;
+        gap: 1px;
+      }
+      .v1-seg button {
+        border: none;
+        background: transparent;
+        color: var(--t2);
+        font-family: var(--mono);
+        font-size: 10px;
+        padding: 4px 10px;
+        border-radius: 3px;
+        cursor: default;
+      }
+      .v1-seg button.on {
+        background: var(--bg);
+        color: var(--t0);
+        box-shadow: 0 0 0 1px var(--bd);
+      }
+      .v1-div {
+        width: 1px;
+        height: 18px;
+        background: var(--bd);
+      }
+      .v1-crumb {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        overflow: hidden;
+      }
+      .v1-crumb strong {
+        font-size: 12px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .v1-crumb em {
+        font-style: normal;
+        font-family: var(--mono);
+        font-size: 9px;
+        color: var(--t3);
+      }
+      .v1-stats {
+        display: flex;
+        gap: 10px;
+        font-family: var(--mono);
+        font-size: 9px;
+        color: var(--t2);
+        flex-shrink: 0;
+      }
+      .v1-stats .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--s-working);
+        display: inline-block;
+        margin-right: 3px;
+        vertical-align: middle;
+      }
+
+      /* ── 2 Floating capsules ── */
+      .v2-wrap {
+        padding: 8px 12px 0;
+        border-bottom: 1px solid var(--bd);
+        background: var(--bg);
+      }
+      .v2-tabs {
+        display: flex;
+        gap: 4px;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+      .v2-tab {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 5px 10px;
+        border-radius: 999px;
+        font-family: var(--mono);
+        font-size: 10px;
+        color: var(--t2);
+        border: 1px solid transparent;
+        background: transparent;
+      }
+      .v2-tab.on {
+        color: var(--t0);
+        border-color: var(--bd1);
+        background: var(--bg2);
+      }
+      .v2-tab.on::after {
+        content: none;
+      }
+      .v2-line {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-bottom: 8px;
+        font-size: 11px;
+      }
+      .v2-line span {
+        font-family: var(--mono);
+        font-size: 9px;
+        color: var(--t3);
+      }
+
+      /* ── 3 Icon rail ── */
+      .v3 {
+        display: flex;
+        height: 36px;
+        border-bottom: 1px solid var(--bd);
+      }
+      .v3-icons {
+        display: flex;
+        padding: 4px 6px;
+        gap: 2px;
+        background: var(--bg1);
+        border-right: 1px solid var(--bd);
+      }
+      .v3-ico {
+        width: 28px;
+        height: 28px;
+        display: grid;
+        place-items: center;
+        border-radius: var(--radius-sm);
+        color: var(--t2);
+        font-size: 12px;
+      }
+      .v3-ico.on {
+        background: var(--bg);
+        color: var(--ac);
+        box-shadow: inset 0 0 0 1px var(--bd1);
+      }
+      .v3-main {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        padding: 0 12px;
+        gap: 12px;
+        min-width: 0;
+      }
+      .v3-main h3 {
+        margin: 0;
+        font-size: 12px;
+        font-weight: 600;
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .v3-ticks {
+        font-family: var(--mono);
+        font-size: 9px;
+        color: var(--t2);
+        letter-spacing: 0.04em;
+      }
+
+      /* ── 4 Journal masthead ── */
+      .v4 {
+        padding: 10px 16px;
+        border-bottom: 1px solid var(--bd);
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .v4-row1 {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        height: 26px;
+      }
+      .v4-tab-mini {
+        font-family: var(--mono);
+        font-size: 9px;
+        padding: 3px 8px;
+        color: var(--t3);
+        border-bottom: 1px solid transparent;
+      }
+      .v4-tab-mini.on {
+        color: var(--t0);
+        border-bottom-color: var(--ac);
+      }
+      .v4-row2 {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+      }
+      .v4-row2 h3 {
+        margin: 0;
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: -0.03em;
+      }
+      .v4-ticks {
+        font-family: var(--mono);
+        font-size: 10px;
+        color: var(--t2);
+      }
+      .v4-ticks b {
+        color: var(--ac);
+        font-weight: 500;
+      }
+
+      /* ── 5 Chromeless connect ── */
+      .v5-tabs {
+        display: flex;
+        height: 28px;
+        padding: 0 10px;
+        gap: 2px;
+        align-items: flex-end;
+        background: var(--bg1);
+      }
+      .v5-tab {
+        padding: 4px 10px 6px;
+        font-family: var(--mono);
+        font-size: 10px;
+        color: var(--t3);
+        border-radius: 6px 6px 0 0;
+        border: 1px solid transparent;
+        border-bottom: none;
+        margin-bottom: -1px;
+      }
+      .v5-tab.on {
+        color: var(--t0);
+        background: var(--bg);
+        border-color: var(--bd);
+      }
+      .v5-meta {
+        margin-left: auto;
+        font-family: var(--mono);
+        font-size: 9px;
+        color: var(--t3);
+        padding-bottom: 4px;
+      }
+
+      /* ── 6 Collapsible meta ── */
+      .v6-tabs {
+        display: flex;
+        height: 30px;
+        background: var(--bg1);
+        border-bottom: 1px solid var(--bd);
+      }
+      .v6-tab {
+        padding: 0 11px;
+        display: flex;
+        align-items: center;
+        font-family: var(--mono);
+        font-size: 10px;
+        color: var(--t2);
+        border-right: 1px solid var(--bd);
+      }
+      .v6-tab.on {
+        background: var(--bg);
+        color: var(--t0);
+      }
+      .v6-meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 0;
+        overflow: hidden;
+        padding: 0 14px;
+        font-family: var(--mono);
+        font-size: 9px;
+        color: var(--t3);
+        border-bottom: 0 solid var(--bd);
+        transition: none;
+      }
+      .card.v6-hover .v6-meta {
+        height: 22px;
+        padding: 4px 14px;
+        border-bottom-width: 1px;
+      }
+      .card.v6-hover .v6-hint {
+        opacity: 0;
+      }
+      .v6-hint {
+        font-family: var(--mono);
+        font-size: 8px;
+        color: var(--t3);
+        text-align: center;
+        padding: 2px;
+        opacity: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Orbit — Topbar & TabBar</h1>
+    <p class="intro">
+      Hoje cada painel agente empilha <strong>TabBar 35px + PanelHeader 58px ≈ 93px</strong> antes do
+      feed. O restante do Orbit (sidebar, timeline, tool cards) já é mais compacto e “Quiet Journal”.
+      Seis direções abaixo — abra este HTML no browser para comparar.
+    </p>
+    <div class="baseline">
+      <span>ATUAL</span> 35px tabs + 58px topbar = <strong>93px</strong> chrome
+    </div>
+
+    <div class="grid">
+      <!-- Baseline -->
+      <article class="card">
+        <div class="card-head">
+          <h2>0 · Atual (referência)</h2>
+          <p>Tabs estilo browser + topbar com pills</p>
+        </div>
+        <div class="mock-pane">
+          <div class="v0-tabs">
+            <div class="v0-tab on">◇ nms</div>
+            <div class="v0-tab">⎇ Git</div>
+            <div class="v0-tab">▸ term</div>
+          </div>
+          <div class="v0-top">
+            <div>
+              <span class="v0-title">nms</span>
+              <span class="v0-meta">C:\…\nms · main</span>
+            </div>
+            <div class="v0-pills">
+              <span class="pill ac">working</span>
+              <span class="pill">gpt-5.4</span>
+              <span class="pill">41% ctx</span>
+            </div>
+          </div>
+          <div class="mock-feed"></div>
+        </div>
+      </article>
+
+      <!-- 1 -->
+      <article class="card">
+        <div class="card-head">
+          <h2>1 · Rail unificado</h2>
+          <p class="h">~40px total</p>
+          <p>Tabs segmentadas + título + stats inline, uma única faixa</p>
+        </div>
+        <div class="mock-pane">
+          <div class="v1-rail">
+            <div class="v1-seg">
+              <button class="on">nms</button>
+              <button>Git</button>
+              <button>term</button>
+            </div>
+            <div class="v1-div"></div>
+            <div class="v1-crumb">
+              <strong>nms</strong>
+              <em>main · C:\…\nms</em>
+            </div>
+            <div class="v1-stats">
+              <span><i class="dot"></i>working</span>
+              <span>gpt-5.4</span>
+              <span>41%</span>
+            </div>
+          </div>
+          <div class="mock-feed"></div>
+        </div>
+      </article>
+
+      <!-- 2 -->
+      <article class="card">
+        <div class="card-head">
+          <h2>2 · Capsules flutuantes</h2>
+          <p class="h">~36px + meta 1 linha</p>
+          <p>Sem barra full-width; tabs pill; meta colapsada em ticks</p>
+        </div>
+        <div class="mock-pane">
+          <div class="v2-wrap">
+            <div class="v2-tabs">
+              <div class="v2-tab on">◇ nms</div>
+              <div class="v2-tab">Git</div>
+              <div class="v2-tab">+</div>
+            </div>
+            <div class="v2-line">
+              <strong style="font-size: 12px">nms</strong>
+              <span>working · gpt-5.4 · 41% ctx</span>
+            </div>
+          </div>
+          <div class="mock-feed"></div>
+        </div>
+      </article>
+
+      <!-- 3 -->
+      <article class="card">
+        <div class="card-head">
+          <h2>3 · Icon rail</h2>
+          <p class="h">36px</p>
+          <p>Tabs só ícone; label no strip principal; ideal multi-tab</p>
+        </div>
+        <div class="mock-pane">
+          <div class="v3">
+            <div class="v3-icons">
+              <div class="v3-ico on">◇</div>
+              <div class="v3-ico">⎇</div>
+              <div class="v3-ico">▸</div>
+              <div class="v3-ico" style="color: var(--t3)">+</div>
+            </div>
+            <div class="v3-main">
+              <h3>nms — feature/auth</h3>
+              <span class="v3-ticks">WORKING · SONNET · 41%</span>
+            </div>
+          </div>
+          <div class="mock-feed"></div>
+        </div>
+      </article>
+
+      <!-- 4 -->
+      <article class="card">
+        <div class="card-head">
+          <h2>4 · Journal masthead</h2>
+          <p class="h">~42px (editorial)</p>
+          <p>Tabs micro-underline; título grande; stats sem pill box</p>
+        </div>
+        <div class="mock-pane">
+          <div class="v4">
+            <div class="v4-row1">
+              <span class="v4-tab-mini on">nms</span>
+              <span class="v4-tab-mini">Git</span>
+              <span class="v4-tab-mini">term</span>
+            </div>
+            <div class="v4-row2">
+              <h3>nms</h3>
+              <span class="v4-ticks"><b>working</b> · gpt-5.4 · 41% ctx</span>
+            </div>
+          </div>
+          <div class="mock-feed"></div>
+        </div>
+      </article>
+
+      <!-- 5 -->
+      <article class="card">
+        <div class="card-head">
+          <h2>5 · Chromeless connect</h2>
+          <p class="h">28px tabs only</p>
+          <p>Topbar removido; meta na direita da tab row; tab ativa funde com feed</p>
+        </div>
+        <div class="mock-pane">
+          <div class="v5-tabs">
+            <div class="v5-tab on">nms</div>
+            <div class="v5-tab">Git</div>
+            <div class="v5-tab">term</div>
+            <span class="v5-meta">working · 41%</span>
+          </div>
+          <div class="mock-feed"></div>
+        </div>
+      </article>
+
+      <!-- 6 -->
+      <article class="card">
+        <div class="card-head">
+          <h2>6 · Meta on hover</h2>
+          <p class="h">30px default → +22px hover</p>
+          <p>Passe o mouse no card — cwd/model aparecem só quando precisa</p>
+        </div>
+        <div class="mock-pane card v6-hover" style="border: none; border-radius: 0">
+          <div class="v6-tabs">
+            <div class="v6-tab on">nms</div>
+            <div class="v6-tab">Git</div>
+          </div>
+          <div class="v6-hint">hover este painel ↓</div>
+          <div class="v6-meta">
+            <span>C:\Users\…\nms · main</span>
+            <span>working · gpt-5.4 · 41%</span>
+          </div>
+          <div class="mock-feed"></div>
+        </div>
+      </article>
+    </div>
+
+    <p class="intro" style="margin-top: 28px">
+      <strong>Recomendação inicial:</strong> conceito <strong>1 (Rail unificado)</strong> ou
+      <strong>5 (Chromeless)</strong> — maior ganho vertical e alinhamento com timeline. Conceito
+      <strong>3</strong> se você costuma ter 4+ tabs por painel.
+    </p>
+  </body>
+</html>

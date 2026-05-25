@@ -24,7 +24,9 @@ npm-debug.log*
 
 # Landing (Astro build output)
 landing/dist/
+landing/.astro/
 landing/node_modules/
+landing/bash.exe.stackdump
 
 # SvelteKit / Vite
 /build
@@ -56,6 +58,7 @@ tauri.key.pub
 *.db-journal
 test-output/
 test-results/
+playwright-report/
 
 # Generated demo GIF — regenerate with: npm run demo:gif
 # media/demo.gif is committed intentionally

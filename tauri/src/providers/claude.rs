@@ -6,6 +6,34 @@ use crate::services::ssh::{self, SpawnMode};
 
 pub struct ClaudeProvider;
 
+/// argv tokens for `claude` over SSH (before shell escaping).
+pub(crate) fn claude_ssh_command_tokens(
+    skip_permissions: bool,
+    model: &str,
+    effort: Option<&str>,
+    resume_id: Option<&str>,
+) -> Vec<String> {
+    let mut parts = vec![
+        "claude".to_string(),
+        "--output-format".to_string(),
+        "stream-json".to_string(),
+        "--verbose".to_string(),
+    ];
+    if skip_permissions {
+        parts.push("--dangerously-skip-permissions".to_string());
+    }
+    if model != "auto" && !model.is_empty() {
+        parts.extend(["--model".to_string(), model.to_string()]);
+    }
+    if let Some(effort) = effort {
+        parts.extend(["--effort".to_string(), effort.to_string()]);
+    }
+    if let Some(sid) = resume_id {
+        parts.extend(["--resume".to_string(), sid.to_string()]);
+    }
+    parts
+}
+
 impl Provider for ClaudeProvider {
     fn id(&self) -> &str {
         "claude-code"
@@ -35,27 +63,26 @@ impl Provider for ClaudeProvider {
                 claude_session_id: config.resume_id,
             }),
             SpawnMode::Ssh { ref host, ref user } => {
-                let mut parts = vec![
-                    "claude".to_string(),
-                    "--output-format".to_string(),
-                    "stream-json".to_string(),
-                    "--verbose".to_string(),
-                ];
-                if config.skip_permissions {
-                    parts.push("--dangerously-skip-permissions".to_string());
-                }
-                if config.model != "auto" && !config.model.is_empty() {
-                    parts.push("--model".to_string());
-                    parts.push(ssh::posix_escape(&config.model));
-                }
-                if let Some(ref effort) = config.effort {
-                    parts.push("--effort".to_string());
-                    parts.push(ssh::posix_escape(effort));
-                }
-                if let Some(ref resume_id) = config.resume_id {
-                    parts.push("--resume".to_string());
-                    parts.push(ssh::posix_escape(resume_id));
-                }
+                let mut parts: Vec<String> = claude_ssh_command_tokens(
+                    config.skip_permissions,
+                    &config.model,
+                    config.effort.as_deref(),
+                    config.resume_id.as_deref(),
+                )
+                .into_iter()
+                .map(|token| match token.as_str() {
+                    "claude"
+                    | "--output-format"
+                    | "stream-json"
+                    | "--verbose"
+                    | "--dangerously-skip-permissions"
+                    | "--model"
+                    | "--effort"
+                    | "--resume"
+                    | "-p" => token,
+                    _ => ssh::posix_escape(&token),
+                })
+                .collect();
                 parts.push("-p".to_string());
                 parts.push(ssh::posix_escape(&config.prompt));
 
@@ -180,6 +207,73 @@ mod tests {
         let window = provider.context_window("claude-sonnet-4-6");
         t.some("context_window for sonnet-4-6 is Some", &window);
         t.eq("context_window value", window.unwrap(), 200_000);
+    }
+
+    #[test]
+    fn should_normalize_format_model_to_auto() {
+        let mut t = TestCase::new("should_normalize_format_model_to_auto");
+        let provider = ClaudeProvider;
+
+        t.phase("Assert");
+        t.eq(
+            "empty model",
+            provider.format_model("", "claude-code").as_str(),
+            "auto",
+        );
+        t.eq(
+            "auto model",
+            provider.format_model("auto", "claude-code").as_str(),
+            "auto",
+        );
+        t.eq(
+            "explicit model preserved",
+            provider
+                .format_model("claude-sonnet-4-6", "claude-code")
+                .as_str(),
+            "claude-sonnet-4-6",
+        );
+    }
+
+    #[test]
+    fn should_expose_opus_47_effort_levels_including_xhigh() {
+        let mut t = TestCase::new("should_expose_opus_47_effort_levels_including_xhigh");
+        let provider = ClaudeProvider;
+
+        t.phase("Assert");
+        let opus = provider.effort_levels("claude-opus-4-7");
+        t.ok("opus includes xhigh", opus.contains(&"xhigh"));
+        t.ok("opus includes max", opus.contains(&"max"));
+
+        let sonnet = provider.effort_levels("claude-sonnet-4-6");
+        t.ok("sonnet excludes xhigh", !sonnet.contains(&"xhigh"));
+        t.len("sonnet has four levels", sonnet, 4);
+    }
+
+    #[test]
+    fn claude_ssh_command_tokens_should_include_model_and_effort() {
+        let mut t = TestCase::new("claude_ssh_command_tokens_should_include_model_and_effort");
+        t.phase("Act");
+        let parts =
+            claude_ssh_command_tokens(true, "claude-sonnet-4-6", Some("high"), Some("sess-1"));
+        t.phase("Assert");
+        t.ok(
+            "skip permissions flag",
+            parts.contains(&"--dangerously-skip-permissions".to_string()),
+        );
+        t.ok(
+            "model flag",
+            parts
+                .windows(2)
+                .any(|w| w == ["--model", "claude-sonnet-4-6"]),
+        );
+        t.ok(
+            "effort flag",
+            parts.windows(2).any(|w| w == ["--effort", "high"]),
+        );
+        t.ok(
+            "resume flag",
+            parts.windows(2).any(|w| w == ["--resume", "sess-1"]),
+        );
     }
 
     #[test]

@@ -10,6 +10,7 @@
   import Modal from './shared/Modal.svelte';
   import ProviderSelector from './shared/ProviderSelector.svelte';
   import SshFields from './shared/SshFields.svelte';
+  import { browseButtonLabel } from '../lib/shortcuts';
 
   const dispatch = createEventDispatcher<{
     done: { session: Session };
@@ -41,17 +42,15 @@
   $: hasSubProviders = selectedBackend?.hasSubProviders ?? false;
 
   onMount(async () => {
-    // Refresh providers if not already loaded
-    if (backends.length === 0) {
+    if ($backendsStore.length === 0) {
       try {
         backendsStore.set(await getProviders());
       } catch (e) {
         console.warn('[NewSessionModal] getProviders failed:', e);
       }
     }
-    // Pre-select first sub-provider if OpenCode
-    const oc = backends.find((b) => b.hasSubProviders);
-    if (oc?.subProviders?.length) {
+    const oc = $backendsStore.find((b) => b.hasSubProviders);
+    if (oc?.subProviders?.length && !subProviderId) {
       subProviderId = oc.subProviders[0].id;
     }
   });
@@ -206,7 +205,9 @@
         on:keydown={(e) => e.key === 'Enter' && prompt && submit()}
       />
       {#if !sshMode}
-        <button class="browse" on:click={browse} disabled={loading} title="browse">⌘</button>
+        <button class="browse" on:click={browse} disabled={loading} title="browse"
+          >{browseButtonLabel()}</button
+        >
       {/if}
     </div>
   </div>
@@ -222,7 +223,7 @@
       rows="3"
       disabled={loading}
       on:keydown={(e) => {
-        if (e.key === 'Enter' && e.metaKey) submit();
+        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit();
       }}
     ></textarea>
   </div>

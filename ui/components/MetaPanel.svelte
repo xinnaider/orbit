@@ -2,13 +2,17 @@
   import type { Session } from '../lib/stores/sessions';
   import { formatTokens } from '../lib/cost';
   import { stopSession, getSubagents } from '../lib/tauri';
+  import { appendSessionFeedMessage } from '../lib/session-feed';
   import { isActive, modelShortName } from '../lib/status';
   import { sessionEffort } from '../lib/stores/ui';
   import { metaPanelVisible } from '../lib/stores/preferences';
   import { sessions, updateSessionState } from '../lib/stores/sessions';
   import TasksList from './TasksList.svelte';
   import SubagentsPanel from './SubagentsPanel.svelte';
+  import McpStatusBadge from './McpStatusBadge.svelte';
   import { providerCaps, getCaps } from '../lib/stores/providers';
+  import { workspace, assignSession } from '../lib/stores/workspace';
+  import { get } from 'svelte/store';
 
   export let session: Session;
   $: caps = getCaps($providerCaps, session.provider);
@@ -22,9 +26,16 @@
   async function stop() {
     try {
       await stopSession(session.id);
-    } catch (_e) {
-      /* no-op */
+      appendSessionFeedMessage(session.id, 'Session stopped.');
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e);
+      appendSessionFeedMessage(session.id, `Failed to stop session: ${message}`, { error: true });
     }
+  }
+
+  function openMcpChildSession(childSessionId: number) {
+    const ws = get(workspace);
+    if (ws.focusedPaneId) assignSession(ws.focusedPaneId, childSessionId);
   }
 
   async function refreshAgents() {
@@ -71,6 +82,9 @@
   <div class="content">
     {#if tab === 'stats'}
       <div class="stats">
+        <div class="stat-group mcp-status-row">
+          <McpStatusBadge />
+        </div>
         <div class="stat-group">
           <div class="stat-label">tokens</div>
           <div class="stat-value big">{formatTokens(total)}</div>
@@ -217,6 +231,7 @@
         {refreshing}
         cwd={session.cwd}
         onRefresh={refreshAgents}
+        onOpenMcpSession={openMcpChildSession}
       />
     {/if}
   </div>
@@ -291,6 +306,10 @@
   .inspector .stats {
     gap: 12px;
     padding: var(--sp-5) 0;
+  }
+
+  .mcp-status-row {
+    padding: 0 var(--sp-6) var(--sp-2);
   }
   .stat-group {
     padding: var(--sp-4) var(--sp-6);

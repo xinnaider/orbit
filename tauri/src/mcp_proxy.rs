@@ -872,8 +872,6 @@ pub mod standalone {
             { "id": "claude-code", "name": "Claude Code", "cliName": "claude" },
             { "id": "codex", "name": "Codex CLI", "cliName": "codex" },
             { "id": "opencode", "name": "OpenCode", "cliName": "opencode" },
-            { "id": "gemini-cli", "name": "Gemini CLI", "cliName": "gemini" },
-            { "id": "copilot-cli", "name": "Copilot CLI", "cliName": "copilot" },
         ]))
     }
 
@@ -959,7 +957,7 @@ pub mod standalone {
                 "inputSchema": {
                     "type": "object",
                     "properties": {
-                        "provider": { "type": "string", "description": "Agent provider: claude-code, codex, opencode, gemini-cli, copilot-cli", "default": "claude-code" },
+                        "provider": { "type": "string", "description": "Agent provider: claude-code, codex, opencode", "default": "claude-code" },
                         "model": { "type": "string", "description": "Model ID (e.g. claude-sonnet-4-6). Empty for default." },
                         "cwd": { "type": "string", "description": "Working directory for the agent" },
                         "prompt": { "type": "string", "description": "Initial prompt/task for the agent" },

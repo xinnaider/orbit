@@ -90,10 +90,72 @@ jobs:
       - name: Run component tests
         run: npm run test:components
 
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: tauri -> tauri/target
+          shared-key: 'rust-windows'
+          cache-on-failure: true
+
+      - name: Create sidecar placeholder for Tauri build validation
+        shell: pwsh
+        run: |
+          $triple = rustc -vV | Select-String '^host:' | ForEach-Object { ($_ -split ':')[1].Trim() }
+          $ext = if ($triple -match 'windows') { '.exe' } else { '' }
+          $dir = 'tauri/binaries'
+          New-Item -ItemType Directory -Path $dir -Force | Out-Null
+          $path = Join-Path $dir "orbit-mcp-$triple$ext"
+          if (-not (Test-Path $path)) { New-Item -ItemType File -Path $path -Force | Out-Null }
+          Write-Host "Created placeholder: $path"
+
+      - name: Run Rust tests
+        run: cargo test --manifest-path tauri/Cargo.toml
+
+  e2e-mock:
+    name: E2E Mock (Chromium)
+    runs-on: windows-latest
+    needs: [lint, test]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache-mock
+        with:
+          path: ~/AppData/Local/ms-playwright
+          key: playwright-${{ hashFiles('package-lock.json') }}-chromium
+
+      - name: Install Playwright (Chromium)
+        if: steps.playwright-cache-mock.outputs.cache-hit != 'true'
+        run: npx playwright install chromium
+
+      - name: Run E2E mock tests
+        run: npx playwright test --project=chromium e2e/
+        timeout-minutes: 15
+
+      - name: Upload Playwright artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-mock-report-${{ github.sha }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: warn
+          retention-days: 14
+
   build-windows:
     name: Build Windows (.exe)
     runs-on: windows-latest
-    needs: [lint, test]
+    needs: [lint, test, e2e-mock]
     if: github.event_name == 'push'
 
     steps:
@@ -642,10 +704,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  e2e:
-    name: E2E (Chromium, mock frontend)
+  e2e-tauri:
+    name: E2E Tauri (WebDriver smoke, optional)
     runs-on: windows-latest
     needs: build-windows
+    if: github.event_name == 'push'
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
@@ -656,28 +720,5 @@ jobs:
 
       - run: npm ci
 
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        id: playwright-cache
-        with:
-          path: ~/AppData/Local/ms-playwright
-          key: playwright-${{ hashFiles('package-lock.json') }}-chromium
-
-      - name: Install Playwright (Chromium)
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install chromium
-
-      - name: Run E2E smoke tests
-        run: npx playwright test --project=chromium e2e/
-        timeout-minutes: 10
-
-      - name: Upload Playwright artifacts on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report-${{ github.sha }}
-          path: |
-            playwright-report/
-            test-results/
-          if-no-files-found: warn
-          retention-days: 14
+      - name: Run Tauri E2E scaffold (skipped until tauri-driver wired)
+        run: npx playwright test --project=tauri

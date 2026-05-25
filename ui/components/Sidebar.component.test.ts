@@ -98,7 +98,14 @@ vi.mock('$lib/stores/ui', () => ({
   pinnedSessions: mockPinnedSessionsObj,
 }));
 
-vi.mock('$lib/stores/preferences', () => {
+vi.mock('$lib/window-opacity', () => ({
+  applyWindowOpacity: vi.fn(),
+  parseStoredWindowOpacity: vi.fn(() => 100),
+  WINDOW_OPACITY_STORAGE_KEY: 'windowOpacity',
+  DEFAULT_WINDOW_OPACITY: 100,
+}));
+
+vi.mock('$lib/stores/preferences', async (importOriginal) => {
   function createPrefStore<T>(initial: T) {
     let val = initial;
     const subs = new Set<(v: T) => void>();
@@ -114,16 +121,43 @@ vi.mock('$lib/stores/preferences', () => {
       },
     };
   }
+  const actual = await importOriginal<typeof import('$lib/stores/preferences')>();
   return {
+    ...actual,
     sidebarVisible: createPrefStore(true),
+    notificationsEnabled: createPrefStore(true),
+    windowOpacity: createPrefStore(100),
+    metaPanelVisible: createPrefStore(false),
+    compactDensity: createPrefStore(false),
   };
 });
 
-vi.mock('$lib/status', () => ({
-  statusColor: vi.fn((_status: string) => 'var(--s-working)'),
-  statusLabel: vi.fn((status: string) => status),
-  isPulsing: vi.fn(() => false),
-  modelShortName: vi.fn((model: string | null) => model ?? '—'),
+vi.mock('$lib/status', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('$lib/status')>();
+  return {
+    ...actual,
+    statusColor: vi.fn((_status: string) => 'var(--s-working)'),
+    statusLabel: vi.fn((status: string) => status),
+    isPulsing: vi.fn(() => false),
+    modelShortName: vi.fn((model: string | null) => model ?? '—'),
+  };
+});
+
+vi.mock('$lib/stores/mcp-ui', () => ({
+  expandedParentSessions: {
+    subscribe: (fn: (v: Set<number>) => void) => {
+      fn(new Set());
+      return () => {};
+    },
+  },
+}));
+
+vi.mock('$lib/session-feed', () => ({
+  appendSessionFeedMessage: vi.fn(),
+}));
+
+vi.mock('$lib/tauri/desktop', () => ({
+  setDesktopNotificationsEnabled: vi.fn(),
 }));
 
 vi.mock('$lib/cost', () => ({
@@ -213,7 +247,7 @@ describe('Sidebar', () => {
 
     expect(getByText('No sessions yet')).toBeTruthy();
     expect(getByTestId('new-session-button')).toBeTruthy();
-    expect(getByText(/drag sessions into panes/i)).toBeTruthy();
+    expect(getByTestId('session-search-input')).toBeTruthy();
   });
 
   // ── Session list ──
@@ -269,10 +303,60 @@ describe('Sidebar', () => {
 
   // ── Footer quiet workspace hints ──
 
-  it('footer shows quiet workspace hints instead of only session count', () => {
+  it('footer shows rotating quiet workspace hints', () => {
     mockSessionsStore.set([makeSession({ id: 1, name: 'One' })]);
-    const { getByText } = render(Sidebar);
-    expect(getByText(/drag sessions into panes/i)).toBeTruthy();
-    expect(getByText(/⌘I inspect/i)).toBeTruthy();
+    const { getByText, container } = render(Sidebar);
+    // SidebarFooterHints cycles tips; first slide is always "Close → tray"
+    expect(getByText(/Close → tray/i)).toBeTruthy();
+    const hint = container.querySelector('.footer-hint');
+    expect(hint?.getAttribute('title')).toMatch(/inspector/i);
+    expect(hint?.getAttribute('title')).toMatch(/Drag · assign pane/i);
+  });
+
+  // ── Session search ──
+
+  it('session search input accepts text and filters the list', async () => {
+    mockSessionsStore.set([
+      makeSession({ id: 1, name: 'Billing refactor' }),
+      makeSession({ id: 2, name: 'Auth migration' }),
+    ]);
+
+    const { getByTestId, getByText, queryByText } = render(Sidebar);
+    const search = getByTestId('session-search-input') as HTMLInputElement;
+
+    expect(getByText('Billing refactor')).toBeTruthy();
+    expect(getByText('Auth migration')).toBeTruthy();
+
+    await fireEvent.input(search, { target: { value: 'billing' } });
+
+    expect(getByText('Billing refactor')).toBeTruthy();
+    expect(queryByText('Auth migration')).toBeNull();
+  });
+
+  it('session search shows empty state when nothing matches', async () => {
+    mockSessionsStore.set([makeSession({ id: 1, name: 'Only session' })]);
+
+    const { getByTestId, getByText, queryByText } = render(Sidebar);
+    const search = getByTestId('session-search-input') as HTMLInputElement;
+
+    await fireEvent.input(search, { target: { value: 'zzznomatch' } });
+
+    expect(queryByText('Only session')).toBeNull();
+    expect(getByText('No matching sessions')).toBeTruthy();
+  });
+
+  it('session search by branch label filters sessions', async () => {
+    mockSessionsStore.set([
+      makeSession({ id: 1, name: 'Alpha', gitBranch: 'feature/payments' }),
+      makeSession({ id: 2, name: 'Beta', gitBranch: 'main' }),
+    ]);
+
+    const { getByTestId, getByText, queryByText } = render(Sidebar);
+    const search = getByTestId('session-search-input') as HTMLInputElement;
+
+    await fireEvent.input(search, { target: { value: 'payments' } });
+
+    expect(getByText('Alpha')).toBeTruthy();
+    expect(queryByText('Beta')).toBeNull();
   });
 });

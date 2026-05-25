@@ -187,13 +187,19 @@ npm run dev:mock
 
 | Script | O que faz |
 |--------|-----------|
-| `npm run tauri:dev` | **Dev principal** — Vite + Rust com hot reload |
-| `npm run dev:mock` | Frontend sem Rust (mock) |
+| `npm run tauri:dev` | **Dev principal** — Vite + Rust (um `cargo build`, sem sidecar duplicado) |
+| `npm run dev:mock` | Frontend sem Rust (mock) — zero `tauri/target` |
+| `npm run clean` | Remove `tauri/target`, `binaries/`, `build/`, artefatos de teste |
+| `npm run clean:rust` | Só `cargo clean` |
 | `npm run lint` | ESLint + svelte-check + clippy |
 | `npm run format` | Prettier + rustfmt (auto-fix) |
 | `npm run test` | Vitest (frontend) |
-| `npm run test:rust` | cargo test (backend) |
+| `npm run test:rust` | `cargo test --lib` (sem binários de teste extras) |
+| `npm run test:e2e` | Playwright mock frontend (all UI flows) |
+| `npm run test:e2e:tauri` | Playwright Tauri WebDriver smoke (requires `TAURI_E2E=1`) |
 | `npm run tauri:build` | Build de produção (.exe/.msi) |
+
+Ver também `docs/dev-workflow.md` (disco, `CARGO_TARGET_DIR`, o que limpar).
 
 ---
 

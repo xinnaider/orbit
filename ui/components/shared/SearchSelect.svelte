@@ -132,12 +132,11 @@
   {#if open && filtered.length > 0}
     <ul class="dropdown" bind:this={listEl} role="listbox" id="search-select-list">
       {#each filtered as item, i}
-        <!-- svelte-ignore a11y_click_events_have_key_events -->
         <li
           class="option"
           class:selected={item.id === value}
           class:highlight={i === highlightIndex}
-          on:click={() => selectItem(item)}
+          on:mousedown|preventDefault={() => selectItem(item)}
           on:mouseenter={() => (highlightIndex = i)}
           role="option"
           aria-selected={item.id === value}
@@ -204,7 +203,7 @@
     list-style: none;
     margin: 0;
     padding: 0;
-    z-index: 100;
+    z-index: 2000;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   }
   .option {

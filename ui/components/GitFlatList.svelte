@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { CheckSquare, FileText, Square } from 'lucide-svelte';
+  import { CheckSquare, FileText, Minus, Plus, Square } from 'lucide-svelte';
   import type { GitFileChange } from '../lib/tauri/git';
   import { STATUS_SYMBOLS, STATUS_COLORS } from '../lib/git-tree';
   import { TAG_COLORS } from '../lib/git-tags';
@@ -8,8 +8,11 @@
   export let selectedFile: GitFileChange | null = null;
   export let selectedIds: Set<string> = new Set();
   export let fileTags: Record<string, string[]> = {};
+  export let actionBusy = false;
   export let onSelectFile: (file: GitFileChange) => void = () => {};
   export let onToggleSelected: (file: GitFileChange) => void = () => {};
+  export let onStageFile: (file: GitFileChange) => void = () => {};
+  export let onUnstageFile: (file: GitFileChange) => void = () => {};
 
   $: sortedFiles = [...files].sort((a, b) => {
     const aPath = a.path.toLowerCase();
@@ -21,9 +24,13 @@
     const idx = path.lastIndexOf('/');
     return idx >= 0 ? path.slice(0, idx) : '';
   }
+
+  function hasStats(file: GitFileChange): boolean {
+    return file.additions != null || file.deletions != null;
+  }
 </script>
 
-<div class="flat-list">
+<div class="flat-list" data-testid="git-flat-list">
   {#each sortedFiles as file (file.id)}
     {@const fpath = folderPath(file.path)}
     <div
@@ -35,6 +42,22 @@
       on:click={() => onSelectFile(file)}
       on:keydown={(e) => e.key === 'Enter' && onSelectFile(file)}
     >
+      <button
+        class="stage-btn"
+        type="button"
+        disabled={actionBusy}
+        aria-label={file.group === 'staged' ? 'Unstage file' : 'Stage file'}
+        data-testid={file.group === 'staged' ? 'git-unstage-file' : 'git-stage-file'}
+        on:click|stopPropagation={() =>
+          file.group === 'staged' ? onUnstageFile(file) : onStageFile(file)}
+      >
+        {#if file.group === 'staged'}
+          <Minus size={11} />
+        {:else}
+          <Plus size={11} />
+        {/if}
+      </button>
+
       <button
         class="check-btn"
         type="button"
@@ -65,6 +88,17 @@
 
       {#if fpath}
         <span class="folder-path" title={fpath}>{fpath}</span>
+      {/if}
+
+      {#if hasStats(file)}
+        <span class="line-stats" data-testid="git-file-stats">
+          {#if file.additions != null}
+            <span class="add">+{file.additions}</span>
+          {/if}
+          {#if file.deletions != null}
+            <span class="del">-{file.deletions}</span>
+          {/if}
+        </span>
       {/if}
 
       {#if fileTags[file.id]?.length}
@@ -110,6 +144,7 @@
     background: rgba(0, 212, 126, 0.06);
   }
 
+  .stage-btn,
   .check-btn {
     display: inline-flex;
     align-items: center;
@@ -121,6 +156,25 @@
     color: inherit;
     padding: 0;
     flex-shrink: 0;
+    cursor: pointer;
+  }
+
+  .stage-btn {
+    color: var(--t3);
+    opacity: 0.55;
+  }
+
+  .flat-row:hover .stage-btn {
+    opacity: 1;
+    color: var(--ac);
+  }
+
+  .stage-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  .check-btn {
     opacity: 0.4;
   }
 
@@ -160,6 +214,22 @@
     font-size: 9px;
     flex: 1;
     min-width: 30px;
+  }
+
+  .line-stats {
+    display: inline-flex;
+    gap: 4px;
+    flex-shrink: 0;
+    font-size: 9px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .line-stats .add {
+    color: #3ecf8e;
+  }
+
+  .line-stats .del {
+    color: #f07178;
   }
 
   .tag-labels {

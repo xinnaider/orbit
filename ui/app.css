@@ -64,6 +64,17 @@ body {
   overflow: hidden;
 }
 
+/* Window transparency (ORB-13): darker backdrop + text halos when opacity < 100% */
+html[data-window-opacity] body,
+html[data-window-opacity] #app {
+  background: color-mix(in srgb, var(--bg) 88%, black);
+}
+
+html[data-window-opacity] body {
+  color: var(--t0);
+  text-shadow: 0 1px 2px color-mix(in srgb, var(--bg) 65%, transparent);
+}
+
 button {
   cursor: pointer;
   font-family: inherit;

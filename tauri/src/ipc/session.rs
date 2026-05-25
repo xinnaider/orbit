@@ -90,6 +90,13 @@ pub fn create_session(
         };
         state_entry.next_seq += 1;
         state_entry.entries.push(user_entry.clone());
+        let user_line = serde_json::json!({
+            "type": "user",
+            "message": { "content": prompt },
+            "timestamp": &user_entry.timestamp
+        })
+        .to_string();
+        let _ = m.db.insert_output(session.id, &user_line);
         let _ = app.emit(
             "session:output",
             serde_json::json!({

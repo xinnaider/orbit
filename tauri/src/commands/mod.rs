@@ -1,4 +1,5 @@
 pub mod agents;
+pub mod desktop;
 pub mod diff;
 pub mod files;
 pub mod git;
@@ -7,6 +8,7 @@ pub mod plugins;
 pub mod providers;
 pub mod stats;
 pub mod tasks;
+pub mod window;
 
 pub use agents::get_subagents;
 pub use diff::{get_diff, get_file_versions};

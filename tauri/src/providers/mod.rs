@@ -9,6 +9,8 @@ use std::collections::HashMap;
 pub struct ProviderSpawnConfig {
     pub session_id: crate::models::SessionId,
     pub cwd: std::path::PathBuf,
+    /// Provider id for this session (e.g. `claude-code`, `crof`, `opencode`).
+    pub provider_id: String,
     pub model: String,
     pub prompt: String,
     pub resume_id: Option<String>,
@@ -139,6 +141,33 @@ impl ProviderRegistry {
     /// don't have their own registry entries — they all route through opencode.
     pub fn resolve(&self, id: &str) -> Option<&dyn Provider> {
         self.get(id).or_else(|| self.get("opencode"))
+    }
+
+    /// Registry with the three shipped providers (Claude, Codex, OpenCode).
+    pub fn with_shipped_providers() -> Self {
+        let mut registry = Self::new();
+        registry.register(Box::new(claude::ClaudeProvider));
+        registry.register(Box::new(codex::CodexProvider));
+        registry.register(Box::new(opencode::OpenCodeProvider));
+        registry
+    }
+
+    /// Line parser for journal replay — uses trait dispatch when registered,
+    /// legacy ACP IDs when hidden, and `resolve` fallback for OpenCode sub-providers.
+    pub fn line_processor_for(
+        &self,
+        provider_id: &str,
+    ) -> fn(&mut crate::journal::JournalState, &str) {
+        if let Some(provider) = self.get(provider_id) {
+            return provider.line_processor();
+        }
+        match provider_id {
+            "gemini-cli" | "copilot-cli" | "gemini" | "copilot" => acp::process_acp_line,
+            _ => self
+                .resolve(provider_id)
+                .map(|p| p.line_processor())
+                .unwrap_or(crate::journal::process_line_opencode),
+        }
     }
 }
 
@@ -285,6 +314,51 @@ mod tests {
             "fallback id is opencode",
             fallback.unwrap().id(),
             "opencode",
+        );
+    }
+
+    #[test]
+    fn shipped_registry_should_dispatch_line_processors() {
+        use crate::test_utils::TestCase;
+
+        let mut t = TestCase::new("shipped_registry_should_dispatch_line_processors");
+        let registry = ProviderRegistry::with_shipped_providers();
+        let claude = claude::ClaudeProvider;
+        let codex = codex::CodexProvider;
+        let opencode = opencode::OpenCodeProvider;
+
+        t.phase("Assert — exact IDs");
+        t.ok(
+            "claude processor",
+            std::ptr::fn_addr_eq(
+                registry.line_processor_for("claude-code"),
+                claude.line_processor(),
+            ),
+        );
+        t.ok(
+            "codex processor",
+            std::ptr::fn_addr_eq(registry.line_processor_for("codex"), codex.line_processor()),
+        );
+        t.ok(
+            "opencode processor",
+            std::ptr::fn_addr_eq(
+                registry.line_processor_for("opencode"),
+                opencode.line_processor(),
+            ),
+        );
+        t.ok(
+            "openrouter falls back to opencode parser",
+            std::ptr::fn_addr_eq(
+                registry.line_processor_for("openrouter"),
+                opencode.line_processor(),
+            ),
+        );
+        t.ok(
+            "legacy gemini uses acp parser",
+            std::ptr::fn_addr_eq(
+                registry.line_processor_for("gemini-cli"),
+                acp::process_acp_line as fn(&mut crate::journal::JournalState, &str),
+            ),
         );
     }
 

@@ -28,7 +28,7 @@
     ? (selectedBackend?.subProviders.find((p) => p.id === subProviderId) ?? null)
     : null;
 
-  // Configured providers first, then alphabetical
+  // Match the older picker behavior: configured providers first, then alphabetical.
   $: sortedSubProviders = [...(selectedBackend?.subProviders ?? [])].sort((a, b) => {
     if (a.configured !== b.configured) return a.configured ? -1 : 1;
     return a.name.localeCompare(b.name);
@@ -94,8 +94,25 @@
     );
   }
 
+  function pickDefaultSubProvider(subs: SubProvider[]): string {
+    if (subs.length === 0) return '';
+    return subs[0].id;
+  }
+
   function selectBackend(b: CliBackend) {
     backendId = b.id;
+    if (b.hasSubProviders && b.subProviders.length > 0) {
+      const valid = b.subProviders.some((p) => p.id === subProviderId);
+      if (!valid) subProviderId = pickDefaultSubProvider(b.subProviders);
+    } else if (b.id !== 'opencode') {
+      subProviderId = '';
+    }
+  }
+
+  // Keep a valid sub-provider whenever OpenCode is selected (bind can lag behind backend chip).
+  $: if (hasSubProviders && sortedSubProviders.length > 0) {
+    const valid = sortedSubProviders.some((p) => p.id === subProviderId);
+    if (!valid) subProviderId = pickDefaultSubProvider(sortedSubProviders);
   }
 </script>
 
@@ -184,6 +201,11 @@
       {/each}
       {#if subProviderSearch && filteredSubProviders.length === 0}
         <div class="no-results">no providers match "{subProviderSearch}"</div>
+      {:else if filteredSubProviders.length === 0}
+        <div class="no-results">
+          no OpenCode providers found — run <code>opencode models</code> or add
+          <code>provider</code> in <code>~/.config/opencode/opencode.json</code>
+        </div>
       {/if}
     </div>
     {#if isOpenCodeBackend(selectedBackend)}
@@ -200,7 +222,7 @@
 
 <!-- Model selector -->
 {#if currentModels.length > 0}
-  <div class="field">
+  <div class="field model-field">
     <label class="label" for="ns-model">model</label>
     <SearchSelect
       items={currentModels}
@@ -236,6 +258,11 @@
     display: flex;
     flex-direction: column;
     gap: var(--sp-3);
+  }
+  .model-field {
+    position: relative;
+    z-index: 20;
+    overflow: visible;
   }
   .label {
     font-size: var(--xs);

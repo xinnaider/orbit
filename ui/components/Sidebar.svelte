@@ -1,32 +1,19 @@
 <script lang="ts">
   import { sessions, updateSessionState } from '../lib/stores/sessions';
-  import { workspace, assignSession } from '../lib/stores/workspace';
   import { upsertAndOpenSession } from '../lib/stores/session-actions';
-  import { get } from 'svelte/store';
-  import { statusColor } from '../lib/status';
   import NewSessionModal from './NewSessionModal.svelte';
   import ContextMenu from './ContextMenu.svelte';
   import RenameSessionModal from './RenameSessionModal.svelte';
   import { deleteSession, stopSession, getAppVersion } from '../lib/tauri';
+  import { appendSessionFeedMessage } from '../lib/session-feed';
   import { mutedSessions, pinnedSessions, togglePin } from '../lib/stores/ui';
   import { modelShortName } from '../lib/status';
   import { onMount } from 'svelte';
-  import { clearAttention } from '../lib/tauri/attention';
-
-  function attentionColor(reason: string | null): string {
-    switch (reason) {
-      case 'permission':
-        return 'var(--s-input)';
-      case 'completed':
-        return 'var(--s-idle)';
-      case 'error':
-        return 'var(--s-error)';
-      case 'rateLimit':
-        return 'var(--s-input)';
-      default:
-        return 'var(--ac)';
-    }
-  }
+  import SessionListItem from './SessionListItem.svelte';
+  import McpStatusBadge from './McpStatusBadge.svelte';
+  import DesktopNotifyToggle from './DesktopNotifyToggle.svelte';
+  import SidebarFooterHints from './SidebarFooterHints.svelte';
+  import { expandedParentSessions } from '../lib/stores/mcp-ui';
 
   let appVersion = '';
   import OrbitLogo from '../lib/assets/orbit.svg?raw';
@@ -65,22 +52,25 @@
     'Delete'
   );
 
-  let expandedParents: Set<number> = new Set();
-
-  function getChildren(list: typeof $sessions, parentId: number) {
-    return list.filter((s) => s.parentSessionId === parentId);
+  function toggleExpand(parentId: number) {
+    expandedParentSessions.update((set) => {
+      if (set.has(parentId)) {
+        return new Set([...set].filter((id) => id !== parentId));
+      }
+      return new Set([...set, parentId]);
+    });
   }
 
-  function selectOrToggle(s: (typeof $sessions)[0], hasChildren: boolean) {
-    const ws = get(workspace);
-    if (ws.focusedPaneId) assignSession(ws.focusedPaneId, s.id);
-    if (s.attention?.requiresAttention) clearAttention(s.id);
-    if (hasChildren) {
-      expandedParents = new Set(
-        expandedParents.has(s.id)
-          ? [...expandedParents].filter((id) => id !== s.id)
-          : [...expandedParents, s.id]
-      );
+  // Auto-expand parents when MCP child sessions appear
+  $: {
+    const parentIds = $sessions
+      .map((s) => s.parentSessionId)
+      .filter((id): id is number => id != null);
+    if (parentIds.length > 0) {
+      expandedParentSessions.update((set) => {
+        const next = new Set([...set, ...parentIds]);
+        return next.size === set.size ? set : next;
+      });
     }
   }
 
@@ -111,8 +101,10 @@
     } else if (action === 'stop') {
       try {
         await stopSession(sessionId);
-      } catch (_e) {
-        /* no-op */
+        appendSessionFeedMessage(sessionId, 'Session stopped.');
+      } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : String(e);
+        appendSessionFeedMessage(sessionId, `Failed to stop session: ${message}`, { error: true });
       }
     } else if (action === 'mute') {
       mutedSessions.toggle(String(sessionId));
@@ -138,12 +130,43 @@
     return s.name ?? s.projectName ?? s.cwd?.split(/[/\\]/).pop() ?? `#${s.id}`;
   }
 
+  let searchQuery = '';
+
+  function sessionSearchHaystack(s: (typeof $sessions)[0]): string {
+    const branch = s.branchName ?? s.gitBranch ?? '';
+    const cwdLeaf = s.cwd?.split(/[/\\]/).pop() ?? '';
+    return [
+      displayName(s),
+      s.name,
+      s.projectName,
+      cwdLeaf,
+      s.cwd,
+      branch,
+      s.model,
+      s.provider,
+      s.status,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+  }
+
+  function matchesSessionSearch(s: (typeof $sessions)[0], query: string): boolean {
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    return sessionSearchHaystack(s).includes(q);
+  }
+
   // Derived lists for session sections
   $: rootSessions = $sessions.filter((s) => !s.parentSessionId);
-  $: pinnedList = rootSessions.filter((s) =>
+  $: searchActive = searchQuery.trim().length > 0;
+  $: filteredRoots = searchActive
+    ? rootSessions.filter((s) => matchesSessionSearch(s, searchQuery))
+    : rootSessions;
+  $: pinnedList = filteredRoots.filter((s) =>
     pinnedSessions.isPinned($pinnedSessions, String(s.id))
   );
-  $: recentList = rootSessions.filter(
+  $: recentList = filteredRoots.filter(
     (s) => !pinnedSessions.isPinned($pinnedSessions, String(s.id))
   );
 </script>
@@ -222,11 +245,21 @@
       {/if}
     </div>
     <div class="header-actions">
+      <McpStatusBadge compact />
       <ThemePicker />
     </div>
   </header>
 
-  <div class="quiet-search" aria-label="Search sessions">Search sessions…</div>
+  <input
+    type="search"
+    class="quiet-search"
+    bind:value={searchQuery}
+    placeholder="Search sessions…"
+    aria-label="Search sessions"
+    data-testid="session-search-input"
+    autocomplete="off"
+    spellcheck="false"
+  />
 
   <button
     type="button"
@@ -241,37 +274,15 @@
       <div class="section-label">Pinned</div>
       <div class="session-list">
         {#each pinnedList as s (s.id)}
-          {@const hasChildren = getChildren($sessions, s.id).length > 0}
-          {@const branchLabel = s.branchName ?? s.gitBranch ?? null}
-          <button
-            type="button"
-            class="session-item quiet-session pinned"
-            class:active={$workspace.panes[$workspace.focusedPaneId ?? '']?.tabs.some(
-              (tab) => tab.target.kind === 'agent' && tab.target.sessionId === s.id
-            )}
-            draggable="true"
-            data-testid="session-item"
-            on:dragstart={(e) => {
-              e.dataTransfer?.setData('text/plain', JSON.stringify({ sessionId: s.id }));
-            }}
-            on:click={() => selectOrToggle(s, hasChildren)}
-            on:contextmenu={(e) => onContextMenu(e, s)}
-          >
-            <span class="session-topline">
-              <span class="session-title">{displayName(s)}</span>
-              <span
-                class="status-dot"
-                style="background:{attentionColor(s.attention?.reason ?? null) ||
-                  statusColor(s.status)}"
-              ></span>
-            </span>
-            <span class="session-subline">
-              <span>{fmtModel(s.model)}</span>
-              {#if branchLabel}<span>{branchLabel}</span>{/if}
-              {#if (s.contextPercent ?? 0) > 0}<span>{Math.round(s.contextPercent ?? 0)}% ctx</span
-                >{/if}
-            </span>
-          </button>
+          <SessionListItem
+            session={s}
+            pinned
+            expandedParents={$expandedParentSessions}
+            onToggleExpand={toggleExpand}
+            {onContextMenu}
+            {displayName}
+            {fmtModel}
+          />
         {/each}
       </div>
     </section>
@@ -282,47 +293,31 @@
     <div class="session-list">
       {#if rootSessions.length === 0}
         <div class="empty quiet-empty">No sessions yet</div>
+      {:else if searchActive && filteredRoots.length === 0}
+        <div class="empty quiet-empty">No matching sessions</div>
       {:else if recentList.length === 0}
-        <div class="empty quiet-empty">All sessions pinned</div>
+        <div class="empty quiet-empty">
+          {searchActive ? 'No matching sessions' : 'All sessions pinned'}
+        </div>
       {:else}
         {#each recentList as s (s.id)}
-          {@const hasChildren = getChildren($sessions, s.id).length > 0}
-          {@const branchLabel = s.branchName ?? s.gitBranch ?? null}
-          <button
-            type="button"
-            class="session-item quiet-session"
-            class:active={$workspace.panes[$workspace.focusedPaneId ?? '']?.tabs.some(
-              (tab) => tab.target.kind === 'agent' && tab.target.sessionId === s.id
-            )}
-            draggable="true"
-            data-testid="session-item"
-            on:dragstart={(e) => {
-              e.dataTransfer?.setData('text/plain', JSON.stringify({ sessionId: s.id }));
-            }}
-            on:click={() => selectOrToggle(s, hasChildren)}
-            on:contextmenu={(e) => onContextMenu(e, s)}
-          >
-            <span class="session-topline">
-              <span class="session-title">{displayName(s)}</span>
-              <span
-                class="status-dot"
-                style="background:{attentionColor(s.attention?.reason ?? null) ||
-                  statusColor(s.status)}"
-              ></span>
-            </span>
-            <span class="session-subline">
-              <span>{fmtModel(s.model)}</span>
-              {#if branchLabel}<span>{branchLabel}</span>{/if}
-              {#if (s.contextPercent ?? 0) > 0}<span>{Math.round(s.contextPercent ?? 0)}% ctx</span
-                >{/if}
-            </span>
-          </button>
+          <SessionListItem
+            session={s}
+            expandedParents={$expandedParentSessions}
+            onToggleExpand={toggleExpand}
+            {onContextMenu}
+            {displayName}
+            {fmtModel}
+          />
         {/each}
       {/if}
     </div>
   </section>
 
-  <footer class="footer quiet-footer">drag sessions into panes • ⌘\ split • ⌘I inspect</footer>
+  <footer class="footer quiet-footer">
+    <SidebarFooterHints />
+    <DesktopNotifyToggle />
+  </footer>
 </aside>
 
 <style>
@@ -413,14 +408,24 @@
     color: var(--t0);
   }
   .quiet-search {
+    width: 100%;
     height: 34px;
-    display: flex;
-    align-items: center;
+    box-sizing: border-box;
     padding: 0 12px;
+    border: 1px solid transparent;
     border-radius: var(--radius-md);
     background: color-mix(in srgb, var(--t0), transparent 95%);
-    color: var(--t3);
+    color: var(--t0);
     font-size: 12px;
+    font-family: inherit;
+    outline: none;
+  }
+  .quiet-search::placeholder {
+    color: var(--t3);
+  }
+  .quiet-search:focus {
+    border-color: color-mix(in srgb, var(--t0), transparent 88%);
+    background: color-mix(in srgb, var(--t0), transparent 93%);
   }
   .session-section {
     display: flex;
@@ -450,57 +455,6 @@
     padding: var(--sp-8) var(--sp-6);
     font-size: var(--sm);
     color: var(--t3);
-  }
-
-  .quiet-session {
-    width: 100%;
-    border: 1px solid transparent;
-    border-radius: var(--radius-md);
-    padding: 10px 11px;
-    background: transparent;
-    color: var(--t1);
-    text-align: left;
-    cursor: pointer;
-  }
-  .quiet-session:hover {
-    background: color-mix(in srgb, var(--t0), transparent 97%);
-  }
-  .quiet-session.active {
-    color: var(--t0);
-    background: color-mix(in srgb, var(--t0), transparent 94%);
-    border-color: color-mix(in srgb, var(--t0), transparent 92%);
-  }
-  .session-topline {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    font-size: 12px;
-  }
-  .session-title {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .session-subline {
-    margin-top: 4px;
-    display: flex;
-    gap: 7px;
-    color: var(--t3);
-    font-family: var(--mono);
-    font-size: 10px;
-    white-space: nowrap;
-    overflow: hidden;
-  }
-  .status-dot {
-    width: 8px;
-    height: 8px;
-    flex-shrink: 0;
-    border-radius: 50%;
-    box-shadow:
-      0 0 0 3px color-mix(in srgb, currentColor, transparent 84%),
-      0 0 14px currentColor;
   }
 
   .confirm-overlay {
@@ -560,6 +514,10 @@
     color: var(--t3);
     font-family: var(--mono);
     font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
   }
 
   @keyframes pulse {

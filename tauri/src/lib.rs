@@ -8,6 +8,7 @@ pub mod mcp_transport;
 pub mod models;
 pub mod providers;
 pub mod services;
+pub mod tray;
 
 #[cfg(test)]
 pub mod test_utils;
@@ -30,6 +31,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             // Resolve app data directory for SQLite DB
             let data_dir = app
@@ -47,24 +49,9 @@ pub fn run() {
             let session_manager = Arc::new(RwLock::new(SessionManager::new(db)));
             app.manage(SessionState(Arc::clone(&session_manager)));
 
-            // Provider registry — maps provider IDs to trait implementations
-            let mut registry = ProviderRegistry::new();
-            registry.register(Box::new(providers::claude::ClaudeProvider));
-            registry.register(Box::new(providers::codex::CodexProvider));
-            registry.register(Box::new(providers::opencode::OpenCodeProvider));
-            registry.register(Box::new(providers::acp::AcpProvider::new(
-                "gemini-cli",
-                "Gemini CLI",
-                "gemini",
-                &["--acp"],
-            )));
-            registry.register(Box::new(providers::acp::AcpProvider::new(
-                "copilot-cli",
-                "Copilot CLI",
-                "copilot",
-                &["--acp"],
-            )));
-            let registry = Arc::new(registry);
+            // Provider registry — maps provider IDs to trait implementations.
+            // Gemini/Copilot (ACP) live in providers/acp.rs; register there when re-enabled.
+            let registry = Arc::new(ProviderRegistry::with_shipped_providers());
             app.manage(ProviderRegistryState(Arc::clone(&registry)));
 
             // Start embedded MCP server — shares SessionManager and ProviderRegistry
@@ -219,7 +206,11 @@ pub fn run() {
                 {
                     let _ = window.set_icon(icon);
                 }
+                // Transparent windows need shadow off on Windows when using effects/opacity.
+                let _ = window.set_shadow(true);
             }
+
+            tray::setup(app.handle())?;
 
             Ok(())
         })
@@ -254,9 +245,19 @@ pub fn run() {
             commands::git::git_overview,
             commands::git::git_diff_file,
             commands::git::git_snapshot,
+            commands::git::git_stage_all,
+            commands::git::git_reset_staged,
+            commands::git::git_commit,
+            commands::git::git_quick_commit,
+            commands::git::git_reset_working_tree,
+            commands::git::git_diff_formatted,
+            commands::git::git_validate_config,
+            commands::git::git_stage_file,
+            commands::git::git_unstage_file,
             commands::files::get_subagent_journal,
             commands::plugins::get_slash_commands,
             commands::files::list_project_files,
+            commands::files::search_project_files,
             commands::files::read_file_content,
             commands::files::write_file_content,
             commands::tasks::get_tasks,
@@ -270,6 +271,9 @@ pub fn run() {
             commands::providers::diagnose_provider,
             commands::orchestration::setup_orchestration,
             commands::orchestration::check_orchestration,
+            commands::orchestration::get_mcp_status,
+            commands::desktop::get_desktop_notifications_enabled,
+            commands::desktop::set_desktop_notifications_enabled,
             ipc::terminal::pty_create,
             ipc::terminal::pty_write,
             ipc::terminal::pty_resize,
@@ -280,6 +284,7 @@ pub fn run() {
             ipc::http_api::get_http_settings,
             ipc::http_api::set_http_settings,
             ipc::http_api::get_lan_ip,
+            commands::window::set_window_opacity,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

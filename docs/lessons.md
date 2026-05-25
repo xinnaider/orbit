@@ -61,3 +61,13 @@ Padrões de erro identificados durante o desenvolvimento. Leia ao início de cad
 **Por quê:** O CI roda `cargo fmt --check` e falha se a formatação não estiver correta. O pre-commit hook roda auto-fix mas se o commit for feito via `rtk` o hook pode ser ignorado.
 
 **Quando aplicar:** Todo commit que tocar código Rust.
+
+---
+
+## OpenCode Providers
+
+**Regra:** Não usar o `opencode.json` do diretório do projeto Orbit como fonte de providers do OpenCode. A lista deve vir de `~/.cache/opencode/models.json` e da config global do próprio OpenCode em `~/.config/opencode/opencode.json` / `.jsonc`; deixe o CLI validar providers default e autenticação no spawn.
+
+**Por quê:** O `opencode.json` na raiz do Orbit é usado para MCP/plugins do projeto e não contém necessariamente blocos `provider`. Usá-lo como config de provider gera falsos erros como pedir `provider.crof` em `C:\Users\...\orbit/opencode.json` e marca providers default como não configurados.
+
+**Quando aplicar:** Sempre que mexer em listagem, normalização ou validação de providers/modelos OpenCode.
