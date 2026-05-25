@@ -58,8 +58,8 @@ fn set_native_opacity<R: Runtime>(window: &WebviewWindow<R>, percent: u8) -> Res
             LWA_ALPHA, WS_EX_LAYERED,
         };
 
-        let hwnd = window.hwnd().map_err(|e| e.to_string())?;
-        let hwnd = HWND(hwnd.0);
+        let raw_hwnd = window.hwnd().map_err(|e| e.to_string())?;
+        let hwnd = raw_hwnd.0 as HWND;
 
         unsafe {
             let ex_style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
