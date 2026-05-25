@@ -4,6 +4,9 @@
 
 ## May 2026
 
+### 05/25 · Fix — Scroll to bottom on the right
+When you scroll up in a long session, the "scroll to bottom" button now appears in the bottom-right corner of the chat panel instead of on the left over the timeline.
+
 ### 05/25 · Fix — Sidebar session search works
 The Search sessions field in the sidebar is now a real search box. Typing filters pinned and recent sessions by name, project, folder, branch, model, and status. Clear the field to show every session again.
 
