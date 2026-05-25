@@ -1740,7 +1740,11 @@ mod tests {
         let sid = db
             .create_session(None, None, "/tmp", "ignore", None, None, None, None)
             .expect("session");
-        seed_outputs(&db, sid, &[&crate::test_utils::user_text("Also fix the tests")]);
+        seed_outputs(
+            &db,
+            sid,
+            &[&crate::test_utils::user_text("Also fix the tests")],
+        );
         t.phase("Act");
         let mut sm = SessionManager::new(Arc::clone(&db));
         sm.restore_from_db();
