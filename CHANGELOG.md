@@ -4,6 +4,9 @@
 
 ## May 2026
 
+### 05/25 · Fix — Follow-up messages stay in chat after restart
+Messages you send after the first prompt in a session are now saved with the session history. Restarting Orbit or reopening a session no longer drops those follow-up prompts from the chat feed.
+
 ### 05/25 · Fix — OpenCode provider list uses global config again
 The OpenCode provider and model lists again come from OpenCode's own cache and global config instead of the Orbit repo MCP file. Default OpenCode providers are no longer blocked as "not configured"; Orbit now lets the OpenCode CLI handle provider auth and errors the same way it did before.
 

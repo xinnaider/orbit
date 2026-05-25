@@ -1017,6 +1017,13 @@ impl SessionManager {
                 };
                 state.next_seq += 1;
                 state.entries.push(user_entry.clone());
+                let user_line = serde_json::json!({
+                    "type": "user",
+                    "message": { "content": &text },
+                    "timestamp": &user_entry.timestamp
+                })
+                .to_string();
+                let _ = m.db.insert_output(session_id, &user_line);
                 let _ = app.emit(
                     "session:output",
                     serde_json::json!({
@@ -1722,6 +1729,33 @@ mod tests {
             "entry type",
             journal[0].entry_type,
             crate::models::JournalEntryType::Assistant,
+        );
+    }
+
+    #[test]
+    fn should_restore_follow_up_user_message_from_db() {
+        let mut t = TestCase::new("should_restore_follow_up_user_message_from_db");
+        t.phase("Seed");
+        let db = make_db();
+        let sid = db
+            .create_session(None, None, "/tmp", "ignore", None, None, None, None)
+            .expect("session");
+        seed_outputs(&db, sid, &[&crate::test_utils::user_text("Also fix the tests")]);
+        t.phase("Act");
+        let mut sm = SessionManager::new(Arc::clone(&db));
+        sm.restore_from_db();
+        t.phase("Assert");
+        let journal = sm.get_journal(sid);
+        t.len("one user entry", &journal, 1);
+        t.eq(
+            "follow-up text restored",
+            journal[0].text.as_deref(),
+            Some("Also fix the tests"),
+        );
+        t.eq(
+            "entry type",
+            journal[0].entry_type,
+            crate::models::JournalEntryType::User,
         );
     }
 
