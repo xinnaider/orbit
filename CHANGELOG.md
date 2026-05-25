@@ -4,6 +4,9 @@
 
 ## May 2026
 
+### 05/26 · Release — Version 0.6.0
+Dev release 0.6.0 adds system tray and desktop notifications, MCP orchestration improvements, git workflow in the panel, a leaner dev build, feed polish with a typing indicator while agents work, and OS-aware keyboard shortcut hints.
+
 ### 05/25 · Fix — Scroll to bottom on the right
 When you scroll up in a long session, the "scroll to bottom" button now appears in the bottom-right corner of the chat panel instead of on the left over the timeline.
 
