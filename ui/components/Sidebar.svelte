@@ -12,6 +12,7 @@
   import { modelShortName } from '../lib/status';
   import { onMount } from 'svelte';
   import { clearAttention } from '../lib/tauri/attention';
+  import { workspaceShortcutsFooter } from '../lib/shortcuts';
 
   function attentionColor(reason: string | null): string {
     switch (reason) {
@@ -366,7 +367,7 @@
     </div>
   </section>
 
-  <footer class="footer quiet-footer">drag sessions into panes • ⌘\ split • ⌘I inspect</footer>
+  <footer class="footer quiet-footer">{workspaceShortcutsFooter()}</footer>
 </aside>
 
 <style>
