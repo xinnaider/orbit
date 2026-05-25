@@ -214,6 +214,99 @@ pub fn resolve_opencode_request(
     resolve_opencode_request_from_subproviders(&subproviders, provider_id, model)
 }
 
+/// Full model id for `opencode run -m` (e.g. `CrofAI/crof/glm-5.1-precision`).
+pub fn build_opencode_cli_model_arg(session_provider_id: &str, stored_model: &str) -> String {
+    let subproviders = opencode_subproviders();
+    build_opencode_cli_model_arg_with_subproviders(&subproviders, session_provider_id, stored_model)
+}
+
+pub(crate) fn build_opencode_cli_model_arg_with_subproviders(
+    subproviders: &[SubProvider],
+    session_provider_id: &str,
+    stored_model: &str,
+) -> String {
+    let stored = crate::services::spawn_manager::normalize_opencode_model_ref(stored_model);
+    if stored.is_empty() {
+        return stored;
+    }
+
+    if session_provider_id.eq_ignore_ascii_case("opencode") {
+        return stored;
+    }
+
+    if let Some(cli_model) = find_opencode_cli_model_in_subproviders(subproviders, &stored) {
+        return cli_model;
+    }
+
+    if let Some(sp) = subproviders
+        .iter()
+        .find(|sp| sp.id.eq_ignore_ascii_case(session_provider_id))
+    {
+        if let Some(cli_model) = find_opencode_cli_model_for_subprovider(sp, &stored) {
+            return cli_model;
+        }
+    }
+
+    for sp in subproviders.iter().filter(|sp| sp.in_opencode_config) {
+        if let Some(cli_model) = find_opencode_cli_model_for_subprovider(sp, &stored) {
+            return cli_model;
+        }
+    }
+
+    let bare = stored
+        .strip_prefix(&format!("{session_provider_id}/"))
+        .map(crate::services::spawn_manager::normalize_opencode_model_ref)
+        .unwrap_or_else(|| stored.clone());
+    format_opencode_cli_model(session_provider_id, &bare)
+}
+
+fn format_opencode_cli_model(provider_id: &str, model_id: &str) -> String {
+    format!("{provider_id}/{model_id}")
+}
+
+fn find_opencode_cli_model_in_subproviders(
+    subproviders: &[SubProvider],
+    stored: &str,
+) -> Option<String> {
+    for sp in subproviders {
+        if !stored.starts_with(&format!("{}/", sp.id)) {
+            continue;
+        }
+        let suffix = stored
+            .strip_prefix(&format!("{}/", sp.id))
+            .unwrap_or(stored);
+        for model in &sp.models {
+            if model.id.eq_ignore_ascii_case(suffix)
+                || format_opencode_cli_model(&sp.id, &model.id).eq_ignore_ascii_case(stored)
+            {
+                return Some(format_opencode_cli_model(&sp.id, &model.id));
+            }
+        }
+    }
+    None
+}
+
+fn find_opencode_cli_model_for_subprovider(sp: &SubProvider, stored: &str) -> Option<String> {
+    let stored = crate::services::spawn_manager::normalize_opencode_model_ref(stored);
+    for model in &sp.models {
+        if model.id.eq_ignore_ascii_case(&stored) {
+            return Some(format_opencode_cli_model(&sp.id, &model.id));
+        }
+        if !stored.contains('/') {
+            if model.id.ends_with(&format!("/{stored}"))
+                || model
+                    .id
+                    .rsplit('/')
+                    .next()
+                    .is_some_and(|tail| tail.eq_ignore_ascii_case(&stored))
+            {
+                return Some(format_opencode_cli_model(&sp.id, &model.id));
+            }
+        }
+    }
+    None
+}
+
 fn nonempty(value: Option<&str>) -> Option<&str> {
     value.map(str::trim).filter(|value| !value.is_empty())
 }
@@ -290,7 +383,12 @@ fn resolve_opencode_request_from_subproviders(
                 continue;
             }
 
-            let score = provider_score + model_score;
+            let config_bonus = if subprovider.in_opencode_config {
+                10_000
+            } else {
+                0
+            };
+            let score = provider_score + model_score + config_bonus;
             let should_replace = match best {
                 Some((best_score, best_provider, best_model)) => {
                     score > best_score
@@ -310,7 +408,7 @@ fn resolve_opencode_request_from_subproviders(
     let (_, subprovider, model) = best?;
     Some(ResolvedOpenCodeRequest {
         provider_id: subprovider.id.clone(),
-        model: Some(format!("{}/{}", subprovider.id, model.id)),
+        model: Some(format_opencode_cli_model(&subprovider.id, &model.id)),
     })
 }
 
@@ -383,6 +481,16 @@ fn model_match_score(provider: &SubProvider, model: &ModelInfo, query: &str) -> 
         return 1_000_000;
     }
 
+    if let Some(tail) = model.id.rsplit('/').next() {
+        if tail.eq_ignore_ascii_case(query) {
+            return if provider.in_opencode_config && model.id.contains('/') {
+                1_100_000
+            } else {
+                900_000
+            };
+        }
+    }
+
     let normalized_query = normalize_search_key(query);
     let normalized_id = normalize_search_key(&model.id);
     let normalized_name = normalize_search_key(&model.name);
@@ -451,8 +559,9 @@ fn normalize_search_key(value: &str) -> String {
         .collect()
 }
 
-fn provider_tie_breaker(provider: &SubProvider) -> (bool, usize, &str) {
+fn provider_tie_breaker(provider: &SubProvider) -> (bool, bool, usize, &str) {
     (
+        !provider.in_opencode_config,
         !provider.configured,
         provider.id.len(),
         provider.id.as_str(),
@@ -462,8 +571,9 @@ fn provider_tie_breaker(provider: &SubProvider) -> (bool, usize, &str) {
 fn candidate_tie_breaker<'a>(
     provider: &'a SubProvider,
     model: &'a ModelInfo,
-) -> (bool, usize, &'a str, &'a str) {
+) -> (bool, bool, usize, &'a str, &'a str) {
     (
+        !provider.in_opencode_config,
         !provider.configured,
         model.id.len(),
         provider.id.as_str(),
@@ -1256,6 +1366,55 @@ mod tests {
             "model",
             resolved.model.as_deref(),
             Some("ollama-cloud/kimi-k2.6:cloud"),
+        );
+    }
+
+    #[test]
+    fn should_prefer_home_config_provider_for_crof_slashed_models() {
+        let mut t = TestCase::new("should_prefer_home_config_provider_for_crof_slashed_models");
+        let providers = vec![
+            SubProvider {
+                id: "crof".to_string(),
+                name: "Crof".to_string(),
+                env: vec![],
+                configured: true,
+                in_opencode_config: false,
+                models: vec![ModelInfo {
+                    id: "glm-5.1-precision".to_string(),
+                    name: "glm".to_string(),
+                    context: None,
+                    output: None,
+                }],
+            },
+            SubProvider {
+                id: "CrofAI".to_string(),
+                name: "Ominiroute".to_string(),
+                env: vec![],
+                configured: true,
+                in_opencode_config: true,
+                models: vec![ModelInfo {
+                    id: "crof/glm-5.1-precision".to_string(),
+                    name: "crof/glm-5.1-precision".to_string(),
+                    context: None,
+                    output: None,
+                }],
+            },
+        ];
+
+        t.phase("Act");
+        let resolved = resolve_opencode_request_from_subproviders(
+            &providers,
+            Some("crof"),
+            Some("glm-5.1-precision"),
+        )
+        .expect("resolved crof model via home config");
+
+        t.phase("Assert");
+        t.eq("provider", resolved.provider_id.as_str(), "CrofAI");
+        t.eq(
+            "model",
+            resolved.model.as_deref(),
+            Some("CrofAI/crof/glm-5.1-precision"),
         );
     }
 
