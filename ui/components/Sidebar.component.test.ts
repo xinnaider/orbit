@@ -275,4 +275,51 @@ describe('Sidebar', () => {
     expect(getByText(/drag sessions into panes/i)).toBeTruthy();
     expect(getByText(/⌘I inspect/i)).toBeTruthy();
   });
+
+  // ── Session search ──
+
+  it('session search input accepts text and filters the list', async () => {
+    mockSessionsStore.set([
+      makeSession({ id: 1, name: 'Billing refactor' }),
+      makeSession({ id: 2, name: 'Auth migration' }),
+    ]);
+
+    const { getByTestId, getByText, queryByText } = render(Sidebar);
+    const search = getByTestId('session-search-input') as HTMLInputElement;
+
+    expect(getByText('Billing refactor')).toBeTruthy();
+    expect(getByText('Auth migration')).toBeTruthy();
+
+    await fireEvent.input(search, { target: { value: 'billing' } });
+
+    expect(getByText('Billing refactor')).toBeTruthy();
+    expect(queryByText('Auth migration')).toBeNull();
+  });
+
+  it('session search shows empty state when nothing matches', async () => {
+    mockSessionsStore.set([makeSession({ id: 1, name: 'Only session' })]);
+
+    const { getByTestId, getByText, queryByText } = render(Sidebar);
+    const search = getByTestId('session-search-input') as HTMLInputElement;
+
+    await fireEvent.input(search, { target: { value: 'zzznomatch' } });
+
+    expect(queryByText('Only session')).toBeNull();
+    expect(getByText('No matching sessions')).toBeTruthy();
+  });
+
+  it('session search by branch label filters sessions', async () => {
+    mockSessionsStore.set([
+      makeSession({ id: 1, name: 'Alpha', gitBranch: 'feature/payments' }),
+      makeSession({ id: 2, name: 'Beta', gitBranch: 'main' }),
+    ]);
+
+    const { getByTestId, getByText, queryByText } = render(Sidebar);
+    const search = getByTestId('session-search-input') as HTMLInputElement;
+
+    await fireEvent.input(search, { target: { value: 'payments' } });
+
+    expect(getByText('Alpha')).toBeTruthy();
+    expect(queryByText('Beta')).toBeNull();
+  });
 });
