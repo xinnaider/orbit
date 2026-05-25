@@ -24,6 +24,7 @@ npm-debug.log*
 
 # Landing (Astro build output)
 landing/dist/
+landing/.astro/
 landing/node_modules/
 landing/bash.exe.stackdump
 

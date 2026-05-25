@@ -473,6 +473,7 @@ impl SessionManager {
         let spawn_config = ProviderSpawnConfig {
             session_id,
             cwd: std::path::PathBuf::from(&cwd),
+            provider_id: provider_id.clone(),
             model,
             prompt,
             resume_id,
@@ -641,8 +642,21 @@ impl SessionManager {
             serde_json::json!({ "sessionId": session_id, "pid": pid }),
         );
 
+        // Skip if create_session already injected the initial user message.
+        let skip_user_entry = {
+            let m = manager.read().unwrap_or_else(|e| e.into_inner());
+            m.journal_states.get(&session_id).is_some_and(|state| {
+                state.entries.iter().any(|e| {
+                    e.entry_type == crate::models::JournalEntryType::User
+                        && e.text
+                            .as_deref()
+                            .is_some_and(|t| t.trim() == prompt_text.trim())
+                })
+            })
+        };
+
         // Skip creating user entry if prompt is empty/whitespace-only
-        if !prompt_text.trim().is_empty() {
+        if !prompt_text.trim().is_empty() && !skip_user_entry {
             let user_entry = crate::models::JournalEntry {
                 session_id: session_id.to_string(),
                 timestamp: chrono::Utc::now().to_rfc3339(),
@@ -1111,7 +1125,8 @@ impl SessionManager {
                     .map(|s| s.provider)
             })
             .unwrap_or_else(|| DEFAULT_PROVIDER.to_string());
-        let line_processor = resolve_line_processor(&provider_owned);
+        let line_processor = crate::providers::ProviderRegistry::with_shipped_providers()
+            .line_processor_for(&provider_owned);
 
         let mut state = JournalState::default();
         for line in &rows {
@@ -1357,20 +1372,6 @@ impl SessionManager {
         for id in session_ids {
             self.load_session_journal(id);
         }
-    }
-}
-
-/// Forcefully terminate a process by PID.
-/// Resolve line processor fn pointer from provider ID.
-/// Used for journal replay where ProviderRegistry is not available.
-/// When adding a new provider, register its parser here.
-fn resolve_line_processor(provider_id: &str) -> fn(&mut JournalState, &str) {
-    // Fallback dispatch for journal replay where ProviderRegistry is unavailable.
-    // For live sessions, prefer provider.line_processor() via the trait.
-    match provider_id {
-        DEFAULT_PROVIDER => crate::journal::process_line,
-        "codex" => crate::journal::process_line_codex,
-        _ => crate::journal::process_line_opencode,
     }
 }
 
@@ -1683,6 +1684,44 @@ mod tests {
             "entry text matches",
             journal[0].text.as_deref(),
             Some("Restored entry"),
+        );
+    }
+
+    #[test]
+    fn should_restore_codex_outputs_using_registry_line_processor() {
+        let mut t = TestCase::new("should_restore_codex_outputs_using_registry_line_processor");
+        t.phase("Seed");
+        let db = make_db();
+        let sid = db
+            .create_session(
+                None,
+                None,
+                "/tmp",
+                "ignore",
+                None,
+                Some("codex"),
+                None,
+                None,
+            )
+            .expect("session");
+        let codex_line =
+            r#"{"type":"item.completed","item":{"type":"agent_message","text":"codex-reply"}}"#;
+        seed_outputs(&db, sid, &[codex_line]);
+        t.phase("Act");
+        let mut sm = SessionManager::new(Arc::clone(&db));
+        sm.restore_from_db();
+        t.phase("Assert");
+        let journal = sm.get_journal(sid);
+        t.len("one codex entry", &journal, 1);
+        t.eq(
+            "assistant text from codex jsonl",
+            journal[0].text.as_deref(),
+            Some("codex-reply"),
+        );
+        t.eq(
+            "entry type",
+            journal[0].entry_type,
+            crate::models::JournalEntryType::Assistant,
         );
     }
 

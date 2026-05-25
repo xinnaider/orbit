@@ -42,17 +42,15 @@
   $: hasSubProviders = selectedBackend?.hasSubProviders ?? false;
 
   onMount(async () => {
-    // Refresh providers if not already loaded
-    if (backends.length === 0) {
+    if ($backendsStore.length === 0) {
       try {
         backendsStore.set(await getProviders());
       } catch (e) {
         console.warn('[NewSessionModal] getProviders failed:', e);
       }
     }
-    // Pre-select first sub-provider if OpenCode
-    const oc = backends.find((b) => b.hasSubProviders);
-    if (oc?.subProviders?.length) {
+    const oc = $backendsStore.find((b) => b.hasSubProviders);
+    if (oc?.subProviders?.length && !subProviderId) {
       subProviderId = oc.subProviders[0].id;
     }
   });

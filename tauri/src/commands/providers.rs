@@ -14,6 +14,9 @@ pub struct SubProvider {
     pub name: String,
     pub env: Vec<String>,
     pub configured: bool,
+    /// Present in `opencode.json` / `opencode.jsonc` (required for `opencode run -m provider/model`).
+    #[serde(default)]
+    pub in_opencode_config: bool,
     pub models: Vec<ModelInfo>,
 }
 
@@ -113,16 +116,58 @@ pub fn build_cli_backends(registry: &crate::providers::ProviderRegistry) -> Vec<
         .collect()
 }
 
+/// OpenCode sub-providers for the UI and session normalization.
+///
+/// Same merge order as before: `~/.cache/opencode/models.json` first, then custom providers
+/// from `~/.config/opencode/opencode.jsonc` / `opencode.json` only (not the Orbit repo MCP file).
 pub fn opencode_subproviders() -> Vec<SubProvider> {
-    let mut opencode_sub_providers = read_opencode_providers().unwrap_or_default();
-    let jsonc_providers = read_opencode_jsonc_providers().unwrap_or_default();
-    for custom in jsonc_providers {
-        if !opencode_sub_providers.iter().any(|sp| sp.id == custom.id) {
-            opencode_sub_providers.push(custom);
+    let mut list = read_opencode_providers().unwrap_or_default();
+    let home_custom = read_opencode_home_config_providers().unwrap_or_default();
+    merge_home_config_into_subproviders(&mut list, home_custom);
+    refresh_subprovider_configured_flags(&mut list);
+    list.sort_by(|a, b| a.name.cmp(&b.name));
+    list
+}
+
+fn opencode_home_config_paths() -> Vec<std::path::PathBuf> {
+    let mut paths = Vec::new();
+    if let Some(home) = dirs::home_dir() {
+        let dir = home.join(".config").join("opencode");
+        paths.push(dir.join("opencode.jsonc"));
+        paths.push(dir.join("opencode.json"));
+    }
+    paths
+}
+
+fn read_opencode_home_config_providers() -> Option<Vec<SubProvider>> {
+    read_opencode_jsonc_providers_from_paths(&opencode_home_config_paths())
+}
+
+fn merge_home_config_into_subproviders(list: &mut Vec<SubProvider>, incoming: Vec<SubProvider>) {
+    for custom in incoming {
+        if let Some(existing) = list.iter_mut().find(|sp| sp.id == custom.id) {
+            if !custom.models.is_empty() {
+                existing.models = custom.models;
+            }
+            if !custom.env.is_empty() {
+                existing.env = custom.env;
+            }
+            existing.name = custom.name;
+            existing.in_opencode_config = true;
+            existing.configured =
+                custom.configured || existing.env.iter().all(|var| std::env::var(var).is_ok());
+        } else {
+            list.push(custom);
         }
     }
-    opencode_sub_providers.sort_by(|a, b| a.name.cmp(&b.name));
-    opencode_sub_providers
+}
+
+fn refresh_subprovider_configured_flags(list: &mut [SubProvider]) {
+    for sub in list.iter_mut() {
+        if !sub.in_opencode_config {
+            sub.configured = sub.env.iter().all(|var| std::env::var(var).is_ok());
+        }
+    }
 }
 
 pub fn normalize_session_provider_model(
@@ -832,12 +877,16 @@ fn strip_jsonc_comments(s: &str) -> String {
 }
 
 fn read_opencode_jsonc_providers() -> Option<Vec<SubProvider>> {
-    let home = dirs::home_dir()?;
-    let dir = home.join(".config").join("opencode");
+    read_opencode_home_config_providers()
+}
+
+fn read_opencode_jsonc_providers_from_paths(
+    paths: &[std::path::PathBuf],
+) -> Option<Vec<SubProvider>> {
     let mut merged = Vec::new();
 
-    for path in [dir.join("opencode.jsonc"), dir.join("opencode.json")] {
-        let raw = match std::fs::read_to_string(&path) {
+    for path in paths {
+        let raw = match std::fs::read_to_string(path) {
             Ok(raw) => raw,
             Err(_) => continue,
         };
@@ -934,6 +983,7 @@ fn parse_cache_subproviders(data: &serde_json::Value) -> Option<Vec<SubProvider>
                     .to_string(),
                 env: env_vars,
                 configured,
+                in_opencode_config: false,
                 models: parse_models(provider),
             }
         })
@@ -959,6 +1009,7 @@ fn parse_config_subproviders(data: &serde_json::Value) -> Option<Vec<SubProvider
                 .pointer("/options/apiKey")
                 .and_then(|v| v.as_str())
                 .is_some_and(|key| !key.is_empty()),
+            in_opencode_config: true,
             models: parse_models(provider),
         })
         .collect();
@@ -1026,6 +1077,7 @@ mod tests {
                 name: "Ollama Cloud".to_string(),
                 env: vec![],
                 configured: true,
+                in_opencode_config: true,
                 models: vec![
                     ModelInfo {
                         id: "kimi-k2.5".to_string(),
@@ -1046,6 +1098,7 @@ mod tests {
                 name: "OpenRouter".to_string(),
                 env: vec![],
                 configured: false,
+                in_opencode_config: false,
                 models: vec![ModelInfo {
                     id: "anthropic/claude-sonnet-4.5".to_string(),
                     name: "Claude Sonnet 4.5".to_string(),
@@ -1086,6 +1139,10 @@ mod tests {
         t.len("one provider", &providers, 1);
         t.eq("provider id", providers[0].id.as_str(), "omniroute");
         t.eq("provider configured", providers[0].configured, true);
+        t.ok(
+            "provider in opencode config",
+            providers[0].in_opencode_config,
+        );
         t.len("one model", &providers[0].models, 1);
         t.eq(
             "context limit",
@@ -1199,6 +1256,70 @@ mod tests {
             "model",
             resolved.model.as_deref(),
             Some("ollama-cloud/kimi-k2.6:cloud"),
+        );
+    }
+
+    fn shipped_registry() -> crate::providers::ProviderRegistry {
+        crate::providers::ProviderRegistry::with_shipped_providers()
+    }
+
+    #[test]
+    fn should_snapshot_shipped_cli_backends() {
+        let mut t = TestCase::new("should_snapshot_shipped_cli_backends");
+        let backends = build_cli_backends(&shipped_registry());
+
+        t.phase("Assert — provider set and order");
+        t.len("three shipped providers", &backends, 3);
+        t.eq("first id", backends[0].id.as_str(), "claude-code");
+        t.eq("second id", backends[1].id.as_str(), "codex");
+        t.eq("third id", backends[2].id.as_str(), "opencode");
+
+        let claude = &backends[0];
+        t.ok("claude supports effort", claude.supports_effort);
+        t.ok("claude supports ssh", claude.supports_ssh);
+        t.ok("claude supports subagents", claude.supports_subagents);
+        t.ok("claude supports tasks", claude.supports_tasks);
+        t.eq(
+            "claude task format",
+            claude.task_format.as_str(),
+            "claude_tool_use",
+        );
+        t.len("claude built-in models", &claude.models, 5);
+        let opus_effort = claude
+            .effort_levels
+            .get("claude-opus-4-7")
+            .expect("opus effort map");
+        t.ok(
+            "opus effort includes xhigh",
+            opus_effort.iter().any(|e| e == "xhigh"),
+        );
+
+        let codex = &backends[1];
+        t.ok("codex supports effort", codex.supports_effort);
+        t.ok("codex supports ssh", codex.supports_ssh);
+        t.eq(
+            "codex task format",
+            codex.task_format.as_str(),
+            "codex_item_list",
+        );
+        t.len("codex built-in models", &codex.models, 5);
+
+        let opencode = &backends[2];
+        t.ok(
+            "opencode does not support effort",
+            !opencode.supports_effort,
+        );
+        t.eq(
+            "opencode task format",
+            opencode.task_format.as_str(),
+            "opencode_tool_use",
+        );
+        t.len("opencode direct models list empty", &opencode.models, 0);
+        let expected_subs = !opencode_subproviders().is_empty();
+        t.eq(
+            "opencode has_sub_providers matches disk",
+            opencode.has_sub_providers,
+            expected_subs,
         );
     }
 

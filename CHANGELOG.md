@@ -4,6 +4,15 @@
 
 ## May 2026
 
+### 05/25 · Fix — OpenCode provider list uses global config again
+The OpenCode provider and model lists again come from OpenCode's own cache and global config instead of the Orbit repo MCP file. Default OpenCode providers are no longer blocked as "not configured"; Orbit now lets the OpenCode CLI handle provider auth and errors the same way it did before.
+
+### 05/25 · Fix — OpenCode model format and duplicate first message
+OpenCode sessions now pass models to the CLI as `provider/model` (for example `crof/kimi-k2.6-precision`), which matches OpenCode 1.15+. The first user message in a new session also appears only once in the chat feed.
+
+### 05/25 · Adjustment — Gemini and Copilot hidden from provider list
+The new-session provider picker and MCP provider list now show only Claude Code, Codex, and OpenCode. Gemini CLI and Copilot CLI remain in the codebase for a future release but are not offered in the UI.
+
 ### 05/25 · New — Adjustable window transparency
 You can change how see-through the Orbit window is from the palette menu in the sidebar. Drag the **Window opacity** slider from fully clear (0%) to solid (100%); the change applies immediately and is remembered next time you open the app. Text and panels stay readable at lower opacity, and the setting works with every color theme.
 

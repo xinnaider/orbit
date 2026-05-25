@@ -1,5 +1,6 @@
 [mcp_servers]
 
 [mcp_servers.orbit]
-command = 'C:\Users\fernandonepen\Documents\orbit\tauri\target\debug\orbit-mcp.exe'
+command = 'C:\Users\fernandonepen\Documents\orbit\tauri\target\debug\orbit.exe'
 enabled = true
+args = ["--mcp-stdio"]

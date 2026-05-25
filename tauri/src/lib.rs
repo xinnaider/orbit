@@ -49,24 +49,9 @@ pub fn run() {
             let session_manager = Arc::new(RwLock::new(SessionManager::new(db)));
             app.manage(SessionState(Arc::clone(&session_manager)));
 
-            // Provider registry — maps provider IDs to trait implementations
-            let mut registry = ProviderRegistry::new();
-            registry.register(Box::new(providers::claude::ClaudeProvider));
-            registry.register(Box::new(providers::codex::CodexProvider));
-            registry.register(Box::new(providers::opencode::OpenCodeProvider));
-            registry.register(Box::new(providers::acp::AcpProvider::new(
-                "gemini-cli",
-                "Gemini CLI",
-                "gemini",
-                &["--acp"],
-            )));
-            registry.register(Box::new(providers::acp::AcpProvider::new(
-                "copilot-cli",
-                "Copilot CLI",
-                "copilot",
-                &["--acp"],
-            )));
-            let registry = Arc::new(registry);
+            // Provider registry — maps provider IDs to trait implementations.
+            // Gemini/Copilot (ACP) live in providers/acp.rs; register there when re-enabled.
+            let registry = Arc::new(ProviderRegistry::with_shipped_providers());
             app.manage(ProviderRegistryState(Arc::clone(&registry)));
 
             // Start embedded MCP server — shares SessionManager and ProviderRegistry

@@ -1,7 +1,10 @@
 {
   "mcpServers": {
     "orbit": {
-      "command": "C:\\Users\\fernandonepen\\Documents\\orbit\\tauri\\target\\debug\\orbit-mcp.exe"
+      "args": [
+        "--mcp-stdio"
+      ],
+      "command": "C:\\Users\\fernandonepen\\Documents\\orbit\\tauri\\target\\debug\\orbit.exe"
     }
   }
 }

@@ -933,6 +933,7 @@ export async function mockInvoke(cmd: string, args?: Record<string, unknown>): P
               name: 'OpenRouter',
               env: ['OPENROUTER_API_KEY'],
               configured: false,
+              inOpencodeConfig: false,
               models: [
                 {
                   id: 'anthropic/claude-sonnet-4',
@@ -947,6 +948,7 @@ export async function mockInvoke(cmd: string, args?: Record<string, unknown>): P
               name: 'Anthropic',
               env: ['ANTHROPIC_API_KEY'],
               configured: true,
+              inOpencodeConfig: true,
               models: [
                 {
                   id: 'claude-sonnet-4-6',

@@ -12,6 +12,8 @@ export interface SubProvider {
   name: string;
   env: string[];
   configured: boolean;
+  /** Present in opencode.json / opencode.jsonc (required for `opencode run -m provider/model`). */
+  inOpencodeConfig?: boolean;
   models: ModelInfo[];
 }
 

@@ -304,7 +304,9 @@ pub fn find_cli_in_path(name: &str) -> Option<String> {
 pub struct OpenCodeConfig {
     pub session_id: crate::models::SessionId,
     pub cwd: PathBuf,
-    /// Full model string in "provider/model" format (e.g. "openrouter/anthropic/claude-sonnet-4")
+    /// Session provider id (e.g. `opencode`, `crof`, `ollama-cloud`).
+    pub provider_id: String,
+    /// Model string after `format_model` (may include `provider/model` prefix).
     pub model: String,
     pub prompt: String,
     /// OpenCode session ID for follow-ups (--continue -s <id>)
@@ -343,6 +345,81 @@ pub(crate) fn prompt_requires_stdin(prompt: &str) -> bool {
     cfg!(windows) || prompt.contains('\n')
 }
 
+/// Resume flags for `opencode run` when continuing a session.
+pub(crate) fn opencode_resume_args(session_id: Option<&str>) -> Vec<String> {
+    session_id
+        .map(|sid| vec!["--continue".to_string(), "-s".to_string(), sid.to_string()])
+        .unwrap_or_default()
+}
+
+/// Tokens for remote `opencode` over SSH (before per-field shell escaping).
+pub(crate) fn opencode_ssh_command_tokens(
+    cwd: &str,
+    model: &str,
+    session_id: Option<&str>,
+) -> Vec<String> {
+    let mut parts = vec![
+        "opencode".to_string(),
+        "run".to_string(),
+        "--format".to_string(),
+        "json".to_string(),
+        "--dir".to_string(),
+        cwd.to_string(),
+        "-m".to_string(),
+        model.to_string(),
+    ];
+    parts.extend(opencode_resume_args(session_id));
+    parts
+}
+
+/// Normalize a model string from the UI/DB (no leading/trailing slashes).
+pub(crate) fn normalize_opencode_model_ref(value: &str) -> String {
+    value.trim().trim_matches('/').to_string()
+}
+
+/// Model string passed to `opencode run -m` (`provider/model` per OpenCode 1.15+).
+///
+/// Sub-provider sessions (e.g. `crof` + `kimi-k2.6-precision`) must use `crof/kimi-k2.6-precision`.
+/// Passing only the bare model id produces errors like `kimi-k2.6-precision/.`.
+pub(crate) fn opencode_cli_model_arg(session_provider_id: &str, stored_model: &str) -> String {
+    opencode_cli_model_arg_with_subproviders(session_provider_id, stored_model)
+}
+
+pub(crate) fn opencode_cli_model_arg_with_subproviders(
+    session_provider_id: &str,
+    stored_model: &str,
+) -> String {
+    let stored = normalize_opencode_model_ref(stored_model);
+    if stored.is_empty() {
+        return stored;
+    }
+
+    // Top-level OpenCode session: value is already `provider/model` (or resolved that way).
+    if session_provider_id.eq_ignore_ascii_case("opencode") {
+        return stored;
+    }
+
+    let bare = stored
+        .strip_prefix(&format!("{session_provider_id}/"))
+        .map(normalize_opencode_model_ref)
+        .unwrap_or_else(|| stored.clone());
+
+    format!("{session_provider_id}/{bare}")
+}
+
+/// Core argv after `opencode` and before `--dir` / prompt (used locally and in SSH scripts).
+pub(crate) fn opencode_run_argv(model: &str, session_id: Option<&str>) -> Vec<String> {
+    let mut args = vec![
+        "run".to_string(),
+        "--format".to_string(),
+        "json".to_string(),
+        "-m".to_string(),
+        model.to_string(),
+    ];
+    args.extend(opencode_resume_args(session_id));
+    args
+}
+
 /// Spawn opencode in non-interactive JSON mode.
 pub fn spawn_opencode(config: OpenCodeConfig) -> Result<SpawnHandle, String> {
     let opencode = find_opencode()
@@ -353,14 +430,14 @@ pub fn spawn_opencode(config: OpenCodeConfig) -> Result<SpawnHandle, String> {
     let prompt = config.prompt.clone();
     let use_stdin = prompt_requires_stdin(&prompt);
 
-    let mut cmd = std::process::Command::new(&opencode);
-    cmd.args(["run", "--format", "json"]);
-    cmd.args(["--dir", &config.cwd.to_string_lossy()]);
-    cmd.args(["-m", &config.model]);
+    let cli_model = opencode_cli_model_arg(&config.provider_id, &config.model);
 
-    if let Some(ref sid) = config.opencode_session_id {
-        cmd.args(["--continue", "-s", sid]);
-    }
+    let mut cmd = std::process::Command::new(&opencode);
+    cmd.args(opencode_run_argv(
+        &cli_model,
+        config.opencode_session_id.as_deref(),
+    ));
+    cmd.args(["--dir", &config.cwd.to_string_lossy()]);
 
     if use_stdin {
         cmd.arg("-");
@@ -521,6 +598,82 @@ mod tests {
         let result = prompt_requires_stdin("line 1\nline 2");
         t.phase("Assert");
         t.ok("multiline prompts require stdin", result);
+    }
+
+    #[test]
+    fn opencode_cli_model_arg_should_use_provider_slash_model_for_subproviders() {
+        let mut t = TestCase::new(
+            "opencode_cli_model_arg_should_use_provider_slash_model_for_subproviders",
+        );
+
+        t.phase("Assert");
+        t.eq(
+            "crof session uses provider/model",
+            opencode_cli_model_arg_with_subproviders("crof", "crof/kimi-k2.6-precision").as_str(),
+            "crof/kimi-k2.6-precision",
+        );
+        t.eq(
+            "bare model id is prefixed",
+            opencode_cli_model_arg_with_subproviders("crof", "kimi-k2.6-precision").as_str(),
+            "crof/kimi-k2.6-precision",
+        );
+        t.eq(
+            "trailing slash removed",
+            opencode_cli_model_arg_with_subproviders("crof", "crof/kimi-k2.6-precision/").as_str(),
+            "crof/kimi-k2.6-precision",
+        );
+        t.eq(
+            "top-level opencode keeps path",
+            opencode_cli_model_arg_with_subproviders("opencode", "ollama-cloud/kimi-k2.6:cloud")
+                .as_str(),
+            "ollama-cloud/kimi-k2.6:cloud",
+        );
+    }
+
+    #[test]
+    fn opencode_resume_args_should_emit_continue_flags() {
+        let mut t = TestCase::new("opencode_resume_args_should_emit_continue_flags");
+        t.phase("Act");
+        let args = opencode_resume_args(Some("sess-42"));
+        t.phase("Assert");
+        t.eq("three tokens", args.len(), 3);
+        t.eq("flag", args[0].as_str(), "--continue");
+        t.eq("session id", args[2].as_str(), "sess-42");
+        t.eq("no resume when absent", opencode_resume_args(None).len(), 0);
+    }
+
+    #[test]
+    fn opencode_run_argv_should_place_model_before_resume() {
+        let mut t = TestCase::new("opencode_run_argv_should_place_model_before_resume");
+        t.phase("Act");
+        let args = opencode_run_argv("openrouter/anthropic/claude-sonnet-4", Some("oc-1"));
+        t.phase("Assert");
+        t.ok(
+            "starts with run",
+            args.first().map(|s| s.as_str()) == Some("run"),
+        );
+        t.ok(
+            "includes model",
+            args.windows(2)
+                .any(|w| w == ["-m", "openrouter/anthropic/claude-sonnet-4"]),
+        );
+        t.ok("includes resume", args.iter().any(|a| a == "--continue"));
+    }
+
+    #[test]
+    fn opencode_ssh_command_tokens_should_include_dir_and_model() {
+        let mut t = TestCase::new("opencode_ssh_command_tokens_should_include_dir_and_model");
+        t.phase("Act");
+        let parts = opencode_ssh_command_tokens("/proj", "ollama-cloud/kimi", None);
+        t.phase("Assert");
+        t.ok(
+            "dir flag",
+            parts.windows(2).any(|w| w == ["--dir", "/proj"]),
+        );
+        t.ok(
+            "model flag",
+            parts.windows(2).any(|w| w == ["-m", "ollama-cloud/kimi"]),
+        );
     }
 
     #[test]

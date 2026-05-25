@@ -684,7 +684,9 @@ pub fn process_line_opencode(state: &mut JournalState, line: &str) {
             }
         }
 
-        // User messages are stored in Claude format by emit_spawn_started
+        // Initial user prompt is injected by create_session; OpenCode may echo user JSONL.
+        "user" => {}
+
         _ => {
             process_line(state, line);
         }
