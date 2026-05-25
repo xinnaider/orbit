@@ -9,8 +9,11 @@
   export let focused: boolean = true;
 </script>
 
-<header class="topbar quiet-topbar" class:focused>
+<header class="topbar glass-topbar" class:focused>
   <div class="crumb">
+    {#if statusColor}
+      <span class="status-dot" style="background: {statusColor}" aria-hidden="true"></span>
+    {/if}
     <span class="crumb-title" {title}>{title}</span>
     {#if meta}
       <span class="crumb-meta" title={meta}>{meta}</span>
@@ -42,10 +45,12 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    height: 58px;
-    padding: 0 24px;
-    border-bottom: 1px solid var(--bd);
-    background: rgba(255, 255, 255, 0.006);
+    height: 36px;
+    padding: 0 10px;
+    border-bottom: 1px solid var(--glass-border-subtle);
+    background: var(--glass-bg-subtle);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
     flex-shrink: 0;
     user-select: none;
     min-width: 0;
@@ -60,14 +65,24 @@
   .crumb {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     min-width: 0;
     overflow: hidden;
   }
+
+  .status-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    box-shadow: 0 0 8px color-mix(in srgb, currentColor, transparent 40%);
+  }
+
   .crumb-title {
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    color: var(--t0);
+    font-weight: 500;
+    font-size: 10px;
+    letter-spacing: -0.01em;
+    color: color-mix(in srgb, var(--t0), transparent 45%);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -75,7 +90,7 @@
   .crumb-meta {
     color: var(--t3);
     font-family: var(--mono);
-    font-size: 10px;
+    font-size: 8.5px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -83,43 +98,50 @@
 
   .pills {
     display: flex;
-    gap: 8px;
+    gap: 6px;
     align-items: center;
     flex-shrink: 0;
   }
   .pill {
-    border: 1px solid var(--bd);
-    color: var(--t2);
+    border: 1px solid color-mix(in srgb, var(--ac), transparent 72%);
+    color: color-mix(in srgb, var(--ac), transparent 35%);
     border-radius: 999px;
-    padding: 5px 9px;
+    padding: 0 5px;
     font-family: var(--mono);
-    font-size: 10px;
-    background: rgba(255, 255, 255, 0.025);
+    font-size: 8.5px;
+    background: color-mix(in srgb, var(--ac), transparent 92%);
     white-space: nowrap;
+    line-height: 1.6;
   }
   .pill-status {
     color: var(--ac);
     background: color-mix(in srgb, var(--ac), transparent 90%);
     border-color: color-mix(in srgb, var(--ac), transparent 72%);
   }
+  .pill-model,
+  .pill-ctx {
+    border-color: var(--glass-border);
+    color: var(--t2);
+    background: var(--glass-bg);
+  }
 
   .close-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 22px;
-    height: 22px;
-    border: 1px solid var(--bd);
-    border-radius: 8px;
+    width: 20px;
+    height: 20px;
+    border: 1px solid var(--glass-border);
+    border-radius: 6px;
     background: transparent;
     color: var(--t3);
-    font-size: 12px;
+    font-size: 11px;
     cursor: pointer;
     transition: all 0.12s;
   }
   .close-btn:hover {
     border-color: var(--t2);
     color: var(--t0);
-    background: var(--bg2);
+    background: var(--glass-bg);
   }
 </style>

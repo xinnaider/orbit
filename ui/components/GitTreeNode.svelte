@@ -120,15 +120,16 @@
   }
 
   .tree-row:hover {
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--glass-bg-subtle);
   }
 
   .folder-row {
-    color: #d9f7e8;
+    color: color-mix(in srgb, var(--t0), transparent 35%);
   }
 
   .file-row.selected {
-    background: rgba(0, 212, 126, 0.06);
+    background: var(--glass-tab-active-bg);
+    color: color-mix(in srgb, var(--t0), transparent 50%);
   }
 
   .expand-btn,

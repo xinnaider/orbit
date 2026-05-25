@@ -395,10 +395,13 @@
     align-items: center;
     gap: 8px;
     padding: 4px 10px;
-    border-bottom: 1px solid var(--bd);
-    background: var(--bg2);
+    border-bottom: 1px solid var(--glass-border-subtle);
+    background: var(--glass-bg-subtle);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
     font-family: var(--mono);
-    font-size: 10px;
+    font-size: 9px;
+    color: color-mix(in srgb, var(--t0), transparent 55%);
     flex-shrink: 0;
   }
 
@@ -473,7 +476,10 @@
     min-width: 0;
     min-height: 0;
     flex-direction: column;
-    border-right: 1px solid var(--bd);
+    border-right: 1px solid var(--glass-border);
+    background: var(--glass-bg-tree);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
     margin-right: 4px;
   }
 
@@ -483,15 +489,15 @@
 
   .tree-tools {
     padding: 6px 8px;
-    border-bottom: 1px solid var(--bd);
+    border-bottom: 1px solid var(--glass-border-subtle);
   }
 
   .tree-tools input {
     width: 100%;
     height: 24px;
-    border: 1px solid var(--bd);
+    border: 1px solid var(--glass-border);
     border-radius: var(--radius-sm);
-    background: var(--bg1);
+    background: var(--glass-bg);
     color: var(--t2);
     padding: 0 8px;
     font-family: var(--mono);
@@ -533,7 +539,7 @@
     align-items: center;
     height: 28px;
     padding: 0 10px;
-    border-bottom: 1px solid var(--bd);
+    border-bottom: 1px solid var(--glass-border-subtle);
     color: var(--t2);
     font-size: 9.5px;
     font-family: var(--mono);

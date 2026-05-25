@@ -131,23 +131,26 @@
   .tab-bar {
     display: flex;
     align-items: center;
-    height: 35px;
-    padding: 0;
-    gap: 0;
-    border-bottom: 1px solid var(--bd);
-    background: var(--bg1);
+    height: 36px;
+    padding: 0 8px;
+    gap: 2px;
+    border-bottom: 1px solid var(--glass-border);
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
     flex-shrink: 0;
     overflow: hidden;
   }
 
   .tab-list {
     display: flex;
-    align-items: stretch;
+    align-items: center;
     flex: 1;
     overflow-x: auto;
     scrollbar-width: none;
-    gap: 0;
+    gap: 2px;
     height: 100%;
+    padding: 4px 0;
   }
 
   .tab-list::-webkit-scrollbar {
@@ -191,19 +194,20 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
     border: none;
     background: transparent;
     color: var(--t3);
     cursor: pointer;
     flex-shrink: 0;
-    border-radius: 0;
+    border-radius: 6px;
     transition: all 0.12s;
-    margin: 0 4px;
+    margin-left: auto;
   }
 
   .add-button:hover {
     color: var(--t1);
+    background: var(--glass-bg-subtle);
   }
 </style>
