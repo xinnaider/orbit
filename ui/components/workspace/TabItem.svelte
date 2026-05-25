@@ -88,9 +88,27 @@
       color 0.1s;
   }
 
+  :global(html[data-glass-chrome='true']) .tab-item {
+    padding: 0 8px 0 6px;
+    height: 26px;
+    font-size: 9.5px;
+    color: color-mix(in srgb, var(--t0), transparent 70%);
+    border-right: none;
+    border-radius: 6px;
+    transition:
+      background 0.12s,
+      color 0.12s,
+      box-shadow 0.12s;
+  }
+
   .tab-item:hover {
     background: color-mix(in srgb, var(--bg), white 4%);
     color: var(--t1);
+  }
+
+  :global(html[data-glass-chrome='true']) .tab-item:hover:not(.active) {
+    background: transparent;
+    color: color-mix(in srgb, var(--t0), transparent 50%);
   }
 
   .tab-item.active {
@@ -111,6 +129,15 @@
     z-index: 1;
   }
 
+  :global(html[data-glass-chrome='true']) .tab-item.active {
+    background: var(--glass-tab-active-bg);
+    box-shadow: var(--glass-tab-active-shadow);
+  }
+
+  :global(html[data-glass-chrome='true']) .tab-item.active::after {
+    content: none;
+  }
+
   /* Unfocused pane — subdued tabs */
   .tab-item:not(.focused) {
     opacity: 0.7;
@@ -126,10 +153,24 @@
     opacity: 0.4;
   }
 
+  :global(html[data-glass-chrome='true']) .tab-item:not(.focused).active {
+    background: var(--glass-tab-active-bg);
+    color: var(--t0);
+    opacity: 0.85;
+  }
+
+  :global(html[data-glass-chrome='true']) .tab-item:not(.focused).active::after {
+    content: none;
+  }
+
   .tab-icon {
     display: inline-flex;
     color: inherit;
     flex-shrink: 0;
+  }
+
+  :global(html[data-glass-chrome='true']) .tab-icon {
+    opacity: 0.85;
   }
 
   .tab-label {
@@ -137,6 +178,10 @@
     overflow: hidden;
     text-overflow: ellipsis;
     flex: 1;
+  }
+
+  :global(html[data-glass-chrome='true']) .tab-label {
+    font-size: inherit;
   }
 
   .tab-close {
@@ -160,6 +205,13 @@
     opacity: 0;
   }
 
+  :global(html[data-glass-chrome='true']) .tab-close {
+    width: 14px;
+    height: 14px;
+    color: inherit;
+    border-radius: 4px;
+  }
+
   .tab-item.active .tab-close {
     opacity: 0.5;
   }
@@ -168,9 +220,21 @@
     opacity: 0.7;
   }
 
+  :global(html[data-glass-chrome='true']) .tab-item.active .tab-close {
+    opacity: 0.45;
+  }
+
+  :global(html[data-glass-chrome='true']) .tab-item:hover .tab-close {
+    opacity: 0.65;
+  }
+
   .tab-close:hover {
     color: var(--t0);
     background: var(--bg3);
     opacity: 1;
+  }
+
+  :global(html[data-glass-chrome='true']) .tab-close:hover {
+    background: var(--glass-bg-subtle);
   }
 </style>

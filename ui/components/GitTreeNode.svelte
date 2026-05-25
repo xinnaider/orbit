@@ -131,6 +131,19 @@
     background: rgba(0, 212, 126, 0.06);
   }
 
+  :global(html[data-glass-chrome='true']) .tree-row:hover {
+    background: var(--glass-bg-subtle);
+  }
+
+  :global(html[data-glass-chrome='true']) .folder-row {
+    color: color-mix(in srgb, var(--t0), transparent 35%);
+  }
+
+  :global(html[data-glass-chrome='true']) .file-row.selected {
+    background: var(--glass-tab-active-bg);
+    color: color-mix(in srgb, var(--t0), transparent 50%);
+  }
+
   .expand-btn,
   .check-btn {
     display: inline-flex;

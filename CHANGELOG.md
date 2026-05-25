@@ -4,6 +4,9 @@
 
 ## May 2026
 
+### 05/25 · New — Optional frosted workspace chrome (Glass Tier)
+You can turn on translucent, blurred tab bars, panel headers, and git sidebars without changing your color theme. Open the palette menu in the sidebar and enable **Frosted chrome**, or pick the **Glass** theme preset (dark palette + frosted chrome). The Quiet Journal feed, sidebar, and composer stay the same.
+
 ### 05/25 · Fix — Scroll to bottom on the right
 When you scroll up in a long session, the "scroll to bottom" button now appears in the bottom-right corner of the chat panel instead of on the left over the timeline.
 

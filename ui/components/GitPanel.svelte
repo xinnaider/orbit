@@ -686,4 +686,33 @@
     color: var(--ac);
     background: var(--ac-d2);
   }
+
+  :global(html[data-glass-chrome='true']) .diff-header {
+    border-bottom-color: var(--glass-border-subtle);
+    background: var(--glass-bg-subtle);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    font-size: 9px;
+    color: color-mix(in srgb, var(--t0), transparent 55%);
+  }
+
+  :global(html[data-glass-chrome='true']) .tree-pane {
+    border-right-color: var(--glass-border);
+    background: var(--glass-bg-tree);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+  }
+
+  :global(html[data-glass-chrome='true']) .tree-tools {
+    border-bottom-color: var(--glass-border-subtle);
+  }
+
+  :global(html[data-glass-chrome='true']) .tree-tools input {
+    border-color: var(--glass-border);
+    background: var(--glass-bg);
+  }
+
+  :global(html[data-glass-chrome='true']) .selection-bar {
+    border-bottom-color: var(--glass-border-subtle);
+  }
 </style>

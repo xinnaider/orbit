@@ -32,6 +32,15 @@
   --tool-bg: rgba(242, 201, 111, 0.07);
   --result-fg: #7a736b;
   --result-bg: rgba(255, 255, 255, 0.025);
+  --glass-bg: rgba(255, 255, 255, 0.015);
+  --glass-bg-subtle: rgba(255, 255, 255, 0.01);
+  --glass-bg-tree: rgba(255, 255, 255, 0.008);
+  --glass-border: rgba(255, 255, 255, 0.035);
+  --glass-border-subtle: rgba(255, 255, 255, 0.03);
+  --glass-blur: 12px;
+  --glass-tab-active-bg: rgba(124, 255, 158, 0.08);
+  --glass-tab-active-shadow:
+    0 0 0 1px rgba(124, 255, 158, 0.12), inset 0 0 20px rgba(124, 255, 158, 0.02);
 }
 
 /* ===== Light — Paper & Ink ===== */
@@ -69,6 +78,15 @@
   --tool-bg: rgba(146, 64, 14, 0.05);
   --result-fg: #9c9289;
   --result-bg: rgba(28, 25, 23, 0.02);
+  --glass-bg: rgba(28, 25, 23, 0.04);
+  --glass-bg-subtle: rgba(28, 25, 23, 0.025);
+  --glass-bg-tree: rgba(28, 25, 23, 0.03);
+  --glass-border: rgba(28, 25, 23, 0.1);
+  --glass-border-subtle: rgba(28, 25, 23, 0.07);
+  --glass-blur: 12px;
+  --glass-tab-active-bg: rgba(13, 122, 85, 0.1);
+  --glass-tab-active-shadow:
+    0 0 0 1px rgba(13, 122, 85, 0.18), inset 0 0 16px rgba(13, 122, 85, 0.04);
 }
 
 /* ===== Nord ===== */
@@ -104,6 +122,15 @@
   --tool-bg: rgba(235, 203, 139, 0.06);
   --result-fg: #81a1c1;
   --result-bg: rgba(216, 222, 233, 0.03);
+  --glass-bg: rgba(236, 239, 244, 0.04);
+  --glass-bg-subtle: rgba(236, 239, 244, 0.025);
+  --glass-bg-tree: rgba(236, 239, 244, 0.03);
+  --glass-border: rgba(236, 239, 244, 0.08);
+  --glass-border-subtle: rgba(236, 239, 244, 0.05);
+  --glass-blur: 12px;
+  --glass-tab-active-bg: rgba(163, 190, 140, 0.12);
+  --glass-tab-active-shadow:
+    0 0 0 1px rgba(163, 190, 140, 0.2), inset 0 0 16px rgba(163, 190, 140, 0.04);
 }
 
 /* ===== Dracula ===== */
@@ -139,6 +166,15 @@
   --tool-bg: rgba(255, 184, 108, 0.06);
   --result-fg: #6272a4;
   --result-bg: rgba(248, 248, 242, 0.02);
+  --glass-bg: rgba(248, 248, 242, 0.03);
+  --glass-bg-subtle: rgba(248, 248, 242, 0.02);
+  --glass-bg-tree: rgba(248, 248, 242, 0.025);
+  --glass-border: rgba(248, 248, 242, 0.06);
+  --glass-border-subtle: rgba(248, 248, 242, 0.04);
+  --glass-blur: 12px;
+  --glass-tab-active-bg: rgba(80, 250, 123, 0.1);
+  --glass-tab-active-shadow:
+    0 0 0 1px rgba(80, 250, 123, 0.18), inset 0 0 16px rgba(80, 250, 123, 0.03);
 }
 
 /* ===== Catppuccin Mocha ===== */
@@ -174,6 +210,15 @@
   --tool-bg: rgba(250, 179, 135, 0.06);
   --result-fg: #6c7086;
   --result-bg: rgba(205, 214, 244, 0.02);
+  --glass-bg: rgba(205, 214, 244, 0.04);
+  --glass-bg-subtle: rgba(205, 214, 244, 0.025);
+  --glass-bg-tree: rgba(205, 214, 244, 0.03);
+  --glass-border: rgba(205, 214, 244, 0.07);
+  --glass-border-subtle: rgba(205, 214, 244, 0.05);
+  --glass-blur: 12px;
+  --glass-tab-active-bg: rgba(166, 227, 161, 0.1);
+  --glass-tab-active-shadow:
+    0 0 0 1px rgba(166, 227, 161, 0.18), inset 0 0 16px rgba(166, 227, 161, 0.03);
 }
 
 /* ===== Steel Workshop ===== */
@@ -210,4 +255,57 @@
   --tool-bg: rgba(232, 184, 76, 0.05);
   --result-fg: #6b7084;
   --result-bg: rgba(255, 255, 255, 0.02);
+  --glass-bg: rgba(236, 237, 238, 0.04);
+  --glass-bg-subtle: rgba(236, 237, 238, 0.025);
+  --glass-bg-tree: rgba(236, 237, 238, 0.03);
+  --glass-border: rgba(236, 237, 238, 0.07);
+  --glass-border-subtle: rgba(236, 237, 238, 0.05);
+  --glass-blur: 12px;
+  --glass-tab-active-bg: rgba(79, 140, 255, 0.1);
+  --glass-tab-active-shadow:
+    0 0 0 1px rgba(79, 140, 255, 0.2), inset 0 0 16px rgba(79, 140, 255, 0.03);
+}
+
+/* ===== Glass — dark palette tuned for frosted workspace chrome ===== */
+[data-theme='glass'] {
+  --bg: #090a0a;
+  --bg1: #0c0d0d;
+  --bg2: #101111;
+  --bg3: #141515;
+  --bg4: #191a1a;
+  --bg-sidebar: #0c0d0d;
+  --bd: rgba(241, 236, 227, 0.1);
+  --bd1: rgba(241, 236, 227, 0.14);
+  --bd2: rgba(241, 236, 227, 0.18);
+  --t0: #f1ece3;
+  --t1: #a19a90;
+  --t2: #7a736b;
+  --t3: #67615a;
+  --ac: #7cff9e;
+  --ac-d: rgba(124, 255, 158, 0.12);
+  --ac-d2: rgba(124, 255, 158, 0.06);
+  --ac-border: rgba(124, 255, 158, 0.32);
+  --s-working: #7cff9e;
+  --s-input: #f2c96f;
+  --s-idle: #67615a;
+  --s-error: #e47770;
+  --s-init: #4da3ff;
+  --s-done: #3b3d3d;
+  --user-fg: #4da3ff;
+  --user-bg: rgba(77, 163, 255, 0.1);
+  --think-fg: #c8a8ff;
+  --think-bg: rgba(200, 168, 255, 0.08);
+  --tool-fg: #f2c96f;
+  --tool-bg: rgba(242, 201, 111, 0.07);
+  --result-fg: #7a736b;
+  --result-bg: rgba(255, 255, 255, 0.025);
+  --glass-bg: rgba(255, 255, 255, 0.02);
+  --glass-bg-subtle: rgba(255, 255, 255, 0.012);
+  --glass-bg-tree: rgba(255, 255, 255, 0.01);
+  --glass-border: rgba(255, 255, 255, 0.04);
+  --glass-border-subtle: rgba(255, 255, 255, 0.032);
+  --glass-blur: 12px;
+  --glass-tab-active-bg: rgba(124, 255, 158, 0.1);
+  --glass-tab-active-shadow:
+    0 0 0 1px rgba(124, 255, 158, 0.16), inset 0 0 20px rgba(124, 255, 158, 0.03);
 }
