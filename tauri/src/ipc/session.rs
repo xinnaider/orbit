@@ -269,11 +269,10 @@ pub fn diagnose_spawn() -> serde_json::Value {
     // 2. `where claude` (Windows) or `which claude` (Unix) — 2s timeout
     #[cfg(windows)]
     let where_out = {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x08000000;
-        Command::new("where")
-            .arg("claude")
-            .creation_flags(CREATE_NO_WINDOW)
+        let mut lookup = Command::new("where");
+        lookup.arg("claude");
+        crate::services::process_util::apply_silent(&mut lookup);
+        lookup
             .output()
             .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
             .unwrap_or_else(|e| format!("where failed: {e}"))
@@ -291,13 +290,11 @@ pub fn diagnose_spawn() -> serde_json::Value {
 
     #[cfg(windows)]
     let version_out = {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x08000000;
-        Command::new("cmd")
-            .args(["/c", "claude", "--version"])
-            .env("PATH", &aug_path)
-            .creation_flags(CREATE_NO_WINDOW)
-            .output()
+        let mut cmd = Command::new("cmd");
+        cmd.args(["/c", "claude", "--version"])
+            .env("PATH", &aug_path);
+        crate::services::process_util::apply_silent(&mut cmd);
+        cmd.output()
     }
     .map(|o| {
         let stdout = String::from_utf8_lossy(&o.stdout).trim().to_string();

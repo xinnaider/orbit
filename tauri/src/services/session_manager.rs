@@ -1338,9 +1338,10 @@ impl SessionManager {
                     break;
                 }
                 // Check if process is still running via process exit
-                let is_alive = std::process::Command::new("tasklist")
-                    .args(["/FI", &format!("PID eq {pid}"), "/NH"])
-                    .output();
+                let mut tasklist = std::process::Command::new("tasklist");
+                tasklist.args(["/FI", &format!("PID eq {pid}"), "/NH"]);
+                crate::services::process_util::apply_silent(&mut tasklist);
+                let is_alive = tasklist.output();
                 match is_alive {
                     Ok(output) => {
                         let out = String::from_utf8_lossy(&output.stdout);
@@ -1385,12 +1386,10 @@ impl SessionManager {
 fn kill_pid(pid: u32) {
     #[cfg(windows)]
     {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x08000000;
-        let _ = std::process::Command::new("taskkill")
-            .args(["/F", "/T", "/PID", &pid.to_string()])
-            .creation_flags(CREATE_NO_WINDOW)
-            .output();
+        let mut taskkill = std::process::Command::new("taskkill");
+        taskkill.args(["/F", "/T", "/PID", &pid.to_string()]);
+        crate::services::process_util::apply_silent(&mut taskkill);
+        let _ = taskkill.output();
     }
 
     #[cfg(not(windows))]

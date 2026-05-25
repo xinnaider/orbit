@@ -4,6 +4,9 @@
 
 ## May 2026
 
+### 05/25 · Fix — No flashing console windows on Windows
+Sending messages, watching git status, and spawning agent CLIs no longer briefly opens a black terminal window in the background.
+
 ### 05/25 · Fix — Follow-up messages stay in chat after restart
 Messages you send after the first prompt in a session are now saved with the session history. Restarting Orbit or reopening a session no longer drops those follow-up prompts from the chat feed.
 

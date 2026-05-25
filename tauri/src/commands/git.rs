@@ -2,12 +2,6 @@ use serde::Serialize;
 use std::path::Path;
 use std::process::Command;
 
-#[cfg(windows)]
-use std::os::windows::process::CommandExt;
-
-#[cfg(windows)]
-const CREATE_NO_WINDOW: u32 = 0x08000000;
-
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GitBranchInfo {
@@ -67,9 +61,7 @@ fn run_git(cwd: &str, args: &[&str]) -> Result<String, String> {
 
     let mut cmd = Command::new("git");
     cmd.args(args).current_dir(cwd);
-
-    #[cfg(windows)]
-    cmd.creation_flags(CREATE_NO_WINDOW);
+    crate::services::process_util::apply_silent(&mut cmd);
 
     let output = cmd
         .output()
