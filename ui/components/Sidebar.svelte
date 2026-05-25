@@ -15,21 +15,6 @@
   import SidebarFooterHints from './SidebarFooterHints.svelte';
   import { expandedParentSessions } from '../lib/stores/mcp-ui';
 
-  function attentionColor(reason: string | null): string {
-    switch (reason) {
-      case 'permission':
-        return 'var(--s-input)';
-      case 'completed':
-        return 'var(--s-idle)';
-      case 'error':
-        return 'var(--s-error)';
-      case 'rateLimit':
-        return 'var(--s-input)';
-      default:
-        return 'var(--ac)';
-    }
-  }
-
   let appVersion = '';
   import OrbitLogo from '../lib/assets/orbit.svg?raw';
   import ThemePicker from './ThemePicker.svelte';
@@ -297,7 +282,6 @@
             onContextMenu={onContextMenu}
             {displayName}
             {fmtModel}
-            {attentionColor}
           />
         {/each}
       </div>
@@ -324,7 +308,6 @@
             onContextMenu={onContextMenu}
             {displayName}
             {fmtModel}
-            {attentionColor}
           />
         {/each}
       {/if}

@@ -3,7 +3,7 @@
   import type { Session } from '../lib/stores/sessions';
   import { sessions } from '../lib/stores/sessions';
   import { workspace } from '../lib/stores/workspace';
-  import { statusColor } from '../lib/status';
+  import { sessionStatusDotColor } from '../lib/status';
   import { modelShortName } from '../lib/status';
   import { assignSession } from '../lib/stores/workspace';
   import { get } from 'svelte/store';
@@ -17,8 +17,6 @@
   export let onContextMenu: (e: MouseEvent, s: Session) => void;
   export let displayName: (s: Session) => string;
   export let fmtModel: (model: string | null) => string;
-  export let attentionColor: (reason: string | null) => string;
-
   function getChildren(list: Session[], parentId: number) {
     return list.filter((s) => s.parentSessionId === parentId);
   }
@@ -28,6 +26,7 @@
   $: expanded = expandedParents.has(session.id);
   $: branchLabel = session.branchName ?? session.gitBranch ?? null;
   $: isMcpChild = (session.depth ?? 0) > 0 || session.parentSessionId != null;
+  $: dotColor = sessionStatusDotColor(session.status, session.attention);
 
   function openSession(s: Session, expandIfParent: boolean) {
     const ws = get(workspace);
@@ -66,11 +65,7 @@
       {/if}
       <span class="session-title">{displayName(session)}</span>
     </span>
-    <span
-      class="status-dot"
-      style="background:{attentionColor(session.attention?.reason ?? null) ||
-        statusColor(session.status)}"
-    ></span>
+    <span class="status-dot" style="background: {dotColor}; color: {dotColor}"></span>
   </span>
   <span class="session-subline">
     <span>{fmtModel(session.model)}</span>
@@ -93,7 +88,6 @@
       {onContextMenu}
       {displayName}
       {fmtModel}
-      {attentionColor}
     />
   {/each}
 {/if}

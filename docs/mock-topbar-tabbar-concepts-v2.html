@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Orbit — Topbar & TabBar v2 (capsules + clean header)</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --sans: 'Atkinson Hyperlegible', system-ui, sans-serif;
+        --mono: 'JetBrains Mono', monospace;
+        --bg: #090a0a;
+        --bg1: #0c0d0d;
+        --bg2: #101111;
+        --bg3: #141515;
+        --bd: rgba(241, 236, 227, 0.1);
+        --bd1: rgba(241, 236, 227, 0.14);
+        --t0: #f1ece3;
+        --t1: #a19a90;
+        --t2: #7a736b;
+        --t3: #67615a;
+        --ac: #7cff9e;
+        --s-working: #7cff9e;
+        --radius-sm: 4px;
+        --radius-md: 8px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: var(--sans);
+        background: var(--bg);
+        color: var(--t0);
+        padding: 24px;
+      }
+      h1 {
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        margin: 0 0 6px;
+      }
+      .intro {
+        color: var(--t2);
+        font-size: 12px;
+        max-width: 760px;
+        margin-bottom: 8px;
+        line-height: 1.55;
+      }
+      .intro strong {
+        color: var(--ac);
+      }
+      .prefs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 16px 0 28px;
+        font-family: var(--mono);
+        font-size: 9px;
+      }
+      .prefs span {
+        padding: 4px 10px;
+        border-radius: 999px;
+        border: 1px solid var(--bd1);
+        color: var(--t1);
+        background: rgba(124, 255, 158, 0.06);
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+        gap: 20px;
+      }
+      .card {
+        border: 1px solid var(--bd);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+        background: var(--bg1);
+      }
+      .card-head {
+        padding: 12px 14px 10px;
+        border-bottom: 1px solid var(--bd);
+      }
+      .card-head h2 {
+        margin: 0;
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .card-head p {
+        margin: 4px 0 0;
+        font-size: 10px;
+        color: var(--t2);
+        font-family: var(--mono);
+      }
+      .card-head .h {
+        color: var(--ac);
+      }
+      .card-head .sum {
+        color: var(--t1);
+        margin-top: 6px;
+        font-size: 10px;
+        line-height: 1.45;
+      }
+      .mock-pane {
+        background: var(--bg);
+      }
+      .mock-feed {
+        padding: 14px 16px;
+        border-top: 1px solid var(--bd);
+        min-height: 88px;
+      }
+      .mock-feed::after {
+        content: 'feed timeline…';
+        font-family: var(--mono);
+        font-size: 10px;
+        color: var(--t3);
+      }
+      .chrome-total {
+        font-family: var(--mono);
+        font-size: 9px;
+        color: var(--t3);
+        padding: 6px 14px;
+        border-top: 1px dashed var(--bd);
+        background: var(--bg2);
+      }
+      .chrome-total b {
+        color: var(--ac);
+      }
+
+      /* shared capsule tab */
+      .cap-row {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex-wrap: nowrap;
+      }
+      .cap {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 11px;
+        border-radius: 999px;
+        font-family: var(--mono);
+        font-size: 10px;
+        color: var(--t2);
+        border: 1px solid transparent;
+        background: transparent;
+        white-space: nowrap;
+        max-width: 140px;
+      }
+      .cap .lbl {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .cap.on {
+        color: var(--t0);
+        background: var(--bg2);
+        border-color: var(--bd1);
+        box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+      }
+      .cap .x {
+        opacity: 0.35;
+        font-size: 11px;
+      }
+      .cap.on .x {
+        opacity: 0.55;
+      }
+      .cap-add {
+        width: 26px;
+        height: 26px;
+        border-radius: 999px;
+        border: 1px dashed var(--bd1);
+        color: var(--t3);
+        display: grid;
+        place-items: center;
+        font-size: 14px;
+        flex-shrink: 0;
+      }
+
+      /* shared clean topbar bits */
+      .top-clean {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        min-width: 0;
+      }
+      .top-title {
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .ticks {
+        font-family: var(--mono);
+        font-size: 9px;
+        color: var(--t2);
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+      .ticks b {
+        color: var(--ac);
+        font-weight: 500;
+      }
+      .ticks .sep {
+        color: var(--t3);
+        margin: 0 5px;
+      }
+      .path {
+        font-family: var(--mono);
+        font-size: 9px;
+        color: var(--t3);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .dot-live {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--s-working);
+        box-shadow: 0 0 8px rgba(124, 255, 158, 0.45);
+        flex-shrink: 0;
+      }
+      .ring {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        border: 2px solid var(--bd1);
+        border-top-color: var(--ac);
+        flex-shrink: 0;
+      }
+      .btn-ghost {
+        width: 24px;
+        height: 24px;
+        border: none;
+        background: transparent;
+        color: var(--t3);
+        border-radius: var(--radius-sm);
+        font-size: 12px;
+      }
+
+      /* A — Air gap capsules */
+      .a-tabs {
+        padding: 8px 12px 6px;
+        background: var(--bg);
+        border-bottom: none;
+      }
+      .a-top {
+        height: 38px;
+        padding: 0 16px;
+        border-bottom: 1px solid var(--bd);
+        border-top: 1px solid var(--bd);
+        background: rgba(255, 255, 255, 0.004);
+      }
+      .a-top .top-title {
+        font-size: 13px;
+      }
+
+      /* B — Inset tray */
+      .b-tray {
+        margin: 8px 10px 0;
+        padding: 5px 6px;
+        background: var(--bg1);
+        border-radius: var(--radius-md);
+        border: 1px solid var(--bd);
+      }
+      .b-top {
+        height: 36px;
+        padding: 0 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid var(--bd);
+      }
+      .b-top .left {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        min-width: 0;
+      }
+      .b-top .top-title {
+        font-size: 12px;
+      }
+
+      /* C — Editorial split */
+      .c-tabs {
+        padding: 6px 14px;
+        background: var(--bg1);
+        border-bottom: 1px solid var(--bd);
+      }
+      .c-top {
+        padding: 10px 16px 12px;
+        border-bottom: 1px solid var(--bd);
+      }
+      .c-top .top-title {
+        font-size: 16px;
+        margin-bottom: 4px;
+        display: block;
+      }
+      .c-top .row2 {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      /* D — Micro tabs + slim bar */
+      .d-tabs {
+        padding: 5px 10px;
+        gap: 3px;
+        background: var(--bg1);
+        border-bottom: 1px solid var(--bd);
+      }
+      .d-tabs .cap {
+        padding: 3px 9px;
+        font-size: 9px;
+      }
+      .d-top {
+        height: 32px;
+        padding: 0 12px;
+        font-size: 11px;
+        border-bottom: 1px solid var(--bd);
+      }
+      .d-top .top-title {
+        font-size: 11px;
+        font-weight: 600;
+      }
+
+      /* E — Capsules + status rail */
+      .e-tabs {
+        padding: 7px 12px;
+        background: var(--bg);
+      }
+      .e-top {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        grid-template-rows: auto auto;
+        gap: 2px 12px;
+        padding: 8px 14px 10px;
+        border-bottom: 1px solid var(--bd);
+        background: linear-gradient(180deg, var(--bg1) 0%, var(--bg) 100%);
+      }
+      .e-top .top-title {
+        font-size: 14px;
+        grid-column: 1;
+        grid-row: 1;
+      }
+      .e-top .path {
+        grid-column: 1;
+        grid-row: 2;
+      }
+      .e-top .ticks {
+        grid-column: 2;
+        grid-row: 1 / span 2;
+        align-self: center;
+        text-align: right;
+        font-size: 10px;
+      }
+      .e-accent {
+        height: 2px;
+        background: linear-gradient(90deg, var(--ac), transparent 70%);
+        opacity: 0.5;
+      }
+
+      /* F — Quiet dock (bonus clarity in doc = 5 concepts A-E) */
+    </style>
+  </head>
+  <body>
+    <h1>Orbit — Topbar & TabBar v2</h1>
+    <p class="intro">
+      Baseado no seu feedback: <strong>gostou do rail (#1) mas sem unificar</strong> — manter
+      <strong>duas camadas</strong> (tabs + topbar). Tabs em <strong>cápsulas</strong> (#2). Topbar
+      <strong>mais limpa</strong> (sem pills pesadas; ticks mono, título forte, path discreto).
+    </p>
+    <div class="prefs">
+      <span>✓ tabs + topbar separados</span>
+      <span>✓ capsules</span>
+      <span>✓ topbar limpa</span>
+      <span>✗ rail unificado</span>
+    </div>
+
+    <div class="grid">
+      <!-- A -->
+      <article class="card">
+        <div class="card-head">
+          <h2>A · Air gap</h2>
+          <p class="h">tabs ~30px + topbar 38px ≈ 68px</p>
+          <p class="sum">
+            Cápsulas flutuam no topo do painel (sem barra full-width). Topbar fina só com título +
+            ticks. Separador hairline entre as duas camadas.
+          </p>
+        </div>
+        <div class="mock-pane">
+          <div class="a-tabs cap-row">
+            <div class="cap on"><span class="lbl">nms</span><span class="x">×</span></div>
+            <div class="cap"><span class="lbl">Git</span><span class="x">×</span></div>
+            <div class="cap"><span class="lbl">term</span></div>
+            <div class="cap-add">+</div>
+          </div>
+          <div class="a-top top-clean">
+            <span class="top-title">nms</span>
+            <span class="ticks"><b>working</b><span class="sep">·</span>gpt-5.4<span class="sep">·</span>41% ctx</span>
+          </div>
+          <div class="mock-feed"></div>
+          <div class="chrome-total">chrome total: <b>~68px</b> (−25px vs atual)</div>
+        </div>
+      </article>
+
+      <!-- B -->
+      <article class="card">
+        <div class="card-head">
+          <h2>B · Inset tray</h2>
+          <p class="h">tabs ~34px + topbar 36px ≈ 70px</p>
+          <p class="sum">
+            Cápsulas dentro de um “tray” arredondado (como segmented control do #1, mas só na
+            tab row). Topbar ultra-compacta: título + path numa linha, stats à direita.
+          </p>
+        </div>
+        <div class="mock-pane">
+          <div class="b-tray cap-row">
+            <div class="cap on"><span class="lbl">nms</span></div>
+            <div class="cap"><span class="lbl">Git</span></div>
+            <div class="cap-add">+</div>
+          </div>
+          <div class="b-top">
+            <div class="left">
+              <span class="top-title">nms</span>
+              <span class="path">main · …\NEPEN\nms</span>
+            </div>
+            <span class="ticks"><span class="dot-live"></span> working · 41%</span>
+          </div>
+          <div class="mock-feed"></div>
+          <div class="chrome-total">chrome total: <b>~70px</b></div>
+        </div>
+      </article>
+
+      <!-- C -->
+      <article class="card">
+        <div class="card-head">
+          <h2>C · Editorial masthead</h2>
+          <p class="h">tabs ~28px + topbar ~46px ≈ 74px</p>
+          <p class="sum">
+            Cápsulas pequenas na faixa superior (bg1). Topbar estilo “capítulo”: título grande,
+            path abaixo, stats sem caixa — alinhado ao Quiet Journal do feed.
+          </p>
+        </div>
+        <div class="mock-pane">
+          <div class="c-tabs cap-row">
+            <div class="cap on"><span class="lbl">nms</span></div>
+            <div class="cap"><span class="lbl">Git</span></div>
+            <div class="cap-add">+</div>
+          </div>
+          <div class="c-top">
+            <span class="top-title">nms</span>
+            <div class="row2">
+              <span class="path">C:\Users\…\nms · main</span>
+              <span class="ticks"><b>working</b> · gpt-5.4 · 41%</span>
+            </div>
+          </div>
+          <div class="mock-feed"></div>
+          <div class="chrome-total">chrome total: <b>~74px</b> — mais alto, mais identidade</div>
+        </div>
+      </article>
+
+      <!-- D -->
+      <article class="card">
+        <div class="card-head">
+          <h2>D · Micro density</h2>
+          <p class="h">tabs ~24px + topbar 32px ≈ 56px</p>
+          <p class="sum">
+            Cápsulas menores (9px type). Topbar mínima: só nome da sessão + ticks à direita. Path
+            no <code>title</code> tooltip. Máximo espaço pro feed.
+          </p>
+        </div>
+        <div class="mock-pane">
+          <div class="d-tabs cap-row">
+            <div class="cap on"><span class="lbl">nms</span></div>
+            <div class="cap"><span class="lbl">git</span></div>
+            <div class="cap-add" style="width: 22px; height: 22px; font-size: 12px">+</div>
+          </div>
+          <div class="d-top top-clean">
+            <span class="top-title">nms</span>
+            <span class="ticks">working · gpt-5.4 · 41%</span>
+          </div>
+          <div class="mock-feed"></div>
+          <div class="chrome-total">chrome total: <b>~56px</b> — mais compacto do lote</div>
+        </div>
+      </article>
+
+      <!-- E -->
+      <article class="card">
+        <div class="card-head">
+          <h2>E · Status accent</h2>
+          <p class="h">tabs ~30px + topbar ~44px ≈ 74px</p>
+          <p class="sum">
+            Cápsulas soltas + topbar em duas linhas lógicas (título/path | stats), com filete
+            verde quando focado — eco do inset glow do #1 sem fundir com tabs.
+          </p>
+        </div>
+        <div class="mock-pane">
+          <div class="e-tabs cap-row">
+            <div class="cap on"><span class="lbl">◇ nms</span><span class="x">×</span></div>
+            <div class="cap"><span class="lbl">Git</span></div>
+            <div class="cap-add">+</div>
+          </div>
+          <div class="e-accent"></div>
+          <div class="e-top">
+            <span class="top-title">nms</span>
+            <span class="path">…\NEPEN\nms · main</span>
+            <span class="ticks"><b>WORKING</b><br />gpt-5.4 · 41% ctx</span>
+          </div>
+          <div class="mock-feed"></div>
+          <div class="chrome-total">chrome total: <b>~74px</b> — destaque de foco</div>
+        </div>
+      </article>
+    </div>
+
+    <p class="intro" style="margin-top: 24px">
+      <strong>Comparativo rápido:</strong> mais compacto → <strong>D</strong>. melhor equilíbrio
+      capsules + topbar limpa → <strong>A</strong> ou <strong>B</strong>. mais “Orbit journal” →
+      <strong>C</strong>. glow/foco do rail #1 sem unificar → <strong>E</strong>.
+    </p>
+  </body>
+</html>

@@ -19,7 +19,6 @@
   let menuX = 0;
   let menuY = 0;
 
-  // Drag state
   let dragOverIndex: number | null = null;
 
   function handleTabClick(tabId: string) {
@@ -51,7 +50,7 @@
     if (!data) return;
     try {
       const parsed = JSON.parse(data) as { tabId: string; sourcePaneId: string };
-      if (parsed.sourcePaneId !== paneId) return; // cross-pane drag — not handled here
+      if (parsed.sourcePaneId !== paneId) return;
     } catch {
       return;
     }
@@ -80,7 +79,7 @@
   }
 </script>
 
-<div class="tab-bar">
+<div class="tab-bar" class:focused>
   <div class="tab-list">
     {#each tabs as tab, index (tab.id)}
       <div
@@ -92,6 +91,7 @@
         on:drop={(e) => handleDrop(e, index)}
       >
         <button
+          type="button"
           class="tab-wrapper"
           on:click={() => handleTabClick(tab.id)}
           aria-label="Activate tab"
@@ -107,7 +107,6 @@
       </div>
     {/each}
 
-    <!-- Drop zone at the end for appending -->
     <div
       class="drop-zone drop-zone-end"
       class:drag-over={dragOverIndex === tabs.length}
@@ -118,8 +117,14 @@
     ></div>
   </div>
 
-  <button class="add-button" on:click={handleAddClick} aria-label="Add tab" title="Add tab">
-    <Plus size={15} />
+  <button
+    type="button"
+    class="add-button"
+    on:click={handleAddClick}
+    aria-label="Add tab"
+    title="Add tab"
+  >
+    <Plus size={14} />
   </button>
 </div>
 
@@ -131,23 +136,26 @@
   .tab-bar {
     display: flex;
     align-items: center;
-    height: 35px;
-    padding: 0;
-    gap: 0;
-    border-bottom: 1px solid var(--bd);
-    background: var(--bg1);
+    gap: 4px;
+    min-height: 30px;
+    padding: 8px 12px 6px;
+    background: var(--bg);
     flex-shrink: 0;
     overflow: hidden;
   }
 
+  .tab-bar:not(.focused) {
+    opacity: 0.85;
+  }
+
   .tab-list {
     display: flex;
-    align-items: stretch;
+    align-items: center;
     flex: 1;
+    min-width: 0;
     overflow-x: auto;
     scrollbar-width: none;
-    gap: 0;
-    height: 100%;
+    gap: 4px;
   }
 
   .tab-list::-webkit-scrollbar {
@@ -156,23 +164,25 @@
 
   .drop-zone {
     display: flex;
-    align-items: stretch;
+    align-items: center;
     position: relative;
     flex-shrink: 0;
   }
 
   .drop-zone-end {
     flex: 1;
-    min-width: 8px;
+    min-width: 6px;
+    align-self: stretch;
   }
 
   .drop-zone.drag-over::before {
     content: '';
     position: absolute;
-    left: 0;
-    top: 5px;
-    bottom: 5px;
+    left: -2px;
+    top: 50%;
+    transform: translateY(-50%);
     width: 2px;
+    height: 18px;
     background: var(--ac);
     border-radius: 1px;
     pointer-events: none;
@@ -180,7 +190,7 @@
 
   .tab-wrapper {
     display: flex;
-    align-items: stretch;
+    align-items: center;
     background: transparent;
     border: none;
     padding: 0;
@@ -191,19 +201,23 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 22px;
-    height: 22px;
-    border: none;
+    width: 26px;
+    height: 26px;
+    flex-shrink: 0;
+    border: 1px dashed var(--bd1);
+    border-radius: 999px;
     background: transparent;
     color: var(--t3);
     cursor: pointer;
-    flex-shrink: 0;
-    border-radius: 0;
-    transition: all 0.12s;
-    margin: 0 4px;
+    transition:
+      color 0.12s,
+      border-color 0.12s,
+      background 0.12s;
   }
 
   .add-button:hover {
     color: var(--t1);
+    border-color: var(--t2);
+    background: color-mix(in srgb, var(--bg2), transparent 50%);
   }
 </style>

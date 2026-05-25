@@ -6,6 +6,7 @@
   import { invoke } from '../lib/tauri/invoke';
   import { updateSessionState, sessions } from '../lib/stores/sessions';
   import { statusColor, statusLabel, modelShortName } from '../lib/status';
+  import { shortenPath } from '../lib/path';
   import { metaPanelVisible, compactDensity } from '../lib/stores/preferences';
   import { inspectorToggleHint } from '../lib/shortcuts';
   import Feed from './Feed.svelte';
@@ -83,14 +84,9 @@
   $: statusStr = statusLabel(session?.status ?? '');
   $: statusClr = statusColor(session?.status ?? '');
 
-  // Build topbar meta string: cwd + branch
-  $: topbarMeta = (() => {
-    const parts: string[] = [];
-    if (session?.cwd) parts.push(session.cwd);
-    const branch = session?.branchName ?? session?.gitBranch;
-    if (branch) parts.push(branch);
-    return parts.length > 0 ? parts.join(' • ') : null;
-  })();
+  $: topbarBranch = session?.branchName ?? session?.gitBranch ?? null;
+  $: topbarPathFull = session?.cwd ?? null;
+  $: topbarPath = topbarPathFull ? shortenPath(topbarPathFull) : null;
 
   function fmtModel(m: string | null): string {
     return modelShortName(m);
@@ -123,7 +119,9 @@
       session.projectName ??
       session.cwd?.split(/[\\/]/).pop() ??
       `#${session.id}`}
-    meta={topbarMeta}
+    branch={topbarBranch}
+    path={topbarPath}
+    pathFull={topbarPathFull}
     status={statusStr}
     model={fmtModel(session.model)}
     contextPercent={session.contextPercent}

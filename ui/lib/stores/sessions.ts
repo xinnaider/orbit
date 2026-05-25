@@ -20,7 +20,14 @@ export interface Session {
   id: number;
   projectId: number | null;
   name: string | null;
-  status: 'initializing' | 'running' | 'waiting' | 'completed' | 'stopped' | 'error';
+  status:
+    | 'initializing'
+    | 'running'
+    | 'waiting'
+    | 'working'
+    | 'completed'
+    | 'stopped'
+    | 'error';
   permissionMode: string;
   model: string | null;
   provider: string;

@@ -20,7 +20,7 @@
 
   const dispatch = createEventDispatcher<{ bottomchange: { atBottom: boolean } }>();
 
-  $: isWorking = ['working', 'running'].includes(status);
+  $: isWorking = status === 'working' || status === 'input';
 
   // ── Display item grouping ──────────────────────────────────────────────────
   interface DisplayItem {

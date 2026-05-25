@@ -145,6 +145,16 @@ describe('Feed', () => {
     expect(container.querySelector('.typing-dots')).toBeTruthy();
   });
 
+  it('hides typing indicator when status is running or waiting', () => {
+    for (const status of ['running', 'waiting'] as const) {
+      const { container } = render(Feed, {
+        props: { entries: [], status, provider: 'codex', cwd: null },
+      });
+      expect(container.querySelector('.timeline-event.working')).toBeNull();
+      cleanup();
+    }
+  });
+
   it('renders toolCall entry', () => {
     const entries = [
       makeEntry({

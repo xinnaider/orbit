@@ -175,9 +175,16 @@
         if (!mutedSessions.isMuted($mutedSessions, String(p.sessionId))) beep();
       }
       prevStatuses[p.sessionId] = p.status;
-      // 'idle' and 'new' are agent-level pauses emitted while the process is still running.
-      // Map them to 'running' so the working indicator stays visible until session:stopped fires.
-      const sessionStatus = p.status === 'idle' || p.status === 'new' ? 'running' : p.status;
+      // Agent finished a turn (idle/new) but the CLI may still be alive for resume — show as waiting,
+      // not running, so the feed typing indicator does not stick after the reply.
+      const sessionStatus =
+        p.status === 'idle' || p.status === 'new'
+          ? 'waiting'
+          : p.status === 'working'
+            ? 'working'
+            : p.status === 'input'
+              ? 'waiting'
+              : p.status;
       sessions.update((l) =>
         updateSessionState(l, p.sessionId, {
           status: sessionStatus as any,

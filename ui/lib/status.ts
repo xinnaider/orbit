@@ -64,6 +64,28 @@ export function isPulsing(status: string): boolean {
   return ['working', 'running'].includes(status);
 }
 
+/** Dot color in sidebar session list — live status first, attention only when urgent. */
+export function sessionStatusDotColor(
+  status: string,
+  attention?: { requiresAttention: boolean; reason: string | null } | null
+): string {
+  const reason = attention?.requiresAttention ? attention.reason : null;
+  if (reason) {
+    switch (reason) {
+      case 'permission':
+      case 'rateLimit':
+        return 'var(--s-input)';
+      case 'error':
+        return 'var(--s-error)';
+      case 'completed':
+        return statusColor(status);
+      default:
+        break;
+    }
+  }
+  return statusColor(status);
+}
+
 const MODEL_NAMES: Record<string, string> = {
   'claude-opus-4-7': 'Opus 4.7',
   'claude-opus-4-7[1m]': 'Opus 4.7 (1M)',

@@ -4,6 +4,9 @@
 
 ## May 2026
 
+### 05/26 · Improvement — Cleaner pane tabs and header
+Session tabs are now compact capsules with more breathing room. The pane header is slimmer: session name, git branch as a small badge, shortened project path, and status/model/context as plain text ticks (no heavy pills or green focus glow).
+
 ### 05/26 · Release — Version 0.6.0
 Dev release 0.6.0 adds system tray and desktop notifications, MCP orchestration improvements, git workflow in the panel, a leaner dev build, feed polish with a typing indicator while agents work, and OS-aware keyboard shortcut hints.
 
