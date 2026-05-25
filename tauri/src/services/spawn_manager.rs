@@ -382,29 +382,7 @@ pub(crate) fn normalize_opencode_model_ref(value: &str) -> String {
 /// Sub-provider sessions (e.g. `crof` + `kimi-k2.6-precision`) must use `crof/kimi-k2.6-precision`.
 /// Passing only the bare model id produces errors like `kimi-k2.6-precision/.`.
 pub(crate) fn opencode_cli_model_arg(session_provider_id: &str, stored_model: &str) -> String {
-    opencode_cli_model_arg_with_subproviders(session_provider_id, stored_model)
-}
-
-pub(crate) fn opencode_cli_model_arg_with_subproviders(
-    session_provider_id: &str,
-    stored_model: &str,
-) -> String {
-    let stored = normalize_opencode_model_ref(stored_model);
-    if stored.is_empty() {
-        return stored;
-    }
-
-    // Top-level OpenCode session: value is already `provider/model` (or resolved that way).
-    if session_provider_id.eq_ignore_ascii_case("opencode") {
-        return stored;
-    }
-
-    let bare = stored
-        .strip_prefix(&format!("{session_provider_id}/"))
-        .map(normalize_opencode_model_ref)
-        .unwrap_or_else(|| stored.clone());
-
-    format!("{session_provider_id}/{bare}")
+    crate::commands::providers::build_opencode_cli_model_arg(session_provider_id, stored_model)
 }
 
 /// Core argv after `opencode` and before `--dir` / prompt (used locally and in SSH scripts).
@@ -602,30 +580,83 @@ mod tests {
 
     #[test]
     fn opencode_cli_model_arg_should_use_provider_slash_model_for_subproviders() {
+        use crate::commands::providers::ModelInfo;
+        use crate::commands::providers::{
+            build_opencode_cli_model_arg_with_subproviders, SubProvider,
+        };
+
         let mut t = TestCase::new(
             "opencode_cli_model_arg_should_use_provider_slash_model_for_subproviders",
         );
 
+        let subproviders = vec![
+            SubProvider {
+                id: "crof".to_string(),
+                name: "Crof".to_string(),
+                env: vec![],
+                configured: true,
+                in_opencode_config: false,
+                models: vec![ModelInfo {
+                    id: "kimi-k2.6-precision".to_string(),
+                    name: "kimi".to_string(),
+                    context: None,
+                    output: None,
+                }],
+            },
+            SubProvider {
+                id: "CrofAI".to_string(),
+                name: "Ominiroute".to_string(),
+                env: vec![],
+                configured: true,
+                in_opencode_config: true,
+                models: vec![ModelInfo {
+                    id: "crof/glm-5.1-precision".to_string(),
+                    name: "crof/glm-5.1-precision".to_string(),
+                    context: None,
+                    output: None,
+                }],
+            },
+        ];
+
         t.phase("Assert");
         t.eq(
-            "crof session uses provider/model",
-            opencode_cli_model_arg_with_subproviders("crof", "crof/kimi-k2.6-precision").as_str(),
+            "catalog crof session",
+            build_opencode_cli_model_arg_with_subproviders(
+                &subproviders,
+                "crof",
+                "crof/kimi-k2.6-precision",
+            )
+            .as_str(),
             "crof/kimi-k2.6-precision",
         );
         t.eq(
-            "bare model id is prefixed",
-            opencode_cli_model_arg_with_subproviders("crof", "kimi-k2.6-precision").as_str(),
-            "crof/kimi-k2.6-precision",
+            "home config maps crof/model to CrofAI/crof/model",
+            build_opencode_cli_model_arg_with_subproviders(
+                &subproviders,
+                "crof",
+                "crof/glm-5.1-precision",
+            )
+            .as_str(),
+            "CrofAI/crof/glm-5.1-precision",
         );
         t.eq(
-            "trailing slash removed",
-            opencode_cli_model_arg_with_subproviders("crof", "crof/kimi-k2.6-precision/").as_str(),
-            "crof/kimi-k2.6-precision",
+            "bare glm resolves via home config",
+            build_opencode_cli_model_arg_with_subproviders(
+                &subproviders,
+                "crof",
+                "glm-5.1-precision",
+            )
+            .as_str(),
+            "CrofAI/crof/glm-5.1-precision",
         );
         t.eq(
             "top-level opencode keeps path",
-            opencode_cli_model_arg_with_subproviders("opencode", "ollama-cloud/kimi-k2.6:cloud")
-                .as_str(),
+            build_opencode_cli_model_arg_with_subproviders(
+                &subproviders,
+                "opencode",
+                "ollama-cloud/kimi-k2.6:cloud",
+            )
+            .as_str(),
             "ollama-cloud/kimi-k2.6:cloud",
         );
     }

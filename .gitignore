@@ -14,6 +14,11 @@
 .agents/
 skills-lock.json
 
+# Local MCP / agent config (machine-specific paths)
+.mcp.json
+opencode.json
+.codex/config.toml
+
 # Docs (internal plans/specs)
 docs/superpowers/
 

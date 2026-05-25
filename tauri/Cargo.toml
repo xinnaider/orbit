@@ -47,6 +47,9 @@ tower-http = { version = "0.6", features = ["cors", "fs"] }
 hyper = "1"
 uuid = { version = "1", features = ["v4"] }
 
+[target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
+tauri-plugin-single-instance = "2"
+
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = [
     "Win32_Foundation",

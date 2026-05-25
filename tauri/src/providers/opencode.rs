@@ -141,6 +141,11 @@ impl Provider for OpenCodeProvider {
             {
                 return crate::services::spawn_manager::normalize_opencode_model_ref(&model);
             }
+        } else if crate::commands::providers::opencode_subproviders()
+            .iter()
+            .any(|sp| sp.id.eq_ignore_ascii_case(provider_id))
+        {
+            return crate::commands::providers::build_opencode_cli_model_arg(provider_id, &raw);
         } else if raw.starts_with(&format!("{provider_id}/")) {
             return raw;
         } else if !raw.contains('/') {
