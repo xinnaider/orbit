@@ -10,9 +10,8 @@ let permissionGranted = false;
 export async function initDesktopNotifications(): Promise<void> {
   if (!HAS_TAURI) return;
   try {
-    const { isPermissionGranted, requestPermission } = await import(
-      '@tauri-apps/plugin-notification'
-    );
+    const { isPermissionGranted, requestPermission } =
+      await import('@tauri-apps/plugin-notification');
     permissionGranted = await isPermissionGranted();
     if (!permissionGranted) {
       const state = await requestPermission();

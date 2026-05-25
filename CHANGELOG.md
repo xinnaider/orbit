@@ -4,6 +4,9 @@
 
 ## May 2026
 
+### 05/25 · New — Adjustable window transparency
+You can change how see-through the Orbit window is from the palette menu in the sidebar. Drag the **Window opacity** slider from fully clear (0%) to solid (100%); the change applies immediately and is remembered next time you open the app. Text and panels stay readable at lower opacity, and the setting works with every color theme.
+
 ### 05/26 · Improvement — Cleaner pane tabs and header
 Session tabs are now compact capsules with more breathing room. The pane header is slimmer: session name, git branch as a small badge, shortened project path, and status/model/context as plain text ticks (no heavy pills or green focus glow).
 

@@ -296,10 +296,7 @@
           {:else if entry.entryType === 'user'}
             <div class="event-text user-text">{entry.text}</div>
           {:else}
-            <div
-              class="event-text system-text"
-              class:system-error={entry.feedError}
-            >
+            <div class="event-text system-text" class:system-error={entry.feedError}>
               {entry.text}
             </div>
           {/if}

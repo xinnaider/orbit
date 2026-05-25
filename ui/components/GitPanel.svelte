@@ -83,10 +83,8 @@
   $: tree = buildFlatTree(filteredFiles);
   $: totalChanged = files.length;
   $: activeDiffLoaded = !!selectedFile && !!diff && diff.id === selectedFile.id;
-  $: aheadLabel =
-    overview && overview.ahead > 0 ? `↑${overview.ahead}` : null;
-  $: behindLabel =
-    overview && overview.behind > 0 ? `↓${overview.behind}` : null;
+  $: aheadLabel = overview && overview.ahead > 0 ? `↑${overview.ahead}` : null;
+  $: behindLabel = overview && overview.behind > 0 ? `↓${overview.behind}` : null;
 
   function pathsMatch(a: string, b: string): boolean {
     return a.replace(/\\/g, '/').toLowerCase() === b.replace(/\\/g, '/').toLowerCase();
@@ -99,8 +97,7 @@
     try {
       overview = await gitOverview(cwd);
       tags = loadGitTags(cwd, overview.files);
-      selectedFile =
-        overview.files.find((f) => f.path === prevPath) ?? overview.files[0] ?? null;
+      selectedFile = overview.files.find((f) => f.path === prevPath) ?? overview.files[0] ?? null;
       selectedIds = new Set();
       expandInitialGroups(overview.files);
       if (selectedFile) await loadDiff(selectedFile);
@@ -557,8 +554,11 @@
         <button type="button" class="modal-btn" on:click={() => (showCommitModal = false)}
           >Cancel</button
         >
-        <button type="button" class="modal-btn primary" disabled={actionBusy} on:click={submitCommit}
-          >Commit</button
+        <button
+          type="button"
+          class="modal-btn primary"
+          disabled={actionBusy}
+          on:click={submitCommit}>Commit</button
         >
       </div>
     </div>

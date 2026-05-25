@@ -1037,6 +1037,9 @@ export async function mockInvoke(cmd: string, args?: Record<string, unknown>): P
     case 'test_ssh':
       return { ok: true, latencyMs: 42, error: '' };
 
+    case 'set_window_opacity':
+      return null;
+
     case 'get_diff':
       return {
         filePath: 'mock.ts',

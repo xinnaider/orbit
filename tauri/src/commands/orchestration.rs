@@ -9,7 +9,8 @@ pub fn setup_orchestration(project_path: String) -> Result<String, IpcError> {
     let launch = mcp_config::mcp_launch()
         .ok_or_else(|| IpcError::Other("Orbit MCP launch command not found".to_string()))?;
 
-    mcp_config::write_orbit_mcp_configs(Path::new(&project_path), &launch).map_err(IpcError::Other)?;
+    mcp_config::write_orbit_mcp_configs(Path::new(&project_path), &launch)
+        .map_err(IpcError::Other)?;
 
     Ok(format_launch(&launch))
 }
@@ -45,11 +46,7 @@ fn format_launch(launch: &McpLaunch) -> String {
     if launch.args.is_empty() {
         launch.command.clone()
     } else {
-        format!(
-            "{} {}",
-            launch.command,
-            launch.args.join(" ")
-        )
+        format!("{} {}", launch.command, launch.args.join(" "))
     }
 }
 
@@ -64,9 +61,15 @@ mod tests {
         t.phase("Act");
         let status = get_mcp_status();
         t.phase("Assert");
-        t.ok("has binaryAvailable", status.get("binaryAvailable").is_some());
+        t.ok(
+            "has binaryAvailable",
+            status.get("binaryAvailable").is_some(),
+        );
         t.ok("has ipcListening", status.get("ipcListening").is_some());
-        t.ok("has orchestrationReady", status.get("orchestrationReady").is_some());
+        t.ok(
+            "has orchestrationReady",
+            status.get("orchestrationReady").is_some(),
+        );
         t.ok("has unifiedBinary", status.get("unifiedBinary").is_some());
     }
 }

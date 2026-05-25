@@ -279,7 +279,7 @@
             pinned
             expandedParents={$expandedParentSessions}
             onToggleExpand={toggleExpand}
-            onContextMenu={onContextMenu}
+            {onContextMenu}
             {displayName}
             {fmtModel}
           />
@@ -305,7 +305,7 @@
             session={s}
             expandedParents={$expandedParentSessions}
             onToggleExpand={toggleExpand}
-            onContextMenu={onContextMenu}
+            {onContextMenu}
             {displayName}
             {fmtModel}
           />

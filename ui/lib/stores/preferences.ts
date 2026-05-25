@@ -1,4 +1,9 @@
 import { writable } from 'svelte/store';
+import {
+  applyWindowOpacity,
+  parseStoredWindowOpacity,
+  WINDOW_OPACITY_STORAGE_KEY,
+} from '../window-opacity';
 
 export const THEME_OPTIONS = ['dark', 'light', 'nord', 'dracula', 'catppuccin', 'steel'] as const;
 export type Theme = (typeof THEME_OPTIONS)[number];
@@ -63,9 +68,33 @@ function createBooleanPreferenceStore(key: string, defaultValue: boolean) {
   };
 }
 
+function createWindowOpacityStore() {
+  const stored =
+    typeof localStorage !== 'undefined' ? localStorage.getItem(WINDOW_OPACITY_STORAGE_KEY) : null;
+  const initial = parseStoredWindowOpacity(stored);
+  const { subscribe, set: _set } = writable<number>(initial);
+
+  if (typeof document !== 'undefined') {
+    void applyWindowOpacity(initial);
+  }
+
+  return {
+    subscribe,
+    set(value: number) {
+      const clamped = Math.min(100, Math.max(0, Math.round(value)));
+      _set(clamped);
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(WINDOW_OPACITY_STORAGE_KEY, String(clamped));
+      }
+      void applyWindowOpacity(clamped);
+    },
+  };
+}
+
 export const theme = createThemeStore();
 export const metaPanelVisible = createBooleanPreferenceStore('metaPanelVisible', false);
 export const sidebarVisible = createBooleanPreferenceStore('sidebarVisible', true);
 export const compactDensity = createBooleanPreferenceStore('compactDensity', false);
+export const windowOpacity = createWindowOpacityStore();
 /** Desktop notifications (session completed, permission, errors, tasks). */
 export const notificationsEnabled = createBooleanPreferenceStore('notificationsEnabled', true);

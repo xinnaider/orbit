@@ -6,13 +6,12 @@ use tauri::State;
 #[tauri::command]
 pub fn get_subagents(session_id: SessionId, state: State<SessionState>) -> Vec<SubagentInfo> {
     let m = state.read();
-    let mut subagents = m
-        .db
-        .get_claude_session_id(session_id)
-        .ok()
-        .flatten()
-        .map(|id| agent_tree::read_subagents(&id))
-        .unwrap_or_default();
+    let mut subagents =
+        m.db.get_claude_session_id(session_id)
+            .ok()
+            .flatten()
+            .map(|id| agent_tree::read_subagents(&id))
+            .unwrap_or_default();
     for mcp in m.get_mcp_subagents(session_id) {
         if !subagents.iter().any(|s| s.id == mcp.id) {
             subagents.push(mcp);
