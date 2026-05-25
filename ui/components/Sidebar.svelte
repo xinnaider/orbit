@@ -145,12 +145,43 @@
     return s.name ?? s.projectName ?? s.cwd?.split(/[/\\]/).pop() ?? `#${s.id}`;
   }
 
+  let searchQuery = '';
+
+  function sessionSearchHaystack(s: (typeof $sessions)[0]): string {
+    const branch = s.branchName ?? s.gitBranch ?? '';
+    const cwdLeaf = s.cwd?.split(/[/\\]/).pop() ?? '';
+    return [
+      displayName(s),
+      s.name,
+      s.projectName,
+      cwdLeaf,
+      s.cwd,
+      branch,
+      s.model,
+      s.provider,
+      s.status,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+  }
+
+  function matchesSessionSearch(s: (typeof $sessions)[0], query: string): boolean {
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    return sessionSearchHaystack(s).includes(q);
+  }
+
   // Derived lists for session sections
   $: rootSessions = $sessions.filter((s) => !s.parentSessionId);
-  $: pinnedList = rootSessions.filter((s) =>
+  $: searchActive = searchQuery.trim().length > 0;
+  $: filteredRoots = searchActive
+    ? rootSessions.filter((s) => matchesSessionSearch(s, searchQuery))
+    : rootSessions;
+  $: pinnedList = filteredRoots.filter((s) =>
     pinnedSessions.isPinned($pinnedSessions, String(s.id))
   );
-  $: recentList = rootSessions.filter(
+  $: recentList = filteredRoots.filter(
     (s) => !pinnedSessions.isPinned($pinnedSessions, String(s.id))
   );
 </script>
@@ -234,7 +265,16 @@
     </div>
   </header>
 
-  <div class="quiet-search" aria-label="Search sessions">Search sessions…</div>
+  <input
+    type="search"
+    class="quiet-search"
+    bind:value={searchQuery}
+    placeholder="Search sessions…"
+    aria-label="Search sessions"
+    data-testid="session-search-input"
+    autocomplete="off"
+    spellcheck="false"
+  />
 
   <button
     type="button"
@@ -269,8 +309,12 @@
     <div class="session-list">
       {#if rootSessions.length === 0}
         <div class="empty quiet-empty">No sessions yet</div>
+      {:else if searchActive && filteredRoots.length === 0}
+        <div class="empty quiet-empty">No matching sessions</div>
       {:else if recentList.length === 0}
-        <div class="empty quiet-empty">All sessions pinned</div>
+        <div class="empty quiet-empty">
+          {searchActive ? 'No matching sessions' : 'All sessions pinned'}
+        </div>
       {:else}
         {#each recentList as s (s.id)}
           <SessionListItem
@@ -381,14 +425,24 @@
     color: var(--t0);
   }
   .quiet-search {
+    width: 100%;
     height: 34px;
-    display: flex;
-    align-items: center;
+    box-sizing: border-box;
     padding: 0 12px;
+    border: 1px solid transparent;
     border-radius: var(--radius-md);
     background: color-mix(in srgb, var(--t0), transparent 95%);
-    color: var(--t3);
+    color: var(--t0);
     font-size: 12px;
+    font-family: inherit;
+    outline: none;
+  }
+  .quiet-search::placeholder {
+    color: var(--t3);
+  }
+  .quiet-search:focus {
+    border-color: color-mix(in srgb, var(--t0), transparent 88%);
+    background: color-mix(in srgb, var(--t0), transparent 93%);
   }
   .session-section {
     display: flex;

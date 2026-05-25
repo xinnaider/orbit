@@ -1,25 +1,31 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
+  import { formatModChord, splitPaneHint } from '../lib/shortcuts';
 
-  const HINTS = [
-    'Close → tray',
-    'Tray · reopen app',
-    '⌘I · inspector',
-    '⌘\\ · split pane',
-    'Drag · assign pane',
-    'Ctx menu · mute',
-  ] as const;
+  function buildHints(): string[] {
+    return [
+      'Close → tray',
+      'Tray · reopen app',
+      `${formatModChord('I')} · inspector`,
+      `${splitPaneHint()} · split pane`,
+      'Drag · assign pane',
+      'Ctx menu · mute',
+    ];
+  }
 
   const INTERVAL_MS = 4500;
 
+  let hints = buildHints();
   let index = 0;
-  let hint = HINTS[0];
+  let hint = hints[0];
   let timer: ReturnType<typeof setInterval> | undefined;
 
   onMount(() => {
+    hints = buildHints();
+    hint = hints[0];
     timer = setInterval(() => {
-      index = (index + 1) % HINTS.length;
-      hint = HINTS[index];
+      index = (index + 1) % hints.length;
+      hint = hints[index];
     }, INTERVAL_MS);
   });
 
@@ -28,7 +34,7 @@
   });
 </script>
 
-<span class="footer-hint" title={HINTS.join(' · ')}>{hint}</span>
+<span class="footer-hint" title={hints.join(' · ')}>{hint}</span>
 
 <style>
   .footer-hint {

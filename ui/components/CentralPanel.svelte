@@ -7,6 +7,7 @@
   import { updateSessionState, sessions } from '../lib/stores/sessions';
   import { statusColor, statusLabel, modelShortName } from '../lib/status';
   import { metaPanelVisible, compactDensity } from '../lib/stores/preferences';
+  import { inspectorToggleHint } from '../lib/shortcuts';
   import Feed from './Feed.svelte';
   import InputBar from './InputBar.svelte';
   import PermissionDialog from './PermissionDialog.svelte';
@@ -141,7 +142,7 @@
       on:keydown={(e) => e.key === 'Enter' && metaPanelVisible.set(true)}
       title="Toggle inspector panel"
     >
-      inspector hidden • ⌘I
+      inspector hidden • {inspectorToggleHint()}
     </div>
   {/if}
 
@@ -269,7 +270,7 @@
   .scroll-btn {
     position: absolute;
     bottom: 14px;
-    left: 38px;
+    right: 38px;
     z-index: 10;
     background: var(--bg2);
     border: 1px solid var(--bd1);
@@ -286,7 +287,7 @@
 
   @media (max-width: 768px) {
     .scroll-btn {
-      left: 18px;
+      right: 18px;
       bottom: 10px;
     }
   }

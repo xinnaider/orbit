@@ -4,6 +4,15 @@
 
 ## May 2026
 
+### 05/25 · Fix — Scroll to bottom on the right
+When you scroll up in a long session, the "scroll to bottom" button now appears in the bottom-right corner of the chat panel instead of on the left over the timeline.
+
+### 05/25 · Fix — Sidebar session search works
+The Search sessions field in the sidebar is now a real search box. Typing filters pinned and recent sessions by name, project, folder, branch, model, and status. Clear the field to show every session again.
+
+### 05/25 · Fix — Keyboard shortcut hints match your operating system
+Shortcut hints in the sidebar footer, inspector badge, and browse buttons now show Ctrl on Windows and Linux instead of macOS Command (⌘) symbols. Inspector toggle still works with Ctrl+I on Windows as before.
+
 ### 05/24 · Improvement — Leaner dev workflow and disk usage
 `npm run tauri:dev` no longer runs a full Rust build before Tauri (one compile instead of two). The separate orbit-mcp binary was removed in favor of `orbit --mcp-stdio`, and sidecar files use hardlinks when possible so the executable is not duplicated on disk. Use `npm run clean` to remove `tauri/target` and other local artifacts, and `npm run dev:mock` when you only need the frontend.
 
