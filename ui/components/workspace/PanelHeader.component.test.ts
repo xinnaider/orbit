@@ -14,7 +14,8 @@ describe('PanelHeader', () => {
       },
     });
 
-    expect(container.querySelector('header.quiet-topbar')).toBeTruthy();
+    expect(container.querySelector('header.topbar.quiet-topbar')).toBeTruthy();
+    expect(container.querySelector('header.glass-topbar')).toBeFalsy();
     expect(getByText('Refactor billing flow')).toBeTruthy();
     expect(getByText('running')).toBeTruthy();
     await fireEvent.click(getByLabelText('Close panel'));

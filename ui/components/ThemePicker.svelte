@@ -1,5 +1,11 @@
 <script lang="ts">
-  import { theme, THEME_OPTIONS, THEME_LABELS, type Theme } from '../lib/stores/preferences';
+  import {
+    theme,
+    glassChrome,
+    THEME_OPTIONS,
+    THEME_LABELS,
+    type Theme,
+  } from '../lib/stores/preferences';
   import { Palette } from 'lucide-svelte';
 
   let open = false;
@@ -7,6 +13,10 @@
   function select(t: Theme) {
     theme.set(t);
     open = false;
+  }
+
+  function toggleGlassChrome() {
+    glassChrome.set(!$glassChrome);
   }
 
   function toggle(e: MouseEvent) {
@@ -41,6 +51,16 @@
           {THEME_LABELS[t]}
         </button>
       {/each}
+      <div class="divider" role="separator"></div>
+      <button
+        class="option glass-toggle"
+        class:active={$glassChrome}
+        onclick={toggleGlassChrome}
+        title="Frosted translucent tab bar, panel headers, and git sidebar"
+      >
+        <span class="swatch glass-swatch" class:on={$glassChrome}></span>
+        Frosted chrome
+      </button>
     </div>
   {/if}
 </div>
@@ -81,9 +101,15 @@
     display: flex;
     flex-direction: column;
     gap: var(--sp-1);
-    min-width: 130px;
+    min-width: 150px;
     z-index: 100;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  }
+
+  .divider {
+    height: 1px;
+    margin: var(--sp-1) 0;
+    background: var(--bd);
   }
 
   .option {
@@ -117,6 +143,17 @@
     flex-shrink: 0;
   }
 
+  .glass-swatch {
+    border-radius: 3px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+    backdrop-filter: blur(4px);
+  }
+
+  .glass-swatch.on {
+    border-color: var(--ac-border);
+    box-shadow: 0 0 0 1px var(--ac-d);
+  }
+
   .swatch[data-theme-preview='dark'] {
     background: #080808;
   }
@@ -135,5 +172,9 @@
   .swatch[data-theme-preview='steel'] {
     background: #0b0d10;
     border-color: #303447;
+  }
+  .swatch[data-theme-preview='glass'] {
+    background: linear-gradient(135deg, #0c0d0d 40%, rgba(124, 255, 158, 0.15));
+    border-color: rgba(124, 255, 158, 0.35);
   }
 </style>
