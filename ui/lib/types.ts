@@ -61,6 +61,8 @@ export interface JournalEntry {
   linesChanged: { added: number; removed: number } | null;
   seq: number;
   epoch: string;
+  /** Client-only: render system line as error styling in the feed */
+  feedError?: boolean;
 }
 
 export interface SlashCommand {

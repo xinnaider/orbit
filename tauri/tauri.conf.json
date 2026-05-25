@@ -12,6 +12,7 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "Orbit",
         "width": 1200,
         "height": 750,

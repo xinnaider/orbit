@@ -1,18 +1,40 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { FileDiff, List, FolderTree, Pencil, Tag, Timer, TimerOff } from 'lucide-svelte';
+  import { onDestroy, onMount } from 'svelte';
+  import {
+    FileDiff,
+    FolderTree,
+    GitCommit,
+    List,
+    Minus,
+    Pencil,
+    Plus,
+    RefreshCw,
+    RotateCcw,
+    Tag,
+    Timer,
+    TimerOff,
+    Zap,
+  } from 'lucide-svelte';
   import MonacoDiffViewer from './MonacoDiffViewer.svelte';
   import PanelHeader from './workspace/PanelHeader.svelte';
   import TreeNode from './GitTreeNode.svelte';
   import GitFlatList from './GitFlatList.svelte';
   import {
+    gitCommit,
     gitDiffFile,
     gitOverview,
+    gitQuickCommit,
+    gitResetStaged,
+    gitResetWorkingTree,
+    gitStageAll,
+    gitStageFile,
+    gitUnstageFile,
     writeFileContent,
     type GitDiffFile,
     type GitFileChange,
     type GitOverview,
   } from '../lib/tauri/git';
+  import { onSessionGitUpdate } from '../lib/tauri/events';
   import { buildFlatTree, filterGitFiles } from '../lib/git-tree';
   import {
     applyTagToFiles,
@@ -49,6 +71,11 @@
   let diffViewer: any = undefined;
   let autoSave = false;
   let viewMode: 'flat' | 'tree' = 'flat';
+  let actionBusy = false;
+  let showCommitModal = false;
+  let commitMessage = '';
+  let pendingConfirm: 'quick-commit' | 'reset-working-tree' | null = null;
+  let unlistenGit: (() => void) | undefined;
 
   $: files = overview?.files ?? [];
   $: fileTags = tagsByFileId(files, tags);
@@ -56,17 +83,31 @@
   $: tree = buildFlatTree(filteredFiles);
   $: totalChanged = files.length;
   $: activeDiffLoaded = !!selectedFile && !!diff && diff.id === selectedFile.id;
+  $: aheadLabel =
+    overview && overview.ahead > 0 ? `↑${overview.ahead}` : null;
+  $: behindLabel =
+    overview && overview.behind > 0 ? `↓${overview.behind}` : null;
+
+  function pathsMatch(a: string, b: string): boolean {
+    return a.replace(/\\/g, '/').toLowerCase() === b.replace(/\\/g, '/').toLowerCase();
+  }
 
   async function refresh() {
+    const prevPath = selectedFile?.path;
     loading = true;
     error = '';
     try {
       overview = await gitOverview(cwd);
       tags = loadGitTags(cwd, overview.files);
-      selectedFile = overview.files[0] ?? null;
+      selectedFile =
+        overview.files.find((f) => f.path === prevPath) ?? overview.files[0] ?? null;
       selectedIds = new Set();
       expandInitialGroups(overview.files);
       if (selectedFile) await loadDiff(selectedFile);
+      else {
+        diff = null;
+        diffError = '';
+      }
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
     } finally {
@@ -74,8 +115,21 @@
     }
   }
 
+  async function runGitAction(action: () => Promise<void>) {
+    if (actionBusy) return;
+    actionBusy = true;
+    error = '';
+    try {
+      await action();
+      await refresh();
+    } catch (e) {
+      error = e instanceof Error ? e.message : String(e);
+    } finally {
+      actionBusy = false;
+    }
+  }
+
   function expandInitialGroups(nextFiles: GitFileChange[]) {
-    // Expand all top-level folders
     const paths = new Set(nextFiles.map((f) => f.path.split('/').slice(0, -1).join('/')));
     const ids = new Set<string>();
     for (const p of paths) {
@@ -115,6 +169,14 @@
     selectedIds = next;
   }
 
+  async function handleStageFile(file: GitFileChange) {
+    await runGitAction(() => gitStageFile(cwd, file.path));
+  }
+
+  async function handleUnstageFile(file: GitFileChange) {
+    await runGitAction(() => gitUnstageFile(cwd, file.path));
+  }
+
   async function handleSave(e: CustomEvent<{ content: string; auto: boolean }>) {
     if (!selectedFile || !diff) return;
     const filePath = `${cwd}/${selectedFile.path}`;
@@ -125,9 +187,9 @@
       saveMessage = e.detail.auto ? 'Auto-saved' : 'Saved';
       dirtyAfterSave = false;
       diffViewer?.markSaved();
-      // Update diff so original matches saved content — diff shows no changes
       diff = { ...diff, original: e.detail.content, modified: e.detail.content };
       setTimeout(() => (saveMessage = ''), 2000);
+      await refresh();
     } catch (err) {
       saveMessage = `Error: ${err instanceof Error ? err.message : String(err)}`;
       setTimeout(() => (saveMessage = ''), 4000);
@@ -138,10 +200,6 @@
 
   function handleDirty(e: CustomEvent<{ dirty: boolean }>) {
     dirtyAfterSave = e.detail.dirty;
-  }
-
-  function toggleTree() {
-    treeCollapsed = !treeCollapsed;
   }
 
   function setViewMode(mode: 'flat' | 'tree') {
@@ -159,7 +217,6 @@
       selectedFiles.length > 0 ? selectedFiles : selectedFile ? [selectedFile] : [];
     if (targetFiles.length === 0) return;
 
-    // Toggle: if ALL target files already have this tag, remove it instead
     const allHaveTag = targetFiles.every((f) => (tags[tagKey(f)] ?? []).includes(tag));
     if (allHaveTag && targetFiles.length > 0) {
       tags = removeTagFromFiles(tags, targetFiles, tag);
@@ -170,7 +227,6 @@
   }
 
   function clearSelection() {
-    // Clear tags from selected (checked) files, or from the current file if none checked
     const checkedFiles = files.filter((file) => selectedIds.has(file.id));
     const targetFiles = checkedFiles.length > 0 ? checkedFiles : selectedFile ? [selectedFile] : [];
     if (targetFiles.length > 0) {
@@ -187,8 +243,33 @@
         saveGitTags(cwd, tags);
       }
     }
-    // Clear checkbox selection
     selectedIds = new Set();
+  }
+
+  function openCommitModal() {
+    commitMessage = '';
+    showCommitModal = true;
+  }
+
+  async function submitCommit() {
+    const message = commitMessage.trim();
+    showCommitModal = false;
+    await runGitAction(() => gitCommit(cwd, message || undefined));
+  }
+
+  function requestConfirm(action: 'quick-commit' | 'reset-working-tree') {
+    pendingConfirm = action;
+  }
+
+  async function executeConfirm() {
+    const action = pendingConfirm;
+    pendingConfirm = null;
+    if (!action) return;
+    if (action === 'quick-commit') {
+      await runGitAction(() => gitQuickCommit(cwd));
+    } else {
+      await runGitAction(() => gitResetWorkingTree(cwd));
+    }
   }
 
   onMount(() => {
@@ -199,6 +280,15 @@
       /* ignore localStorage errors */
     }
     refresh();
+    onSessionGitUpdate(({ snapshot }) => {
+      if (pathsMatch(snapshot.cwd, cwd)) refresh();
+    }).then((unlisten) => {
+      unlistenGit = unlisten;
+    });
+  });
+
+  onDestroy(() => {
+    unlistenGit?.();
   });
 </script>
 
@@ -206,9 +296,77 @@
   <PanelHeader
     title={overview?.branch ?? 'Git'}
     meta={totalChanged > 0 ? `${totalChanged} file${totalChanged !== 1 ? 's' : ''}` : null}
+    status={aheadLabel}
+    model={behindLabel}
     {onClose}
     {focused}
   />
+
+  <div class="git-toolbar">
+    <button
+      type="button"
+      class="toolbar-btn"
+      title="Refresh"
+      disabled={loading || actionBusy}
+      data-testid="git-refresh"
+      on:click={() => refresh()}
+    >
+      <span class:spin={loading}><RefreshCw size={12} /></span>
+      <span>Refresh</span>
+    </button>
+    <button
+      type="button"
+      class="toolbar-btn"
+      title="Stage all changes"
+      disabled={actionBusy}
+      data-testid="git-stage-all-button"
+      on:click={() => runGitAction(() => gitStageAll(cwd))}
+    >
+      <Plus size={12} />
+      <span>Stage All</span>
+    </button>
+    <button
+      type="button"
+      class="toolbar-btn"
+      title="Unstage all staged changes"
+      disabled={actionBusy}
+      on:click={() => runGitAction(() => gitResetStaged(cwd))}
+    >
+      <Minus size={12} />
+      <span>Unstage All</span>
+    </button>
+    <button
+      type="button"
+      class="toolbar-btn"
+      title="Commit staged changes"
+      disabled={actionBusy}
+      data-testid="git-commit-button"
+      on:click={openCommitModal}
+    >
+      <GitCommit size={12} />
+      <span>Commit</span>
+    </button>
+    <button
+      type="button"
+      class="toolbar-btn"
+      title="Stage all and commit with auto-generated message"
+      disabled={actionBusy}
+      on:click={() => requestConfirm('quick-commit')}
+    >
+      <Zap size={12} />
+      <span>Quick Commit</span>
+    </button>
+    <button
+      type="button"
+      class="toolbar-btn danger"
+      title="Discard all unstaged changes"
+      disabled={actionBusy}
+      on:click={() => requestConfirm('reset-working-tree')}
+    >
+      <RotateCcw size={12} />
+      <span>Reset</span>
+    </button>
+  </div>
 
   {#if loading}
     <div class="state">Loading Git status...</div>
@@ -240,7 +398,7 @@
           <button type="button" on:click={clearSelection}>Clear</button>
         </div>
 
-        <div class="tree" aria-label="Changed files">
+        <div class="tree" aria-label="Changed files" data-testid="git-file-list">
           {#if viewMode === 'tree'}
             {#each tree as node (node.id)}
               <TreeNode
@@ -250,9 +408,12 @@
                 {selectedIds}
                 {selectedFile}
                 {fileTags}
+                {actionBusy}
                 onToggleExpanded={toggleExpanded}
                 onToggleSelected={toggleSelected}
                 onSelectFile={loadDiff}
+                onStageFile={handleStageFile}
+                onUnstageFile={handleUnstageFile}
               />
             {/each}
           {:else}
@@ -261,8 +422,11 @@
               {selectedFile}
               {selectedIds}
               {fileTags}
+              {actionBusy}
               onSelectFile={loadDiff}
               onToggleSelected={toggleSelected}
+              onStageFile={handleStageFile}
+              onUnstageFile={handleUnstageFile}
             />
           {/if}
           {#if (viewMode === 'tree' && tree.length === 0) || (viewMode === 'flat' && filteredFiles.length === 0)}
@@ -324,8 +488,7 @@
               </button>
               <button
                 type="button"
-                class="hdr-action"
-                class:edit-toggle={true}
+                class="hdr-action edit-toggle"
                 class:active={editMode}
                 title={editMode ? 'Disable editing (Ctrl+S to save)' : 'Enable editing'}
                 on:click={() => (editMode = !editMode)}
@@ -342,7 +505,7 @@
             </div>
           {/if}
         </div>
-        <div class="diff-body" data-testid="git-diff-view">
+        <div class="diff-body" data-testid="git-diff-viewer">
           {#if !diff && !diffLoading}
             <div class="state">Select a file to view its diff.</div>
           {:else if diffError && !diffLoading}
@@ -380,6 +543,55 @@
   {/if}
 </section>
 
+{#if showCommitModal}
+  <div class="modal-overlay" role="dialog" aria-labelledby="git-commit-title" tabindex="-1">
+    <div class="modal-box">
+      <h3 id="git-commit-title">Commit staged changes</h3>
+      <textarea
+        bind:value={commitMessage}
+        placeholder="Commit message (optional)"
+        rows="4"
+        aria-label="Commit message"
+      ></textarea>
+      <div class="modal-actions">
+        <button type="button" class="modal-btn" on:click={() => (showCommitModal = false)}
+          >Cancel</button
+        >
+        <button type="button" class="modal-btn primary" disabled={actionBusy} on:click={submitCommit}
+          >Commit</button
+        >
+      </div>
+    </div>
+  </div>
+{/if}
+
+{#if pendingConfirm}
+  <div class="modal-overlay" role="dialog" tabindex="-1">
+    <div class="modal-box confirm">
+      {#if pendingConfirm === 'quick-commit'}
+        <p>Stage all changes and commit with an auto-generated message?</p>
+      {:else}
+        <p>Discard all unstaged changes in the working tree? This cannot be undone.</p>
+      {/if}
+      <div class="modal-actions">
+        <button type="button" class="modal-btn" on:click={() => (pendingConfirm = null)}
+          >Cancel</button
+        >
+        <button
+          type="button"
+          class="modal-btn"
+          class:danger={pendingConfirm === 'reset-working-tree'}
+          class:primary={pendingConfirm === 'quick-commit'}
+          disabled={actionBusy}
+          on:click={executeConfirm}
+        >
+          {pendingConfirm === 'quick-commit' ? 'Quick Commit' : 'Reset'}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
 <style>
   .git-panel {
     display: flex;
@@ -388,6 +600,145 @@
     min-height: 0;
     flex-direction: column;
     background: var(--bg);
+  }
+
+  .git-toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--bd);
+    background: var(--bg2);
+    flex-shrink: 0;
+  }
+
+  .toolbar-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 24px;
+    padding: 0 8px;
+    border: 1px solid var(--bd);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--t2);
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: 9px;
+    transition:
+      background 0.1s,
+      color 0.1s,
+      border-color 0.1s;
+  }
+
+  .toolbar-btn:hover:not(:disabled) {
+    background: var(--bg3);
+    color: var(--t1);
+    border-color: color-mix(in srgb, var(--ac), transparent 60%);
+  }
+
+  .toolbar-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .toolbar-btn.danger:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--s-error), transparent 50%);
+    color: var(--s-error);
+  }
+
+  .toolbar-btn .spin {
+    display: inline-flex;
+    animation: git-spin 0.8s linear infinite;
+  }
+
+  @keyframes git-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: grid;
+    place-items: center;
+    background: rgba(0, 0, 0, 0.55);
+  }
+
+  .modal-box {
+    width: min(420px, calc(100vw - 32px));
+    padding: 16px;
+    border: 1px solid var(--bd);
+    border-radius: var(--radius-md);
+    background: var(--bg1);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  }
+
+  .modal-box h3 {
+    margin: 0 0 10px;
+    font-size: var(--sm);
+    color: var(--t0);
+  }
+
+  .modal-box textarea {
+    width: 100%;
+    min-height: 88px;
+    border: 1px solid var(--bd);
+    border-radius: var(--radius-sm);
+    background: var(--bg);
+    color: var(--t1);
+    padding: 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    resize: vertical;
+    outline: none;
+  }
+
+  .modal-box textarea:focus {
+    border-color: color-mix(in srgb, var(--ac), transparent 50%);
+  }
+
+  .modal-box.confirm p {
+    margin: 0 0 14px;
+    color: var(--t1);
+    font-size: var(--sm);
+    line-height: 1.45;
+  }
+
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .modal-btn {
+    padding: 5px 12px;
+    border: 1px solid var(--bd);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--t2);
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: 10px;
+  }
+
+  .modal-btn:hover {
+    background: var(--bg2);
+    color: var(--t0);
+  }
+
+  .modal-btn.primary {
+    border-color: color-mix(in srgb, var(--ac), transparent 50%);
+    color: var(--ac);
+  }
+
+  .modal-btn.danger {
+    border-color: color-mix(in srgb, var(--s-error), transparent 50%);
+    color: var(--s-error);
   }
 
   .diff-header {
@@ -455,7 +806,6 @@
     border-right: none;
   }
 
-  /* Narrow screens: stack tree on top of diff */
   @media (max-width: 500px) {
     .git-body {
       grid-template-columns: 1fr;

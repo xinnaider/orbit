@@ -1,70 +1,111 @@
----
-// Fullscreen demo preview
----
+<section class="product section" id="product" data-snap-section>
+  <div class="product-head">
+    <div>
+      <p class="section-kicker" data-reveal>desktop dashboard</p>
+      <h2 class="section-title" data-text-scrub>One window for every agent doing real work.</h2>
+    </div>
+    <p class="section-copy" data-reveal>
+      Orbit turns parallel AI coding sessions into an inspectable operating surface: output streams,
+      tool calls, diffs, token pressure, context windows, and spawned agents stay visible together.
+    </p>
+  </div>
 
-<section class="demo" id="demo" data-section>
-  <div class="demo-inner">
-    <p class="label">see it in action</p>
-    <h2 class="tagline">One window. <span class="accent">Every agent.</span></h2>
-    <div class="frame">
-      <img src="/demo.gif" alt="Orbit — multiple AI sessions running simultaneously" loading="lazy" />
+  <div class="product-frame" data-reveal>
+    <div class="frame-bar" aria-hidden="true">
+      <span></span>
+      <span></span>
+      <span></span>
+      <strong>orbit://project/agent-dashboard</strong>
     </div>
-    <div class="providers">
-      <span class="badge">Claude Code</span>
-      <span class="badge">Codex</span>
-      <span class="badge">OpenCode</span>
-    </div>
+    <img src="/demo.gif" alt="Orbit showing multiple AI coding sessions in a desktop dashboard" loading="lazy" />
   </div>
 </section>
 
 <style>
-  .demo {
-    min-height: 100vh;
-    display: flex; align-items: center; justify-content: center;
-    padding: 80px 48px;
-    border-top: 1px solid var(--bd);
-    position: relative; z-index: 1;
-  }
-  .demo-inner {
-    max-width: 900px; width: 100%;
-    display: flex; flex-direction: column; align-items: center;
-  }
-  .label {
-    font-size: 9px; letter-spacing: 0.3em; text-transform: uppercase;
-    color: var(--t3); margin-bottom: 16px;
-  }
-  .tagline {
-    font-size: clamp(22px, 3.5vw, 34px);
-    font-weight: 600; letter-spacing: 0.05em;
-    color: var(--t1); text-align: center;
-    margin-bottom: 40px; line-height: 1.3;
-  }
-  .accent { color: var(--ac); }
-  .frame {
-    width: 100%;
-    border-radius: 8px;
-    border: 1px solid rgba(0, 212, 126, 0.12);
-    overflow: hidden; background: #080808;
-  }
-  .frame img {
-    width: 100%; height: auto; display: block;
-  }
-  .providers {
-    display: flex; align-items: center; gap: 8px;
-    margin-top: 20px;
-  }
-  .badge {
-    font-size: 10px; color: var(--ac); opacity: 0.7;
-    letter-spacing: 0.04em;
-    background: rgba(0, 212, 126, 0.06);
-    border: 1px solid rgba(0, 212, 126, 0.15);
-    border-radius: 4px; padding: 5px 10px;
+  .product {
+    padding-top: 92px;
   }
 
-  @media (max-width: 768px) {
-    .demo { padding: 60px 16px; min-height: auto; }
-    .tagline { font-size: 22px; margin-bottom: 28px; }
-    .providers { gap: 6px; flex-wrap: wrap; justify-content: center; }
-    .badge { font-size: 10px; padding: 4px 10px; }
+  .product-head {
+    align-items: end;
+    display: grid;
+    gap: 40px;
+    grid-template-columns: minmax(0, 1.05fr) minmax(300px, 0.72fr);
+  }
+
+  .product-frame {
+    background: rgba(12, 13, 13, 0.78);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: 0 42px 130px rgba(0, 0, 0, 0.52);
+    margin: 54px auto 0;
+    max-width: 1120px;
+    overflow: hidden;
+    width: 100%;
+  }
+
+  .frame-bar {
+    align-items: center;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    gap: 8px;
+    height: 40px;
+    padding: 0 14px;
+  }
+
+  .frame-bar span {
+    border-radius: 999px;
+    height: 9px;
+    width: 9px;
+  }
+
+  .frame-bar span:nth-child(1) {
+    background: var(--amber);
+  }
+
+  .frame-bar span:nth-child(2) {
+    background: var(--green);
+  }
+
+  .frame-bar span:nth-child(3) {
+    background: var(--cyan);
+  }
+
+  .frame-bar strong {
+    color: var(--quiet);
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    margin-left: 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .product-frame img {
+    aspect-ratio: 16 / 10;
+    background: rgba(244, 239, 228, 0.04);
+    height: auto;
+    object-fit: contain;
+    width: 100%;
+  }
+
+  @media (max-width: 860px) {
+    .product-head {
+      align-items: start;
+      grid-template-columns: 1fr;
+    }
+
+    .product-frame {
+      margin-top: 38px;
+    }
+
+  }
+
+  @media (max-width: 520px) {
+    .frame-bar strong {
+      display: none;
+    }
   }
 </style>

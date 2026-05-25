@@ -1,12 +1,23 @@
 <script lang="ts">
   import { marked } from 'marked';
+  import { highlightCode } from '../lib/highlight';
 
   export let content: string;
 
-  // Configure marked for inline-friendly rendering
   marked.setOptions({
     breaks: false,
     gfm: true,
+  });
+
+  marked.use({
+    renderer: {
+      code({ text, lang }) {
+        const language = lang?.trim() || undefined;
+        const highlighted = highlightCode(text, language);
+        const cls = language ? `hljs language-${language}` : 'hljs';
+        return `<pre><code class="${cls}">${highlighted}</code></pre>\n`;
+      },
+    },
   });
 
   $: html = marked.parse(content || '') as string;

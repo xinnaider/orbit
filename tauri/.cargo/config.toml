@@ -1,0 +1,10 @@
+# Smaller debug artifacts (line tables only). Saves GB on Windows PDBs.
+[profile.dev]
+debug = 1
+
+[profile.test]
+debug = 1
+
+# Optional: keep Rust build cache outside the repo (uncomment or set env CARGO_TARGET_DIR).
+# [build]
+# target-dir = "C:/tmp/orbit-cargo-target"

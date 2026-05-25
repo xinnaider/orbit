@@ -1,10 +1,10 @@
 ---
-import Nav      from '../components/Nav.astro';
-import Hero     from '../components/Hero.astro';
-import Demo     from '../components/Demo.astro';
-import Orchestrator from '../components/Orchestrator.astro';
+import Demo from '../components/Demo.astro';
 import Features from '../components/Features.astro';
-import Footer   from '../components/Footer.astro';
+import Footer from '../components/Footer.astro';
+import Hero from '../components/Hero.astro';
+import Nav from '../components/Nav.astro';
+import Orchestrator from '../components/Orchestrator.astro';
 import '../styles/global.css';
 ---
 
@@ -13,186 +13,52 @@ import '../styles/global.css';
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description"
-      content="Orbit �� manage multiple AI coding agents simultaneously. Claude Code, Codex, OpenCode. Real-time feed, persistent history, cost tracking." />
-    <meta property="og:title"       content="Orbit" />
-    <meta property="og:description" content="Multi-provider AI agent dashboard — Claude Code, Codex, OpenCode." />
-    <meta property="og:type"        content="website" />
-    <meta property="og:image"       content="https://orbit.jfernando.dev/og-image-v2.png" />
-    <meta property="og:image:width"  content="1200" />
+    <meta
+      name="description"
+      content="Orbit is a desktop dashboard for running Claude Code, Codex, and OpenCode sessions side by side."
+    />
+    <meta property="og:title" content="Orbit" />
+    <meta
+      property="og:description"
+      content="A cinematic desktop control room for multi-provider AI coding agents."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://orbit.jfernando.dev/og-image-v2.png" />
+    <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta name="twitter:card"       content="summary_large_image" />
-    <meta name="twitter:image"      content="https://orbit.jfernando.dev/og-image-v2.png" />
-    <meta name="theme-color"        content="#080808" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://orbit.jfernando.dev/og-image-v2.png" />
+    <meta name="theme-color" content="#050505" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <title>Orbit — AI Agent Dashboard</title>
-    <!-- Prevent FOUC: set background immediately before any CSS loads -->
-    <style>
-      html { background: #080808; }
-      #loader {
-        position: fixed; inset: 0; z-index: 9999;
-        background: #080808;
-        display: flex; align-items: center; justify-content: center;
-        transition: opacity 0.4s ease;
-      }
-      #loader.fade-out { opacity: 0; pointer-events: none; }
-      .loader-dot {
-        width: 6px; height: 6px; border-radius: 50%;
-        background: #00d47e;
-        box-shadow: 0 0 12px #00d47e;
-        animation: loader-pulse 1.2s ease-in-out infinite;
-      }
-      @keyframes loader-pulse {
-        0%, 100% { opacity: 0.2; transform: scale(0.8); }
-        50%       { opacity: 1;   transform: scale(1.2); }
-      }
-    </style>
+    <title>Orbit - AI Agent Dashboard</title>
     <script defer src="https://umami.jfernando.dev/script.js" data-website-id="6cba273b-7fa2-4d80-9d05-3daf2ef5f171"></script>
   </head>
   <body>
-    <div id="loader"><div class="loader-dot"></div></div>
-    <script>
-      window.addEventListener('DOMContentLoaded', () => {
-        const loader = document.getElementById('loader');
-        if (loader) {
-          loader.classList.add('fade-out');
-          setTimeout(() => loader.remove(), 420);
-        }
-      });
-    </script>
-    <div class="stars-global" id="stars-container" aria-hidden="true"></div>
-    <Nav />
-    <main>
-      <Hero />
-      <Demo />
-      <Orchestrator />
-      <Features />
-    </main>
-    <Footer />
-
-    <!-- Back to top button -->
-    <button class="back-to-top" id="back-to-top" aria-label="Back to top">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-        <polyline points="18 15 12 9 6 15"/>
+    <div id="loader" aria-hidden="true">
+      <div class="loader-mark"></div>
+    </div>
+    <div id="scene-root" class="scene-root" aria-hidden="true"></div>
+    <div class="page-shell">
+      <Nav />
+      <main>
+        <Hero />
+        <Demo />
+        <Orchestrator />
+        <Features>
+          <Footer />
+        </Features>
+      </main>
+    </div>
+    <button class="back-to-top" type="button" aria-label="Back to top" data-back-to-top>
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="m18 15-6-6-6 6"></path>
       </svg>
     </button>
-    <script is:inline>
-      (function() {
-        var btn = document.getElementById('back-to-top');
-        if (!btn) return;
-        var demo = document.getElementById('demo');
-
-        var observer = new IntersectionObserver(function(entries) {
-          if (entries[0].isIntersecting) {
-            btn.style.display = 'flex';
-          }
-        }, { threshold: 0.1 });
-
-        // Hide when hero is visible
-        var hero = document.getElementById('hero');
-        var heroObs = new IntersectionObserver(function(entries) {
-          if (entries[0].isIntersecting && entries[0].intersectionRatio > 0.5) {
-            btn.style.display = 'none';
-          }
-        }, { threshold: 0.5 });
-
-        if (demo) observer.observe(demo);
-        if (hero) heroObs.observe(hero);
-
-        btn.onclick = function(e) {
-          e.preventDefault();
-          e.stopPropagation();
-          document.documentElement.scrollTop = 0;
-          document.body.scrollTop = 0;
-        };
-      })();
-    </script>
 
     <script>
-      // ── Global stars ──
-      const starContainer = document.getElementById('stars-container');
-      const isMobile = window.innerWidth < 768;
-      const starCount = isMobile ? 40 : 150;
-      if (starContainer) {
-        for (let i = 0; i < starCount; i++) {
-          const star = document.createElement('div');
-          const layer = Math.floor(Math.random() * 3) + 1;
-          const size = layer === 1 ? 1 : layer === 2 ? 1.5 : 2;
-          star.className = 'star';
-          star.dataset.layer = String(layer);
-          star.style.cssText = [
-            `top:${(Math.random() * 100).toFixed(2)}%`,
-            `left:${(Math.random() * 100).toFixed(2)}%`,
-            `width:${size}px`, `height:${size}px`,
-            `--d:${(3 + Math.random() * 5).toFixed(1)}s`,
-            `--delay:${(Math.random() * 6).toFixed(2)}s`,
-            `--peak:${(0.15 + Math.random() * 0.5).toFixed(2)}`,
-          ].join(';');
-          starContainer.appendChild(star);
-        }
-      }
+      import { initExperience } from '../scripts/experience.js';
 
-      // ── Parallax on mousemove (desktop only) ──
-      if (!isMobile) {
-        const LAYER_SPEED = [0, 0.008, 0.018, 0.032];
-        document.addEventListener('mousemove', (e) => {
-          const cx = window.innerWidth / 2;
-          const cy = window.innerHeight / 2;
-          const dx = e.clientX - cx;
-          const dy = e.clientY - cy;
-          starContainer?.querySelectorAll<HTMLElement>('.star[data-layer]').forEach((s) => {
-            const speed = LAYER_SPEED[Number(s.dataset.layer)] ?? 0.01;
-            s.style.transform = `translate(${dx * speed}px, ${dy * speed}px)`;
-          });
-        });
-      }
-
-      // ── Anchor scroll (desktop only) ──
-      if (!isMobile) {
-        const sections = Array.from(document.querySelectorAll<HTMLElement>('[data-section]'));
-        let currentIndex = 0;
-        let isScrolling = false;
-
-        function scrollTo(index: number) {
-          if (index < 0 || index >= sections.length || index === currentIndex || isScrolling) return;
-          isScrolling = true;
-          currentIndex = index;
-          sections[index].scrollIntoView({ behavior: 'smooth' });
-          setTimeout(() => { isScrolling = false; }, 500);
-        }
-
-        function syncIndex() {
-          const mid = window.scrollY + window.innerHeight / 2;
-          let closest = 0;
-          let minDist = Infinity;
-          sections.forEach((s, i) => {
-            const center = s.offsetTop + s.offsetHeight / 2;
-            const dist = Math.abs(mid - center);
-            if (dist < minDist) { minDist = dist; closest = i; }
-          });
-          currentIndex = closest;
-        }
-        syncIndex();
-
-        window.addEventListener('wheel', (e) => {
-          e.preventDefault();
-          if (isScrolling) return;
-          const dir = e.deltaY > 0 ? 1 : -1;
-          scrollTo(currentIndex + dir);
-        }, { passive: false });
-
-        window.addEventListener('keydown', (e) => {
-          if (e.key === 'ArrowDown' || e.key === 'PageDown') {
-            e.preventDefault(); scrollTo(currentIndex + 1);
-          } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
-            e.preventDefault(); scrollTo(currentIndex - 1);
-          }
-        });
-
-        // Sync index when scroll finishes (e.g. back-to-top)
-        window.addEventListener('scroll', () => { syncIndex(); }, { passive: true });
-      }
+      initExperience();
     </script>
-
   </body>
 </html>

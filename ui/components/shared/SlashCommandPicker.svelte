@@ -52,7 +52,7 @@
     subOptions.length > 0
       ? []
       : text.startsWith('/')
-        ? text.length === 1
+        ? text.trim() === '/'
           ? commands.slice(0, 8)
           : commands.filter((c) => c.cmd.toLowerCase().includes(text.toLowerCase())).slice(0, 8)
         : [];

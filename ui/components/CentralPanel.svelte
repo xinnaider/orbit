@@ -6,9 +6,12 @@
   import { invoke } from '../lib/tauri/invoke';
   import { updateSessionState, sessions } from '../lib/stores/sessions';
   import { statusColor, statusLabel, modelShortName } from '../lib/status';
+  import { shortenPath } from '../lib/path';
   import { metaPanelVisible, compactDensity } from '../lib/stores/preferences';
+  import { inspectorToggleHint } from '../lib/shortcuts';
   import Feed from './Feed.svelte';
   import InputBar from './InputBar.svelte';
+  import PermissionDialog from './PermissionDialog.svelte';
   import PanelHeader from './workspace/PanelHeader.svelte';
 
   export let session: Session;
@@ -81,17 +84,22 @@
   $: statusStr = statusLabel(session?.status ?? '');
   $: statusClr = statusColor(session?.status ?? '');
 
-  // Build topbar meta string: cwd + branch
-  $: topbarMeta = (() => {
-    const parts: string[] = [];
-    if (session?.cwd) parts.push(session.cwd);
-    const branch = session?.branchName ?? session?.gitBranch;
-    if (branch) parts.push(branch);
-    return parts.length > 0 ? parts.join(' • ') : null;
-  })();
+  $: topbarBranch = session?.branchName ?? session?.gitBranch ?? null;
+  $: topbarPathFull = session?.cwd ?? null;
+  $: topbarPath = topbarPathFull ? shortenPath(topbarPathFull) : null;
 
   function fmtModel(m: string | null): string {
     return modelShortName(m);
+  }
+
+  function parseToolName(approval: string): string {
+    const match = approval.match(/^Allow\s+(.+?)\?/);
+    return match ? match[1] : approval;
+  }
+
+  function parseToolDesc(approval: string): string {
+    const match = approval.match(/^Allow\s+.+?\?\s*(.*)/);
+    return match ? match[1].trim() : '';
   }
 
   $: providerModelIds = (() => {
@@ -111,7 +119,9 @@
       session.projectName ??
       session.cwd?.split(/[\\/]/).pop() ??
       `#${session.id}`}
-    meta={topbarMeta}
+    branch={topbarBranch}
+    path={topbarPath}
+    pathFull={topbarPathFull}
     status={statusStr}
     model={fmtModel(session.model)}
     contextPercent={session.contextPercent}
@@ -130,12 +140,20 @@
       on:keydown={(e) => e.key === 'Enter' && metaPanelVisible.set(true)}
       title="Toggle inspector panel"
     >
-      inspector hidden • ⌘I
+      inspector hidden • {inspectorToggleHint()}
     </div>
   {/if}
 
+  {#if session.pendingApproval}
+    <PermissionDialog
+      sessionId={session.id}
+      toolName={parseToolName(session.pendingApproval)}
+      description={parseToolDesc(session.pendingApproval)}
+    />
+  {/if}
+
   <!-- Feed -->
-  <div class="feed-wrap">
+  <div class="feed-wrap" data-testid="session-feed">
     {#if entries.length === 0 && $pendingMessages.length === 0}
       <div class="feed-empty">
         <span>session #{session.id} · {statusStr}</span>
@@ -250,7 +268,7 @@
   .scroll-btn {
     position: absolute;
     bottom: 14px;
-    left: 38px;
+    right: 38px;
     z-index: 10;
     background: var(--bg2);
     border: 1px solid var(--bd1);
@@ -267,7 +285,7 @@
 
   @media (max-width: 768px) {
     .scroll-btn {
-      left: 18px;
+      right: 18px;
       bottom: 10px;
     }
   }

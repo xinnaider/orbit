@@ -7,3 +7,4 @@ export * from './files';
 export * from './http-api';
 export * from './git';
 export * from './window';
+export * from './diff';

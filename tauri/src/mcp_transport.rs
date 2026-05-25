@@ -2,6 +2,13 @@ use std::io::{BufRead, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
+static IPC_LISTENING: AtomicBool = AtomicBool::new(false);
+
+/// Whether the embedded MCP IPC listener is active in this process.
+pub fn is_ipc_listening() -> bool {
+    IPC_LISTENING.load(Ordering::Relaxed)
+}
+
 use interprocess::local_socket::prelude::*;
 use interprocess::local_socket::{GenericFilePath, GenericNamespaced, ListenerOptions, Stream};
 
@@ -46,10 +53,12 @@ impl McpTransport {
             Ok(l) => l,
             Err(e) => {
                 eprintln!("[orbit:mcp] failed to create local socket listener: {e}");
+                IPC_LISTENING.store(false, Ordering::Relaxed);
                 return Self { stop };
             }
         };
 
+        IPC_LISTENING.store(true, Ordering::Relaxed);
         std::thread::spawn(move || {
             eprintln!("[orbit:mcp] transport listening on {socket_name_owned}");
             for conn in listener.incoming() {
@@ -76,6 +85,7 @@ impl McpTransport {
 
     pub fn stop(&self) {
         self.stop.store(true, Ordering::Relaxed);
+        IPC_LISTENING.store(false, Ordering::Relaxed);
     }
 }
 

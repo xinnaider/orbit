@@ -6,6 +6,8 @@
     FileText,
     Folder,
     FolderOpen,
+    Minus,
+    Plus,
     Square,
   } from 'lucide-svelte';
   import type { GitFileChange } from '../lib/tauri/git';
@@ -20,9 +22,16 @@
   export let selectedIds: Set<string>;
   export let selectedFile: GitFileChange | null;
   export let fileTags: Record<string, string[]>;
+  export let actionBusy = false;
   export let onToggleExpanded: (id: string) => void;
   export let onToggleSelected: (file: GitFileChange) => void;
   export let onSelectFile: (file: GitFileChange) => void;
+  export let onStageFile: (file: GitFileChange) => void = () => {};
+  export let onUnstageFile: (file: GitFileChange) => void = () => {};
+
+  function hasStats(file: GitFileChange): boolean {
+    return file.additions != null || file.deletions != null;
+  }
 </script>
 
 {#if node.kind === 'folder'}
@@ -56,9 +65,12 @@
         {selectedIds}
         {selectedFile}
         {fileTags}
+        {actionBusy}
         {onToggleExpanded}
         {onToggleSelected}
         {onSelectFile}
+        {onStageFile}
+        {onUnstageFile}
       />
     {/each}
   {/if}
@@ -73,6 +85,23 @@
     on:click={() => onSelectFile(node.change)}
     on:keydown={(e) => e.key === 'Enter' && onSelectFile(node.change)}
   >
+    <button
+      class="stage-btn"
+      type="button"
+      disabled={actionBusy}
+      aria-label={node.change.group === 'staged' ? 'Unstage file' : 'Stage file'}
+      data-testid={node.change.group === 'staged' ? 'git-unstage-file' : 'git-stage-file'}
+      on:click|stopPropagation={() =>
+        node.change.group === 'staged'
+          ? onUnstageFile(node.change)
+          : onStageFile(node.change)}
+    >
+      {#if node.change.group === 'staged'}
+        <Minus size={11} />
+      {:else}
+        <Plus size={11} />
+      {/if}
+    </button>
     <button
       class="check-btn"
       type="button"
@@ -97,6 +126,16 @@
     {/if}
     <FileText size={14} />
     <span class="node-name">{node.name}</span>
+    {#if hasStats(node.change)}
+      <span class="line-stats" data-testid="git-file-stats">
+        {#if node.change.additions != null}
+          <span class="add">+{node.change.additions}</span>
+        {/if}
+        {#if node.change.deletions != null}
+          <span class="del">-{node.change.deletions}</span>
+        {/if}
+      </span>
+    {/if}
     {#if fileTags[node.change.id]?.length}
       <span class="tag-labels">
         {#each fileTags[node.change.id] as t}
@@ -132,7 +171,8 @@
   }
 
   .expand-btn,
-  .check-btn {
+  .check-btn,
+  .stage-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -143,6 +183,22 @@
     color: inherit;
     padding: 0;
     flex-shrink: 0;
+    cursor: pointer;
+  }
+
+  .stage-btn {
+    color: var(--t3);
+    opacity: 0.55;
+  }
+
+  .tree-row:hover .stage-btn {
+    opacity: 1;
+    color: var(--ac);
+  }
+
+  .stage-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
   }
 
   .check-btn {
@@ -158,6 +214,22 @@
     flex: 1;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .line-stats {
+    display: inline-flex;
+    gap: 4px;
+    flex-shrink: 0;
+    font-size: 9px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .line-stats .add {
+    color: #3ecf8e;
+  }
+
+  .line-stats .del {
+    color: #f07178;
   }
 
   .count {

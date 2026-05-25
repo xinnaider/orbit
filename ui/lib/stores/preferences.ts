@@ -96,3 +96,5 @@ export const metaPanelVisible = createBooleanPreferenceStore('metaPanelVisible',
 export const sidebarVisible = createBooleanPreferenceStore('sidebarVisible', true);
 export const compactDensity = createBooleanPreferenceStore('compactDensity', false);
 export const windowOpacity = createWindowOpacityStore();
+/** Desktop notifications (session completed, permission, errors, tasks). */
+export const notificationsEnabled = createBooleanPreferenceStore('notificationsEnabled', true);

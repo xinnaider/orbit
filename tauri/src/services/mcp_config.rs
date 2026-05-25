@@ -1,26 +1,60 @@
 use std::path::{Path, PathBuf};
 
-use toml_edit::{value, DocumentMut, Item, Table};
+use toml_edit::{value, Array, DocumentMut, Item, Table};
 
-/// Find the orbit-mcp binary: next to current exe (with or without target triple), or in PATH.
+/// CLI flag that runs the MCP stdio proxy inside the main Orbit executable.
+pub const MCP_STDIO_ARG: &str = "--mcp-stdio";
+
+/// Command + args written to provider MCP configs (Claude, Codex, OpenCode).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct McpLaunch {
+    pub command: String,
+    pub args: Vec<String>,
+}
+
+/// True when this process was started as an MCP stdio server (not the GUI).
+pub fn is_mcp_stdio_mode() -> bool {
+    std::env::args().any(|a| a == MCP_STDIO_ARG)
+}
+
+/// Resolve how external agents should spawn Orbit's MCP bridge.
+pub fn mcp_launch() -> Option<McpLaunch> {
+    resolve_mcp_command().map(|command| McpLaunch {
+        command,
+        args: vec![MCP_STDIO_ARG.to_string()],
+    })
+}
+
+fn resolve_mcp_command() -> Option<String> {
+    if let Ok(exe) = std::env::current_exe() {
+        if exe.is_file() {
+            return Some(exe.to_string_lossy().into_owned());
+        }
+    }
+
+    find_legacy_sidecar_or_path()
+}
+
+/// Legacy helper — command path only (no args). Prefer [`mcp_launch`].
 pub fn find_orbit_mcp() -> Option<String> {
+    mcp_launch().map(|l| l.command)
+}
+
+fn find_legacy_sidecar_or_path() -> Option<String> {
     if let Ok(exe) = std::env::current_exe() {
         if let Some(dir) = exe.parent() {
             let ext = if cfg!(windows) { ".exe" } else { "" };
-
             let triple = env!("TARGET_TRIPLE");
             let sidecar = dir.join(format!("orbit-mcp-{triple}{ext}"));
             if sidecar.is_file() {
                 return Some(sidecar.to_string_lossy().into_owned());
             }
-
             let plain = dir.join(format!("orbit-mcp{ext}"));
             if plain.is_file() {
                 return Some(plain.to_string_lossy().into_owned());
             }
         }
     }
-
     crate::services::spawn_manager::find_cli_in_path("orbit-mcp")
 }
 
@@ -28,15 +62,14 @@ pub fn find_orbit_mcp() -> Option<String> {
 ///
 /// Claude Code reads `.mcp.json`, Codex reads `.codex/config.toml`, and
 /// OpenCode reads `opencode.json`/`opencode.jsonc`.
-pub fn write_orbit_mcp_configs(project_path: &Path, mcp_bin: &str) -> Result<(), String> {
-    write_claude_mcp_config(project_path, mcp_bin)?;
-    write_codex_mcp_config(project_path, mcp_bin)?;
-    write_opencode_mcp_config(project_path, mcp_bin)?;
-
+pub fn write_orbit_mcp_configs(project_path: &Path, launch: &McpLaunch) -> Result<(), String> {
+    write_claude_mcp_config(project_path, launch)?;
+    write_codex_mcp_config(project_path, launch)?;
+    write_opencode_mcp_config(project_path, launch)?;
     Ok(())
 }
 
-fn write_claude_mcp_config(project_path: &Path, mcp_bin: &str) -> Result<(), String> {
+fn write_claude_mcp_config(project_path: &Path, launch: &McpLaunch) -> Result<(), String> {
     let config_path = project_path.join(".mcp.json");
     let mut config = read_json_config(&config_path, serde_json::json!({ "mcpServers": {} }))?;
 
@@ -47,11 +80,14 @@ fn write_claude_mcp_config(project_path: &Path, mcp_bin: &str) -> Result<(), Str
         config["mcpServers"] = serde_json::json!({});
     }
 
-    config["mcpServers"]["orbit"] = serde_json::json!({ "command": mcp_bin });
+    config["mcpServers"]["orbit"] = serde_json::json!({
+        "command": launch.command,
+        "args": launch.args,
+    });
     write_json_config(&config_path, &config)
 }
 
-fn write_codex_mcp_config(project_path: &Path, mcp_bin: &str) -> Result<(), String> {
+fn write_codex_mcp_config(project_path: &Path, launch: &McpLaunch) -> Result<(), String> {
     let codex_dir = project_path.join(".codex");
     std::fs::create_dir_all(&codex_dir)
         .map_err(|e| format!("failed to create .codex directory: {e}"))?;
@@ -84,14 +120,19 @@ fn write_codex_mcp_config(project_path: &Path, mcp_bin: &str) -> Result<(), Stri
         .get_mut("orbit")
         .and_then(Item::as_table_mut)
         .ok_or_else(|| "failed to prepare Codex orbit MCP table".to_string())?;
-    orbit["command"] = value(mcp_bin);
+    orbit["command"] = value(launch.command.as_str());
     orbit["enabled"] = value(true);
+    let mut args = Array::new();
+    for arg in &launch.args {
+        args.push(arg.as_str());
+    }
+    orbit["args"] = value(args);
 
     std::fs::write(&config_path, doc.to_string())
         .map_err(|e| format!("failed to write .codex/config.toml: {e}"))
 }
 
-fn write_opencode_mcp_config(project_path: &Path, mcp_bin: &str) -> Result<(), String> {
+fn write_opencode_mcp_config(project_path: &Path, launch: &McpLaunch) -> Result<(), String> {
     let config_path = opencode_config_path(project_path);
     let mut config = read_json_config(
         &config_path,
@@ -110,9 +151,11 @@ fn write_opencode_mcp_config(project_path: &Path, mcp_bin: &str) -> Result<(), S
         config["mcp"] = serde_json::json!({});
     }
 
+    let mut cmd: Vec<&str> = vec![launch.command.as_str()];
+    cmd.extend(launch.args.iter().map(String::as_str));
     config["mcp"]["orbit"] = serde_json::json!({
         "type": "local",
-        "command": [mcp_bin],
+        "command": cmd,
         "enabled": true
     });
 
@@ -265,10 +308,13 @@ mod tests {
     fn should_write_orbit_mcp_config_for_all_supported_providers() {
         let mut t = TestCase::new("should_write_orbit_mcp_config_for_all_supported_providers");
         let dir = tempfile::TempDir::new().expect("temp dir");
-        let mcp_bin = "/opt/orbit/orbit-mcp";
+        let launch = McpLaunch {
+            command: "/opt/orbit/Orbit".to_string(),
+            args: vec![MCP_STDIO_ARG.to_string()],
+        };
 
         t.phase("Act");
-        write_orbit_mcp_configs(dir.path(), mcp_bin).expect("write configs");
+        write_orbit_mcp_configs(dir.path(), &launch).expect("write configs");
 
         t.phase("Assert - Claude");
         let claude_config: serde_json::Value = serde_json::from_str(
@@ -278,7 +324,12 @@ mod tests {
         t.eq(
             "claude command",
             claude_config["mcpServers"]["orbit"]["command"].as_str(),
-            Some(mcp_bin),
+            Some("/opt/orbit/Orbit"),
+        );
+        t.eq(
+            "claude mcp stdio arg",
+            claude_config["mcpServers"]["orbit"]["args"][0].as_str(),
+            Some(MCP_STDIO_ARG),
         );
 
         t.phase("Assert - Codex");
@@ -290,7 +341,12 @@ mod tests {
         t.eq(
             "codex command",
             codex_doc["mcp_servers"]["orbit"]["command"].as_str(),
-            Some(mcp_bin),
+            Some("/opt/orbit/Orbit"),
+        );
+        t.eq(
+            "codex mcp stdio arg",
+            codex_doc["mcp_servers"]["orbit"]["args"][0].as_str(),
+            Some(MCP_STDIO_ARG),
         );
         t.eq(
             "codex enabled",
@@ -311,8 +367,19 @@ mod tests {
         t.eq(
             "opencode command",
             opencode_config["mcp"]["orbit"]["command"][0].as_str(),
-            Some(mcp_bin),
+            Some("/opt/orbit/Orbit"),
         );
+        t.eq(
+            "opencode mcp stdio arg",
+            opencode_config["mcp"]["orbit"]["command"][1].as_str(),
+            Some(MCP_STDIO_ARG),
+        );
+    }
+
+    #[test]
+    fn should_detect_mcp_stdio_mode_from_args() {
+        let mut t = TestCase::new("should_detect_mcp_stdio_mode_from_args");
+        t.ok("stdio flag constant", MCP_STDIO_ARG == "--mcp-stdio");
     }
 
     #[test]
@@ -344,7 +411,11 @@ command = "docs-server"
         .expect("seed opencode");
 
         t.phase("Act");
-        write_orbit_mcp_configs(dir.path(), "/opt/orbit/orbit-mcp").expect("write configs");
+        let launch = McpLaunch {
+            command: "/opt/orbit/Orbit".to_string(),
+            args: vec![MCP_STDIO_ARG.to_string()],
+        };
+        write_orbit_mcp_configs(dir.path(), &launch).expect("write configs");
 
         t.phase("Assert");
         let claude_config: serde_json::Value = serde_json::from_str(
@@ -409,7 +480,11 @@ command = "docs-server"
         .expect("seed opencode jsonc");
 
         t.phase("Act");
-        write_orbit_mcp_configs(dir.path(), "/opt/orbit/orbit-mcp").expect("write configs");
+        let launch = McpLaunch {
+            command: "/opt/orbit/Orbit".to_string(),
+            args: vec![MCP_STDIO_ARG.to_string()],
+        };
+        write_orbit_mcp_configs(dir.path(), &launch).expect("write configs");
 
         t.phase("Assert");
         let opencode_config: serde_json::Value = serde_json::from_str(
@@ -424,7 +499,7 @@ command = "docs-server"
         t.eq(
             "opencode registers orbit",
             opencode_config["mcp"]["orbit"]["command"][0].as_str(),
-            Some("/opt/orbit/orbit-mcp"),
+            Some("/opt/orbit/Orbit"),
         );
     }
 }

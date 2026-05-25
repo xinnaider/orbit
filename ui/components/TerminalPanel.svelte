@@ -4,6 +4,7 @@
   import { FitAddon } from '@xterm/addon-fit';
   import { ptyCreate, ptyWrite, ptyResize, ptyKill, onPtyOutput } from '../lib/tauri/terminal';
   import PanelHeader from './workspace/PanelHeader.svelte';
+  import { shortenPath } from '../lib/path';
   import '@xterm/xterm/css/xterm.css';
 
   let {
@@ -204,7 +205,13 @@
 </script>
 
 <section class="terminal-shell">
-  <PanelHeader title="Terminal" meta={cwd} {onClose} {focused} />
+  <PanelHeader
+    title="Terminal"
+    path={cwd ? shortenPath(cwd) : null}
+    pathFull={cwd}
+    {onClose}
+    {focused}
+  />
 
   <div class="terminal-body">
     {#if loading}

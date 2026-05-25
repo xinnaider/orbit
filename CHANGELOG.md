@@ -7,6 +7,39 @@
 ### 05/25 · New — Adjustable window transparency
 You can change how see-through the Orbit window is from the palette menu in the sidebar. Drag the **Window opacity** slider from fully clear (0%) to solid (100%); the change applies immediately and is remembered next time you open the app. Text and panels stay readable at lower opacity, and the setting works with every color theme.
 
+### 05/26 · Improvement — Cleaner pane tabs and header
+Session tabs are now compact capsules with more breathing room. The pane header is slimmer: session name, git branch as a small badge, shortened project path, and status/model/context as plain text ticks (no heavy pills or green focus glow).
+
+### 05/26 · Release — Version 0.6.0
+Dev release 0.6.0 adds system tray and desktop notifications, MCP orchestration improvements, git workflow in the panel, a leaner dev build, feed polish with a typing indicator while agents work, and OS-aware keyboard shortcut hints.
+
+### 05/25 · Fix — Scroll to bottom on the right
+When you scroll up in a long session, the "scroll to bottom" button now appears in the bottom-right corner of the chat panel instead of on the left over the timeline.
+
+### 05/25 · Fix — Sidebar session search works
+The Search sessions field in the sidebar is now a real search box. Typing filters pinned and recent sessions by name, project, folder, branch, model, and status. Clear the field to show every session again.
+
+### 05/25 · Fix — Keyboard shortcut hints match your operating system
+Shortcut hints in the sidebar footer, inspector badge, and browse buttons now show Ctrl on Windows and Linux instead of macOS Command (⌘) symbols. Inspector toggle still works with Ctrl+I on Windows as before.
+
+### 05/24 · Improvement — Leaner dev workflow and disk usage
+`npm run tauri:dev` no longer runs a full Rust build before Tauri (one compile instead of two). The separate orbit-mcp binary was removed in favor of `orbit --mcp-stdio`, and sidecar files use hardlinks when possible so the executable is not duplicated on disk. Use `npm run clean` to remove `tauri/target` and other local artifacts, and `npm run dev:mock` when you only need the frontend.
+
+### 05/24 · New — System tray and desktop notifications
+Closing the window now keeps Orbit running in the system tray with the Orbit icon. Click the tray icon to show or hide the app; use the tray menu to quit or mute notifications. Desktop alerts fire when a session finishes, needs approval, errors, hits rate limits, or updates its task list. Mute globally from the sidebar or per session from the context menu.
+
+### 05/24 · Improvement — MCP orchestration UX and single executable
+The stats panel and sidebar now show whether MCP orchestration is ready (binary found and Orbit IPC listening). Clicking an MCP subagent in the agents tab opens its child session instead of an empty log. When a subagent spawns, the parent session expands in the sidebar and a short toast appears. Orbit no longer requires a separate MCP-only executable: the main app runs MCP stdio mode with `--mcp-stdio`, and project configs are written with that flag automatically.
+
+### 05/24 · Improvement — Chat errors and Ctrl+C in the session feed
+Session errors, failed messages, and agent stderr now appear directly in the chat timeline instead of only as toasts. Pressing Ctrl+C (or Cmd+C on Mac) stops the agent process more reliably and shows clear status lines in the feed.
+
+### 05/24 · Improvement — Git panel workflow and review coverage
+The Git tab now includes one-click actions to stage, commit, and reset changes, with live refresh when files change. Uncommitted changes show as a dot on session rows in the sidebar. End-to-end tests cover chat, tool diffs, git panel, and workspace flows in mock mode.
+
+### 05/24 · Improvement — Syntax highlighting across chat and markdown
+Tool diffs and assistant message code blocks now share consistent syntax highlighting for more languages, including Go, Java, C#, and PHP.
+
 ### 05/21 · Adjustment — Tighter border-radius, tool card copy buttons, full-width cards
 Cards, inputs, modals, and sidebar items now use smaller border-radius (4px/8px/12px) for a sharper look. Tool cards are full-width with copy buttons for both command and output, each labeled "cmd" and "out". The scroll-to-bottom button sits on the left aligned with the chat timeline. The "working" pill has a subtle pulse animation.
 The dark theme now uses a warmer palette: backgrounds shifted from pure black (#080808) to near-black with subtle warmth (#090a0a), text is now a softer off-white (#f1ece3), borders use translucent warm white (rgba 241,236,227), and the green accent is a calmer tone (#7bd99d). Reading long sessions is now noticeably more comfortable.

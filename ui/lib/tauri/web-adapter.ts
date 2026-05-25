@@ -155,6 +155,7 @@ export async function webInvoke<T>(cmd: string, args?: Args): Promise<T> {
     case 'get_rate_limits':
     case 'setup_orchestration':
     case 'check_orchestration':
+    case 'get_mcp_status':
     case 'check_env_var':
     case 'diagnose_provider':
     case 'test_ssh':

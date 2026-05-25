@@ -4,6 +4,30 @@ Este arquivo direciona agents ao guia principal do projeto.
 
 👉 **[CLAUDE.md](./CLAUDE.md)** — contem toda a referencia do projeto: stack, estrutura, convencoes, testes, CI, provider system, MCP integration, e mais.
 
+👉 **[git.ts](./ui/lib/tauri/git.ts)** — wrapper de git com funções para stage, commit e diff formatado.
+
+👉 **[docs/dev-workflow.md](./docs/dev-workflow.md)** — dev sem encher disco (`tauri:dev`, `clean`, `dev:mock`).
+
+## Git Workflow Improvements
+
+### PowerShell 5.1 Compatibility
+- **Problema**: `&&` não é suportado em PowerShell 5.1
+- **Solução**: Converter `&&` para `; if ($?) { }` automaticamente
+- **Função**: `gitStageAll()`, `gitCommit()`, `gitDiffFormatted()` no Tauri backend
+
+### Fluxo de Uso
+1. **Edit file** → `edit ui/lib/tauri/git.ts`
+2. **Stage changes** → `gitStageAll(cwd)`
+3. **View diff** → `gitDiffFormatted(cwd, 'ui/lib/tauri/git.ts')`
+4. **Commit** → `gitCommit(cwd, message)`
+
+### One-Click Actions Sugeridas
+- `Stage All Changed` → `git stage all`
+- `Stage All Staged` → `git reset staged`
+- `Commit Staged` → `git commit -m "$message"`
+- `Reset Changes` → `git reset working-tree`
+- `Quick Commit` → `git quick commit` (auto-generate message)
+
 ## Cursor Cloud specific instructions
 
 ### Environment overview
@@ -16,7 +40,7 @@ The `Cargo.toml` declares `rust-version = "1.85"` but some transitive dependenci
 
 ### Building the sidecar before clippy/build
 
-`cargo clippy` and `cargo build` for the main Tauri app will fail if the `orbit-mcp` sidecar binary hasn't been built first (`binaries/orbit-mcp-<triple>` must exist). Run `node scripts/build-sidecar.mjs` (or `npm run build:sidecar`) before any `cargo clippy`/`cargo build` on the workspace. The `npm run tauri:dev` script does this automatically.
+`cargo clippy` and `cargo build` for the main Tauri app need the sidecar binary present (`binaries/orbit-mcp-<triple>`). Run `node scripts/ensure-sidecar.mjs` (or `npm run build:sidecar`) before `cargo clippy`/`cargo build`. `npm run tauri:dev` does this automatically via hardlink from the main executable (`--mcp-stdio`).
 
 ### Running the frontend without the Rust backend
 

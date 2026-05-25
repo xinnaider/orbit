@@ -186,6 +186,52 @@ describe('ToolCallEntry', () => {
     expect(container.textContent).toContain('20 passed');
   });
 
+  it('shows streaming progress before tool result', () => {
+    const entry = makeEntry({
+      entryType: 'toolCall',
+      tool: 'bash',
+      toolInput: { command: 'npm test' },
+    });
+    const streaming = [
+      makeEntry({
+        entryType: 'progress',
+        text: 'running tests...',
+      }),
+    ];
+    const { container } = render(ToolCallEntry, {
+      props: { entry, resultEntry: null, streamingEntries: streaming, cwd: null },
+    });
+
+    expect(container.textContent).toContain('running tests');
+    expect(container.querySelector('.streaming-output')).toBeTruthy();
+  });
+
+  it('shows streaming edit diff preview before tool result', () => {
+    const entry = makeEntry({
+      entryType: 'toolCall',
+      tool: 'edit',
+      toolInput: { file_path: '/tmp/a.ts' },
+    });
+    const streaming = [
+      makeEntry({
+        entryType: 'progress',
+        tool: 'edit',
+        toolInput: {
+          file_path: '/tmp/a.ts',
+          old_string: 'before',
+          new_string: 'after',
+        },
+      }),
+    ];
+    const { container } = render(ToolCallEntry, {
+      props: { entry, resultEntry: null, streamingEntries: streaming, cwd: null },
+    });
+
+    expect(container.textContent).toContain('before');
+    expect(container.textContent).toContain('after');
+    expect(container.querySelector('.stream-diff-preview')).toBeTruthy();
+  });
+
   it('renders compact quiet tool card', () => {
     const entry = makeEntry({
       entryType: 'toolCall',

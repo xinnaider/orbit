@@ -1,202 +1,211 @@
 ---
-// MCP Orchestrator showcase
+const agents = [
+  ['claude-code', 'orchestrator session', 'active'],
+  ['codex', 'refactor provider API', 'running'],
+  ['claude-code', 'write regression tests', 'waiting'],
+  ['opencode', 'update release notes', 'complete'],
+];
+
+const tools = ['orbit_create_agent', 'orbit_get_status', 'orbit_send_message', 'orbit_cancel_agent'];
 ---
 
-<section class="orch-section" id="orchestrator" data-section>
-  <div class="orch-inner">
-    <p class="label">multi-agent orchestration</p>
-    <h2 class="title">Agents that spawn agents</h2>
-    <p class="subtitle">
-      Orbit includes a built-in MCP server. Any agent can delegate tasks
-      to other providers through standard tool calls — no configuration needed.
-    </p>
-
-    <div class="flow-card">
-      <div class="flow">
-        <div class="node node-parent">
-          <span class="node-icon">●</span>
-          <span class="node-name">claude-code</span>
-          <span class="node-role">orchestrator</span>
-        </div>
-
-        <div class="arrows">
-          <div class="arrow-line"></div>
-          <div class="arrow-line"></div>
-          <div class="arrow-line"></div>
-        </div>
-
-        <div class="children">
-          <div class="node node-child">
-            <span class="node-icon">○</span>
-            <span class="node-name">codex</span>
-            <span class="node-role">refactor API</span>
-          </div>
-          <div class="node node-child">
-            <span class="node-icon">○</span>
-            <span class="node-name">claude</span>
-            <span class="node-role">write tests</span>
-          </div>
-          <div class="node node-child">
-            <span class="node-icon">○</span>
-            <span class="node-name">opencode</span>
-            <span class="node-role">update docs</span>
-          </div>
-        </div>
+<section class="orchestrator section" id="orchestrator" data-snap-section>
+  <div class="orchestrator-layout">
+    <div class="orchestrator-copy">
+      <p class="section-kicker" data-reveal>embedded MCP server</p>
+      <h2 class="section-title" data-text-scrub>Agents can delegate work without leaving Orbit.</h2>
+      <p class="section-copy" data-reveal>
+        Claude Code, Codex, and OpenCode can be launched and monitored through standard MCP tool
+        calls. Parent and child sessions stay connected in the same UI.
+      </p>
+      <div class="tool-list" data-reveal>
+        {tools.map((tool) => <code>{tool}</code>)}
       </div>
     </div>
 
-    <div class="tools">
-      <code class="tool">orbit_create_agent</code>
-      <code class="tool">orbit_send_message</code>
-      <code class="tool">orbit_get_status</code>
-      <code class="tool">orbit_cancel_agent</code>
-    </div>
-
-    <div class="example">
-      <div class="example-bar">
-        <span class="example-dot"></span>
-        <span class="example-title">tool call example</span>
+    <div class="control-map" data-reveal>
+      <div class="workflow-grid">
+        {agents.map(([name, task, state]) => (
+          <div class="agent-card">
+            <div>
+              <strong>{name}</strong>
+              <span>{task}</span>
+            </div>
+            <em class:list={[`state-${state}`]}>{state}</em>
+          </div>
+        ))}
       </div>
-      <pre class="example-code"><span class="ek">{</span>
-  <span class="ep">"tool"</span>: <span class="ev">"orbit_create_agent"</span>,
-  <span class="ep">"input"</span>: <span class="ek">{</span>
-    <span class="ep">"provider"</span>: <span class="ev">"codex"</span>,
-    <span class="ep">"task"</span>: <span class="ev">"Refactor the user API to use async handlers"</span>,
-    <span class="ep">"cwd"</span>: <span class="ev">"/home/dev/project"</span>
-  <span class="ek">}</span>
-<span class="ek">}</span></pre>
     </div>
-
   </div>
 </section>
 
 <style>
-  .orch-section {
-    min-height: 100vh;
-    display: flex; align-items: center; justify-content: center;
-    padding: 80px 48px;
-    border-top: 1px solid var(--bd);
-    position: relative; z-index: 1;
-  }
-  .orch-inner {
-    max-width: 640px; width: 100%;
-    display: flex; flex-direction: column; align-items: center;
-    gap: 24px;
-  }
-  .label {
-    font-size: 9px; letter-spacing: 0.3em; text-transform: uppercase;
-    color: var(--t3);
-  }
-  .title {
-    font-size: clamp(20px, 3vw, 28px);
-    font-weight: 600; letter-spacing: 0.04em;
-    color: var(--t0); text-align: center;
-  }
-  .subtitle {
-    font-size: 12px; color: var(--t2);
-    line-height: 1.8; text-align: center;
-    max-width: 480px;
+  .orchestrator-layout {
+    align-items: center;
+    display: grid;
+    gap: 70px;
+    grid-template-columns: minmax(0, 0.86fr) minmax(390px, 1fr);
   }
 
-  /* Flow diagram */
-  .flow-card {
+  .tool-list {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: repeat(2, minmax(0, 220px));
+    justify-content: center;
+    margin-top: 30px;
+    max-width: 460px;
+  }
+
+  .tool-list code {
+    align-items: center;
+    background: rgba(77, 163, 255, 0.08);
+    border: 1px solid rgba(77, 163, 255, 0.18);
+    border-radius: 8px;
+    color: var(--cyan);
+    display: flex;
+    font-family: var(--mono);
+    font-size: 11px;
+    justify-content: center;
+    min-height: 42px;
+    padding: 0 12px;
+  }
+
+  .control-map {
+    background:
+      linear-gradient(135deg, rgba(241, 236, 227, 0.045), rgba(241, 236, 227, 0.015)),
+      rgba(12, 13, 13, 0.72);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: 0 34px 100px rgba(0, 0, 0, 0.36);
+    display: grid;
+    place-items: center;
+    min-height: 486px;
+    overflow: hidden;
+    padding: 34px;
+    position: relative;
+  }
+
+  .control-map::before {
+    background-image:
+      linear-gradient(rgba(241, 236, 227, 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(241, 236, 227, 0.035) 1px, transparent 1px);
+    background-size: 32px 32px;
+    content: '';
+    inset: 0;
+    opacity: 0.55;
+    pointer-events: none;
+    position: absolute;
+  }
+
+  .workflow-grid {
+    display: grid;
+    gap: 14px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-width: 520px;
+    position: relative;
     width: 100%;
-    border: 1px solid var(--bd);
-    border-radius: 6px;
-    background: #080808;
-    padding: 32px 24px;
-  }
-  .flow {
-    display: flex; align-items: center; justify-content: center;
-    gap: 20px;
-  }
-  .node {
-    display: flex; flex-direction: column; align-items: center; gap: 4px;
-    background: #0d0d0d;
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 6px; padding: 14px 18px;
-    min-width: 90px; text-align: center;
-    transition: border-color 0.3s, background 0.3s;
-  }
-  .node:hover { background: #111; }
-  .node-parent {
-    border-color: rgba(0, 212, 126, 0.35);
-    background: #0a120e;
-  }
-  .node-parent:hover { background: #0d1611; }
-  .node-icon { font-size: 10px; color: var(--ac); margin-bottom: 2px; }
-  .node-name { font-size: 11px; font-weight: 600; color: var(--t1); }
-  .node-role { font-size: 9px; color: var(--t3); letter-spacing: 0.03em; }
-
-  .arrows {
-    display: flex; flex-direction: column; gap: 8px;
-  }
-  .arrow-line {
-    width: 24px; height: 1px;
-    background: linear-gradient(90deg, rgba(0,212,126,0.4), rgba(0,212,126,0.1));
+    z-index: 1;
   }
 
-  .children {
-    display: flex; flex-direction: column; gap: 8px;
-  }
-  .node-child { padding: 10px 14px; min-width: 80px; }
-
-  /* Tool badges */
-  .tools {
-    display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
-  }
-  .tool {
-    font-size: 10px; color: var(--ac); opacity: 0.7;
-    letter-spacing: 0.04em;
-    background: rgba(0, 212, 126, 0.06);
-    border: 1px solid rgba(0, 212, 126, 0.15);
-    border-radius: 4px; padding: 5px 10px;
+  .agent-card {
+    align-items: flex-start;
+    backdrop-filter: blur(16px);
+    background: rgba(9, 10, 10, 0.86);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    justify-content: space-between;
+    min-height: 136px;
+    padding: 18px;
   }
 
-  /* Code example */
-  .example {
-    width: 100%;
-    border: 1px solid rgba(255,255,255,0.06);
-    border-radius: 6px; overflow: hidden;
-    background: #0a0a0a;
+  .agent-card:first-child {
+    border-color: rgba(124, 255, 158, 0.34);
+    box-shadow: inset 0 1px 0 rgba(124, 255, 158, 0.12);
   }
-  .example-bar {
-    display: flex; align-items: center; gap: 8px;
-    padding: 8px 14px;
-    background: #0e0e0e;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
-  }
-  .example-dot {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: var(--ac); opacity: 0.5;
-  }
-  .example-title {
-    font-size: 9px; color: var(--t3); letter-spacing: 0.1em; text-transform: uppercase;
-  }
-  .example-code {
-    padding: 16px;
-    font-family: 'Courier New', monospace;
-    font-size: 11px; line-height: 1.7;
-    color: var(--t2);
-    overflow-x: auto;
-  }
-  .example-code :global(.ek) { color: var(--t3); }
-  .example-code :global(.ep) { color: var(--ac); opacity: 0.8; }
-  .example-code :global(.ev) { color: var(--t1); }
 
-  @media (max-width: 768px) {
-    .orch-section { padding: 60px 16px; min-height: auto; }
-    .orch-inner { gap: 20px; }
-    .title { font-size: 22px; }
-    .subtitle { font-size: 11px; }
-    .flow-card { padding: 20px 14px; }
-    .flow { flex-direction: column; gap: 12px; }
-    .arrows { flex-direction: row; }
-    .arrow-line { width: 1px; height: 16px; }
-    .children { flex-direction: column; gap: 6px; }
-    .node { min-width: 70px; padding: 10px 12px; }
-    .tools { gap: 5px; }
-    .tool { font-size: 9px; padding: 4px 7px; }
-    .example-code { font-size: 10px; padding: 12px; }
+  .agent-card strong {
+    color: var(--text);
+    display: block;
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .agent-card span {
+    color: var(--quiet);
+    display: block;
+    margin-top: 3px;
+  }
+
+  .agent-card em {
+    border-radius: 999px;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-style: normal;
+    padding: 6px 8px;
+  }
+
+  .state-running {
+    background: var(--green-soft);
+    color: var(--green);
+  }
+
+  .state-active {
+    background: var(--green-soft);
+    color: var(--green);
+  }
+
+  .state-waiting {
+    background: var(--amber-soft);
+    color: var(--amber);
+  }
+
+  .state-complete {
+    background: var(--cyan-soft);
+    color: var(--cyan);
+  }
+
+  @media (max-width: 960px) {
+    .orchestrator-layout {
+      gap: 42px;
+      grid-template-columns: 1fr;
+    }
+
+    .control-map {
+      min-height: 420px;
+    }
+  }
+
+  @media (max-width: 560px) {
+    .control-map {
+      min-height: 0;
+      padding: 12px;
+    }
+
+    .workflow-grid {
+      gap: 8px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      max-width: none;
+    }
+
+    .agent-card {
+      gap: 8px;
+      min-height: 106px;
+      padding: 12px;
+    }
+
+    .tool-list {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      max-width: none;
+    }
+
+    .tool-list code {
+      font-size: 10px;
+      min-height: 40px;
+      padding: 0 8px;
+    }
   }
 </style>

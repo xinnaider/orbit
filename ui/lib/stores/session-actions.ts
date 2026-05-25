@@ -1,5 +1,6 @@
 import { get } from 'svelte/store';
 import { assignSession, workspace } from './workspace';
+import { expandParentSession } from './mcp-ui';
 import { selectedSessionId, sessions, upsertSession, type Session } from './sessions';
 
 export function upsertAndOpenSession(session: Session): void {
@@ -10,6 +11,9 @@ export function upsertAndOpenSession(session: Session): void {
 
 export function upsertSessionFromEvent(session: Session): void {
   sessions.update((list) => upsertSession(list, session));
+  if (session.parentSessionId != null) {
+    expandParentSession(session.parentSessionId);
+  }
   if (get(selectedSessionId)) return;
 
   const ws = get(workspace);

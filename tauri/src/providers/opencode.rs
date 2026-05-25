@@ -155,11 +155,13 @@ impl Provider for OpenCodeProvider {
             }
         }
 
-        if raw_model.split_once('/').is_some_and(|(provider, _)| {
-            crate::commands::providers::opencode_subproviders()
-                .iter()
-                .any(|sub| sub.id == provider)
-        }) {
+        if provider_id == "opencode"
+            && raw_model.split_once('/').is_some_and(|(provider, _)| {
+                crate::commands::providers::opencode_subproviders()
+                    .iter()
+                    .any(|sub| sub.id == provider)
+            })
+        {
             raw_model.to_string()
         } else {
             format!("{provider_id}/{raw_model}")
