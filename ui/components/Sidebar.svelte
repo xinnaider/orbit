@@ -474,64 +474,6 @@
     color: var(--t3);
   }
 
-  .quiet-session {
-    width: 100%;
-    border: 1px solid transparent;
-    border-radius: var(--radius-md);
-    padding: 10px 11px;
-    background: transparent;
-    color: var(--t1);
-    text-align: left;
-    cursor: pointer;
-  }
-  .quiet-session:hover {
-    background: color-mix(in srgb, var(--t0), transparent 97%);
-  }
-  .quiet-session.active {
-    color: var(--t0);
-    background: color-mix(in srgb, var(--t0), transparent 94%);
-    border-color: color-mix(in srgb, var(--t0), transparent 92%);
-  }
-  .session-topline {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    font-size: 12px;
-  }
-  .session-title {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .session-subline {
-    margin-top: 4px;
-    display: flex;
-    gap: 7px;
-    color: var(--t3);
-    font-family: var(--mono);
-    font-size: 10px;
-    white-space: nowrap;
-    overflow: hidden;
-  }
-
-  .git-dirty {
-    color: var(--s-input);
-    font-size: 9px;
-    line-height: 1;
-  }
-
-  .status-dot {
-    width: 8px;
-    height: 8px;
-    flex-shrink: 0;
-    border-radius: 50%;
-    box-shadow:
-      0 0 0 3px color-mix(in srgb, currentColor, transparent 84%),
-      0 0 14px currentColor;
-  }
-
   .confirm-overlay {
     position: fixed;
     inset: 0;
