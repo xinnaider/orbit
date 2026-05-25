@@ -273,6 +273,6 @@ describe('Sidebar', () => {
     mockSessionsStore.set([makeSession({ id: 1, name: 'One' })]);
     const { getByText } = render(Sidebar);
     expect(getByText(/drag sessions into panes/i)).toBeTruthy();
-    expect(getByText(/⌘I inspect/i)).toBeTruthy();
+    expect(getByText(/(?:⌘|Ctrl\+)I inspect/i)).toBeTruthy();
   });
 });

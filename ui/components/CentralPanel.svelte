@@ -7,6 +7,7 @@
   import { updateSessionState, sessions } from '../lib/stores/sessions';
   import { statusColor, statusLabel, modelShortName } from '../lib/status';
   import { metaPanelVisible, compactDensity } from '../lib/stores/preferences';
+  import { inspectorToggleHint } from '../lib/shortcuts';
   import Feed from './Feed.svelte';
   import InputBar from './InputBar.svelte';
   import PanelHeader from './workspace/PanelHeader.svelte';
@@ -130,7 +131,7 @@
       on:keydown={(e) => e.key === 'Enter' && metaPanelVisible.set(true)}
       title="Toggle inspector panel"
     >
-      inspector hidden • ⌘I
+      inspector hidden • {inspectorToggleHint()}
     </div>
   {/if}
 

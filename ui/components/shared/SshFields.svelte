@@ -1,5 +1,6 @@
 <script lang="ts">
   import { HAS_TAURI } from '../../lib/tauri/invoke';
+  import { browseButtonLabel } from '../../lib/shortcuts';
 
   export let sshHost: string;
   export let sshUser: string;
@@ -56,7 +57,9 @@
       placeholder="~/.ssh/id_rsa"
       disabled={loading}
     />
-    <button class="browse" on:click={browseKey} disabled={loading} title="browse">⌘</button>
+    <button class="browse" on:click={browseKey} disabled={loading} title="browse"
+      >{browseButtonLabel()}</button
+    >
   </div>
 </div>
 
