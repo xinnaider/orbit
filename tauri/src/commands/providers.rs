@@ -292,16 +292,15 @@ fn find_opencode_cli_model_for_subprovider(sp: &SubProvider, stored: &str) -> Op
         if model.id.eq_ignore_ascii_case(&stored) {
             return Some(format_opencode_cli_model(&sp.id, &model.id));
         }
-        if !stored.contains('/') {
-            if model.id.ends_with(&format!("/{stored}"))
+        if !stored.contains('/')
+            && (model.id.ends_with(&format!("/{stored}"))
                 || model
                     .id
                     .rsplit('/')
                     .next()
-                    .is_some_and(|tail| tail.eq_ignore_ascii_case(&stored))
-            {
-                return Some(format_opencode_cli_model(&sp.id, &model.id));
-            }
+                    .is_some_and(|tail| tail.eq_ignore_ascii_case(&stored)))
+        {
+            return Some(format_opencode_cli_model(&sp.id, &model.id));
         }
     }
     None
