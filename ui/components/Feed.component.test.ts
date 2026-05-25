@@ -137,11 +137,12 @@ describe('Feed', () => {
   });
 
   it('shows typing indicator when working', () => {
-    const { getByText } = render(Feed, {
+    const { getByText, container } = render(Feed, {
       props: { entries: [], status: 'working', provider: 'claude-code', cwd: null },
     });
 
     expect(getByText('working')).toBeTruthy();
+    expect(container.querySelector('.typing-dots')).toBeTruthy();
   });
 
   it('renders toolCall entry', () => {

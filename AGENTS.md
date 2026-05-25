@@ -6,6 +6,8 @@ Este arquivo direciona agents ao guia principal do projeto.
 
 👉 **[git.ts](./ui/lib/tauri/git.ts)** — wrapper de git com funções para stage, commit e diff formatado.
 
+👉 **[docs/dev-workflow.md](./docs/dev-workflow.md)** — dev sem encher disco (`tauri:dev`, `clean`, `dev:mock`).
+
 ## Git Workflow Improvements
 
 ### PowerShell 5.1 Compatibility

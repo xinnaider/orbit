@@ -95,3 +95,17 @@ pub fn list_project_files(cwd: String) -> Vec<String> {
     files.sort();
     files
 }
+
+#[tauri::command]
+pub fn search_project_files(cwd: String, query: String, limit: Option<u32>) -> Vec<String> {
+    let q = query.trim().to_lowercase();
+    if q.is_empty() {
+        return Vec::new();
+    }
+    let cap = limit.unwrap_or(50).min(200) as usize;
+    list_project_files(cwd)
+        .into_iter()
+        .filter(|path| path.to_lowercase().contains(&q))
+        .take(cap)
+        .collect()
+}

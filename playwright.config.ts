@@ -8,10 +8,10 @@ export default defineConfig({
   expect: {
     timeout: 10_000,
   },
-  fullyParallel: !isCI,
+  fullyParallel: false,
   forbidOnly: isCI,
   retries: isCI ? 2 : 0,
-  workers: isCI ? 1 : undefined,
+  workers: 1,
   reporter: isCI ? [['html'], ['list']] : 'list',
   use: {
     baseURL: 'http://127.0.0.1:1420',
@@ -29,6 +29,12 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+      testIgnore: ['**/tauri-smoke.spec.ts'],
+    },
+    {
+      name: 'tauri',
+      testMatch: ['**/tauri-smoke.spec.ts'],
       use: { ...devices['Desktop Chrome'] },
     },
   ],

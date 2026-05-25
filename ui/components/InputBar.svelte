@@ -10,12 +10,11 @@
   } from '../lib/tauri';
   import { messageHistory } from '../lib/stores/history';
   import { sessions, updateSessionState } from '../lib/stores/sessions';
-  import { journal } from '../lib/stores/journal';
   import { pendingMessages } from '../lib/stores/journal';
+  import { appendSessionFeedMessage } from '../lib/session-feed';
   import { sessionEffort } from '../lib/stores/ui';
   import { compactDensity } from '../lib/stores/preferences';
   import type { SlashCommand } from '../lib/types';
-  import type { JournalEntry } from '../lib/types';
   import { providerCaps, getCaps, backends as backendsStore } from '../lib/stores/providers';
   import SlashCommandPicker from './shared/SlashCommandPicker.svelte';
 
@@ -32,8 +31,12 @@
   let textarea: HTMLTextAreaElement;
   let commands: SlashCommand[] = [];
   let files: string[] = [];
-  let sendError = '';
   let picker: SlashCommandPicker;
+  let interrupting = false;
+
+  function showChatError(message: string) {
+    appendSessionFeedMessage(sessionId, message, { error: true });
+  }
 
   // Commands that require an interactive TTY — sending them kills the session.
   const INTERACTIVE_CMDS = new Set(['/mcp', '/login', '/logout', '/init', '/doctor']);
@@ -309,26 +312,22 @@ If the user provides neither role nor name nor mission, ask one concise question
   }
 
   function emitSystemEntry(msg: string) {
-    const entry: JournalEntry = {
-      sessionId: String(sessionId),
-      timestamp: new Date().toISOString(),
-      entryType: 'system',
-      text: msg,
-      thinking: null,
-      thinkingDuration: null,
-      tool: null,
-      toolInput: null,
-      output: null,
-      exitCode: null,
-      linesChanged: null,
-      seq: 0,
-      epoch: '',
-    };
-    journal.update((map) => {
-      const next = new Map(map);
-      next.set(sessionId, [...(next.get(sessionId) ?? []), entry]);
-      return next;
-    });
+    appendSessionFeedMessage(sessionId, msg);
+  }
+
+  async function interruptSession() {
+    if (interrupting) return;
+    interrupting = true;
+    appendSessionFeedMessage(sessionId, 'Stopping session (Ctrl+C)…');
+    try {
+      await stopSession(sessionId);
+      appendSessionFeedMessage(sessionId, 'Session stopped.');
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e);
+      showChatError(`Failed to stop session: ${message}`);
+    } finally {
+      interrupting = false;
+    }
   }
 
   onMount(async () => {
@@ -383,8 +382,7 @@ If the user provides neither role nor name nor mission, ask one concise question
     const cmd = msg.split(/\s/)[0].toLowerCase();
 
     if (INTERACTIVE_CMDS.has(cmd)) {
-      sendError = `${cmd} requires interactive input and is not supported inside Orbit`;
-      setTimeout(() => (sendError = ''), 5000);
+      showChatError(`${cmd} requires interactive input and is not supported inside Orbit`);
       return;
     }
 
@@ -393,8 +391,7 @@ If the user provides neither role nor name nor mission, ask one concise question
       const arg = msg.slice(6).trim();
       if (!arg) {
         const hint = MODEL_OPTIONS.length > 0 ? ` (${MODEL_OPTIONS.join(', ')})` : '';
-        sendError = `Usage: /model <name>${hint}`;
-        setTimeout(() => (sendError = ''), 5000);
+        showChatError(`Usage: /model <name>${hint}`);
         return;
       }
       text = '';
@@ -413,8 +410,7 @@ If the user provides neither role nor name nor mission, ask one concise question
     if (cmd === '/effort' && caps.supportsEffort) {
       const arg = msg.slice(7).trim().toLowerCase();
       if (!arg || !effortLevels.includes(arg)) {
-        sendError = `Usage: /effort <level> (${effortLevels.join(', ')})`;
-        setTimeout(() => (sendError = ''), 5000);
+        showChatError(`Usage: /effort <level> (${effortLevels.join(', ')})`);
         return;
       }
       text = '';
@@ -431,8 +427,7 @@ If the user provides neither role nor name nor mission, ask one concise question
       const { chosenProvider, userGoal } = parseProviderPrefix(rest);
 
       if (providerIsUnavailable(chosenProvider)) {
-        sendError = `${chosenProvider} is not installed`;
-        setTimeout(() => (sendError = ''), 5000);
+        showChatError(`${chosenProvider} is not installed`);
         return;
       }
 
@@ -448,8 +443,7 @@ If the user provides neither role nor name nor mission, ask one concise question
       try {
         await sendSessionMessage(sessionId, orchestratePrompt);
       } catch (e: any) {
-        sendError = e?.message ?? String(e);
-        setTimeout(() => (sendError = ''), 4000);
+        showChatError(e instanceof Error ? e.message : String(e));
       }
       return;
     }
@@ -460,8 +454,7 @@ If the user provides neither role nor name nor mission, ask one concise question
       const { chosenProvider, userGoal } = parseProviderPrefix(rest);
 
       if (providerIsUnavailable(chosenProvider)) {
-        sendError = `${chosenProvider} is not installed`;
-        setTimeout(() => (sendError = ''), 5000);
+        showChatError(`${chosenProvider} is not installed`);
         return;
       }
 
@@ -477,22 +470,19 @@ If the user provides neither role nor name nor mission, ask one concise question
       try {
         await sendSessionMessage(sessionId, createAgentPrompt);
       } catch (e: any) {
-        sendError = e?.message ?? String(e);
-        setTimeout(() => (sendError = ''), 4000);
+        showChatError(e instanceof Error ? e.message : String(e));
       }
       return;
     }
 
     text = '';
-    sendError = '';
     if (textarea) textarea.style.height = 'auto';
     messageHistory.push(String(sessionId), msg);
     pendingMessages.add(msg);
     try {
       await sendSessionMessage(sessionId, msg);
-    } catch (e: any) {
-      sendError = e?.message ?? String(e);
-      setTimeout(() => (sendError = ''), 4000);
+    } catch (e: unknown) {
+      showChatError(e instanceof Error ? e.message : String(e));
     }
   }
 
@@ -525,29 +515,9 @@ If the user provides neither role nor name nor mission, ask one concise question
   function onKey(e: KeyboardEvent) {
     if (picker?.handleKey(e)) return;
 
-    if (e.ctrlKey && e.key === 'c' && text === '') {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'c' && text === '') {
       e.preventDefault();
-      stopSession(sessionId);
-      journal.update((m) => {
-        const entries = m.get(sessionId) ?? [];
-        entries.push({
-          sessionId: String(sessionId),
-          timestamp: new Date().toISOString(),
-          entryType: 'system',
-          text: 'Sent interrupt signal (Ctrl+C)',
-          thinking: null,
-          thinkingDuration: null,
-          tool: null,
-          toolInput: null,
-          output: null,
-          exitCode: null,
-          linesChanged: null,
-          seq: entries.length,
-          epoch: '',
-        });
-        m.set(sessionId, entries);
-        return new Map(m);
-      });
+      void interruptSession();
       return;
     }
 
@@ -601,17 +571,13 @@ If the user provides neither role nor name nor mission, ask one concise question
     pendingMessages.add(msg);
     try {
       await sendSessionMessage(sessionId, msg);
-    } catch (e: any) {
-      sendError = e?.message ?? String(e);
-      setTimeout(() => (sendError = ''), 4000);
+    } catch (e: unknown) {
+      showChatError(e instanceof Error ? e.message : String(e));
     }
   }
 </script>
 
 <div class="input-area quiet-composer" class:compact>
-  {#if sendError}
-    <div class="send-error">! {sendError}</div>
-  {/if}
   <!-- Autocomplete dropdowns -->
   <SlashCommandPicker
     bind:this={picker}
@@ -704,14 +670,6 @@ If the user provides neither role nor name nor mission, ask one concise question
     position: relative;
     flex-shrink: 0;
   }
-  .send-error {
-    padding: var(--sp-3) var(--sp-6);
-    font-size: var(--xs);
-    color: var(--s-error);
-    border-bottom: 1px solid rgba(224, 72, 72, 0.2);
-    background: rgba(224, 72, 72, 0.05);
-  }
-
   .input-row {
     display: flex;
     align-items: flex-end;

@@ -4,7 +4,6 @@
   import Markdown from './Markdown.svelte';
   import ToolCallEntry from './ToolCallEntry.svelte';
   import { backends } from '../lib/stores/providers';
-  import { Sparkles } from 'lucide-svelte';
 
   export let entries: JournalEntry[] = [];
   export let status: string = '';
@@ -297,7 +296,12 @@
           {:else if entry.entryType === 'user'}
             <div class="event-text user-text">{entry.text}</div>
           {:else}
-            <div class="event-text system-text">{entry.text}</div>
+            <div
+              class="event-text system-text"
+              class:system-error={entry.feedError}
+            >
+              {entry.text}
+            </div>
           {/if}
         </div>
       </article>
@@ -310,7 +314,14 @@
           <div class="event-meta">
             <span class="event-actor working">orbit / {agentLabel}</span>
           </div>
-          <div class="working-pill"><Sparkles size={12} /> working</div>
+          <div class="working-pill" role="status" aria-live="polite">
+            <span class="working-word">working</span>
+            <span class="typing-dots" aria-hidden="true">
+              <span class="dot"></span>
+              <span class="dot"></span>
+              <span class="dot"></span>
+            </span>
+          </div>
         </div>
       </article>
     {/if}
@@ -451,11 +462,20 @@
     font-family: var(--mono);
     font-size: 12px;
   }
+  .system-text.system-error {
+    color: var(--s-error);
+    border-left: 2px solid var(--s-error);
+    padding-left: 10px;
+    background: color-mix(in srgb, var(--s-error), transparent 92%);
+    border-radius: 4px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
 
   .working-pill {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     color: var(--think-fg);
     background: var(--think-bg);
     border: 1px solid color-mix(in srgb, var(--think-fg), transparent 82%);
@@ -463,16 +483,48 @@
     padding: 7px 10px;
     font-family: var(--mono);
     font-size: 10px;
-    animation: workingPulse 2.4s ease-in-out infinite;
+    line-height: 1;
   }
 
-  @keyframes workingPulse {
+  .working-word {
+    letter-spacing: 0.02em;
+  }
+
+  .typing-dots {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 10px;
+    padding-bottom: 1px;
+  }
+
+  .typing-dots .dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.35;
+    animation: typingDot 1.2s ease-in-out infinite;
+  }
+
+  .typing-dots .dot:nth-child(2) {
+    animation-delay: 0.15s;
+  }
+
+  .typing-dots .dot:nth-child(3) {
+    animation-delay: 0.3s;
+  }
+
+  @keyframes typingDot {
     0%,
+    70%,
     100% {
-      opacity: 0.7;
+      opacity: 0.35;
+      transform: translateY(0) scale(1);
     }
-    50% {
+    35% {
       opacity: 1;
+      transform: translateY(-3px) scale(1.1);
     }
   }
 

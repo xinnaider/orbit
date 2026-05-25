@@ -1,17 +1,19 @@
 <script lang="ts">
   import { sessions, updateSessionState } from '../lib/stores/sessions';
-  import { workspace, assignSession } from '../lib/stores/workspace';
   import { upsertAndOpenSession } from '../lib/stores/session-actions';
-  import { get } from 'svelte/store';
-  import { statusColor } from '../lib/status';
   import NewSessionModal from './NewSessionModal.svelte';
   import ContextMenu from './ContextMenu.svelte';
   import RenameSessionModal from './RenameSessionModal.svelte';
   import { deleteSession, stopSession, getAppVersion } from '../lib/tauri';
+  import { appendSessionFeedMessage } from '../lib/session-feed';
   import { mutedSessions, pinnedSessions, togglePin } from '../lib/stores/ui';
   import { modelShortName } from '../lib/status';
   import { onMount } from 'svelte';
-  import { clearAttention } from '../lib/tauri/attention';
+  import SessionListItem from './SessionListItem.svelte';
+  import McpStatusBadge from './McpStatusBadge.svelte';
+  import DesktopNotifyToggle from './DesktopNotifyToggle.svelte';
+  import SidebarFooterHints from './SidebarFooterHints.svelte';
+  import { expandedParentSessions } from '../lib/stores/mcp-ui';
 
   function attentionColor(reason: string | null): string {
     switch (reason) {
@@ -65,22 +67,25 @@
     'Delete'
   );
 
-  let expandedParents: Set<number> = new Set();
-
-  function getChildren(list: typeof $sessions, parentId: number) {
-    return list.filter((s) => s.parentSessionId === parentId);
+  function toggleExpand(parentId: number) {
+    expandedParentSessions.update((set) => {
+      if (set.has(parentId)) {
+        return new Set([...set].filter((id) => id !== parentId));
+      }
+      return new Set([...set, parentId]);
+    });
   }
 
-  function selectOrToggle(s: (typeof $sessions)[0], hasChildren: boolean) {
-    const ws = get(workspace);
-    if (ws.focusedPaneId) assignSession(ws.focusedPaneId, s.id);
-    if (s.attention?.requiresAttention) clearAttention(s.id);
-    if (hasChildren) {
-      expandedParents = new Set(
-        expandedParents.has(s.id)
-          ? [...expandedParents].filter((id) => id !== s.id)
-          : [...expandedParents, s.id]
-      );
+  // Auto-expand parents when MCP child sessions appear
+  $: {
+    const parentIds = $sessions
+      .map((s) => s.parentSessionId)
+      .filter((id): id is number => id != null);
+    if (parentIds.length > 0) {
+      expandedParentSessions.update((set) => {
+        const next = new Set([...set, ...parentIds]);
+        return next.size === set.size ? set : next;
+      });
     }
   }
 
@@ -111,8 +116,10 @@
     } else if (action === 'stop') {
       try {
         await stopSession(sessionId);
-      } catch (_e) {
-        /* no-op */
+        appendSessionFeedMessage(sessionId, 'Session stopped.');
+      } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : String(e);
+        appendSessionFeedMessage(sessionId, `Failed to stop session: ${message}`, { error: true });
       }
     } else if (action === 'mute') {
       mutedSessions.toggle(String(sessionId));
@@ -222,6 +229,7 @@
       {/if}
     </div>
     <div class="header-actions">
+      <McpStatusBadge compact />
       <ThemePicker />
     </div>
   </header>
@@ -241,37 +249,16 @@
       <div class="section-label">Pinned</div>
       <div class="session-list">
         {#each pinnedList as s (s.id)}
-          {@const hasChildren = getChildren($sessions, s.id).length > 0}
-          {@const branchLabel = s.branchName ?? s.gitBranch ?? null}
-          <button
-            type="button"
-            class="session-item quiet-session pinned"
-            class:active={$workspace.panes[$workspace.focusedPaneId ?? '']?.tabs.some(
-              (tab) => tab.target.kind === 'agent' && tab.target.sessionId === s.id
-            )}
-            draggable="true"
-            data-testid="session-item"
-            on:dragstart={(e) => {
-              e.dataTransfer?.setData('text/plain', JSON.stringify({ sessionId: s.id }));
-            }}
-            on:click={() => selectOrToggle(s, hasChildren)}
-            on:contextmenu={(e) => onContextMenu(e, s)}
-          >
-            <span class="session-topline">
-              <span class="session-title">{displayName(s)}</span>
-              <span
-                class="status-dot"
-                style="background:{attentionColor(s.attention?.reason ?? null) ||
-                  statusColor(s.status)}"
-              ></span>
-            </span>
-            <span class="session-subline">
-              <span>{fmtModel(s.model)}</span>
-              {#if branchLabel}<span>{branchLabel}</span>{/if}
-              {#if (s.contextPercent ?? 0) > 0}<span>{Math.round(s.contextPercent ?? 0)}% ctx</span
-                >{/if}
-            </span>
-          </button>
+          <SessionListItem
+            session={s}
+            pinned
+            expandedParents={$expandedParentSessions}
+            onToggleExpand={toggleExpand}
+            onContextMenu={onContextMenu}
+            {displayName}
+            {fmtModel}
+            {attentionColor}
+          />
         {/each}
       </div>
     </section>
@@ -286,43 +273,24 @@
         <div class="empty quiet-empty">All sessions pinned</div>
       {:else}
         {#each recentList as s (s.id)}
-          {@const hasChildren = getChildren($sessions, s.id).length > 0}
-          {@const branchLabel = s.branchName ?? s.gitBranch ?? null}
-          <button
-            type="button"
-            class="session-item quiet-session"
-            class:active={$workspace.panes[$workspace.focusedPaneId ?? '']?.tabs.some(
-              (tab) => tab.target.kind === 'agent' && tab.target.sessionId === s.id
-            )}
-            draggable="true"
-            data-testid="session-item"
-            on:dragstart={(e) => {
-              e.dataTransfer?.setData('text/plain', JSON.stringify({ sessionId: s.id }));
-            }}
-            on:click={() => selectOrToggle(s, hasChildren)}
-            on:contextmenu={(e) => onContextMenu(e, s)}
-          >
-            <span class="session-topline">
-              <span class="session-title">{displayName(s)}</span>
-              <span
-                class="status-dot"
-                style="background:{attentionColor(s.attention?.reason ?? null) ||
-                  statusColor(s.status)}"
-              ></span>
-            </span>
-            <span class="session-subline">
-              <span>{fmtModel(s.model)}</span>
-              {#if branchLabel}<span>{branchLabel}</span>{/if}
-              {#if (s.contextPercent ?? 0) > 0}<span>{Math.round(s.contextPercent ?? 0)}% ctx</span
-                >{/if}
-            </span>
-          </button>
+          <SessionListItem
+            session={s}
+            expandedParents={$expandedParentSessions}
+            onToggleExpand={toggleExpand}
+            onContextMenu={onContextMenu}
+            {displayName}
+            {fmtModel}
+            {attentionColor}
+          />
         {/each}
       {/if}
     </div>
   </section>
 
-  <footer class="footer quiet-footer">drag sessions into panes • ⌘\ split • ⌘I inspect</footer>
+  <footer class="footer quiet-footer">
+    <SidebarFooterHints />
+    <DesktopNotifyToggle />
+  </footer>
 </aside>
 
 <style>
@@ -493,6 +461,13 @@
     white-space: nowrap;
     overflow: hidden;
   }
+
+  .git-dirty {
+    color: var(--s-input);
+    font-size: 9px;
+    line-height: 1;
+  }
+
   .status-dot {
     width: 8px;
     height: 8px;
@@ -560,6 +535,10 @@
     color: var(--t3);
     font-family: var(--mono);
     font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
   }
 
   @keyframes pulse {

@@ -1,5 +1,11 @@
 import type { Session, TokenUsage } from '../stores/sessions';
 import type { JournalEntry, SlashCommand, SubagentInfo, TaskItem } from '../types';
+import {
+  buildFixtureAssistantEntry,
+  buildFixtureToolPair,
+  buildFixtureUserEntry,
+  parseFixtureTriggers,
+} from './journal-fixtures';
 
 const nowIso = () => new Date().toISOString();
 
@@ -120,6 +126,117 @@ let mockApiKeys = [
 ];
 
 const savedProviderKeys = new Map<string, { envVar: string; apiKey: string }>();
+
+let mockGitCommitted = false;
+
+function mockGitOverview(cwd: string) {
+  if (mockGitCommitted) {
+    return {
+      cwd,
+      branch: 'feat/improve-feed-ui',
+      upstream: 'origin/feat/improve-feed-ui',
+      ahead: 3,
+      behind: 0,
+      files: [],
+      branches: [],
+      statusOutput: '',
+    };
+  }
+
+  return {
+    cwd,
+    branch: 'feat/improve-feed-ui',
+    upstream: 'origin/feat/improve-feed-ui',
+    ahead: 3,
+    behind: 0,
+    files: [
+      {
+        id: 'staged:src/components/GitPanel.svelte',
+        path: 'src/components/GitPanel.svelte',
+        fileName: 'GitPanel.svelte',
+        group: 'staged',
+        status: 'modified',
+        staged: true,
+        untracked: false,
+        oldPath: null,
+        additions: 200,
+        deletions: 0,
+      },
+      {
+        id: 'unstaged:src/components/GitPanel.svelte',
+        path: 'src/components/GitPanel.svelte',
+        fileName: 'GitPanel.svelte',
+        group: 'unstaged',
+        status: 'modified',
+        staged: false,
+        untracked: false,
+        oldPath: null,
+        additions: 15,
+        deletions: 3,
+      },
+      {
+        id: 'unstaged:tauri/src/commands/git.rs',
+        path: 'tauri/src/commands/git.rs',
+        fileName: 'git.rs',
+        group: 'unstaged',
+        status: 'added',
+        staged: false,
+        untracked: false,
+        oldPath: null,
+        additions: 280,
+        deletions: 0,
+      },
+      {
+        id: 'untracked:ui/lib/git-tree.ts',
+        path: 'ui/lib/git-tree.ts',
+        fileName: 'git-tree.ts',
+        group: 'untracked',
+        status: 'untracked',
+        staged: false,
+        untracked: true,
+        oldPath: null,
+        additions: null,
+        deletions: null,
+      },
+      {
+        id: 'untracked:ui/lib/git-tags.ts',
+        path: 'ui/lib/git-tags.ts',
+        fileName: 'git-tags.ts',
+        group: 'untracked',
+        status: 'untracked',
+        staged: false,
+        untracked: true,
+        oldPath: null,
+        additions: null,
+        deletions: null,
+      },
+      {
+        id: 'staged:package.json',
+        path: 'package.json',
+        fileName: 'package.json',
+        group: 'staged',
+        status: 'modified',
+        staged: true,
+        untracked: false,
+        oldPath: null,
+        additions: 3,
+        deletions: 0,
+      },
+    ],
+    branches: [
+      {
+        name: 'feat/improve-feed-ui',
+        fullName: 'refs/heads/feat/improve-feed-ui',
+        kind: 'local',
+        current: true,
+        upstream: 'origin/feat/improve-feed-ui',
+        ahead: 3,
+        behind: 0,
+      },
+    ],
+    statusOutput: 'M  src/components/GitPanel.svelte\nA  tauri/src/commands/git.rs\n',
+  };
+}
 
 const MOCK_SESSIONS: Session[] = [
   {
@@ -600,7 +717,23 @@ export async function mockInvoke(cmd: string, args?: Record<string, unknown>): P
       return mockProjects;
 
     case 'list_project_files':
-      return ['src/index.ts', 'src/auth/auth.ts', 'src/api/routes.ts', 'package.json', 'README.md'];
+      return [
+        'src/auth/auth.ts',
+        'src/components/GitPanel.svelte',
+        'ui/lib/tauri/git.ts',
+        'README.md',
+      ];
+
+    case 'search_project_files': {
+      const query = String(args?.query ?? '').toLowerCase();
+      const all = [
+        'src/auth/auth.ts',
+        'src/components/GitPanel.svelte',
+        'ui/lib/tauri/git.ts',
+        'README.md',
+      ];
+      return all.filter((p) => p.toLowerCase().includes(query)).slice(0, Number(args?.limit ?? 50));
+    }
 
     case 'read_file_content': {
       const filePath = args?.path as string;
@@ -656,127 +789,46 @@ export async function mockInvoke(cmd: string, args?: Record<string, unknown>): P
 
     case 'git_overview': {
       const cwd = (args?.cwd as string) ?? '';
-      return {
-        cwd,
-        branch: 'feat/improve-feed-ui',
-        upstream: 'origin/feat/improve-feed-ui',
-        ahead: 3,
-        behind: 0,
-        files: [
-          {
-            id: 'staged:src/components/GitPanel.svelte',
-            path: 'src/components/GitPanel.svelte',
-            fileName: 'GitPanel.svelte',
-            group: 'staged',
-            status: 'modified',
-            staged: true,
-            untracked: false,
-            oldPath: null,
-            additions: 200,
-            deletions: 0,
-          },
-          {
-            id: 'unstaged:src/components/GitPanel.svelte',
-            path: 'src/components/GitPanel.svelte',
-            fileName: 'GitPanel.svelte',
-            group: 'unstaged',
-            status: 'modified',
-            staged: false,
-            untracked: false,
-            oldPath: null,
-            additions: 15,
-            deletions: 3,
-          },
-          {
-            id: 'unstaged:tauri/src/commands/git.rs',
-            path: 'tauri/src/commands/git.rs',
-            fileName: 'git.rs',
-            group: 'unstaged',
-            status: 'added',
-            staged: false,
-            untracked: false,
-            oldPath: null,
-            additions: 280,
-            deletions: 0,
-          },
-          {
-            id: 'untracked:ui/lib/git-tree.ts',
-            path: 'ui/lib/git-tree.ts',
-            fileName: 'git-tree.ts',
-            group: 'untracked',
-            status: 'untracked',
-            staged: false,
-            untracked: true,
-            oldPath: null,
-            additions: null,
-            deletions: null,
-          },
-          {
-            id: 'untracked:ui/lib/git-tags.ts',
-            path: 'ui/lib/git-tags.ts',
-            fileName: 'git-tags.ts',
-            group: 'untracked',
-            status: 'untracked',
-            staged: false,
-            untracked: true,
-            oldPath: null,
-            additions: null,
-            deletions: null,
-          },
-          {
-            id: 'staged:package.json',
-            path: 'package.json',
-            fileName: 'package.json',
-            group: 'staged',
-            status: 'modified',
-            staged: true,
-            untracked: false,
-            oldPath: null,
-            additions: 3,
-            deletions: 0,
-          },
-        ],
-        branches: [
-          {
-            name: 'feat/improve-feed-ui',
-            fullName: 'refs/heads/feat/improve-feed-ui',
-            kind: 'local',
-            current: true,
-            upstream: 'origin/feat/improve-feed-ui',
-            ahead: 3,
-            behind: 0,
-          },
-          {
-            name: 'master',
-            fullName: 'refs/heads/master',
-            kind: 'local',
-            current: false,
-            upstream: 'origin/master',
-            ahead: 0,
-            behind: 1,
-          },
-          {
-            name: 'origin/feat/improve-feed-ui',
-            fullName: 'refs/remotes/origin/feat/improve-feed-ui',
-            kind: 'remote',
-            current: false,
-            upstream: null,
-            ahead: 0,
-            behind: 0,
-          },
-          {
-            name: 'origin/master',
-            fullName: 'refs/remotes/origin/master',
-            kind: 'remote',
-            current: false,
-            upstream: null,
-            ahead: 0,
-            behind: 0,
-          },
-        ],
-        statusOutput: 'M  src/components/GitPanel.svelte\nA  tauri/src/commands/git.rs\n',
-      };
+      return mockGitOverview(cwd);
     }
+
+    case 'git_stage_all': {
+      mockGitCommitted = false;
+      return null;
+    }
+
+    case 'git_reset_staged':
+    case 'git_reset_working_tree':
+      return null;
+
+    case 'git_stage_file':
+    case 'git_unstage_file':
+      return null;
+
+    case 'git_commit': {
+      mockGitCommitted = true;
+      return null;
+    }
+
+    case 'git_quick_commit': {
+      mockGitCommitted = true;
+      return null;
+    }
+
+    case 'git_validate_config':
+      return true;
+
+    case 'git_diff_formatted': {
+      const filePath = String(args?.filePath ?? 'ui/lib/tauri/git.ts');
+      return `\`\`\`diff\ndiff --git a/${filePath} b/${filePath}\n--- a/${filePath}\n+++ b/${filePath}\n@@ -1,3 +1,5 @@\n unchanged\n+added line\n \`\`\`\n\nLanguage hint: typescript`;
+    }
+
+    case 'git_snapshot':
+      return {
+        branch: 'feat/improve-feed-ui',
+        dirty: !mockGitCommitted,
+        changedFiles: mockGitCommitted ? 0 : 4,
+      };
 
     case 'git_diff_file': {
       const path = (args?.path as string) ?? '';
@@ -952,7 +1004,19 @@ export async function mockInvoke(cmd: string, args?: Record<string, unknown>): P
       return `${String(args?.projectPath ?? 'C:\\Users\\dev\\project')}\\.mcp.json`;
 
     case 'check_orchestration':
-      return { available: true, path: 'C:\\Users\\dev\\project\\.mcp.json' };
+    case 'get_desktop_notifications_enabled':
+      return true;
+    case 'set_desktop_notifications_enabled':
+      return null;
+    case 'get_mcp_status':
+      return {
+        binaryAvailable: true,
+        binaryPath: 'C:\\mock\\Orbit.exe',
+        ipcListening: true,
+        orchestrationReady: true,
+        unifiedBinary: true,
+        stdioArg: '--mcp-stdio',
+      };
 
     case 'diagnose_provider': {
       const backend = (args?.backend as string) ?? 'claude-code';
@@ -973,13 +1037,76 @@ export async function mockInvoke(cmd: string, args?: Record<string, unknown>): P
     case 'test_ssh':
       return { ok: true, latencyMs: 42, error: '' };
 
+    case 'get_diff':
+      return {
+        filePath: 'mock.ts',
+        fromVersion: 0,
+        toVersion: 1,
+        hunks: [],
+        added: 0,
+        removed: 0,
+      };
+
+    case 'get_file_versions':
+      return [];
+
+    case 'respond_permission':
+    case 'clear_attention':
+      return null;
+
     default:
       console.warn('[mock] Unhandled invoke:', cmd, args);
       return null;
   }
 }
 
+function simulateFixtureResponse(sessionId: number, userMsg: string) {
+  const kinds = parseFixtureTriggers(userMsg);
+  if (!kinds) return false;
+
+  if (!journals[sessionId]) journals[sessionId] = [];
+
+  const userEntry = buildFixtureUserEntry(sessionId, userMsg);
+  journals[sessionId].push(userEntry);
+  mockEmit('session:output', { sessionId, entry: userEntry });
+  mockEmit('session:state', makeStateEvent(sessionId, 'working'));
+
+  let delay = 400;
+  for (const kind of kinds) {
+    const { call, result } = buildFixtureToolPair(sessionId, kind);
+    setTimeout(() => {
+      journals[sessionId].push(call);
+      mockEmit('session:output', { sessionId, entry: call });
+    }, delay);
+    delay += 500;
+    setTimeout(() => {
+      journals[sessionId].push(result);
+      mockEmit('session:output', { sessionId, entry: result });
+    }, delay);
+    delay += 400;
+  }
+
+  setTimeout(() => {
+    const aiEntry = buildFixtureAssistantEntry(sessionId, kinds);
+    journals[sessionId].push(aiEntry);
+    mockEmit('session:output', { sessionId, entry: aiEntry });
+    mockEmit(
+      'session:state',
+      makeStateEvent(sessionId, 'idle', {
+        input: 800,
+        output: 200,
+        cacheRead: 0,
+        cacheWrite: 0,
+      })
+    );
+  }, delay + 200);
+
+  return true;
+}
+
 function simulateClaudeResponse(sessionId: number, userMsg: string) {
+  if (simulateFixtureResponse(sessionId, userMsg)) return;
+
   if (!journals[sessionId]) journals[sessionId] = [];
 
   const userEntry: JournalEntry = {

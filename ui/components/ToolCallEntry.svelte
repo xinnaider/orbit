@@ -15,32 +15,7 @@
     Maximize2,
     Copy,
   } from 'lucide-svelte';
-  import hljs from 'highlight.js/lib/core';
-  import javascript from 'highlight.js/lib/languages/javascript';
-  import typescript from 'highlight.js/lib/languages/typescript';
-  import python from 'highlight.js/lib/languages/python';
-  import rust from 'highlight.js/lib/languages/rust';
-  import css from 'highlight.js/lib/languages/css';
-  import xml from 'highlight.js/lib/languages/xml';
-  import json from 'highlight.js/lib/languages/json';
-  import bashLang from 'highlight.js/lib/languages/bash';
-  import yaml from 'highlight.js/lib/languages/yaml';
-  import markdownLang from 'highlight.js/lib/languages/markdown';
-
-  hljs.registerLanguage('javascript', javascript);
-  hljs.registerLanguage('typescript', typescript);
-  hljs.registerLanguage('python', python);
-  hljs.registerLanguage('rust', rust);
-  hljs.registerLanguage('css', css);
-  hljs.registerLanguage('xml', xml);
-  hljs.registerLanguage('html', xml);
-  hljs.registerLanguage('json', json);
-  hljs.registerLanguage('bash', bashLang);
-  hljs.registerLanguage('shell', bashLang);
-  hljs.registerLanguage('yaml', yaml);
-  hljs.registerLanguage('markdown', markdownLang);
-  hljs.registerLanguage('svelte', xml);
-
+  import { detectLang, highlightCode } from '../lib/highlight';
   import { readFileContent } from '../lib/tauri/files';
 
   type DiffLine = {
@@ -179,6 +154,8 @@
     }));
 
   $: hasStreamDiffs = streamEdits.length > 0 || streamWrites.length > 0;
+  $: showStreamingBody = streamingEntries.length > 0 && !resultEntry;
+  $: showBody = hasDetail || !!resultEntry?.output || showStreamingBody;
   $: writeVisible = writeLines.slice(0, 6);
 
   // Code text (bash only — Write is handled via writeLines)
@@ -220,39 +197,6 @@
     let out = parts.length > 2 ? parts.slice(-2).join('/') : clean;
     if (out.length > 50) out = out.slice(0, 47) + '...';
     return out;
-  }
-
-  function detectLang(filePath: string): string {
-    const ext = filePath.split('.').pop()?.toLowerCase() ?? '';
-    const map: Record<string, string> = {
-      js: 'javascript',
-      jsx: 'javascript',
-      mjs: 'javascript',
-      ts: 'typescript',
-      tsx: 'typescript',
-      py: 'python',
-      rs: 'rust',
-      css: 'css',
-      html: 'html',
-      svelte: 'svelte',
-      vue: 'html',
-      json: 'json',
-      yaml: 'yaml',
-      yml: 'yaml',
-      sh: 'bash',
-      bash: 'bash',
-      zsh: 'bash',
-      md: 'markdown',
-      toml: 'yaml',
-    };
-    return map[ext] ?? '';
-  }
-
-  function doHighlight(code: string, language: string): string {
-    if (language && hljs.getLanguage(language)) {
-      return hljs.highlight(code, { language }).value;
-    }
-    return hljs.highlightAuto(code).value;
   }
 
   function buildInlineLines(chunks: Change[]): DiffLine[] {
@@ -364,7 +308,7 @@
     </span>
   </div>
 
-  {#if hasDetail || resultEntry?.output}
+  {#if showBody}
     <div class="tc-body quiet-tool-body">
       {#if hasEditDiff}
         <div class="diff-block">
@@ -374,7 +318,7 @@
               <span class="dl-prefix"
                 >{dl.type === 'add' ? '+' : dl.type === 'rem' ? '-' : ' '}</span
               >
-              <span class="dl-code">{@html doHighlight(dl.text, lang)}</span>
+              <span class="dl-code">{@html highlightCode(dl.text, lang)}</span>
             </div>
           {/each}
           {#if inlineOverflow > 0}
@@ -389,7 +333,7 @@
             <div class="diff-line add">
               <span class="dl-num">{dl.lineNo}</span>
               <span class="dl-prefix">+</span>
-              <span class="dl-code">{@html doHighlight(dl.text, lang)}</span>
+              <span class="dl-code">{@html highlightCode(dl.text, lang)}</span>
             </div>
           {/each}
           {#if writeOverflow > 0}
@@ -400,11 +344,11 @@
         </div>
       {:else if hasBashCommand}
         <div class="bash-body">
-          <pre class="bash-code"><code>{@html doHighlight(codeText, 'bash')}</code></pre>
+          <pre class="bash-code"><code>{@html highlightCode(codeText, 'bash')}</code></pre>
         </div>
       {/if}
 
-      {#if streamingEntries.length > 0 && !resultEntry}
+      {#if showStreamingBody}
         <div class="streaming-output">
           {#if hasStreamDiffs}
             {#each streamEdits as edit}
@@ -415,7 +359,7 @@
                     <div class="diff-line {dl.type}">
                       <span class="dl-num">{dl.lineNo}</span>
                       <span class="dl-prefix">{dl.type === 'add' ? '+' : '-'}</span>
-                      <span class="dl-code">{@html doHighlight(dl.text, lang)}</span>
+                      <span class="dl-code">{@html highlightCode(dl.text, lang)}</span>
                     </div>
                   {/each}
                 </div>
@@ -430,7 +374,7 @@
                       <span class="dl-num">{dl.lineNo}</span>
                       <span class="dl-prefix">+</span>
                       <span class="dl-code"
-                        >{@html doHighlight(dl.text, detectLang(write.name))}</span
+                        >{@html highlightCode(dl.text, detectLang(write.name))}</span
                       >
                     </div>
                   {/each}
@@ -460,7 +404,7 @@
                 {#each parsed.code.split('\n') as line, li}
                   <tr>
                     <td class="line-num">{parsed.lineNums[li] ?? ''}</td>
-                    <td class="line-code">{@html doHighlight(line, lang)}</td>
+                    <td class="line-code">{@html highlightCode(line, lang)}</td>
                   </tr>
                 {/each}
               </tbody>
@@ -518,7 +462,7 @@
                     <span class="dl-prefix"
                       >{dl.type === 'add' ? '+' : dl.type === 'rem' ? '-' : ' '}</span
                     >
-                    <span class="dl-code">{@html doHighlight(dl.text, lang)}</span>
+                    <span class="dl-code">{@html highlightCode(dl.text, lang)}</span>
                   </div>
                 {/each}
               </div>
@@ -542,7 +486,7 @@
                   <div class="diff-line add">
                     <span class="dl-num">{dl.lineNo}</span>
                     <span class="dl-prefix">+</span>
-                    <span class="dl-code">{@html doHighlight(dl.text, lang)}</span>
+                    <span class="dl-code">{@html highlightCode(dl.text, lang)}</span>
                   </div>
                 {/each}
               </div>
@@ -561,7 +505,7 @@
               </button>
             </div>
             <div class="modal-card-body">
-              <pre class="code-text"><code>{@html doHighlight(codeText, 'bash')}</code></pre>
+              <pre class="code-text"><code>{@html highlightCode(codeText, 'bash')}</code></pre>
             </div>
           </div>
         {/if}
@@ -587,7 +531,7 @@
                       {#each parsed.code.split('\n') as line, li}
                         <tr>
                           <td class="line-num">{parsed.lineNums[li] ?? ''}</td>
-                          <td class="line-code">{@html doHighlight(line, lang)}</td>
+                          <td class="line-code">{@html highlightCode(line, lang)}</td>
                         </tr>
                       {/each}
                     </tbody>

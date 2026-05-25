@@ -87,3 +87,13 @@ export interface GitUpdatePayload {
 export function onSessionGitUpdate(cb: (payload: GitUpdatePayload) => void) {
   return listen<GitUpdatePayload>('session:git-update', (e) => cb(e.payload));
 }
+
+export interface SubagentCreatedPayload {
+  parentSessionId: number;
+  description: string;
+  tool: string;
+}
+
+export function onSessionSubagentCreated(cb: (payload: SubagentCreatedPayload) => void) {
+  return listen<SubagentCreatedPayload>('session:subagent-created', (e) => cb(e.payload));
+}

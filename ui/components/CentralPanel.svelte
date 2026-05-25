@@ -9,6 +9,7 @@
   import { metaPanelVisible, compactDensity } from '../lib/stores/preferences';
   import Feed from './Feed.svelte';
   import InputBar from './InputBar.svelte';
+  import PermissionDialog from './PermissionDialog.svelte';
   import PanelHeader from './workspace/PanelHeader.svelte';
 
   export let session: Session;
@@ -94,6 +95,16 @@
     return modelShortName(m);
   }
 
+  function parseToolName(approval: string): string {
+    const match = approval.match(/^Allow\s+(.+?)\?/);
+    return match ? match[1] : approval;
+  }
+
+  function parseToolDesc(approval: string): string {
+    const match = approval.match(/^Allow\s+.+?\?\s*(.*)/);
+    return match ? match[1].trim() : '';
+  }
+
   $: providerModelIds = (() => {
     const p = session?.provider ?? 'claude-code';
     for (const b of $backendsStore) {
@@ -134,8 +145,16 @@
     </div>
   {/if}
 
+  {#if session.pendingApproval}
+    <PermissionDialog
+      sessionId={session.id}
+      toolName={parseToolName(session.pendingApproval)}
+      description={parseToolDesc(session.pendingApproval)}
+    />
+  {/if}
+
   <!-- Feed -->
-  <div class="feed-wrap">
+  <div class="feed-wrap" data-testid="session-feed">
     {#if entries.length === 0 && $pendingMessages.length === 0}
       <div class="feed-empty">
         <span>session #{session.id} · {statusStr}</span>

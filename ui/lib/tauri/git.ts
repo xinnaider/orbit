@@ -108,6 +108,16 @@ export function gitResetWorkingTree(cwd: string): Promise<void> {
   return invoke<void>('git_reset_working_tree', { cwd });
 }
 
+/** Stage a single file */
+export function gitStageFile(cwd: string, filePath: string): Promise<void> {
+  return invoke<void>('git_stage_file', { cwd, filePath });
+}
+
+/** Unstage a single file */
+export function gitUnstageFile(cwd: string, filePath: string): Promise<void> {
+  return invoke<void>('git_unstage_file', { cwd, filePath });
+}
+
 /** Chain git commands to handle PowerShell 5.1 limitations (convert && to ; if ($?) { }) */
 export function chainGitCommands(commands: string[]): string[] {
   return commands.map(cmd => cmd.replace(/&&/g, '; if ($?) { }'));

@@ -8,6 +8,7 @@ pub mod mcp_transport;
 pub mod models;
 pub mod providers;
 pub mod services;
+pub mod tray;
 
 #[cfg(test)]
 pub mod test_utils;
@@ -30,6 +31,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             // Resolve app data directory for SQLite DB
             let data_dir = app
@@ -221,6 +223,8 @@ pub fn run() {
                 }
             }
 
+            tray::setup(app.handle())?;
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -254,9 +258,19 @@ pub fn run() {
             commands::git::git_overview,
             commands::git::git_diff_file,
             commands::git::git_snapshot,
+            commands::git::git_stage_all,
+            commands::git::git_reset_staged,
+            commands::git::git_commit,
+            commands::git::git_quick_commit,
+            commands::git::git_reset_working_tree,
+            commands::git::git_diff_formatted,
+            commands::git::git_validate_config,
+            commands::git::git_stage_file,
+            commands::git::git_unstage_file,
             commands::files::get_subagent_journal,
             commands::plugins::get_slash_commands,
             commands::files::list_project_files,
+            commands::files::search_project_files,
             commands::files::read_file_content,
             commands::files::write_file_content,
             commands::tasks::get_tasks,
@@ -270,6 +284,9 @@ pub fn run() {
             commands::providers::diagnose_provider,
             commands::orchestration::setup_orchestration,
             commands::orchestration::check_orchestration,
+            commands::orchestration::get_mcp_status,
+            commands::desktop::get_desktop_notifications_enabled,
+            commands::desktop::set_desktop_notifications_enabled,
             ipc::terminal::pty_create,
             ipc::terminal::pty_write,
             ipc::terminal::pty_resize,

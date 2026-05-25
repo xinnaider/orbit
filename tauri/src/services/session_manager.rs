@@ -14,8 +14,11 @@ use crate::services::{database::DatabaseService, mcp_config};
 
 /// Write provider-specific MCP configs in the project directory so agents can use orbit-mcp tools.
 fn ensure_mcp_config(cwd: &str) {
-    let mcp_bin = mcp_config::find_orbit_mcp().unwrap_or_else(|| "orbit-mcp".to_string());
-    if let Err(e) = mcp_config::write_orbit_mcp_configs(std::path::Path::new(cwd), &mcp_bin) {
+    let Some(launch) = mcp_config::mcp_launch() else {
+        eprintln!("[orbit:mcp] failed to resolve MCP launch command");
+        return;
+    };
+    if let Err(e) = mcp_config::write_orbit_mcp_configs(std::path::Path::new(cwd), &launch) {
         eprintln!("[orbit:mcp] failed to write provider MCP configs: {e}");
     }
 }
@@ -776,10 +779,15 @@ impl SessionManager {
                             .active
                             .get(&session_id)
                             .and_then(|a| a.claude_session_id.clone());
-                        let subagents = claude_session_id
+                        let mut subagents = claude_session_id
                             .as_deref()
                             .map(crate::agent_tree::read_subagents)
                             .unwrap_or_default();
+                        for mcp in m.get_mcp_subagents(session_id) {
+                            if !subagents.iter().any(|s| s.id == mcp.id) {
+                                subagents.push(mcp);
+                            }
+                        }
 
                         let state = m.journal_states.entry(session_id).or_default();
 
@@ -1372,7 +1380,7 @@ fn kill_pid(pid: u32) {
         use std::os::windows::process::CommandExt;
         const CREATE_NO_WINDOW: u32 = 0x08000000;
         let _ = std::process::Command::new("taskkill")
-            .args(["/F", "/PID", &pid.to_string()])
+            .args(["/F", "/T", "/PID", &pid.to_string()])
             .creation_flags(CREATE_NO_WINDOW)
             .output();
     }
@@ -1381,6 +1389,10 @@ fn kill_pid(pid: u32) {
     {
         let _ = std::process::Command::new("kill")
             .args(["-TERM", &pid.to_string()])
+            .output();
+        std::thread::sleep(std::time::Duration::from_millis(300));
+        let _ = std::process::Command::new("kill")
+            .args(["-KILL", &pid.to_string()])
             .output();
     }
 }
