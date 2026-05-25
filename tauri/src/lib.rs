@@ -219,6 +219,8 @@ pub fn run() {
                 {
                     let _ = window.set_icon(icon);
                 }
+                // Transparent windows need shadow off on Windows when using effects/opacity.
+                let _ = window.set_shadow(true);
             }
 
             Ok(())
@@ -280,6 +282,7 @@ pub fn run() {
             ipc::http_api::get_http_settings,
             ipc::http_api::set_http_settings,
             ipc::http_api::get_lan_ip,
+            commands::window::set_window_opacity,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

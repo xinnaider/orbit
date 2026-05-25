@@ -4,6 +4,9 @@
 
 ## May 2026
 
+### 05/25 · New — Adjustable window transparency
+You can change how see-through the Orbit window is from the palette menu in the sidebar. Drag the **Window opacity** slider from fully clear (0%) to solid (100%); the change applies immediately and is remembered next time you open the app. Text and panels stay readable at lower opacity, and the setting works with every color theme.
+
 ### 05/21 · Adjustment — Tighter border-radius, tool card copy buttons, full-width cards
 Cards, inputs, modals, and sidebar items now use smaller border-radius (4px/8px/12px) for a sharper look. Tool cards are full-width with copy buttons for both command and output, each labeled "cmd" and "out". The scroll-to-bottom button sits on the left aligned with the chat timeline. The "working" pill has a subtle pulse animation.
 The dark theme now uses a warmer palette: backgrounds shifted from pure black (#080808) to near-black with subtle warmth (#090a0a), text is now a softer off-white (#f1ece3), borders use translucent warm white (rgba 241,236,227), and the green accent is a calmer tone (#7bd99d). Reading long sessions is now noticeably more comfortable.
