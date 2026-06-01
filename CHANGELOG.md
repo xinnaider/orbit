@@ -4,6 +4,9 @@
 
 ## May 2026
 
+### 06/01 · Fix — Follow-up messages restore for OpenCode and avoid duplicates
+Follow-up prompts you send in OpenCode sessions now reappear correctly after you restart Orbit. Claude sessions no longer show the same follow-up message twice when the CLI echoes it back in the stream.
+
 ### 05/25 · Fix — No flashing console windows on Windows
 Sending messages, watching git status, and spawning agent CLIs no longer briefly opens a black terminal window in the background.
 

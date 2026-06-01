@@ -12,6 +12,10 @@ pub fn apply_silent(cmd: &mut Command) {
         use std::os::windows::process::CommandExt;
         cmd.creation_flags(CREATE_NO_WINDOW);
     }
+    #[cfg(not(windows))]
+    {
+        let _ = cmd;
+    }
 }
 
 fn is_windows_script_shim(path: &str) -> bool {

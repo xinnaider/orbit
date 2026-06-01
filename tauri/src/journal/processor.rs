@@ -114,6 +114,50 @@ fn count_changed_lines(old_text: &str, new_text: &str) -> LinesChanged {
 
 /// Process a single raw JSONL line from PTY stdout and update state.
 /// This is the real-time counterpart to parse_journal (which reads files).
+/// Plain-text user JSONL that Orbit injects before spawn (`create_session` / `send_message`).
+pub fn injected_user_text(line: &str) -> Option<String> {
+    let val: serde_json::Value = serde_json::from_str(line.trim()).ok()?;
+    if val.get("type").and_then(|v| v.as_str()) != Some("user") {
+        return None;
+    }
+    let content = val.get("message")?.get("content")?;
+    let text = content.as_str()?;
+    if text.trim().is_empty() {
+        None
+    } else {
+        Some(text.to_string())
+    }
+}
+
+/// True when `line` is a plain-text user echo Orbit already showed (not tool_result blocks).
+pub fn is_duplicate_injected_user_line(state: &JournalState, line: &str) -> bool {
+    let Some(text) = injected_user_text(line) else {
+        return false;
+    };
+    state.entries.iter().rev().any(|e| {
+        e.entry_type == JournalEntryType::User
+            && e.text
+                .as_deref()
+                .is_some_and(|existing| existing.trim() == text.trim())
+    })
+}
+
+/// Restore a persisted Orbit user prompt into the journal (used by OpenCode on DB replay).
+pub fn push_injected_user_line(state: &mut JournalState, line: &str) -> bool {
+    let Some(text) = injected_user_text(line) else {
+        return false;
+    };
+    if is_duplicate_injected_user_line(state, line) {
+        return false;
+    }
+    state.entries.push(JournalEntry {
+        entry_type: JournalEntryType::User,
+        text: Some(text),
+        ..JournalEntry::default()
+    });
+    true
+}
+
 pub fn process_line(state: &mut JournalState, line: &str) {
     let trimmed = line.trim();
     if trimmed.is_empty() {
@@ -684,8 +728,10 @@ pub fn process_line_opencode(state: &mut JournalState, line: &str) {
             }
         }
 
-        // Initial user prompt is injected by create_session; OpenCode may echo user JSONL.
-        "user" => {}
+        // OpenCode JSONL has no user events; Orbit persists prompts in Claude-compatible JSONL.
+        "user" => {
+            push_injected_user_line(state, line);
+        }
 
         _ => {
             process_line(state, line);
@@ -953,6 +999,25 @@ pub fn process_line_codex(state: &mut JournalState, line: &str) {
         _ => {
             process_line(state, line);
         }
+    }
+}
+
+#[cfg(test)]
+mod injected_user_line_tests {
+    use super::*;
+    use crate::test_utils::{user_text, TestCase};
+
+    #[test]
+    fn should_detect_duplicate_injected_user_line() {
+        let mut t = TestCase::new("should_detect_duplicate_injected_user_line");
+        t.phase("Act");
+        let mut state = JournalState::default();
+        process_line(&mut state, &user_text("hello"));
+        let dup = is_duplicate_injected_user_line(&state, &user_text("hello"));
+        let tool = is_duplicate_injected_user_line(&state, &crate::test_utils::tool_result("out"));
+        t.phase("Assert");
+        t.eq("duplicate plain user", dup, true);
+        t.eq("tool_result is not a duplicate", tool, false);
     }
 }
 
@@ -1367,6 +1432,36 @@ mod process_line_opencode_tests {
         t.eq("output tokens", state.output_tokens, 5u64);
         t.eq("cache write", state.cache_write, 3u64);
         t.eq("cache read", state.cache_read, 4u64);
+    }
+
+    #[test]
+    fn should_restore_orbit_persisted_user_prompt_on_opencode_replay() {
+        let mut t = TestCase::new("should_restore_orbit_persisted_user_prompt_on_opencode_replay");
+        t.phase("Act");
+        let mut state = JournalState::default();
+        process_line_opencode(
+            &mut state,
+            r#"{"type":"user","message":{"content":"Fix the tests"},"timestamp":"2026-01-01T00:00:00Z"}"#,
+        );
+        t.phase("Assert");
+        t.len("one user entry", &state.entries, 1);
+        t.eq(
+            "text restored",
+            state.entries[0].text.as_deref(),
+            Some("Fix the tests"),
+        );
+    }
+
+    #[test]
+    fn should_not_duplicate_opencode_user_on_replay() {
+        let mut t = TestCase::new("should_not_duplicate_opencode_user_on_replay");
+        t.phase("Act");
+        let mut state = JournalState::default();
+        let line = r#"{"type":"user","message":{"content":"same prompt"}}"#;
+        process_line_opencode(&mut state, line);
+        process_line_opencode(&mut state, line);
+        t.phase("Assert");
+        t.len("still one user entry", &state.entries, 1);
     }
 
     #[test]
