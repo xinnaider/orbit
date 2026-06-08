@@ -283,7 +283,10 @@
         <span class="tc-target">{shortPath(target, toolClass)}</span>
       {/if}
     </span>
-    <span class="tc-state" class:failed={toolState === 'failed'}>{toolState}</span>
+    <span class="tc-status">
+      <span class="tc-dot {toolState}" aria-hidden="true"></span>
+      <span class="tc-state" class:failed={toolState === 'failed'}>{toolState}</span>
+    </span>
     <span class="tc-actions">
       <button
         class="tc-expand tc-action--label"
@@ -997,6 +1000,37 @@
     color: var(--tool-fg);
     font-family: var(--mono);
     font-size: 11px;
+  }
+  .tc-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .tc-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--t3);
+  }
+  .tc-dot.done {
+    background: var(--ac);
+  }
+  .tc-dot.failed {
+    background: var(--s-error);
+  }
+  .tc-dot.working {
+    background: var(--tool-fg);
+    animation: tcPulse 1.2s ease-in-out infinite;
+  }
+  @keyframes tcPulse {
+    0%,
+    100% {
+      opacity: 0.35;
+    }
+    50% {
+      opacity: 1;
+    }
   }
   .tc-state {
     color: var(--t2);

@@ -279,11 +279,23 @@
                   {/if}
                 </span>
               </span>
-              {#if entry.thinkingDuration}
-                <span class="event-ts">{entry.thinkingDuration.toFixed(1)}s</span>
-              {/if}
-              <button class="expand-btn" onclick={() => toggleThinking(absIdx)}>
-                {expanded ? '▼' : '▶'}
+              <button
+                class="think-chip"
+                class:open={expanded}
+                onclick={() => toggleThinking(absIdx)}
+                aria-label={expanded ? 'collapse thinking' : 'expand thinking'}
+                aria-expanded={expanded}
+              >
+                <svg class="chev" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path
+                    d="M6 4l4 4-4 4"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                {#if entry.thinkingDuration}{entry.thinkingDuration.toFixed(1)}s{/if}
               </button>
             </div>
             {#if expanded}
@@ -460,13 +472,11 @@
     font-size: 12px;
   }
   .system-text.system-error {
-    color: var(--s-error);
+    color: var(--t1);
     border-left: 2px solid var(--s-error);
-    padding-left: 10px;
-    background: color-mix(in srgb, var(--s-error), transparent 92%);
-    border-radius: 4px;
-    padding-top: 6px;
-    padding-bottom: 6px;
+    padding: 4px 0 4px 12px;
+    background: none;
+    border-radius: 0;
   }
 
   .working-pill {
@@ -618,19 +628,35 @@
     margin-top: 5px;
   }
 
-  .expand-btn {
+  .think-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
     background: none;
-    border: none;
+    border: 1px solid var(--bd1);
+    border-radius: 999px;
     color: var(--t2);
     font-size: 10px;
-    cursor: pointer;
     font-family: var(--mono);
-    padding: 0;
     line-height: 1;
-    letter-spacing: 0.05em;
+    padding: 3px 9px 3px 7px;
+    cursor: pointer;
+    transition:
+      color 0.15s,
+      border-color 0.15s;
   }
-  .expand-btn:hover {
-    color: var(--t1);
+  .think-chip:hover {
+    color: var(--think-fg);
+    border-color: color-mix(in srgb, var(--think-fg), transparent 60%);
+  }
+  .think-chip .chev {
+    width: 9px;
+    height: 9px;
+    transition: transform 0.18s ease;
+  }
+  .think-chip.open .chev {
+    transform: rotate(90deg);
   }
 
   /* ── Compact density ── */

@@ -2,6 +2,13 @@
 
 ---
 
+## June 2026
+
+### 06/08 · Improvement — Clearer chat feed
+The chat feed is easier to read at a glance. The "thinking" line now expands with a tidy chevron button instead of a small arrow, tool steps show a colored status dot (green when done, red on failure, pulsing while running), and error messages are simpler — a clean red line instead of a heavy highlighted box.
+
+---
+
 ## May 2026
 
 ### 05/25 · Fix — No flashing console windows on Windows
