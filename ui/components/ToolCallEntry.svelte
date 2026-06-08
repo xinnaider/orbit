@@ -452,7 +452,7 @@
               <button
                 class="card-copy-btn"
                 onclick={async () => copyToClipboard(await getCopyContent())}
-                title="Copiar conteúdo"
+                title="Copy content"
               >
                 <Copy size={10} /> copy
               </button>
@@ -478,7 +478,7 @@
               <button
                 class="card-copy-btn"
                 onclick={async () => copyToClipboard(await getCopyContent())}
-                title="Copiar conteúdo"
+                title="Copy content"
               >
                 <Copy size={10} /> copy
               </button>
@@ -502,7 +502,7 @@
               <button
                 class="card-copy-btn"
                 onclick={() => copyToClipboard(entry.toolInput!.command as string)}
-                title="Copiar comando"
+                title="Copy command"
               >
                 <Copy size={10} /> copy
               </button>
@@ -520,7 +520,7 @@
               <button
                 class="card-copy-btn"
                 onclick={() => copyToClipboard(resultEntry.output!)}
-                title="Copiar output"
+                title="Copy output"
               >
                 <Copy size={10} /> copy
               </button>

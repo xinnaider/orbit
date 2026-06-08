@@ -211,9 +211,9 @@
 <div class="alert-info">
   <span class="alert-icon">ⓘ</span>
   <span>
-    Configure sua API diretamente no CLI correspondente
+    Configure your API directly in the matching CLI
     (<strong>OpenCode</strong>, <strong>Claude Code</strong>, etc.).
-    O Orbit usará as credenciais já configuradas no seu terminal.
+    Orbit will use the credentials already set up in your terminal.
   </span>
 </div>
 

@@ -44,7 +44,7 @@ pub async fn install_update(app: AppHandle) -> Result<(), String> {
         .check()
         .await
         .map_err(|e| e.to_string())?
-        .ok_or_else(|| "Nenhuma atualização disponível".to_string())?;
+        .ok_or_else(|| "No update available".to_string())?;
 
     update
         .download_and_install(|_downloaded, _total| {}, || {})
