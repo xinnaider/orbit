@@ -18,6 +18,7 @@
   import { upsertAndOpenSession, upsertSessionFromEvent } from './lib/stores/session-actions';
   import { journal } from './lib/stores/journal';
   import { connectDaemonSse } from './lib/daemon-client';
+  import { resolveSessionForRun } from './lib/daemon-runs';
   import { rawJournal } from './lib/stores/rawJournal';
   import { taskUpdateTrigger } from './lib/stores/tasks';
   import { addToast } from './lib/stores/toasts';
@@ -345,16 +346,12 @@
     });
 
     // Opt-in: stream daemon SDK events straight into the feed when a daemon URL
-    // is configured. The resolver maps the daemon's runId to a numeric session
-    // via the sessionId the daemon attaches to each event's data payload.
+    // is configured. Events route to a session via the run registry, populated
+    // when a session opens a daemon run (see daemon-session.ts).
     let disposeDaemon: (() => void) | null = null;
     const daemonUrl = import.meta.env.VITE_DAEMON_URL as string | undefined;
     if (daemonUrl) {
-      disposeDaemon = connectDaemonSse(daemonUrl, (e) => {
-        const raw = (e.data?.sessionId ?? null) as number | string | null;
-        const id = typeof raw === 'string' ? Number(raw) : raw;
-        return typeof id === 'number' && Number.isFinite(id) ? id : null;
-      });
+      disposeDaemon = connectDaemonSse(daemonUrl, (e) => resolveSessionForRun(e.runId));
     }
 
     // Resolve all unlisten functions and store for cleanup
