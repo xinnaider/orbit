@@ -101,6 +101,17 @@ describe('createDaemonFeedBridge', () => {
     expect(entries[1].entryType).toBe('toolResult');
   });
 
+  it('accumulates tool.delta chunks with the same id into one progress entry', () => {
+    const bridge = createDaemonFeedBridge(() => 1);
+    bridge.ingest(ev('tool.delta', { id: 't1', text: 'line 1\n' }));
+    bridge.ingest(ev('tool.delta', { id: 't1', text: 'line 2\n' }));
+
+    const entries = feed(1);
+    expect(entries).toHaveLength(1);
+    expect(entries[0].entryType).toBe('progress');
+    expect(entries[0].text).toBe('line 1\nline 2\n');
+  });
+
   it('routes events to the right session via the resolver', () => {
     const bridge = createDaemonFeedBridge((e) => (e.runId === 'run_a' ? 10 : 20));
     bridge.ingest(ev('message.completed', { messageId: 'm1', text: 'A' }, 'run_a'));
