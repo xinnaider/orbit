@@ -8,25 +8,73 @@ Este arquivo direciona agents ao guia principal do projeto.
 
 👉 **[docs/dev-workflow.md](./docs/dev-workflow.md)** — dev sem encher disco (`tauri:dev`, `clean`, `dev:mock`).
 
-## Git Workflow Improvements
+## Regras de Git — Branches, Tracking e Push
 
-### PowerShell 5.1 Compatibility
-- **Problema**: `&&` não é suportado em PowerShell 5.1
-- **Solução**: Converter `&&` para `; if ($?) { }` automaticamente
-- **Função**: `gitStageAll()`, `gitCommit()`, `gitDiffFormatted()` no Tauri backend
+### ⚠️ Criação de branch: SEMPRE sem tracking automático
 
-### Fluxo de Uso
+**REGRA:** Ao criar uma nova branch, use `git checkout -b <nome>` sem especificar remote.
+NUNCA use `git checkout -b <nome> <remote>/<branch>` — isso configura tracking automático.
+
+**Por quê:** `git checkout -b fix/chat-feed origin/dev` configurou tracking automático para `origin/dev`. Isso fez o branch local parecer "conectado" ao remoto, causando confusão sobre para onde os commits iriam.
+
+**Solução correta:**
+```bash
+# ✅ CORRETO — branch local pura, sem tracking
+git checkout -b fix/chat-feed       # baseado no branch atual
+git checkout -b fix/chat-feed --no-track origin/dev  # baseado no remote, sem tracking
+
+# ❌ ERRADO — tracking automático configurado
+git checkout -b fix/chat-feed origin/dev
+```
+
+**Verificação:** Após criar a branch, confirme que não há tracking:
+```bash
+git branch -vv
+# ✅ Correto:   fix/chat-feed    42617d8 [mensagem do commit]
+# ❌ Tracking:  fix/chat-feed    42617d8 [origin/dev] fix: suppress Windows...
+#                                          ^^^^^^^^^^^
+#                                          tracking ativo — NÃO QUEREMOS ISSO
+```
+
+Se o tracking foi configurado acidentalmente, remova com:
+```bash
+git branch --unset-upstream
+```
+
+### Push: só quando explicitamente solicitado
+
+- **NUNCA** fazer push sem o usuário pedir explicitamente
+- O primeiro push de uma nova branch deve usar o formato completo:
+  ```bash
+  git push -u origin <nome-da-branch>
+  ```
+  Isso empurra apenas para aquela branch remota, nunca para `dev`/`master`
+- `git push` sem argumentos só funciona depois do `-u` acima — e empurra para a branch com **mesmo nome** no remoto, nunca para `dev`
+
+### Commits ficam na branch atual
+
+- Todo commit vai apenas para a branch em que você está
+- Para confirmar antes de commitar:
+  ```bash
+  git branch --show-current   # mostra a branch atual
+  ```
+- Nenhum commit "vaza" para outra branch — a menos que você explicitamente faça merge, rebase ou cherry-pick
+
+### Regressões: anotar em lessons.md
+
+**SEMPRE** que uma regressão, erro de configuração ou confusão de workflow ocorrer:
+1. Identifique o padrão do erro (não apenas o caso específico)
+2. Adicione uma entrada em `docs/lessons.md` com:
+   - **Regra**: o que fazer (ou não fazer)
+   - **Por quê**: motivação / o que deu errado
+   - **Quando aplicar**: contexto em que a regra vale
+3. Itere nas lições existentes se o mesmo erro se repetir
+
+### Fluxo de Uso — Git Stage/Commit (Tauri backend)
 1. **Edit file** → `edit ui/lib/tauri/git.ts`
 2. **Stage changes** → `gitStageAll(cwd)`
 3. **View diff** → `gitDiffFormatted(cwd, 'ui/lib/tauri/git.ts')`
 4. **Commit** → `gitCommit(cwd, message)`
-
-### One-Click Actions Sugeridas
-- `Stage All Changed` → `git stage all`
-- `Stage All Staged` → `git reset staged`
-- `Commit Staged` → `git commit -m "$message"`
-- `Reset Changes` → `git reset working-tree`
-- `Quick Commit` → `git quick commit` (auto-generate message)
 
 ## Cursor Cloud specific instructions
 

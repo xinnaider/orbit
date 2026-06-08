@@ -239,7 +239,6 @@ describe('NewSessionModal', () => {
         sessionName: expect.any(String),
         useWorktree: false,
         provider: 'claude-code',
-        apiKey: undefined,
         sshHost: undefined,
         sshUser: undefined,
         sshKeyPath: undefined,

@@ -2,7 +2,7 @@
   import { onMount, createEventDispatcher } from 'svelte';
   import { HAS_TAURI } from '../lib/tauri/invoke';
   import { createSession, getProviders, diagnoseProvider } from '../lib/tauri';
-  import { saveProviderKey } from '../lib/tauri/providers';
+
   import { backends as backendsStore, providerCaps, getCaps } from '../lib/stores/providers';
   import type { Session } from '../lib/stores/sessions';
   import type { ProviderDiagnostic } from '../lib/tauri';
@@ -22,7 +22,6 @@
   let model = 'auto';
   let backendId = 'claude-code';
   let subProviderId = '';
-  let apiKeyOverride = '';
   let loading = false;
   let error = '';
   let diag: ProviderDiagnostic | null = null;
@@ -136,12 +135,6 @@
     loading = true;
     error = '';
     const resolvedProvider = resolveProvider();
-    const apiKeyForSession: string | undefined =
-      hasSubProviders &&
-      (selectedBackend?.subProviders.find((p) => p.id === subProviderId)?.env ?? []).length > 0 &&
-      apiKeyOverride.trim()
-        ? apiKeyOverride.trim()
-        : undefined;
     try {
       const session = await createSession({
         projectPath: path.trim(),
@@ -151,18 +144,10 @@
         sessionName: finalName,
         useWorktree,
         provider: resolvedProvider,
-        apiKey: apiKeyForSession,
         sshHost: sshMode ? sshHost.trim() : undefined,
         sshUser: sshMode ? sshUser.trim() : undefined,
         sshKeyPath: sshMode && sshKeyPath.trim() ? sshKeyPath.trim() : undefined,
       });
-      // Save API key per provider so next session auto-fills it
-      if (hasSubProviders && subProviderId && apiKeyForSession) {
-        const envVars =
-          selectedBackend?.subProviders.find((p) => p.id === subProviderId)?.env ?? [];
-        const envVar = envVars[0] ?? `${subProviderId.toUpperCase().replace(/-/g, '_')}_API_KEY`;
-        saveProviderKey(subProviderId, envVar, apiKeyForSession).catch(() => {});
-      }
       dispatch('done', { session });
     } catch (e: any) {
       error = e?.message ?? String(e);
@@ -183,7 +168,6 @@
     bind:backendId
     bind:subProviderId
     bind:model
-    bind:apiKeyOverride
     bind:sshMode
     {loading}
   />
