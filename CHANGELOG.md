@@ -4,6 +4,9 @@
 
 ## May 2026
 
+### 06/08 · Fix — OpenCode chat history keeps your messages after restart
+OpenCode sessions again show your initial prompt and follow-up messages after you restart Orbit. A recent change that hid duplicate live echoes had also dropped every saved user message when reopening a session.
+
 ### 05/25 · Fix — No flashing console windows on Windows
 Sending messages, watching git status, and spawning agent CLIs no longer briefly opens a black terminal window in the background.
 
