@@ -6,6 +6,7 @@ use std::process::Command;
 pub const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 /// Apply `CREATE_NO_WINDOW` on Windows (no-op elsewhere).
+#[cfg_attr(not(windows), allow(unused_variables))]
 pub fn apply_silent(cmd: &mut Command) {
     #[cfg(windows)]
     {
