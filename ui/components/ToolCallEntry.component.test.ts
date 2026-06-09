@@ -243,4 +243,21 @@ describe('ToolCallEntry', () => {
     });
     expect(container.querySelector('.quiet-tool-card.compact')).toBeTruthy();
   });
+
+  it('clamps long tool output and shows an expand affordance', () => {
+    const output = Array.from({ length: 30 }, (_, i) => `line ${i + 1}`).join('\n');
+    const entry = makeEntry({
+      entryType: 'toolCall',
+      tool: 'bash',
+      toolInput: { command: 'seq 30' },
+    });
+    const result = makeEntry({ entryType: 'toolResult', tool: 'bash', output, exitCode: 0 });
+    const { container } = render(ToolCallEntry, {
+      props: { entry, resultEntry: result, streamingEntries: [], cwd: null },
+    });
+
+    const pre = container.querySelector('.result-pre');
+    expect(pre?.textContent?.split('\n').length).toBe(14);
+    expect(container.querySelector('.diff-overflow')?.textContent).toContain('more lines');
+  });
 });

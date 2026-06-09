@@ -150,6 +150,15 @@
   $: showBody = hasDetail || !!resultEntry?.output || showStreamingBody;
   $: writeVisible = writeLines.slice(0, 6);
 
+  // Unified output clamp: every tool's inline result (read table, generic
+  // output) shows at most RESULT_CLAMP lines, then a consistent overflow row
+  // opens the full content in the modal. Keeps long write/read/bash/MCP output
+  // from flooding the feed, identical across providers.
+  const RESULT_CLAMP = 14;
+  $: readParsed = isReadTool && resultEntry?.output ? stripLineNumbers(resultEntry.output) : null;
+  $: readLines = readParsed ? readParsed.code.split('\n') : [];
+  $: resultLines = !isReadTool && resultEntry?.output ? resultEntry.output.split('\n') : [];
+
   // Code text (bash only — Write is handled via writeLines)
   $: codeText = hasBashCommand ? (entry.toolInput!.command as string) : '';
 
@@ -401,23 +410,32 @@
           <div class="result-divider"></div>
         {/if}
         {#if isReadTool}
-          {@const parsed = stripLineNumbers(resultEntry.output)}
           <div class="read-output">
             <table class="read-table">
               <tbody>
-                {#each parsed.code.split('\n') as line, li}
+                {#each readLines.slice(0, RESULT_CLAMP) as line, li}
                   <tr>
-                    <td class="line-num">{parsed.lineNums[li] ?? ''}</td>
+                    <td class="line-num">{readParsed?.lineNums[li] ?? ''}</td>
                     <td class="line-code">{@html highlightCode(line, lang)}</td>
                   </tr>
                 {/each}
               </tbody>
             </table>
           </div>
+          {#if readLines.length > RESULT_CLAMP}
+            <button class="diff-overflow" onclick={() => (modalOpen = true)}>
+              ▾ +{readLines.length - RESULT_CLAMP} more lines · click to expand
+            </button>
+          {/if}
         {:else}
           <div class="result-output">
-            <pre class="result-pre mono">{resultEntry.output}</pre>
+            <pre class="result-pre mono">{resultLines.slice(0, RESULT_CLAMP).join('\n')}</pre>
           </div>
+          {#if resultLines.length > RESULT_CLAMP}
+            <button class="diff-overflow" onclick={() => (modalOpen = true)}>
+              ▾ +{resultLines.length - RESULT_CLAMP} more lines · click to expand
+            </button>
+          {/if}
         {/if}
       {/if}
     </div>
