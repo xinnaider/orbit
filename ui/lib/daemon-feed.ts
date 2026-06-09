@@ -173,11 +173,10 @@ export function mapDaemonEvent(event: DaemonEvent, ctx: MapContext): JournalEntr
   if (!entryType) return null;
 
   const data = event.data ?? {};
-  const isError = event.type === 'run.failed' || event.type === 'error' || event.type === 'tool.failed';
+  const isError =
+    event.type === 'run.failed' || event.type === 'error' || event.type === 'tool.failed';
 
-  const text =
-    str(data.text) ??
-    (isError ? (str(data.message) ?? str(data.error)) : null);
+  const text = str(data.text) ?? (isError ? (str(data.message) ?? str(data.error)) : null);
 
   return {
     sessionId: String(ctx.sessionId),

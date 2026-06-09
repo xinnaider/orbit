@@ -501,11 +501,7 @@
           )}
           {#if readLines.length > clampN}{@render expander(readLines.length)}{/if}
         {:else}
-          {@render terminalView(
-            resultLines.slice(0, clampN),
-            false,
-            resultLines.length > clampN
-          )}
+          {@render terminalView(resultLines.slice(0, clampN), false, resultLines.length > clampN)}
           {#if resultLines.length > clampN}{@render expander(resultLines.length)}{/if}
         {/if}
       {/if}

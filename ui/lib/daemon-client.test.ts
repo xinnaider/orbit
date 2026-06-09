@@ -5,7 +5,12 @@ import { journal } from './stores/journal';
 import type { DaemonEvent, ProviderId } from './daemon-feed';
 
 let evtId = 0;
-function ev(type: string, data: Record<string, unknown> = {}, runId = 'run_1', provider: ProviderId = 'claude'): DaemonEvent {
+function ev(
+  type: string,
+  data: Record<string, unknown> = {},
+  runId = 'run_1',
+  provider: ProviderId = 'claude'
+): DaemonEvent {
   return {
     id: `evt_${evtId++}`,
     runId,

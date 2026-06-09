@@ -12,7 +12,12 @@
  */
 
 import { journal } from './stores/journal';
-import { mapDaemonEvent, classifyDaemonEvent, EVENT_CLASSIFICATION, type DaemonEvent } from './daemon-feed';
+import {
+  mapDaemonEvent,
+  classifyDaemonEvent,
+  EVENT_CLASSIFICATION,
+  type DaemonEvent,
+} from './daemon-feed';
 import type { JournalEntry } from './types';
 
 /** Resolve the daemon's string runId to Orbit's numeric session id. */

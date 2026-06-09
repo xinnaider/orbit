@@ -270,8 +270,8 @@ describe('ToolCallEntry', () => {
     const { container } = render(ToolCallEntry, {
       props: { entry, resultEntry: result, streamingEntries: [], cwd: null, compact: true },
     });
-    expect(container.querySelector('.term-view.clamped')!.querySelectorAll('.term-text').length).toBe(
-      8
-    );
+    expect(
+      container.querySelector('.term-view.clamped')!.querySelectorAll('.term-text').length
+    ).toBe(8);
   });
 });

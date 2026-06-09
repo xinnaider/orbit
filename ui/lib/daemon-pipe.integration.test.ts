@@ -94,7 +94,9 @@ describe('daemon → feed pipe (integration)', () => {
 
   it('drops events whose run is not registered to any session', () => {
     connectDaemonSse('http://d', resolve);
-    FakeEventSource.instances[0].emit(event('message.completed', 'ghost', { messageId: 'x', text: 'hi' }));
+    FakeEventSource.instances[0].emit(
+      event('message.completed', 'ghost', { messageId: 'x', text: 'hi' })
+    );
     expect(get(journal).size).toBe(0);
   });
 

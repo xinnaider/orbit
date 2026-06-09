@@ -302,7 +302,9 @@
                   stroke-linejoin="round"
                 />
               </svg>
-              {row.items.length} {row.tool} {row.items.length === 1 ? 'step' : 'steps'}
+              {row.items.length}
+              {row.tool}
+              {row.items.length === 1 ? 'step' : 'steps'}
             </button>
             {#if gOpen}
               <div class="tool-group-items">
@@ -327,77 +329,77 @@
           aria-label="{actorLabel(entry)} {ts(entry)}"
           in:fly|local={{ y: 8, duration: 180 }}
         >
-        <div class="timeline-node {eventClass(entry)}" aria-hidden="true"></div>
-        <div class="timeline-body">
-          <div class="event-meta">
-            <span class="event-actor {eventClass(entry)}">{actorLabel(entry)}</span>
-            {#if ts(entry)}<span>{ts(entry)}</span>{/if}
-          </div>
+          <div class="timeline-node {eventClass(entry)}" aria-hidden="true"></div>
+          <div class="timeline-body">
+            <div class="event-meta">
+              <span class="event-actor {eventClass(entry)}">{actorLabel(entry)}</span>
+              {#if ts(entry)}<span>{ts(entry)}</span>{/if}
+            </div>
 
-          {#if entry.entryType === 'toolCall'}
-            <ToolCallEntry
-              {entry}
-              resultEntry={item.result}
-              streamingEntries={item.streaming}
-              {cwd}
-              {compact}
-            />
-          {:else if entry.entryType === 'thinking'}
-            {@const expanded = expandedThinking.has(absIdx)}
-            <div class="thinking-inline" class:expanded>
-              <span
-                class="think-dots-label"
-                onclick={() => toggleThinking(absIdx)}
-                role="button"
-                tabindex="0"
-                onkeydown={(e) => e.key === 'Enter' && toggleThinking(absIdx)}
-              >
-                <span class="think-dots">
-                  <span></span><span></span><span></span>
+            {#if entry.entryType === 'toolCall'}
+              <ToolCallEntry
+                {entry}
+                resultEntry={item.result}
+                streamingEntries={item.streaming}
+                {cwd}
+                {compact}
+              />
+            {:else if entry.entryType === 'thinking'}
+              {@const expanded = expandedThinking.has(absIdx)}
+              <div class="thinking-inline" class:expanded>
+                <span
+                  class="think-dots-label"
+                  onclick={() => toggleThinking(absIdx)}
+                  role="button"
+                  tabindex="0"
+                  onkeydown={(e) => e.key === 'Enter' && toggleThinking(absIdx)}
+                >
+                  <span class="think-dots">
+                    <span></span><span></span><span></span>
+                  </span>
+                  <span class="think-preview-text">
+                    {#if expanded}
+                      {(entry.thinking ?? '').split('\n')[0].slice(0, 60)}
+                    {:else}
+                      {(entry.thinking ?? '').split('\n')[0].slice(0, 80)}…
+                    {/if}
+                  </span>
                 </span>
-                <span class="think-preview-text">
-                  {#if expanded}
-                    {(entry.thinking ?? '').split('\n')[0].slice(0, 60)}
-                  {:else}
-                    {(entry.thinking ?? '').split('\n')[0].slice(0, 80)}…
-                  {/if}
-                </span>
-              </span>
-              <button
-                class="think-chip"
-                class:open={expanded}
-                onclick={() => toggleThinking(absIdx)}
-                aria-label={expanded ? 'collapse thinking' : 'expand thinking'}
-                aria-expanded={expanded}
-              >
-                <svg class="chev" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                  <path
-                    d="M6 4l4 4-4 4"
-                    stroke="currentColor"
-                    stroke-width="1.6"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-                {#if entry.thinkingDuration}{entry.thinkingDuration.toFixed(1)}s{/if}
-              </button>
-            </div>
-            {#if expanded}
-              <div class="event-text think-body">{entry.thinking}</div>
+                <button
+                  class="think-chip"
+                  class:open={expanded}
+                  onclick={() => toggleThinking(absIdx)}
+                  aria-label={expanded ? 'collapse thinking' : 'expand thinking'}
+                  aria-expanded={expanded}
+                >
+                  <svg class="chev" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path
+                      d="M6 4l4 4-4 4"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                  {#if entry.thinkingDuration}{entry.thinkingDuration.toFixed(1)}s{/if}
+                </button>
+              </div>
+              {#if expanded}
+                <div class="event-text think-body">{entry.thinking}</div>
+              {/if}
+            {:else if entry.entryType === 'assistant'}
+              <div class="event-text assistant-text">
+                <Markdown content={entry.text ?? ''} />
+              </div>
+            {:else if entry.entryType === 'user'}
+              <div class="event-text user-text">{entry.text}</div>
+            {:else}
+              <div class="event-text system-text" class:system-error={entry.feedError}>
+                {entry.text}
+              </div>
             {/if}
-          {:else if entry.entryType === 'assistant'}
-            <div class="event-text assistant-text">
-              <Markdown content={entry.text ?? ''} />
-            </div>
-          {:else if entry.entryType === 'user'}
-            <div class="event-text user-text">{entry.text}</div>
-          {:else}
-            <div class="event-text system-text" class:system-error={entry.feedError}>
-              {entry.text}
-            </div>
-          {/if}
-        </div>
-      </article>
+          </div>
+        </article>
       {/if}
     {/each}
 

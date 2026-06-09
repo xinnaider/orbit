@@ -27,7 +27,12 @@ describe('daemon session orchestrators', () => {
 
   it('openDaemonSession starts a run and registers it to the session', async () => {
     const doFetch = fetchReturning(run);
-    const result = await openDaemonSession('http://d', 88, { provider: 'claude', prompt: 'hi' }, doFetch);
+    const result = await openDaemonSession(
+      'http://d',
+      88,
+      { provider: 'claude', prompt: 'hi' },
+      doFetch
+    );
 
     expect(result).toEqual(run);
     expect(resolveSessionForRun('run_1')).toBe(88);
@@ -35,7 +40,12 @@ describe('daemon session orchestrators', () => {
   });
 
   it('sendDaemonMessage resumes the registered run', async () => {
-    await openDaemonSession('http://d', 5, { provider: 'codex', prompt: 'first' }, fetchReturning(run));
+    await openDaemonSession(
+      'http://d',
+      5,
+      { provider: 'codex', prompt: 'first' },
+      fetchReturning(run)
+    );
 
     const doFetch = fetchReturning({ ...run, prompt: 'second' });
     await sendDaemonMessage('http://d', 5, 'second', doFetch);
@@ -53,7 +63,12 @@ describe('daemon session orchestrators', () => {
   });
 
   it('cancelDaemonSession cancels the run and forgets the mapping', async () => {
-    await openDaemonSession('http://d', 9, { provider: 'claude', prompt: 'hi' }, fetchReturning(run));
+    await openDaemonSession(
+      'http://d',
+      9,
+      { provider: 'claude', prompt: 'hi' },
+      fetchReturning(run)
+    );
 
     const doFetch = fetchReturning({ ...run, status: 'cancelled' });
     const result = await cancelDaemonSession('http://d', 9, doFetch);

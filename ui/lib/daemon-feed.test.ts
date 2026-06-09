@@ -19,28 +19,84 @@ import {
  * EVENT_CLASSIFICATION — otherwise the "no event is unclassified" test fails.
  */
 const SDK_EVENT_CATALOG = [
-  'run.create', 'run.created', 'run.start', 'run.started', 'run.completed', 'run.failed',
-  'message.created', 'message.started', 'message.delta', 'message.updated', 'message.completed',
-  'message.part.delta', 'message.part.updated',
-  'reasoning.started', 'reasoning.delta', 'reasoning.completed',
-  'tool.create', 'tool.start', 'tool.started', 'tool.delta', 'tool.update',
-  'tool.finish', 'tool.completed', 'tool.failed',
-  'permission.request', 'permission.requested', 'permission.asked',
-  'permission.reply', 'permission.resolved',
-  'error', 'unknown',
-  'usage.updated', 'file.read', 'file.status', 'file.changed', 'todo.updated',
-  'session.abort', 'session.children', 'session.command', 'session.create', 'session.created',
-  'session.delete', 'session.deleted', 'session.diff', 'session.discovered', 'session.get',
-  'session.idle', 'session.init', 'session.list', 'session.message', 'session.messages',
-  'session.next.agent.switched', 'session.next.model.switched', 'session.permission.reply',
-  'session.prompt', 'session.revert', 'session.share', 'session.shell', 'session.status',
-  'session.summarize', 'session.unrevert', 'session.unshare', 'session.update', 'session.updated',
-  'sessions.info', 'sessions.list', 'sessions.messages', 'sessions.rename', 'sessions.tag',
+  'run.create',
+  'run.created',
+  'run.start',
+  'run.started',
+  'run.completed',
+  'run.failed',
+  'message.created',
+  'message.started',
+  'message.delta',
+  'message.updated',
+  'message.completed',
+  'message.part.delta',
+  'message.part.updated',
+  'reasoning.started',
+  'reasoning.delta',
+  'reasoning.completed',
+  'tool.create',
+  'tool.start',
+  'tool.started',
+  'tool.delta',
+  'tool.update',
+  'tool.finish',
+  'tool.completed',
+  'tool.failed',
+  'permission.request',
+  'permission.requested',
+  'permission.asked',
+  'permission.reply',
+  'permission.resolved',
+  'error',
+  'unknown',
+  'usage.updated',
+  'file.read',
+  'file.status',
+  'file.changed',
+  'todo.updated',
+  'session.abort',
+  'session.children',
+  'session.command',
+  'session.create',
+  'session.created',
+  'session.delete',
+  'session.deleted',
+  'session.diff',
+  'session.discovered',
+  'session.get',
+  'session.idle',
+  'session.init',
+  'session.list',
+  'session.message',
+  'session.messages',
+  'session.next.agent.switched',
+  'session.next.model.switched',
+  'session.permission.reply',
+  'session.prompt',
+  'session.revert',
+  'session.share',
+  'session.shell',
+  'session.status',
+  'session.summarize',
+  'session.unrevert',
+  'session.unshare',
+  'session.update',
+  'session.updated',
+  'sessions.info',
+  'sessions.list',
+  'sessions.messages',
+  'sessions.rename',
+  'sessions.tag',
 ] as const;
 
 const PROVIDERS: ProviderId[] = ['claude', 'codex', 'opencode'];
 
-function makeEvent(type: string, provider: ProviderId, data: Record<string, unknown> = {}): DaemonEvent {
+function makeEvent(
+  type: string,
+  provider: ProviderId,
+  data: Record<string, unknown> = {}
+): DaemonEvent {
   return {
     id: `evt_${type}`,
     runId: 'run_1',
@@ -99,10 +155,10 @@ describe('daemon-feed entry mapping', () => {
   });
 
   it.each(PROVIDERS)('maps reasoning.delta → thinking [%s]', (provider) => {
-    const entry = mapDaemonEvent(
-      makeEvent('reasoning.delta', provider, { text: 'pondering...' }),
-      { sessionId: 1, seq: 0 }
-    );
+    const entry = mapDaemonEvent(makeEvent('reasoning.delta', provider, { text: 'pondering...' }), {
+      sessionId: 1,
+      seq: 0,
+    });
     expect(entry?.entryType).toBe('thinking');
     expect(entry?.thinking).toBe('pondering...');
   });
@@ -129,19 +185,19 @@ describe('daemon-feed entry mapping', () => {
   });
 
   it.each(PROVIDERS)('maps tool.failed → toolResult flagged as error [%s]', (provider) => {
-    const entry = mapDaemonEvent(
-      makeEvent('tool.failed', provider, { output: 'boom' }),
-      { sessionId: 1, seq: 0 }
-    );
+    const entry = mapDaemonEvent(makeEvent('tool.failed', provider, { output: 'boom' }), {
+      sessionId: 1,
+      seq: 0,
+    });
     expect(entry?.entryType).toBe('toolResult');
     expect(entry?.feedError).toBe(true);
   });
 
   it.each(PROVIDERS)('maps tool.delta → progress (streaming) [%s]', (provider) => {
-    const entry = mapDaemonEvent(
-      makeEvent('tool.delta', provider, { text: 'partial output' }),
-      { sessionId: 1, seq: 0 }
-    );
+    const entry = mapDaemonEvent(makeEvent('tool.delta', provider, { text: 'partial output' }), {
+      sessionId: 1,
+      seq: 0,
+    });
     expect(entry?.entryType).toBe('progress');
   });
 

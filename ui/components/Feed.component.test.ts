@@ -197,7 +197,12 @@ describe('Feed', () => {
 
   it('does not group short runs of the same tool', () => {
     const entries = Array.from({ length: 2 }, (_, i) =>
-      makeEntry({ entryType: 'toolCall', tool: 'read', toolInput: { file_path: `/a-${i}` }, seq: i })
+      makeEntry({
+        entryType: 'toolCall',
+        tool: 'read',
+        toolInput: { file_path: `/a-${i}` },
+        seq: i,
+      })
     );
     const { container } = render(Feed, {
       props: { entries, status: '', provider: 'claude-code', cwd: null },
