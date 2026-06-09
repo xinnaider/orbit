@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="pt-br" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Orbit · Chat & Tools — propostas de melhoria</title>
+    <style>
+      :root {
+        --bg: #090a0a; --bg1: #0c0d0d; --bg2: #101111; --bg3: #141515;
+        --bd: rgba(241, 236, 227, 0.1); --bd1: rgba(241, 236, 227, 0.14);
+        --t0: #f1ece3; --t1: #a19a90; --t2: #7a736b; --t3: #67615a;
+        --ac: #7cff9e; --ac-d: rgba(124, 255, 158, 0.12); --ac-border: rgba(124, 255, 158, 0.32);
+        --s-error: #e47770; --tool-fg: #f2c96f; --tool-bg: rgba(242, 201, 111, 0.07);
+        --result-fg: #7a736b;
+        --add: #7cff9e; --add-bg: rgba(124, 255, 158, 0.08);
+        --del: #e47770; --del-bg: rgba(228, 119, 112, 0.08);
+        --mono: 'JetBrains Mono', ui-monospace, monospace;
+        --radius-md: 8px; --radius-sm: 4px;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--t0); font-family: 'Inter', system-ui, sans-serif; font-size: 14px; line-height: 1.5; }
+      .page { max-width: 1120px; margin: 0 auto; padding: 32px 28px 96px; }
+      h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; }
+      .sub { color: var(--t2); font-size: 13px; margin: 0 0 30px; max-width: 70ch; }
+      h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--t2); font-weight: 600; margin: 40px 0 6px; }
+      .h2-note { color: var(--t2); font-size: 12.5px; margin: 0 0 16px; max-width: 75ch; }
+      .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+      .label { font-family: var(--mono); font-size: 11px; color: var(--t2); margin-bottom: 8px; display: flex; gap: 8px; align-items: center; }
+      .tag { font-size: 9px; font-family: var(--mono); padding: 1px 7px; border-radius: 999px; border: 1px solid var(--bd1); color: var(--t2); }
+      .tag.good { color: var(--ac); border-color: var(--ac-border); }
+      .tag.bad { color: var(--s-error); border-color: rgba(228,119,112,0.4); }
+
+      /* ── Tool card (mirrors ToolCallEntry) ── */
+      .tc { border: 1px solid var(--bd); border-radius: var(--radius-md); overflow: hidden; background: var(--bg1); }
+      .tc-head { display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: var(--bg2); border-bottom: 1px solid var(--bd); font-family: var(--mono); font-size: 11px; }
+      .tc-icon { color: var(--tool-fg); display: inline-flex; }
+      .tc-name { color: var(--tool-fg); font-weight: 600; }
+      .tc-sep { color: var(--t3); }
+      .tc-path { color: var(--t1); }
+      .tc-spacer { flex: 1; }
+      .tc-meta { color: var(--t3); font-size: 10.5px; }
+      .stat .plus { color: var(--add); } .stat .minus { color: var(--del); }
+      .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+      .dot.ok { background: var(--ac); } .dot.bad { background: var(--s-error); } .dot.run { background: var(--tool-fg); animation: pulse 1.2s infinite; }
+      @keyframes pulse { 0%,100%{opacity:.35} 50%{opacity:1} }
+      .ic-btn { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border: none; background: none; color: var(--t3); cursor: pointer; border-radius: 4px; }
+      .ic-btn:hover { color: var(--t1); background: rgba(255,255,255,0.05); }
+
+      .diff { font-family: var(--mono); font-size: 11.5px; }
+      .dl { display: grid; grid-template-columns: 34px 14px 1fr; gap: 0; padding: 1px 12px 1px 0; white-space: pre; }
+      .dl .n { color: var(--t3); text-align: right; padding-right: 10px; }
+      .dl .s { text-align: center; color: var(--t3); }
+      .dl.add { background: var(--add-bg); color: var(--add); } .dl.add .s { color: var(--add); }
+      .dl.del { background: var(--del-bg); color: var(--del); } .dl.del .s { color: var(--del); }
+      .dl.ctx { color: var(--t2); }
+      .out { font-family: var(--mono); font-size: 11.5px; color: var(--result-fg); padding: 8px 12px; white-space: pre; }
+
+      /* ── Expander variants ── */
+      /* current: full-width left bar */
+      .exp-current { display: block; width: 100%; text-align: left; background: var(--bg2); border: none; border-top: 1px solid var(--bd); color: var(--t2); font-family: var(--mono); font-size: 11px; padding: 6px 12px; cursor: pointer; }
+
+      /* V1 fade + centered pill */
+      .exp-fade-wrap { position: relative; }
+      .exp-fade-wrap .clip { max-height: 92px; overflow: hidden; }
+      .exp-fade-wrap::after { content: ''; position: absolute; left: 0; right: 0; bottom: 32px; height: 40px; background: linear-gradient(transparent, var(--bg1)); pointer-events: none; }
+      .exp-pill { position: relative; display: flex; justify-content: center; padding: 6px; border-top: 1px solid var(--bd); }
+      .exp-pill button { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 10.5px; color: var(--t1); background: var(--bg3); border: 1px solid var(--bd1); border-radius: 999px; padding: 3px 12px; cursor: pointer; }
+      .exp-pill button:hover { border-color: var(--ac-border); color: var(--ac); }
+
+      /* V2 right-aligned chip on bottom bar, count in header */
+      .exp-bar2 { display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--bd); padding: 5px 12px; background: var(--bg2); }
+      .exp-bar2 .left { font-family: var(--mono); font-size: 10.5px; color: var(--t3); }
+      .exp-bar2 .chip { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 10.5px; color: var(--t1); border: 1px solid var(--bd1); border-radius: 999px; padding: 2px 10px; cursor: pointer; background: none; }
+      .exp-bar2 .chip:hover { border-color: var(--ac-border); color: var(--ac); }
+
+      /* V3 inline-expand toggle (expand in place) + modal link */
+      .exp-bar3 { display: flex; align-items: center; gap: 14px; border-top: 1px solid var(--bd); padding: 5px 12px; background: var(--bg2); font-family: var(--mono); font-size: 10.5px; }
+      .exp-bar3 .a { color: var(--ac); cursor: pointer; display: inline-flex; gap: 5px; align-items: center; }
+      .exp-bar3 .a.muted { color: var(--t2); } .exp-bar3 .a:hover { text-decoration: underline; }
+
+      .chev { width: 9px; height: 9px; }
+      .proposals { list-style: none; padding: 0; margin: 0; display: grid; gap: 2px; }
+      .proposals li { display: grid; grid-template-columns: 22px 1fr; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--bd); align-items: start; }
+      .proposals .num { font-family: var(--mono); font-size: 11px; color: var(--ac); padding-top: 1px; }
+      .proposals b { color: var(--t0); font-weight: 600; }
+      .proposals span { color: var(--t1); font-size: 13px; }
+      code { font-family: var(--mono); background: rgba(255,255,255,0.06); padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+      .rec { color: var(--ac); font-size: 11px; font-family: var(--mono); }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <h1>Orbit · Chat & Tools — propostas de melhoria</h1>
+      <p class="sub">Foco: reposicionar o "expandir / ver mais linhas" e padronizar o card de tool. Tema dark, tokens reais do orbit. Setas e contagens usadas como nos componentes atuais.</p>
+
+      <h2>1 · Onde fica o "expandir / mais linhas"</h2>
+      <p class="h2-note">Hoje: barra full-width à esquerda <code>▾ +143 more lines · click to expand</code>. Funciona, mas o gatilho some no rodapé e não diz o total. Abaixo, 3 reposicionamentos.</p>
+
+      <div class="label">Atual (referência)</div>
+      <div class="tc" style="margin-bottom: 22px; max-width: 640px;">
+        <div class="tc-head"><span class="dot ok"></span><span class="tc-name">edit</span><span class="tc-sep">→</span><span class="tc-path">ui/lib/daemon-feed.ts</span></div>
+        <div class="diff">
+          <div class="dl ctx"><span class="n">12</span><span class="s"></span><span>function entryTypeFor(type) {</span></div>
+          <div class="dl del"><span class="n">13</span><span class="s">−</span><span>  if (type.startsWith('tool.')) return 'toolCall';</span></div>
+          <div class="dl add"><span class="n">13</span><span class="s">+</span><span>  if (type === 'tool.delta') return 'progress';</span></div>
+        </div>
+        <button class="exp-current">▾ +143 more lines · click to expand</button>
+      </div>
+
+      <div class="grid2">
+        <div>
+          <div class="label">V1 · Fade + pill centralizado <span class="tag good">recomendado</span></div>
+          <div class="tc">
+            <div class="tc-head"><span class="dot ok"></span><span class="tc-name">edit</span><span class="tc-sep">→</span><span class="tc-path">daemon-feed.ts</span><span class="tc-spacer"></span><span class="tc-meta stat"><span class="plus">+18</span> <span class="minus">−2</span> · 149 lines</span></div>
+            <div class="exp-fade-wrap">
+              <div class="clip diff">
+                <div class="dl ctx"><span class="n">12</span><span class="s"></span><span>function entryTypeFor(type) {</span></div>
+                <div class="dl del"><span class="n">13</span><span class="s">−</span><span>  if (type.startsWith('tool.')) return 'toolCall';</span></div>
+                <div class="dl add"><span class="n">13</span><span class="s">+</span><span>  if (type === 'tool.delta') return 'progress';</span></div>
+                <div class="dl add"><span class="n">14</span><span class="s">+</span><span>  if (type === 'tool.failed') return 'toolResult';</span></div>
+              </div>
+              <div class="exp-pill"><button><svg class="chev" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Show all 149 lines</button></div>
+            </div>
+          </div>
+          <p class="h2-note" style="margin-top: 8px;">Conteúdo "vaza" sob um fade suave → leitura clara de que há mais. Pill central é o alvo óbvio. Total (<code>149 lines</code>) e stat no header.</p>
+        </div>
+
+        <div>
+          <div class="label">V2 · Barra com total + chip à direita</div>
+          <div class="tc">
+            <div class="tc-head"><span class="dot ok"></span><span class="tc-name">edit</span><span class="tc-sep">→</span><span class="tc-path">daemon-feed.ts</span><span class="tc-spacer"></span><span class="tc-meta stat"><span class="plus">+18</span> <span class="minus">−2</span></span></div>
+            <div class="diff">
+              <div class="dl ctx"><span class="n">12</span><span class="s"></span><span>function entryTypeFor(type) {</span></div>
+              <div class="dl del"><span class="n">13</span><span class="s">−</span><span>  if (type.startsWith('tool.')) return 'toolCall';</span></div>
+              <div class="dl add"><span class="n">13</span><span class="s">+</span><span>  if (type === 'tool.delta') return 'progress';</span></div>
+              <div class="dl add"><span class="n">14</span><span class="s">+</span><span>  if (type === 'tool.failed') return 'toolResult';</span></div>
+            </div>
+            <div class="exp-bar2"><span class="left">6 of 149 lines</span><button class="chip"><svg class="chev" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>expand</button></div>
+          </div>
+          <p class="h2-note" style="margin-top: 8px;">Mostra progresso (<code>6 of 149</code>) e o chip fica alinhado à direita, perto do scroll. Mais compacto, sem fade.</p>
+        </div>
+      </div>
+
+      <div style="max-width: 640px; margin-top: 20px;">
+        <div class="label">V3 · Expandir no lugar + abrir no modal (duas ações)</div>
+        <div class="tc">
+          <div class="tc-head"><span class="dot ok"></span><span class="tc-name">read</span><span class="tc-sep">→</span><span class="tc-path">README.md</span><span class="tc-spacer"></span><span class="tc-meta">214 lines</span></div>
+          <div class="out">## Jogo da Velha
+Um jogo da velha simples em React.
+
+### Como rodar
+npm install</div>
+          <div class="exp-bar3"><span class="a"><svg class="chev" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Show 208 more lines</span><span class="a muted">open full ↗</span></div>
+        </div>
+        <p class="h2-note" style="margin-top: 8px;">Expandir <b>no próprio card</b> (sem sair do fluxo) + atalho p/ o modal cheio. Bom p/ <code>read</code> e outputs longos onde às vezes você só quer ver mais um pouco.</p>
+      </div>
+
+      <h2>2 · Anatomia padrão do tool-card (todos os tools/providers)</h2>
+      <p class="h2-note">Um header consistente carrega tudo que hoje está espalhado: status, nome, alvo, métrica, duração e ações. Corpo e expander seguem o mesmo padrão sempre.</p>
+      <div class="tc" style="max-width: 720px;">
+        <div class="tc-head">
+          <span class="dot ok"></span>
+          <span class="tc-icon">⌘</span><span class="tc-name">bash</span>
+          <span class="tc-sep">→</span><span class="tc-path">npm test</span>
+          <span class="tc-spacer"></span>
+          <span class="tc-meta">exit 0 · 1.4s</span>
+          <button class="ic-btn" title="copy">⧉</button>
+          <button class="ic-btn" title="open full">⤢</button>
+        </div>
+        <div class="out" style="color: #9fcaa6;">PASS  ui/lib/daemon-feed.test.ts (29)
+PASS  ui/lib/daemon-client.test.ts (11)
+Tests  198 passed (198)</div>
+        <div class="exp-bar2"><span class="left">3 of 64 lines</span><button class="chip">expand</button></div>
+      </div>
+      <p class="h2-note" style="margin-top: 10px;">Header: <b>status dot</b> · ícone+nome · alvo · <b>métrica</b> (exit/stat/linhas) · <b>duração</b> · copy · abrir. Idêntico p/ edit, write, bash, read, grep, MCP — claude/codex/opencode.</p>
+
+      <h2>3 · Outras melhorias propostas</h2>
+      <ol class="proposals">
+        <li><span class="num">01</span><span><b>Total de linhas + métrica no header.</b> <code>149 lines</code>, <code>+18 −2</code>, <code>exit 0</code> sempre visíveis, não só em edit. <span class="rec">baixo esforço</span></span></li>
+        <li><span class="num">02</span><span><b>Expander reposicionado</b> (seção 1). Pill central sob fade (V1) como padrão; chip à direita (V2) p/ cards densos. <span class="rec">este pedido</span></span></li>
+        <li><span class="num">03</span><span><b>Duração da tool</b> no header (<code>1.4s</code>), como já existe no bloco de thinking. Dá noção de custo.</span></li>
+        <li><span class="num">04</span><span><b>Path clicável.</b> Clicar no <code>ui/lib/daemon-feed.ts</code> abre o arquivo / revela no painel git.</span></li>
+        <li><span class="num">05</span><span><b>Colapsar tools repetidas.</b> 8 <code>read</code> seguidos viram um grupo "8 reads" expansível, em vez de 8 cards.</span></li>
+        <li><span class="num">06</span><span><b>Exit code / erro com cor.</b> <code>exit 1</code> pinta o dot e a borda de vermelho; output de erro destacado.</span></li>
+        <li><span class="num">07</span><span><b>Densidade compacta.</b> Modo já existe (<code>compact</code>); aplicar o mesmo header/expander reduzido nele.</span></li>
+        <li><span class="num">08</span><span><b>Bash: separar comando e output.</b> Comando no header/topo, output abaixo com seu próprio clamp.</span></li>
+        <li><span class="num">09</span><span><b>"Copiar" mais visível</b> no hover do card (hoje só no header em mono pequeno).</span></li>
+        <li><span class="num">10</span><span><b>Wrap vs scroll.</b> Linhas longas: alternar entre quebrar e rolar horizontal por card.</span></li>
+      </ol>
+    </div>
+  </body>
+</html>
