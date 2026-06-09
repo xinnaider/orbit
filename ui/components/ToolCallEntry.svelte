@@ -318,6 +318,26 @@
   }
 </script>
 
+{#snippet codeView(
+  lines: string[],
+  language: string | null,
+  nums: Array<number | string> | null,
+  clamped: boolean
+)}
+  <div class="code-view" class:clamped>
+    {#each lines as line, i}
+      <div class="code-line">
+        <span class="cv-num">{nums ? (nums[i] ?? '') : i + 1}</span>
+        {#if language}
+          <span class="cv-code">{@html highlightCode(line, language)}</span>
+        {:else}
+          <span class="cv-code">{line}</span>
+        {/if}
+      </div>
+    {/each}
+  </div>
+{/snippet}
+
 {#snippet expander(total: number)}
   <div class="expand-row">
     <button class="expand-pill" onclick={() => (modalOpen = true)}>
@@ -337,7 +357,6 @@
 
 <div class="tc-card quiet-tool-card" class:compact class:failed={toolState === 'failed'}>
   <div class="tc-header quiet-tool-head">
-    <span class="tc-dot {toolState}" aria-hidden="true"></span>
     <span class="tc-icon {toolClass}"><ToolIcon size={12} /></span>
     <button
       class="tc-title"
@@ -408,9 +427,7 @@
         </div>
         {#if writeOverflow > 0}{@render expander(writeLines.length)}{/if}
       {:else if hasBashCommand}
-        <div class="bash-body">
-          <pre class="bash-code"><code>{@html highlightCode(codeText, 'bash')}</code></pre>
-        </div>
+        {@render codeView(codeText.split('\n'), 'bash', null, false)}
       {/if}
 
       {#if showStreamingBody}
@@ -462,23 +479,20 @@
           <div class="result-divider"></div>
         {/if}
         {#if isReadTool}
-          <div class="read-output" class:clamped={readLines.length > RESULT_CLAMP}>
-            <table class="read-table">
-              <tbody>
-                {#each readLines.slice(0, RESULT_CLAMP) as line, li}
-                  <tr>
-                    <td class="line-num">{readParsed?.lineNums[li] ?? ''}</td>
-                    <td class="line-code">{@html highlightCode(line, lang)}</td>
-                  </tr>
-                {/each}
-              </tbody>
-            </table>
-          </div>
+          {@render codeView(
+            readLines.slice(0, RESULT_CLAMP),
+            lang,
+            readParsed?.lineNums ?? null,
+            readLines.length > RESULT_CLAMP
+          )}
           {#if readLines.length > RESULT_CLAMP}{@render expander(readLines.length)}{/if}
         {:else}
-          <div class="result-output" class:clamped={resultLines.length > RESULT_CLAMP}>
-            <pre class="result-pre mono">{resultLines.slice(0, RESULT_CLAMP).join('\n')}</pre>
-          </div>
+          {@render codeView(
+            resultLines.slice(0, RESULT_CLAMP),
+            null,
+            null,
+            resultLines.length > RESULT_CLAMP
+          )}
           {#if resultLines.length > RESULT_CLAMP}{@render expander(resultLines.length)}{/if}
         {/if}
       {/if}
@@ -571,7 +585,7 @@
               </button>
             </div>
             <div class="modal-card-body">
-              <pre class="code-text"><code>{@html highlightCode(codeText, 'bash')}</code></pre>
+              {@render codeView(codeText.split('\n'), 'bash', null, false)}
             </div>
           </div>
         {/if}
@@ -591,22 +605,9 @@
             <div class="modal-card-body">
               {#if isReadTool}
                 {@const parsed = stripLineNumbers(resultEntry.output)}
-                <div class="read-output">
-                  <table class="read-table">
-                    <tbody>
-                      {#each parsed.code.split('\n') as line, li}
-                        <tr>
-                          <td class="line-num">{parsed.lineNums[li] ?? ''}</td>
-                          <td class="line-code">{@html highlightCode(line, lang)}</td>
-                        </tr>
-                      {/each}
-                    </tbody>
-                  </table>
-                </div>
+                {@render codeView(parsed.code.split('\n'), lang, parsed.lineNums, false)}
               {:else}
-                <div class="result-output">
-                  <pre class="result-pre mono">{resultEntry.output}</pre>
-                </div>
+                {@render codeView(resultEntry.output.split('\n'), null, null, false)}
               {/if}
             </div>
           </div>
@@ -631,8 +632,7 @@
 
   /* ── Unified "show all N lines" expander (fade + centered pill) ── */
   .diff-block.clamped,
-  .read-output.clamped,
-  .result-output.clamped {
+  .code-view.clamped {
     position: relative;
     -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
     mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
@@ -640,10 +640,15 @@
   .expand-row {
     display: flex;
     justify-content: center;
-    padding: 5px 0 7px;
-    background: var(--bg1);
+    /* Float the pill over the faded tail of the content instead of sitting on
+       a solid bar below it. */
+    margin-top: -26px;
+    padding-bottom: 7px;
+    position: relative;
+    pointer-events: none;
   }
   .expand-pill {
+    pointer-events: auto;
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -743,12 +748,6 @@
     align-items: center;
     gap: 2px;
     flex-shrink: 0;
-    opacity: 0;
-    transition: opacity 0.12s;
-  }
-  .tc-card:hover .tc-actions,
-  .tc-actions:focus-within {
-    opacity: 1;
   }
   .tc-iconbtn {
     display: inline-flex;
@@ -884,6 +883,38 @@
     white-space: pre-wrap;
     word-break: break-word;
   }
+  .diff-line.add .dl-prefix {
+    color: var(--ac);
+  }
+  .diff-line.rem .dl-prefix {
+    color: var(--s-error);
+  }
+
+  /* ── Integrated code viewer (read / bash / output) ── */
+  .code-view {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    line-height: 1.55;
+    padding: 6px 0;
+    overflow-x: auto;
+  }
+  .code-line {
+    display: grid;
+    grid-template-columns: 44px 1fr;
+  }
+  .cv-num {
+    color: var(--t3);
+    text-align: right;
+    padding: 0 10px 0 12px;
+    user-select: none;
+    font-size: 10px;
+    border-right: 1px solid color-mix(in srgb, var(--bd), transparent 30%);
+  }
+  .cv-code {
+    padding: 0 12px;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
   .diff-overflow {
     width: 100%;
     text-align: left;
@@ -902,57 +933,6 @@
   }
 
   /* ── Bash body ── */
-  .bash-body {
-    padding: var(--sp-3) var(--sp-4);
-  }
-  .bash-code {
-    margin: 0;
-    font-family: var(--mono);
-    font-size: 10.5px;
-    line-height: 1.5;
-    color: var(--ac);
-  }
-  .bash-code code {
-    font-family: var(--mono);
-  }
-
-  /* ── Read output ── */
-  .read-output {
-    padding: var(--sp-3) var(--sp-4);
-    overflow-x: auto;
-  }
-  .read-output table {
-    font-family: var(--mono);
-    font-size: 10.5px;
-    border-collapse: collapse;
-  }
-  .read-output td {
-    padding: 0 var(--sp-2);
-    line-height: 1.55;
-    vertical-align: top;
-  }
-  .read-output td.line-num {
-    color: var(--t3);
-    text-align: right;
-    user-select: none;
-    width: 32px;
-    padding-right: var(--sp-2);
-    font-size: 10px;
-  }
-
-  /* ── Result output ── */
-  .result-output {
-    padding: var(--sp-3) var(--sp-4);
-    overflow-x: auto;
-  }
-  .result-pre {
-    margin: 0;
-    white-space: pre-wrap;
-    word-break: break-word;
-    font-size: 10.5px;
-    line-height: 1.55;
-    font-family: var(--mono);
-  }
 
   .result-divider {
     height: 1px;
@@ -1090,32 +1070,9 @@
   .modal-card-body .diff-block .diff-line {
     padding: 0 var(--sp-4);
   }
-  .modal-card-body .code-text {
-    margin: 0;
-    padding: var(--sp-3) var(--sp-4);
-    font-family: var(--mono);
+  .modal-card-body .code-view {
     font-size: var(--sm);
     line-height: 1.6;
-    color: var(--ac);
-    white-space: pre-wrap;
-    word-break: break-word;
-  }
-  .modal-card-body .code-text code {
-    font-family: var(--mono);
-  }
-  .modal-card-body .read-output {
-    padding: var(--sp-3) var(--sp-4);
-  }
-  .modal-card-body .result-output {
-    padding: var(--sp-3) var(--sp-4);
-  }
-  .modal-card-body .result-pre {
-    margin: 0;
-    white-space: pre-wrap;
-    word-break: break-word;
-    font-size: var(--sm);
-    line-height: 1.6;
-    font-family: var(--mono);
   }
 
   .card-copy-btn {
@@ -1155,32 +1112,6 @@
     color: var(--tool-fg);
     font-family: var(--mono);
     font-size: 11px;
-  }
-  .tc-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    flex-shrink: 0;
-    background: var(--t3);
-  }
-  .tc-dot.done {
-    background: var(--ac);
-  }
-  .tc-dot.failed {
-    background: var(--s-error);
-  }
-  .tc-dot.working {
-    background: var(--tool-fg);
-    animation: tcPulse 1.2s ease-in-out infinite;
-  }
-  @keyframes tcPulse {
-    0%,
-    100% {
-      opacity: 0.35;
-    }
-    50% {
-      opacity: 1;
-    }
   }
   .quiet-tool-body {
     padding: 12px;

@@ -181,8 +181,7 @@ describe('ToolCallEntry', () => {
 
     expect(container.querySelector('.quiet-tool-card')).toBeTruthy();
     expect(getByText('bash')).toBeTruthy();
-    // State is conveyed by the status dot colour, not a text label.
-    expect(container.querySelector('.tc-dot.done')).toBeTruthy();
+    // State is conveyed by the exit code + card styling, not a text/dot label.
     expect(container.textContent).toContain('exit 0');
     expect(container.textContent).toContain('npm test');
     expect(container.textContent).toContain('20 passed');
@@ -258,9 +257,9 @@ describe('ToolCallEntry', () => {
       props: { entry, resultEntry: result, streamingEntries: [], cwd: null },
     });
 
-    const pre = container.querySelector('.result-pre');
-    expect(pre?.textContent?.split('\n').length).toBe(14);
-    expect(container.querySelector('.result-output.clamped')).toBeTruthy();
+    const view = container.querySelector('.code-view.clamped');
+    expect(view).toBeTruthy();
+    expect(view!.querySelectorAll('.cv-code').length).toBe(14);
     expect(container.querySelector('.expand-pill')?.textContent).toContain('Show all 30 lines');
   });
 });

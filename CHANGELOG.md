@@ -8,7 +8,7 @@
 When the agent runs the same tool many times in a row (say eight file reads), the chat now folds them into a single "5 read steps" row you can expand on demand, instead of stacking eight cards.
 
 ### 06/08 · Improvement — Redesigned tool cards
-Every tool step now reads the same way across all providers: a status dot, the tool and file, and a compact summary on the right (lines changed, exit code, how long it took). Long output is capped with a centered "Show all N lines" button that fades into the content, and copy and expand actions appear when you hover the card. Failed steps are outlined in red.
+Every tool step now reads the same way across all providers: the tool and file, and a compact summary on the right (lines changed, exit code, how long it took). File contents, commands, and command output all render in one integrated code viewer with line numbers and syntax highlighting, in the card and in the full-screen view. Diffs colour the + and - markers. Long output is capped with a "Show all N lines" button that floats over a soft fade. Failed steps are outlined in red.
 
 ### 06/08 · Improvement — Calmer tool output and smoother panels
 Long tool results no longer flood the chat. Every tool, across all providers, now caps its inline output at a glance with a "click to expand" row that opens the full content. The sidebar and inspector panel now slide in and out, and new messages ease into the feed, for a calmer feel. All motion respects your system's reduced-motion setting.
