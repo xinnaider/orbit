@@ -67,6 +67,7 @@
   import NewSessionModal from './components/NewSessionModal.svelte';
   import MetaPanel from './components/MetaPanel.svelte';
   import { metaPanelVisible, sidebarVisible } from './lib/stores/preferences';
+  import { sidebarToggleHint } from './lib/shortcuts';
   import { mutedSessions } from './lib/stores/ui';
   import { backends } from './lib/stores/providers';
 
@@ -423,6 +424,11 @@
   }
 
   function handleKeydown(e: KeyboardEvent) {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'b') {
+      e.preventDefault();
+      sidebarVisible.set(!$sidebarVisible);
+      return;
+    }
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'i') {
       e.preventDefault();
       metaPanelVisible.set(!$metaPanelVisible);
@@ -509,8 +515,10 @@
     {:else if $sidebarVisible}
       <Sidebar onOpenChangelog={openChangelog} />
     {:else}
-      <button class="sidebar-reopen" on:click={() => sidebarVisible.set(true)} title="Show sidebar"
-        >›</button
+      <button
+        class="sidebar-reopen"
+        on:click={() => sidebarVisible.set(true)}
+        title="Show sidebar ({sidebarToggleHint()})">›</button
       >
     {/if}
     {#if claudeCheck && !claudeCheck.found}

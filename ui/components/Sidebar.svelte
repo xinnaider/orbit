@@ -14,6 +14,8 @@
   import DesktopNotifyToggle from './DesktopNotifyToggle.svelte';
   import SidebarFooterHints from './SidebarFooterHints.svelte';
   import { expandedParentSessions } from '../lib/stores/mcp-ui';
+  import { sidebarVisible } from '../lib/stores/preferences';
+  import { sidebarToggleHint } from '../lib/shortcuts';
 
   let appVersion = '';
   import OrbitLogo from '../lib/assets/orbit.svg?raw';
@@ -247,6 +249,12 @@
     <div class="header-actions">
       <McpStatusBadge compact />
       <ThemePicker />
+      <button
+        class="collapse-btn"
+        on:click={() => sidebarVisible.set(false)}
+        title="Hide sidebar ({sidebarToggleHint()})"
+        aria-label="Hide sidebar">‹</button
+      >
     </div>
   </header>
 
@@ -387,6 +395,19 @@
     display: flex;
     align-items: center;
     gap: var(--sp-3);
+  }
+  .collapse-btn {
+    background: none;
+    border: none;
+    color: var(--t2);
+    font-size: 16px;
+    line-height: 1;
+    padding: var(--sp-2);
+    cursor: pointer;
+    transition: color 0.15s;
+  }
+  .collapse-btn:hover {
+    color: var(--t0);
   }
   .new-session-btn {
     display: block;

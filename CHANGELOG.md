@@ -4,6 +4,9 @@
 
 ## June 2026
 
+### 06/08 · New — Hide the sidebar for more space
+You can now collapse the left sidebar to give the chat and editor more room, just like the right inspector panel. Use the ‹ button in the sidebar header or press ⌘B / Ctrl+B to toggle it; the choice is remembered.
+
 ### 06/08 · Improvement — Clearer chat feed
 The chat feed is easier to read at a glance. The "thinking" line now expands with a tidy chevron button instead of a small arrow, tool steps show a colored status dot (green when done, red on failure, pulsing while running), and error messages are simpler — a clean red line instead of a heavy highlighted box.
 
