@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="pt-br" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Orbit · Visualização de código — atual vs ideias</title>
+    <style>
+      :root {
+        --bg: #090a0a; --bg1: #0c0d0d; --bg2: #101111; --bg3: #141515; --bg4: #191a1a;
+        --bd: rgba(241, 236, 227, 0.1); --bd1: rgba(241, 236, 227, 0.14);
+        --t0: #f1ece3; --t1: #a19a90; --t2: #7a736b; --t3: #67615a;
+        --ac: #7cff9e; --s-error: #e47770; --tool-fg: #f2c96f; --user-fg: #4da3ff; --think-fg: #c8a8ff;
+        --add-bg: rgba(124, 255, 158, 0.08); --del-bg: rgba(228, 119, 112, 0.08);
+        --mono: 'JetBrains Mono', ui-monospace, monospace;
+        --radius-md: 8px;
+        /* proposed syntax palette (orbit-native) */
+        --sx-key: #c8a8ff; --sx-str: #9fdf9f; --sx-num: #f2c96f; --sx-com: #67615a;
+        --sx-fn: #7cd6ff; --sx-type: #f2c96f; --sx-punct: #a19a90;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--t0); font-family: 'Inter', system-ui, sans-serif; font-size: 14px; }
+      .page { max-width: 1180px; margin: 0 auto; padding: 32px 28px 96px; }
+      h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; }
+      .sub { color: var(--t2); font-size: 13px; margin: 0 0 26px; max-width: 74ch; }
+      h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--t2); font-weight: 600; margin: 40px 0 14px; }
+      .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start; }
+      .col-label { font-family: var(--mono); font-size: 11px; margin-bottom: 8px; display: flex; gap: 8px; align-items: center; }
+      .tag { font-size: 9px; font-family: var(--mono); padding: 1px 7px; border-radius: 999px; border: 1px solid var(--bd1); color: var(--t2); }
+      .tag.now { color: var(--t2); }
+      .tag.new { color: var(--ac); border-color: rgba(124,255,158,0.32); }
+
+      .tc { border: 1px solid var(--bd); border-radius: var(--radius-md); overflow: hidden; background: var(--bg1); }
+      .tc-head { display: flex; align-items: center; gap: 8px; padding: 7px 12px; background: var(--bg2); border-bottom: 1px solid var(--bd); font-family: var(--mono); font-size: 11px; }
+      .tc-name { color: var(--tool-fg); font-weight: 600; } .tc-sep { color: var(--t3); } .tc-path { color: var(--t1); }
+      .badge { font-size: 9px; font-family: var(--mono); padding: 1px 7px; border-radius: 4px; border: 1px solid var(--bd1); color: var(--t2); }
+
+      /* code rows */
+      .cv { font-family: var(--mono); font-size: 11.5px; line-height: 1.6; padding: 6px 0; overflow-x: auto; }
+      .ln { display: grid; grid-template-columns: 44px 1fr; }
+      .ln > .n { color: var(--t3); text-align: right; padding: 0 10px 0 12px; user-select: none; border-right: 1px solid rgba(241,236,227,0.07); }
+      .ln > .c { padding: 0 12px; white-space: pre; }
+      /* current = monochrome (no theme) */
+      .mono .c, .mono .c * { color: var(--t0) !important; }
+
+      /* proposed gutter w/ bg + current line */
+      .cv.editor { padding: 0; }
+      .cv.editor .ln > .n { background: var(--bg2); color: var(--t3); }
+      .cv.editor .ln:hover { background: rgba(255,255,255,0.025); }
+      .cv.editor .ln:hover > .n { color: var(--t1); }
+
+      /* syntax tokens (proposed) */
+      .k { color: var(--sx-key); } .s { color: var(--sx-str); } .nu { color: var(--sx-num); }
+      .cm { color: var(--sx-com); font-style: italic; } .fn { color: var(--sx-fn); } .ty { color: var(--sx-type); } .pu { color: var(--sx-punct); }
+
+      /* diff */
+      .diff .ln { grid-template-columns: 34px 14px 1fr; }
+      .diff .ln > .n { border: none; padding: 0 8px 0 10px; }
+      .diff .ln > .sg { text-align: center; user-select: none; color: var(--t3); }
+      .diff .ln > .c { padding: 0 10px; }
+      .diff .ln.add { background: var(--add-bg); } .diff .ln.add > .sg { color: var(--ac); }
+      .diff .ln.del { background: var(--del-bg); } .diff .ln.del > .sg { color: var(--s-error); }
+      .hunk { font-family: var(--mono); font-size: 10.5px; color: var(--user-fg); background: rgba(77,163,255,0.06); padding: 2px 12px; }
+      .word-add { background: rgba(124,255,158,0.22); border-radius: 2px; }
+      .word-del { background: rgba(228,119,112,0.22); border-radius: 2px; }
+
+      /* terminal output */
+      .term { font-family: var(--mono); font-size: 11.5px; line-height: 1.6; padding: 8px 0; }
+      .term .pl { display: grid; grid-template-columns: 44px 1fr; }
+      .term .pl > .n { color: var(--t3); text-align: right; padding: 0 10px 0 12px; border-right: 1px solid rgba(241,236,227,0.07); user-select: none; }
+      .term .pl > .o { padding: 0 12px; white-space: pre; color: var(--t1); }
+      .term .pl > .o.ok { color: #9fdf9f; } .term .pl > .o.bad { color: var(--s-error); }
+      .exit-badge { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 10px; padding: 1px 8px; border-radius: 999px; }
+      .exit-badge.ok { color: var(--ac); border: 1px solid rgba(124,255,158,0.3); }
+      .exit-badge.bad { color: var(--s-error); border: 1px solid rgba(228,119,112,0.4); }
+      .prompt { color: var(--ac); }
+
+      /* code header bar (proposed) */
+      .code-bar { display: flex; align-items: center; gap: 8px; padding: 5px 12px; background: var(--bg3); border-bottom: 1px solid var(--bd); font-family: var(--mono); font-size: 10.5px; color: var(--t2); }
+      .code-bar .dot { width: 7px; height: 7px; border-radius: 2px; }
+      .lang { margin-left: auto; color: var(--t3); }
+      .indent { color: rgba(241,236,227,0.08); }
+
+      .props { list-style: none; padding: 0; margin: 0; }
+      .props li { display: grid; grid-template-columns: 22px 1fr; gap: 10px; padding: 11px 0; border-bottom: 1px solid var(--bd); }
+      .props .num { font-family: var(--mono); font-size: 11px; color: var(--ac); }
+      .props b { color: var(--t0); } .props span { color: var(--t1); font-size: 13px; }
+      code { font-family: var(--mono); background: rgba(255,255,255,0.06); padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <h1>Orbit · Visualização de código — como está vs ideias</h1>
+      <p class="sub">Atual à esquerda (fiel ao código de hoje), proposta à direita. Achado: o orbit roda highlight.js mas <b>não carrega nenhum tema</b>, então o código sai <b>monocromático</b> na prática.</p>
+
+      <h2>1 · Arquivo / read</h2>
+      <div class="grid2">
+        <div>
+          <div class="col-label"><span class="tag now">ATUAL</span> monocromático, gutter fino</div>
+          <div class="tc">
+            <div class="tc-head"><span class="tc-name">read</span><span class="tc-sep">→</span><span class="tc-path">daemon-feed.ts</span></div>
+            <div class="cv mono">
+              <div class="ln"><span class="n">12</span><span class="c">function entryTypeFor(type) {</span></div>
+              <div class="ln"><span class="n">13</span><span class="c">  if (type === 'tool.delta') return 'progress';</span></div>
+              <div class="ln"><span class="n">14</span><span class="c">  // tool calls fall through</span></div>
+              <div class="ln"><span class="n">15</span><span class="c">  return 'toolCall';</span></div>
+              <div class="ln"><span class="n">16</span><span class="c">}</span></div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="col-label"><span class="tag new">PROPOSTA</span> tema de sintaxe + barra de arquivo</div>
+          <div class="tc">
+            <div class="code-bar"><span class="dot" style="background:var(--user-fg)"></span>daemon-feed.ts<span class="lang">typescript</span></div>
+            <div class="cv editor">
+              <div class="ln"><span class="n">12</span><span class="c"><span class="k">function</span> <span class="fn">entryTypeFor</span><span class="pu">(</span>type<span class="pu">)</span> {</span></div>
+              <div class="ln"><span class="n">13</span><span class="c"><span class="indent">·</span> <span class="k">if</span> <span class="pu">(</span>type === <span class="s">'tool.delta'</span><span class="pu">)</span> <span class="k">return</span> <span class="s">'progress'</span>;</span></div>
+              <div class="ln"><span class="n">14</span><span class="c"><span class="indent">·</span> <span class="cm">// tool calls fall through</span></span></div>
+              <div class="ln"><span class="n">15</span><span class="c"><span class="indent">·</span> <span class="k">return</span> <span class="s">'toolCall'</span>;</span></div>
+              <div class="ln"><span class="n">16</span><span class="c">}</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h2>2 · Diff (edit)</h2>
+      <div class="grid2">
+        <div>
+          <div class="col-label"><span class="tag now">ATUAL</span> sinais coloridos, código mono</div>
+          <div class="tc">
+            <div class="tc-head"><span class="tc-name">edit</span><span class="tc-sep">→</span><span class="tc-path">daemon-feed.ts</span><span style="margin-left:auto;color:var(--t3)"><span style="color:var(--ac)">+2</span> <span style="color:var(--s-error)">−1</span></span></div>
+            <div class="cv mono diff">
+              <div class="ln"><span class="n">13</span><span class="sg">−</span><span class="c">  if (type.startsWith('tool.')) return 'toolCall';</span></div>
+              <div class="ln add"><span class="n">13</span><span class="sg">+</span><span class="c">  if (type === 'tool.delta') return 'progress';</span></div>
+              <div class="ln add"><span class="n">14</span><span class="sg">+</span><span class="c">  if (type === 'tool.failed') return 'toolResult';</span></div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="col-label"><span class="tag new">PROPOSTA</span> hunk header + destaque de palavra + sintaxe</div>
+          <div class="tc">
+            <div class="tc-head"><span class="tc-name">edit</span><span class="tc-sep">→</span><span class="tc-path">daemon-feed.ts</span><span style="margin-left:auto;color:var(--t3)"><span style="color:var(--ac)">+2</span> <span style="color:var(--s-error)">−1</span></span></div>
+            <div class="cv diff">
+              <div class="hunk">@@ -13,1 +13,2 @@ entryTypeFor</div>
+              <div class="ln del"><span class="n">13</span><span class="sg">−</span><span class="c"><span class="indent">·</span> <span class="k">if</span> (type.<span class="fn">startsWith</span>(<span class="s">'tool.'</span>)) <span class="k">return</span> <span class="word-del"><span class="s">'toolCall'</span></span>;</span></div>
+              <div class="ln add"><span class="n">13</span><span class="sg">+</span><span class="c"><span class="indent">·</span> <span class="k">if</span> (type === <span class="word-add"><span class="s">'tool.delta'</span></span>) <span class="k">return</span> <span class="s">'progress'</span>;</span></div>
+              <div class="ln add"><span class="n">14</span><span class="sg">+</span><span class="c"><span class="indent">·</span> <span class="k">if</span> (type === <span class="s">'tool.failed'</span>) <span class="k">return</span> <span class="s">'toolResult'</span>;</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h2>3 · Comando + output (bash)</h2>
+      <div class="grid2">
+        <div>
+          <div class="col-label"><span class="tag now">ATUAL</span> output em linhas numeradas, plano</div>
+          <div class="tc">
+            <div class="tc-head"><span class="tc-name">bash</span><span class="tc-sep">→</span><span class="tc-path">npm test</span><span style="margin-left:auto;color:var(--t3)">exit 0 · 1.4s</span></div>
+            <div class="cv mono"><div class="ln"><span class="n">1</span><span class="c">npm test</span></div></div>
+            <div class="term" style="border-top:1px solid var(--bd)">
+              <div class="pl"><span class="n">1</span><span class="o">PASS  ui/lib/daemon-feed.test.ts (29)</span></div>
+              <div class="pl"><span class="n">2</span><span class="o">PASS  ui/lib/daemon-client.test.ts (11)</span></div>
+              <div class="pl"><span class="n">3</span><span class="o">Tests  198 passed (198)</span></div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="col-label"><span class="tag new">PROPOSTA</span> terminal: prompt $, output sem nº, badge de exit</div>
+          <div class="tc">
+            <div class="tc-head"><span class="tc-name">bash</span><span class="tc-sep">→</span><span class="tc-path">npm test</span><span style="margin-left:auto"><span class="exit-badge ok">● exit 0 · 1.4s</span></span></div>
+            <div class="term">
+              <div class="pl"><span class="n"></span><span class="o"><span class="prompt">$</span> npm test</span></div>
+              <div class="pl"><span class="n"></span><span class="o ok">PASS  ui/lib/daemon-feed.test.ts (29)</span></div>
+              <div class="pl"><span class="n"></span><span class="o ok">PASS  ui/lib/daemon-client.test.ts (11)</span></div>
+              <div class="pl"><span class="n"></span><span class="o">Tests  <span style="color:var(--ac)">198 passed</span> (198)</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h2>4 · Propostas</h2>
+      <ol class="props">
+        <li><span class="num">01</span><span><b>Tema de sintaxe de verdade.</b> Definir os tokens <code>.hljs-*</code> com a paleta do orbit (keyword roxo, string verde, número âmbar, comentário dim, função ciano). Hoje o highlight.js roda mas sem CSS = monocromático. <b>Maior impacto, baixo esforço.</b></span></li>
+        <li><span class="num">02</span><span><b>Barra de arquivo.</b> Nome + linguagem + ações (copy/abrir) num cabeçalho estilo aba de editor, separado do header da tool.</span></li>
+        <li><span class="num">03</span><span><b>Gutter de editor.</b> Fundo próprio na coluna de números, hover na linha (current-line), números clicáveis.</span></li>
+        <li><span class="num">04</span><span><b>Diff com hunk header.</b> <code>@@ -13 +13 @@</code> + dobrar contexto não alterado, em vez de só add/del soltos.</span></li>
+        <li><span class="num">05</span><span><b>Destaque por palavra.</b> No diff, realçar só o trecho que mudou na linha (word-level), não a linha inteira.</span></li>
+        <li><span class="num">06</span><span><b>Output como terminal.</b> Comando com prompt <code>$</code>, output sem numeração, badge de exit colorido. Numerar linha de output é estranho.</span></li>
+        <li><span class="num">07</span><span><b>Guias de indentação.</b> Linhas verticais sutis por nível, ajuda a ler código aninhado.</span></li>
+        <li><span class="num">08</span><span><b>Scroll horizontal vs wrap.</b> Toggle por bloco; números fixos (sticky) no scroll horizontal.</span></li>
+        <li><span class="num">09</span><span><b>Copiar por linha / por bloco</b> no hover, além do copy do card inteiro.</span></li>
+        <li><span class="num">10</span><span><b>Markdown renderizado</b> p/ read de <code>.md</code> (toggle raw/preview), em vez de só texto.</span></li>
+      </ol>
+    </div>
+  </body>
+</html>
