@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="pt-br" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Orbit · Git overview — atual vs proposta</title>
+    <style>
+      :root {
+        --bg: #090a0a; --bg1: #0c0d0d; --bg2: #101111; --bg3: #141515; --bg4: #191a1a;
+        --bd: rgba(241, 236, 227, 0.1); --bd1: rgba(241, 236, 227, 0.14);
+        --t0: #f1ece3; --t1: #a19a90; --t2: #7a736b; --t3: #67615a;
+        --ac: #7cff9e; --s-error: #e47770; --tool-fg: #f2c96f; --user-fg: #4da3ff; --think-fg: #c8a8ff;
+        --mono: 'JetBrains Mono', ui-monospace, monospace;
+        --radius-md: 8px; --radius-sm: 4px;
+        --st-mod: #f2c96f; --st-add: #7cff9e; --st-del: #e47770; --st-unt: #7a736b;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--t0); font-family: 'Inter', system-ui, sans-serif; font-size: 14px; }
+      .page { max-width: 1180px; margin: 0 auto; padding: 32px 28px 96px; }
+      h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; }
+      .sub { color: var(--t2); font-size: 13px; margin: 0 0 26px; max-width: 78ch; }
+      h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--t2); font-weight: 600; margin: 36px 0 14px; }
+      .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start; }
+      .col-label { font-family: var(--mono); font-size: 11px; margin-bottom: 8px; display: flex; gap: 8px; align-items: center; }
+      .tag { font-size: 9px; font-family: var(--mono); padding: 1px 7px; border-radius: 999px; border: 1px solid var(--bd1); color: var(--t2); }
+      .tag.new { color: var(--ac); border-color: rgba(124,255,158,0.32); }
+
+      .panel { border: 1px solid var(--bd); border-radius: var(--radius-md); overflow: hidden; background: var(--bg1); font-size: 12px; }
+
+      /* current header */
+      .hd { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--bg2); border-bottom: 1px solid var(--bd); font-family: var(--mono); font-size: 11px; }
+      .hd .br { color: var(--ac); } .hd .ct { color: var(--t2); margin-left: auto; }
+      .toolbar { display: flex; gap: 4px; flex-wrap: wrap; padding: 7px 10px; border-bottom: 1px solid var(--bd); }
+      .tb { font-family: var(--mono); font-size: 10px; color: var(--t1); border: 1px solid var(--bd1); background: none; border-radius: var(--radius-sm); padding: 3px 8px; cursor: pointer; }
+      .tb.danger { color: var(--s-error); border-color: rgba(228,119,112,0.3); }
+
+      /* file row (current flat) */
+      .row { display: flex; align-items: center; gap: 8px; padding: 4px 12px; font-family: var(--mono); font-size: 11px; }
+      .row:hover { background: rgba(255,255,255,0.025); }
+      .st { width: 14px; text-align: center; font-weight: 700; }
+      .st.m { color: var(--st-mod); } .st.a { color: var(--st-add); } .st.d { color: var(--st-del); } .st.u { color: var(--st-unt); }
+      .fp { color: var(--t1); } .fp .dir { color: var(--t3); }
+
+      /* proposed header */
+      .ov { padding: 12px; border-bottom: 1px solid var(--bd); background: var(--bg2); }
+      .ov .top { display: flex; align-items: center; gap: 10px; }
+      .branch { display: inline-flex; align-items: center; gap: 6px; color: var(--ac); font-family: var(--mono); font-size: 12px; }
+      .sync { margin-left: auto; display: inline-flex; gap: 8px; font-family: var(--mono); font-size: 10.5px; color: var(--t2); }
+      .sync .up { color: var(--ac); } .sync .down { color: var(--user-fg); }
+      .chips { display: flex; gap: 6px; margin-top: 10px; }
+      .chip { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 10px; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--bd1); color: var(--t2); }
+      .chip .d { width: 6px; height: 6px; border-radius: 50%; }
+      .chip.staged .d { background: var(--st-add); } .chip.changed .d { background: var(--st-mod); } .chip.unt .d { background: var(--st-unt); }
+
+      /* proposed sectioned tree */
+      .sec-h { display: flex; align-items: center; gap: 7px; padding: 6px 12px; font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--t2); background: var(--bg2); cursor: pointer; }
+      .sec-h .cnt { margin-left: auto; color: var(--t3); }
+      .sec-h .chev { width: 9px; height: 9px; }
+      .frow { display: grid; grid-template-columns: 14px 1fr auto auto; align-items: center; gap: 8px; padding: 3px 12px 3px 22px; font-family: var(--mono); font-size: 11px; }
+      .frow:hover { background: rgba(255,255,255,0.03); }
+      .frow .name { color: var(--t1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .frow .name .dir { color: var(--t3); }
+      .frow .stat { font-size: 10px; color: var(--t3); } .frow .stat .p { color: var(--st-add); } .frow .stat .m { color: var(--st-del); }
+      .frow .act { opacity: 0; color: var(--t3); font-size: 10px; }
+      .frow:hover .act { opacity: 1; }
+      .fold { padding: 3px 12px 3px 22px; font-family: var(--mono); font-size: 11px; color: var(--t2); display: flex; align-items: center; gap: 6px; }
+      .fold .fcnt { color: var(--t3); font-size: 10px; }
+      .indent { padding-left: 18px; }
+
+      .commit-box { border-top: 1px solid var(--bd); padding: 10px 12px; background: var(--bg2); }
+      .commit-box textarea { width: 100%; background: var(--bg); border: 1px solid var(--bd1); border-radius: var(--radius-sm); color: var(--t0); font-family: var(--mono); font-size: 11px; padding: 7px 9px; resize: none; }
+      .commit-actions { display: flex; gap: 8px; margin-top: 8px; }
+      .btn { font-family: var(--mono); font-size: 11px; padding: 5px 12px; border-radius: var(--radius-sm); cursor: pointer; border: 1px solid var(--bd1); background: none; color: var(--t1); }
+      .btn.primary { color: var(--ac); border-color: rgba(124,255,158,0.32); }
+
+      .props { list-style: none; padding: 0; margin: 0; }
+      .props li { display: grid; grid-template-columns: 22px 1fr; gap: 10px; padding: 11px 0; border-bottom: 1px solid var(--bd); }
+      .props .num { font-family: var(--mono); font-size: 11px; color: var(--ac); }
+      .props b { color: var(--t0); } .props span { color: var(--t1); font-size: 13px; }
+      code { font-family: var(--mono); background: rgba(255,255,255,0.06); padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+      .bugbox { border: 1px solid rgba(228,119,112,0.4); background: rgba(228,119,112,0.06); border-radius: var(--radius-md); padding: 12px 14px; margin: 0 0 20px; font-size: 13px; color: var(--t1); }
+      .bugbox b { color: var(--t0); }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <h1>Orbit · Git overview — como está vs proposta</h1>
+      <p class="sub">Atual à esquerda (fiel), proposta à direita. Inclui correção do bug de subpastas.</p>
+
+      <div class="bugbox">
+        <b>Bug corrigido:</b> arquivos novos em subpastas não apareciam. <code>git status --porcelain</code> colapsa diretórios não-rastreados num só <code>?? subpasta/</code>. Fix: <code>--untracked-files=all</code> nas 3 fontes de status. Agora cada arquivo da subpasta aparece individualmente (esquerda mostra o sintoma, direita o esperado).
+      </div>
+
+      <h2>1 · Overview</h2>
+      <div class="grid2">
+        <div>
+          <div class="col-label"><span class="tag">ATUAL</span> header simples + toolbar de 6 botões</div>
+          <div class="panel">
+            <div class="hd"><span class="br">fix/chat-feed</span><span style="color:var(--t3)">↑21</span><span class="ct">6 files</span></div>
+            <div class="toolbar">
+              <button class="tb">Refresh</button><button class="tb">Stage All</button><button class="tb">Unstage All</button>
+              <button class="tb">Commit</button><button class="tb">Quick Commit</button><button class="tb danger">Reset</button>
+            </div>
+            <div style="padding:6px 0">
+              <div class="row"><span class="st m">M</span><span class="fp">ToolCallEntry.svelte</span></div>
+              <div class="row"><span class="st m">M</span><span class="fp">Feed.svelte</span></div>
+              <div class="row"><span class="st u">?</span><span class="fp"><span class="dir">docs/specs/</span></span></div>
+              <div style="padding:4px 12px;color:var(--s-error);font-family:var(--mono);font-size:10px">↑ subpasta colapsada — arquivos dentro não listados (bug)</div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="col-label"><span class="tag new">PROPOSTA</span> sync header + chips + seções</div>
+          <div class="panel">
+            <div class="ov">
+              <div class="top">
+                <span class="branch">⎇ fix/chat-feed</span>
+                <span class="sync"><span class="up">↑ 21</span><span class="down">↓ 0</span></span>
+              </div>
+              <div class="chips">
+                <span class="chip staged"><span class="d"></span>2 staged</span>
+                <span class="chip changed"><span class="d"></span>2 changed</span>
+                <span class="chip unt"><span class="d"></span>3 untracked</span>
+              </div>
+            </div>
+            <div class="sec-h"><svg class="chev" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Staged<span class="cnt">2</span></div>
+            <div class="frow"><span class="st m">M</span><span class="name"><span class="dir">ui/components/</span>ToolCallEntry.svelte</span><span class="stat"><span class="p">+12</span> <span class="m">−4</span></span><span class="act">unstage</span></div>
+            <div class="frow"><span class="st m">M</span><span class="name"><span class="dir">ui/components/</span>Feed.svelte</span><span class="stat"><span class="p">+8</span></span><span class="act">unstage</span></div>
+            <div class="sec-h"><svg class="chev" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Untracked<span class="cnt">3</span></div>
+            <div class="fold">▸ <span style="color:var(--user-fg)">docs/specs/</span><span class="fcnt">3 files</span></div>
+            <div class="frow indent"><span class="st u">?</span><span class="name">git-overview-mockup.html</span><span></span><span class="act">stage</span></div>
+            <div class="frow indent"><span class="st u">?</span><span class="name">code-viewer-mockup.html</span><span></span><span class="act">stage</span></div>
+            <div class="frow indent"><span class="st u">?</span><span class="name">feed-events-mockup.html</span><span></span><span class="act">stage</span></div>
+            <div class="commit-box">
+              <textarea rows="2" placeholder="Commit message…"></textarea>
+              <div class="commit-actions"><button class="btn primary">Commit 2 staged</button><button class="btn">Stage all</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h2>2 · Propostas</h2>
+      <ol class="props">
+        <li><span class="num">01</span><span><b>Subpastas recursivas.</b> <code>--untracked-files=all</code> — corrigido. A árvore já agrupa por pasta; agora recebe os arquivos de verdade. <b>bug.</b></span></li>
+        <li><span class="num">02</span><span><b>Seções Staged / Changed / Untracked.</b> Colapsáveis, com contagem, como VS Code / GitHub Desktop — em vez de uma lista única com letra de status.</span></li>
+        <li><span class="num">03</span><span><b>Sync header.</b> Branch + <code>↑ ahead / ↓ behind</code> claros + chips coloridos de contagem por tipo.</span></li>
+        <li><span class="num">04</span><span><b>Diff stat por arquivo.</b> <code>+12 −4</code> em cada linha; ação stage/unstage no hover.</span></li>
+        <li><span class="num">05</span><span><b>Pastas dobráveis com contagem.</b> <code>▸ docs/specs/ · 3 files</code>; dobrar pastas inteiras.</span></li>
+        <li><span class="num">06</span><span><b>Commit inline.</b> Caixa de mensagem + commit no rodapé do painel, em vez de modal.</span></li>
+        <li><span class="num">07</span><span><b>Toolbar enxuta.</b> 6 botões → ações contextuais (stage/unstage no hover, commit no rodapé). Sobra Refresh + Reset.</span></li>
+        <li><span class="num">08</span><span><b>Ícone+cor por status.</b> M âmbar · A verde · D vermelho · ? cinza, consistente.</span></li>
+        <li><span class="num">09</span><span><b>Selecionar múltiplos + ação em lote</b> (stage/tag) mantém o que já existe, mais visível.</span></li>
+        <li><span class="num">10</span><span><b>Último commit + dirty state</b> no header (ex.: <code>last: feat(feed)… · 2min</code>).</span></li>
+      </ol>
+    </div>
+  </body>
+</html>

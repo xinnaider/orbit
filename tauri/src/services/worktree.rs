@@ -57,20 +57,18 @@ pub fn create_worktree(project_path: &Path, slug: &str) -> Result<PathBuf, Strin
 
     #[cfg(windows)]
     let output = {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x08000000;
-        Command::new("git")
-            .args([
-                "-C",
-                project_path.to_str().unwrap_or("."),
-                "worktree",
-                "add",
-                worktree_path.to_str().unwrap_or(""),
-                "-b",
-                &branch_name,
-            ])
-            .creation_flags(CREATE_NO_WINDOW)
-            .output()
+        let mut cmd = Command::new("git");
+        cmd.args([
+            "-C",
+            project_path.to_str().unwrap_or("."),
+            "worktree",
+            "add",
+            worktree_path.to_str().unwrap_or(""),
+            "-b",
+            &branch_name,
+        ]);
+        crate::services::process_util::apply_silent(&mut cmd);
+        cmd.output()
             .map_err(|e| format!("git nao encontrado: {e}"))?
     };
 

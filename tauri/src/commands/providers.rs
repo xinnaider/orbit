@@ -837,27 +837,12 @@ pub fn diagnose_provider(
 }
 
 fn run_cli_version(path: &str) -> Option<String> {
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x08000000;
-        let out = std::process::Command::new(path)
-            .arg("--version")
-            .creation_flags(CREATE_NO_WINDOW)
-            .output()
-            .ok()?;
-        let stdout = String::from_utf8_lossy(&out.stdout).trim().to_string();
-        let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
-        Some(if stdout.is_empty() { stderr } else { stdout })
-    }
-    #[cfg(not(windows))]
-    {
-        let out = std::process::Command::new(path)
-            .arg("--version")
-            .output()
-            .ok()?;
-        Some(String::from_utf8_lossy(&out.stdout).trim().to_string())
-    }
+    let mut cmd = crate::services::process_util::command_for_program(path);
+    cmd.arg("--version");
+    let out = cmd.output().ok()?;
+    let stdout = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
+    Some(if stdout.is_empty() { stderr } else { stdout })
 }
 
 fn read_opencode_providers() -> Option<Vec<SubProvider>> {

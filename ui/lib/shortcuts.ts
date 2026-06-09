@@ -30,6 +30,10 @@ export function inspectorToggleHint(): string {
   return formatModChord('I');
 }
 
+export function sidebarToggleHint(): string {
+  return formatModChord('B');
+}
+
 export function splitPaneHint(): string {
   return isMacOS() ? '⌘\\' : 'Ctrl+\\';
 }

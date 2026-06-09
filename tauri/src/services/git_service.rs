@@ -102,7 +102,10 @@ impl GitWatcher {
             .filter(|s| !s.is_empty())
         });
 
-        let status_output = Self::run_git(cwd, &["status", "--porcelain"]).ok();
+        // `--untracked-files=all` lists files inside new subfolders individually
+        // instead of collapsing them into a single `?? subdir/` entry.
+        let status_output =
+            Self::run_git(cwd, &["status", "--porcelain", "--untracked-files=all"]).ok();
         let files: Vec<String> = status_output
             .as_ref()
             .map(|s| {
@@ -128,9 +131,10 @@ impl GitWatcher {
     }
 
     pub fn run_git(cwd: &PathBuf, args: &[&str]) -> Result<String, String> {
-        let output = std::process::Command::new("git")
-            .current_dir(cwd)
-            .args(args)
+        let mut cmd = std::process::Command::new("git");
+        cmd.current_dir(cwd).args(args);
+        crate::services::process_util::apply_silent(&mut cmd);
+        let output = cmd
             .output()
             .map_err(|e| format!("Failed to run git: {}", e))?;
         if output.status.success() {

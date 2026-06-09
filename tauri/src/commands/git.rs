@@ -2,12 +2,6 @@ use serde::Serialize;
 use std::path::Path;
 use std::process::Command;
 
-#[cfg(windows)]
-use std::os::windows::process::CommandExt;
-
-#[cfg(windows)]
-const CREATE_NO_WINDOW: u32 = 0x08000000;
-
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GitBranchInfo {
@@ -67,9 +61,7 @@ fn run_git(cwd: &str, args: &[&str]) -> Result<String, String> {
 
     let mut cmd = Command::new("git");
     cmd.args(args).current_dir(cwd);
-
-    #[cfg(windows)]
-    cmd.creation_flags(CREATE_NO_WINDOW);
+    crate::services::process_util::apply_silent(&mut cmd);
 
     let output = cmd
         .output()
@@ -249,7 +241,9 @@ fn apply_numstat(
 }
 
 fn changed_files(cwd: &str) -> Result<(Vec<GitFileChange>, String), String> {
-    let output = run_git(cwd, &["status", "--porcelain=v1"])?;
+    // `--untracked-files=all` so untracked files inside new subfolders are listed
+    // individually instead of collapsed into a single `?? subdir/` entry.
+    let output = run_git(cwd, &["status", "--porcelain=v1", "--untracked-files=all"])?;
     let mut files: Vec<GitFileChange> = output.lines().flat_map(parse_status_line).collect();
     if let Ok(stats) = numstat_map(cwd) {
         apply_numstat(&mut files, &stats);
@@ -451,8 +445,8 @@ pub fn git_diff_formatted(cwd: String, file_path: String) -> Result<String, Stri
 /// Quick commit with auto-generated message from file changes
 #[tauri::command]
 pub fn git_quick_commit(cwd: String) -> Result<(), String> {
-    let status =
-        run_git(&cwd, &["status", "--short"]).map_err(|e| format!("Failed to get status: {e}"))?;
+    let status = run_git(&cwd, &["status", "--short", "--untracked-files=all"])
+        .map_err(|e| format!("Failed to get status: {e}"))?;
 
     let files: Vec<String> = status
         .lines()

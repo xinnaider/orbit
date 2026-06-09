@@ -44,7 +44,10 @@ export async function diagnoseSpawn(): Promise<SpawnDiagnostic> {
 export async function getAppVersion(): Promise<string> {
   if (IS_MOCK || IS_WEB) return '0.0.0';
   const { getVersion } = await import('@tauri-apps/api/app');
-  return getVersion();
+  const version = await getVersion();
+  // Mark local dev builds so the sidebar shows e.g. "v0.5.2-dev" instead of
+  // looking like a real release.
+  return import.meta.env.DEV ? `${version}-dev` : version;
 }
 
 export async function checkUpdate(): Promise<UpdateInfo | null> {

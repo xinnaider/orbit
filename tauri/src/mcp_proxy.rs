@@ -310,9 +310,10 @@ fn dispatch_http_tool(
 }
 
 fn http_get(url: &str, token: &str) -> String {
-    let output = std::process::Command::new("curl")
-        .args(["-s", "-H", &format!("Authorization: Bearer {token}"), url])
-        .output();
+    let mut cmd = std::process::Command::new("curl");
+    cmd.args(["-s", "-H", &format!("Authorization: Bearer {token}"), url]);
+    crate::services::process_util::apply_silent(&mut cmd);
+    let output = cmd.output();
 
     match output {
         Ok(o) => String::from_utf8_lossy(&o.stdout).to_string(),
@@ -322,20 +323,21 @@ fn http_get(url: &str, token: &str) -> String {
 
 fn http_post(url: &str, token: &str, body: &serde_json::Value) -> String {
     let body_str = body.to_string();
-    let output = std::process::Command::new("curl")
-        .args([
-            "-s",
-            "-X",
-            "POST",
-            "-H",
-            &format!("Authorization: Bearer {token}"),
-            "-H",
-            "Content-Type: application/json",
-            "-d",
-            &body_str,
-            url,
-        ])
-        .output();
+    let mut cmd = std::process::Command::new("curl");
+    cmd.args([
+        "-s",
+        "-X",
+        "POST",
+        "-H",
+        &format!("Authorization: Bearer {token}"),
+        "-H",
+        "Content-Type: application/json",
+        "-d",
+        &body_str,
+        url,
+    ]);
+    crate::services::process_util::apply_silent(&mut cmd);
+    let output = cmd.output();
 
     match output {
         Ok(o) => String::from_utf8_lossy(&o.stdout).to_string(),
@@ -492,14 +494,10 @@ pub mod standalone {
 
         #[cfg(windows)]
         {
-            use std::os::windows::process::CommandExt;
-            const CREATE_NO_WINDOW: u32 = 0x08000000;
-            let out = Command::new("where")
-                .arg(name)
-                .env("PATH", &aug)
-                .creation_flags(CREATE_NO_WINDOW)
-                .output()
-                .ok()?;
+            let mut lookup = Command::new("where");
+            lookup.arg(name).env("PATH", &aug);
+            crate::services::process_util::apply_silent(&mut lookup);
+            let out = lookup.output().ok()?;
             if !out.status.success() {
                 return None;
             }
@@ -509,13 +507,7 @@ pub mod standalone {
                 .map(|l| l.trim())
                 .filter(|l| !l.is_empty())
                 .collect();
-            if let Some(win) = lines.iter().find(|l| {
-                let lower = l.to_lowercase();
-                lower.ends_with(".cmd") || lower.ends_with(".exe")
-            }) {
-                return Some(win.to_string());
-            }
-            lines.first().map(|l| l.to_string())
+            crate::services::process_util::pick_windows_cli_path(&lines)
         }
 
         #[cfg(not(windows))]
@@ -616,7 +608,7 @@ pub mod standalone {
         let use_stdin = matches!(provider, "opencode" | "codex")
             && crate::services::spawn_manager::prompt_requires_stdin(prompt);
 
-        let mut cmd = Command::new(&cli_path);
+        let mut cmd = crate::services::process_util::command_for_program(&cli_path);
         if use_stdin {
             let mut stdin_args = args.clone();
             stdin_args.pop();
@@ -630,13 +622,6 @@ pub mod standalone {
         cmd.env("PATH", extended_path());
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
-
-        #[cfg(windows)]
-        {
-            use std::os::windows::process::CommandExt;
-            const CREATE_NO_WINDOW: u32 = 0x08000000;
-            cmd.creation_flags(CREATE_NO_WINDOW);
-        }
 
         let mut child = cmd.spawn().map_err(|e| format!("spawn failed: {e}"))?;
 
@@ -794,19 +779,12 @@ pub mod standalone {
             }
         }
 
-        let mut cmd = Command::new(&cli_path);
+        let mut cmd = crate::services::process_util::command_for_program(&cli_path);
         cmd.args(&args);
         cmd.current_dir(&old_agent.cwd);
         cmd.env("PATH", extended_path());
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
-
-        #[cfg(windows)]
-        {
-            use std::os::windows::process::CommandExt;
-            const CREATE_NO_WINDOW: u32 = 0x08000000;
-            cmd.creation_flags(CREATE_NO_WINDOW);
-        }
 
         let mut new_child = cmd.spawn().map_err(|e| format!("respawn failed: {e}"))?;
         let pid = new_child.id();

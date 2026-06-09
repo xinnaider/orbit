@@ -126,7 +126,13 @@
     return null;
   }
 
+  // TEMPORARILY DISABLED: Terminal and Git overview tabs are turned off for now
+  // (we are shipping chats only). The add menu shows them greyed out and never
+  // dispatches, but we gate here too. Flip to `false` to bring both tabs back.
+  const TABS_DISABLED: boolean = true;
+
   function handleAddAction(action: 'terminal' | 'git') {
+    if (TABS_DISABLED) return;
     const cwd = session?.cwd ?? (activeTab?.target.kind === 'git' ? activeTab.target.cwd : '.');
     if (action === 'terminal') {
       addTab(paneId, { kind: 'terminal', terminalId: crypto.randomUUID(), cwd });
@@ -176,7 +182,6 @@
       <CentralPanel
         {session}
         focused={isFocused}
-        compact={compactPane}
         onClose={canClose ? () => closePane(paneId) : null}
       />
     {:else}

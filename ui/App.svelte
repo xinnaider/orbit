@@ -17,6 +17,8 @@
   import { assignSession, clearSession, restoreWorkspace, workspace } from './lib/stores/workspace';
   import { upsertAndOpenSession, upsertSessionFromEvent } from './lib/stores/session-actions';
   import { journal } from './lib/stores/journal';
+  import { connectDaemonSse } from './lib/daemon-client';
+  import { resolveSessionForRun } from './lib/daemon-runs';
   import { rawJournal } from './lib/stores/rawJournal';
   import { taskUpdateTrigger } from './lib/stores/tasks';
   import { addToast } from './lib/stores/toasts';
@@ -65,6 +67,7 @@
   import NewSessionModal from './components/NewSessionModal.svelte';
   import MetaPanel from './components/MetaPanel.svelte';
   import { metaPanelVisible, sidebarVisible } from './lib/stores/preferences';
+  import { sidebarToggleHint } from './lib/shortcuts';
   import { mutedSessions } from './lib/stores/ui';
   import { backends } from './lib/stores/providers';
 
@@ -343,10 +346,20 @@
       );
     });
 
+    // Opt-in: stream daemon SDK events straight into the feed when a daemon URL
+    // is configured. Events route to a session via the run registry, populated
+    // when a session opens a daemon run (see daemon-session.ts).
+    let disposeDaemon: (() => void) | null = null;
+    const daemonUrl = import.meta.env.VITE_DAEMON_URL as string | undefined;
+    if (daemonUrl) {
+      disposeDaemon = connectDaemonSse(daemonUrl, (e) => resolveSessionForRun(e.runId));
+    }
+
     // Resolve all unlisten functions and store for cleanup
     Promise.all([u1, u2, u3, u4, u5, u6, u7, u8, u9, u10, u11, u12, u13, u14]).then((fns) => {
       unlisteners = fns;
       if (uTrayNotify) unlisteners.push(uTrayNotify);
+      if (disposeDaemon) unlisteners.push(disposeDaemon);
     });
 
     async function tryCheckUpdate() {
@@ -411,6 +424,11 @@
   }
 
   function handleKeydown(e: KeyboardEvent) {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'b') {
+      e.preventDefault();
+      sidebarVisible.set(!$sidebarVisible);
+      return;
+    }
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'i') {
       e.preventDefault();
       metaPanelVisible.set(!$metaPanelVisible);
@@ -497,8 +515,10 @@
     {:else if $sidebarVisible}
       <Sidebar onOpenChangelog={openChangelog} />
     {:else}
-      <button class="sidebar-reopen" on:click={() => sidebarVisible.set(true)} title="Show sidebar"
-        >›</button
+      <button
+        class="sidebar-reopen"
+        on:click={() => sidebarVisible.set(true)}
+        title="Show sidebar ({sidebarToggleHint()})">›</button
       >
     {/if}
     {#if claudeCheck && !claudeCheck.found}

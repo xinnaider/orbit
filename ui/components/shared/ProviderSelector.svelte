@@ -1,19 +1,15 @@
 <script lang="ts">
   import type { CliBackend, SubProvider } from '../../lib/tauri';
-  import { loadProviderKey } from '../../lib/tauri/providers';
   import SearchSelect from './SearchSelect.svelte';
 
   export let backends: CliBackend[];
   export let backendId: string;
   export let subProviderId: string;
   export let model: string;
-  export let apiKeyOverride: string;
   export let sshMode: boolean;
   export let loading: boolean;
 
   let subProviderSearch = '';
-  let savedKeyLoaded = false;
-  let hasSavedKey = false;
 
   $: selectedBackend = backends.find((b) => b.id === backendId) ?? null;
   $: hasSubProviders = selectedBackend?.hasSubProviders ?? false;
@@ -47,11 +43,7 @@
     ? (selectedSubProvider?.models ?? [])
     : (selectedBackend?.models ?? []);
 
-  // API key needed? (only for sub-provider backends like OpenCode)
-  $: envVars = selectedSubProvider?.env ?? [];
-  $: needsApiKey = hasSubProviders && envVars.length > 0;
-
-  // Reset model and load saved key when backend or sub-provider changes
+  // Reset model when backend or sub-provider changes
   let prevBackendId = backendId;
   let prevSubProviderId = subProviderId;
   $: if (backendId !== prevBackendId || subProviderId !== prevSubProviderId) {
@@ -59,24 +51,6 @@
     prevSubProviderId = subProviderId;
     const first = currentModels[0];
     model = first?.id ?? '';
-    // Load saved API key for this provider
-    savedKeyLoaded = false;
-    hasSavedKey = false;
-    if (needsApiKey && subProviderId) {
-      loadProviderKey(subProviderId)
-        .then((result) => {
-          if (result) {
-            hasSavedKey = true;
-            if (!apiKeyOverride) {
-              apiKeyOverride = result.apiKey;
-            }
-          }
-          savedKeyLoaded = true;
-        })
-        .catch(() => {
-          savedKeyLoaded = true;
-        });
-    }
   }
 
   function selectSubProvider(p: SubProvider) {
@@ -233,25 +207,15 @@
   </div>
 {/if}
 
-<!-- API Key (OpenCode sub-providers only) -->
-{#if needsApiKey}
-  <div class="field">
-    <label class="label" for="ns-apikey"
-      >API Key
-      {#if hasSavedKey}
-        <span class="key-saved">✓ saved</span>
-      {/if}</label
-    >
-    <input
-      id="ns-apikey"
-      class="input"
-      type="password"
-      bind:value={apiKeyOverride}
-      placeholder={hasSavedKey ? 'using saved key — paste to override' : 'paste API key...'}
-      disabled={loading}
-    />
-  </div>
-{/if}
+<!-- API Key info alert: config via CLI, not in Orbit -->
+<div class="alert-info">
+  <span class="alert-icon">ⓘ</span>
+  <span>
+    Configure your API directly in the matching CLI (<strong>OpenCode</strong>,
+    <strong>Claude Code</strong>, etc.). Orbit will use the credentials already set up in your
+    terminal.
+  </span>
+</div>
 
 <style>
   .field {
@@ -415,9 +379,24 @@
     text-align: center;
   }
 
-  .key-saved {
-    color: var(--s-working);
-    font-weight: normal;
-    font-size: 10px;
+  .alert-info {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-3);
+    background: rgba(0, 212, 126, 0.06);
+    border: 1px solid rgba(0, 212, 126, 0.25);
+    border-radius: var(--radius-sm);
+    padding: var(--sp-3) var(--sp-4);
+    font-size: var(--xs);
+    color: var(--t2);
+    line-height: 1.4;
+  }
+  .alert-icon {
+    flex-shrink: 0;
+    font-size: var(--sm);
+    line-height: 1.4;
+  }
+  .alert-info strong {
+    color: var(--t0);
   }
 </style>

@@ -95,6 +95,11 @@ export const theme = createThemeStore();
 export const metaPanelVisible = createBooleanPreferenceStore('metaPanelVisible', false);
 export const sidebarVisible = createBooleanPreferenceStore('sidebarVisible', true);
 export const compactDensity = createBooleanPreferenceStore('compactDensity', false);
+/** Git diff viewer: open in edit mode by default. The pencil toggle switches to
+ * the read-only unified diff view. */
+export const gitEditable = createBooleanPreferenceStore('gitEditable', true);
+/** Git diff viewer: auto-save edits 1.5s after the last change (on by default). */
+export const gitAutoSave = createBooleanPreferenceStore('gitAutoSave', true);
 export const windowOpacity = createWindowOpacityStore();
 /** Desktop notifications (session completed, permission, errors, tasks). */
 export const notificationsEnabled = createBooleanPreferenceStore('notificationsEnabled', true);

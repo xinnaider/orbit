@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="pt-br" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Orbit · Feed — todos os eventos (mockup v2)</title>
+    <style>
+      :root {
+        --bg: #090a0a; --bg1: #0c0d0d; --bg2: #101111; --bg3: #141515;
+        --bd: rgba(241, 236, 227, 0.1); --bd1: rgba(241, 236, 227, 0.14);
+        --t0: #f1ece3; --t1: #a19a90; --t2: #7a736b; --t3: #67615a;
+        --ac: #7cff9e; --ac-d: rgba(124, 255, 158, 0.12); --ac-border: rgba(124, 255, 158, 0.32);
+        --s-working: #7cff9e; --s-error: #e47770;
+        --user-fg: #4da3ff; --think-fg: #c8a8ff; --think-bg: rgba(200, 168, 255, 0.08);
+        --think-surface: #14121b;
+        --tool-fg: #f2c96f; --tool-bg: rgba(242, 201, 111, 0.07);
+        --result-fg: #7a736b;
+        --diff-add: #7cff9e; --diff-add-bg: rgba(124, 255, 158, 0.08);
+        --diff-del: #e47770; --diff-del-bg: rgba(228, 119, 112, 0.08);
+        --mono: 'JetBrains Mono', 'Cascadia Code', ui-monospace, monospace;
+        --radius-sm: 4px;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; background: var(--bg); color: var(--t0);
+        font-family: 'Inter', system-ui, sans-serif; font-size: 14px; line-height: 1.5;
+      }
+      .page { max-width: 1180px; margin: 0 auto; padding: 32px 28px 80px; }
+      h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; }
+      .sub { color: var(--t2); font-size: 13px; margin: 0 0 28px; }
+      h2 {
+        font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;
+        color: var(--t2); font-weight: 600; margin: 38px 0 14px;
+        border-bottom: 1px solid var(--bd); padding-bottom: 8px;
+      }
+      .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }
+      .note {
+        font-size: 12px; color: var(--t2); background: var(--bg2);
+        border-left: 2px solid var(--bd1); padding: 8px 12px;
+        border-radius: 0 var(--radius-sm) var(--radius-sm) 0; margin: 6px 0 18px;
+      }
+      .panel { background: var(--bg1); border: 1px solid var(--bd); border-radius: 10px; padding: 8px 4px; }
+      .panel-label { font-size: 11px; color: var(--t2); font-family: var(--mono); padding: 4px 14px 8px; }
+
+      /* ── Timeline (mirrors Feed.svelte) ───────────────────────────── */
+      .timeline { padding: 14px 24px; display: flex; flex-direction: column; gap: 13px; }
+      .ev { display: grid; grid-template-columns: 20px 1fr; gap: 16px; position: relative; }
+      .ev:not(:last-child)::before {
+        content: ''; position: absolute; left: 9px; top: 29px; bottom: -14px;
+        width: 1px; background: rgba(255, 255, 255, 0.07);
+      }
+      .node {
+        width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
+        margin-top: 4px; border: 1px solid var(--bd); background: var(--bg);
+      }
+      .node::after { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--t3); }
+      .node.user::after { background: var(--user-fg); box-shadow: 0 0 0 3px rgba(77,163,255,0.22), 0 0 16px rgba(77,163,255,0.5); }
+      .node.assistant::after { background: var(--ac); box-shadow: 0 0 0 3px rgba(124,255,158,0.22), 0 0 16px rgba(124,255,158,0.5); }
+      .node.tool::after { background: var(--tool-fg); box-shadow: 0 0 12px rgba(242,201,111,0.4); }
+      .node.think::after { background: var(--think-fg); box-shadow: 0 0 12px rgba(200,168,255,0.4); }
+      .meta {
+        display: flex; align-items: center; gap: 9px; margin-bottom: 5px;
+        color: var(--t3); font-family: var(--mono); font-size: 10px;
+      }
+      .actor { color: var(--t1); }
+      .actor.user { color: var(--user-fg); }
+      .actor.assistant { color: var(--ac); }
+      .actor.tool { color: var(--tool-fg); }
+      .badge {
+        font-size: 9px; font-family: var(--mono); padding: 1px 6px; border-radius: 999px;
+        border: 1px solid var(--bd1); color: var(--t2);
+      }
+      .text { color: var(--t0); font-size: 13px; line-height: 1.58; }
+      .user-text {
+        max-width: 540px; width: fit-content; border: 1px solid var(--bd); border-radius: 18px;
+        padding: 12px 14px; background: rgba(241, 236, 227, 0.05);
+      }
+      .sys { color: var(--t1); font-family: var(--mono); font-size: 12px; }
+
+      /* run.failed — minimalista: só borda vermelha à esquerda, sem node/badge ──── */
+      .alert-error {
+        color: var(--t1); font-size: 12.5px; line-height: 1.5;
+        border-left: 2px solid var(--s-error); padding: 4px 0 4px 12px;
+      }
+      .alert-error .lead { color: var(--s-error); font-family: var(--mono); font-size: 11px; }
+
+      /* ── Tool call card ───────────────────────────────────────────── */
+      .tool-card { border: 1px solid var(--bd); border-radius: 8px; overflow: hidden; max-width: 640px; }
+      .tool-head {
+        display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+        background: var(--tool-bg); font-family: var(--mono); font-size: 12px;
+      }
+      .tool-name { color: var(--tool-fg); font-weight: 600; }
+      .tool-arg { color: var(--t1); }
+      .tool-meta { margin-left: auto; color: var(--t2); font-size: 11px; }
+      .tool-out {
+        font-family: var(--mono); font-size: 11.5px; color: var(--result-fg);
+        padding: 8px 12px; white-space: pre-wrap; border-top: 1px solid var(--bd);
+        max-height: 140px; overflow: auto;
+      }
+      .tool-out.ok { color: #9fcaa6; }
+      .tool-out.bad { color: var(--s-error); }
+      .status-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+      .status-dot.ok { background: var(--ac); }
+      .status-dot.bad { background: var(--s-error); }
+      .status-dot.run { background: var(--tool-fg); animation: pulse 1.2s ease-in-out infinite; }
+      @keyframes pulse { 0%,100% { opacity: 0.35; } 50% { opacity: 1; } }
+
+      /* diff inline (edit / write) */
+      .diff { border-top: 1px solid var(--bd); font-family: var(--mono); font-size: 11.5px; }
+      .diff-line { display: grid; grid-template-columns: 14px 1fr; gap: 8px; padding: 1px 12px; white-space: pre; }
+      .diff-line .sign { color: var(--t3); text-align: center; }
+      .diff-line.add { background: var(--diff-add-bg); color: var(--diff-add); }
+      .diff-line.add .sign { color: var(--diff-add); }
+      .diff-line.del { background: var(--diff-del-bg); color: var(--diff-del); }
+      .diff-line.del .sign { color: var(--diff-del); }
+      .diff-line.ctx { color: var(--t2); }
+      .diff-stat { font-family: var(--mono); font-size: 11px; }
+      .diff-stat .plus { color: var(--diff-add); }
+      .diff-stat .minus { color: var(--diff-del); }
+      .diff-more {
+        display: block; width: 100%; text-align: left; background: none; border: none;
+        border-top: 1px solid var(--bd); cursor: pointer; color: var(--ac);
+        font-family: var(--mono); font-size: 11px; padding: 6px 12px;
+      }
+
+      /* ── Permission — calmo, neutro, 1 acento ─────────────────────── */
+      .perm-card {
+        border: 1px solid var(--bd1); background: var(--bg2);
+        border-radius: 8px; padding: 12px 14px; max-width: 560px;
+      }
+      .perm-card .q { font-size: 13px; margin-bottom: 10px; color: var(--t1); }
+      .perm-card .q b { color: var(--t0); font-family: var(--mono); }
+      .perm-actions { display: flex; gap: 8px; }
+      .btn {
+        font-size: 12px; padding: 6px 14px; border-radius: var(--radius-sm); cursor: pointer;
+        border: 1px solid var(--bd1); background: transparent; color: var(--t1); font-family: var(--mono);
+      }
+      .btn:hover { border-color: var(--bd2); color: var(--t0); }
+      .btn.allow { border-color: var(--ac-border); color: var(--ac); }
+
+      /* ── Thinking variants ────────────────────────────────────────── */
+      .think-row { display: flex; align-items: center; gap: 8px; }
+      .think-dots { display: inline-flex; gap: 3px; }
+      .think-dots span {
+        width: 5px; height: 5px; border-radius: 50%; background: var(--think-fg); opacity: 0.5;
+        animation: tdot 1.4s ease-in-out infinite;
+      }
+      .think-dots span:nth-child(2) { animation-delay: 0.2s; }
+      .think-dots span:nth-child(3) { animation-delay: 0.4s; }
+      @keyframes tdot { 0%,80%,100% { opacity: 0.4; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
+      .think-preview { font-family: var(--mono); font-size: 11px; color: var(--think-fg); opacity: 0.7; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .think-body {
+        color: var(--think-fg); white-space: pre-wrap; font-style: italic; font-size: 12px;
+        background: var(--think-surface); border-left: 2px solid var(--think-fg); padding: 8px 12px;
+        border-radius: 0 var(--radius-sm) var(--radius-sm) 0; margin-top: 6px;
+      }
+      .variant { margin-bottom: 22px; }
+      .variant > .name { font-size: 12px; color: var(--t2); margin-bottom: 8px; font-family: var(--mono); }
+
+      .old-arrow { background: none; border: none; color: var(--t2); font-size: 10px; cursor: pointer; font-family: var(--mono); padding: 0; line-height: 1; }
+
+      /* A: chevron pill */
+      .chip {
+        display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-family: var(--mono);
+        color: var(--t2); border: 1px solid var(--bd1); border-radius: 999px; padding: 2px 9px 2px 8px;
+        cursor: pointer; background: transparent; transition: all 0.15s;
+      }
+      .chip:hover { color: var(--think-fg); border-color: rgba(200,168,255,0.4); }
+      .chev { width: 9px; height: 9px; transition: transform 0.18s ease; }
+      .chip.open .chev { transform: rotate(90deg); }
+
+      code { font-family: var(--mono); background: rgba(255,255,255,0.06); padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <h1>Orbit · Feed — homologação visual (v2)</h1>
+      <p class="sub">
+        Ajustes: permission calmo, run.failed minimalista, diff inline em edit/write,
+        expandir = chevron pill (substitui ▶/▼).
+      </p>
+
+      <h2>1 · Eventos no timeline</h2>
+      <div class="panel">
+        <div class="panel-label">// run_42 · claude-code · cwd ~/orbit</div>
+        <div class="timeline">
+
+          <!-- user -->
+          <div class="ev">
+            <div class="node user"></div>
+            <div>
+              <div class="meta"><span class="actor user">you</span><span>14:02</span></div>
+              <div class="text user-text">Refatora o parser de eventos e adiciona testes.</div>
+            </div>
+          </div>
+
+          <!-- reasoning: chevron pill, expandido mostra o think-body completo -->
+          <div class="ev">
+            <div class="node think"></div>
+            <div>
+              <div class="meta"><span class="actor">orbit / claude</span><span>14:02</span><span class="badge">reasoning.*</span></div>
+              <div class="think-row">
+                <span class="think-dots"><span></span><span></span><span></span></span>
+                <span class="think-preview">Vou localizar o normalizer e mapear cada tipo de evento…</span>
+                <button class="chip open"><svg class="chev" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>2.3s</button>
+              </div>
+              <div class="think-body">Vou localizar o normalizer, mapear cada tipo de evento para um entryType, decidir render vs ignore, escrever o mapper puro e cobrir tudo com testes parametrizados por provider para garantir homologação completa de todos os eventos no chat.</div>
+            </div>
+          </div>
+
+          <!-- assistant -->
+          <div class="ev">
+            <div class="node assistant"></div>
+            <div>
+              <div class="meta"><span class="actor assistant">orbit / claude</span><span>14:02</span><span class="badge">message.delta → completed</span></div>
+              <div class="text">Encontrei o mapper. Rodando <code>bash</code> para listar os arquivos.</div>
+            </div>
+          </div>
+
+          <!-- tool bash running -->
+          <div class="ev">
+            <div class="node tool"></div>
+            <div>
+              <div class="meta"><span class="actor tool">tool</span><span>14:03</span><span class="badge">tool.started → delta</span></div>
+              <div class="tool-card">
+                <div class="tool-head"><span class="status-dot run"></span><span class="tool-name">bash</span><span class="tool-arg">ls ui/lib</span></div>
+                <div class="tool-out">daemon-feed.ts<br />session-feed.ts<br />types.ts …</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- tool edit com DIFF inline -->
+          <div class="ev">
+            <div class="node tool"></div>
+            <div>
+              <div class="meta"><span class="actor tool">tool</span><span>14:03</span><span class="badge">tool.completed · edit</span></div>
+              <div class="tool-card">
+                <div class="tool-head">
+                  <span class="status-dot ok"></span><span class="tool-name">edit</span>
+                  <span class="tool-arg">ui/lib/daemon-feed.ts</span>
+                  <span class="tool-meta diff-stat"><span class="plus">+3</span> <span class="minus">−1</span></span>
+                </div>
+                <div class="diff">
+                  <div class="diff-line ctx"><span class="sign"></span><span>function entryTypeFor(type) {</span></div>
+                  <div class="diff-line del"><span class="sign">−</span><span>  if (type.startsWith('tool.')) return 'toolCall';</span></div>
+                  <div class="diff-line add"><span class="sign">+</span><span>  if (type === 'tool.delta') return 'progress';</span></div>
+                  <div class="diff-line add"><span class="sign">+</span><span>  if (type === 'tool.failed') return 'toolResult';</span></div>
+                  <div class="diff-line add"><span class="sign">+</span><span>  if (type.startsWith('tool.')) return 'toolCall';</span></div>
+                </div>
+                <button class="diff-more">▾ ver diff completo (8 linhas)</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- tool write com DIFF (arquivo novo) -->
+          <div class="ev">
+            <div class="node tool"></div>
+            <div>
+              <div class="meta"><span class="actor tool">tool</span><span>14:04</span><span class="badge">tool.completed · write</span></div>
+              <div class="tool-card">
+                <div class="tool-head">
+                  <span class="status-dot ok"></span><span class="tool-name">write</span>
+                  <span class="tool-arg">ui/lib/daemon-feed.test.ts</span>
+                  <span class="tool-meta diff-stat"><span class="plus">+212</span> <span class="minus">−0</span></span>
+                </div>
+                <div class="diff">
+                  <div class="diff-line add"><span class="sign">+</span><span>import { describe, it, expect } from 'vitest';</span></div>
+                  <div class="diff-line add"><span class="sign">+</span><span>import { mapDaemonEvent } from './daemon-feed';</span></div>
+                  <div class="diff-line add"><span class="sign">+</span><span>…</span></div>
+                </div>
+                <button class="diff-more">▾ ver arquivo (212 linhas)</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- tool failed -->
+          <div class="ev">
+            <div class="node tool"></div>
+            <div>
+              <div class="meta"><span class="actor tool">tool</span><span>14:04</span><span class="badge">tool.failed</span></div>
+              <div class="tool-card">
+                <div class="tool-head"><span class="status-dot bad"></span><span class="tool-name">bash</span><span class="tool-arg">npm test</span></div>
+                <div class="tool-out bad">Error: 1 test failed — exit 1</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- permission: calmo, neutro -->
+          <div class="ev">
+            <div class="node"></div>
+            <div>
+              <div class="meta"><span class="actor">permission</span><span>14:04</span><span class="badge">permission.requested</span></div>
+              <div class="perm-card">
+                <div class="q">Permitir <b>write</b> em <code>ui/lib/daemon-feed.ts</code>?</div>
+                <div class="perm-actions">
+                  <button class="btn allow">Allow</button>
+                  <button class="btn">Allow always</button>
+                  <button class="btn">Deny</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- run.failed: minimalista, só borda vermelha -->
+          <div class="ev">
+            <div class="node"></div>
+            <div>
+              <div class="meta"><span class="actor">system</span><span>14:05</span></div>
+              <div class="alert-error"><span class="lead">run failed ·</span> conexão com o provider perdida (rate limit).</div>
+            </div>
+          </div>
+
+          <!-- ignored -->
+          <div class="ev">
+            <div class="node"></div>
+            <div>
+              <div class="meta"><span class="actor">ignored</span><span class="badge">usage · file · todo · session.*</span></div>
+              <div class="text sys">→ não viram linha no chat (painel de tokens / git / tasks). <code>ignore</code> de propósito.</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <h2>2 · Expandir texto — chevron pill (substitui ▶/▼)</h2>
+      <p class="note">Antes: <span class="old-arrow">▶</span> glyph cru sem hit-area. Clicar gira o chevron e abre o resto do pensamento no padrão atual (think-body).</p>
+      <div class="cols">
+        <div class="panel" style="padding: 18px 20px;">
+          <div class="name" style="font-family: var(--mono); font-size: 12px; color: var(--t2); margin-bottom: 10px;">Recolhido</div>
+          <div class="think-row">
+            <span class="think-dots"><span></span><span></span><span></span></span>
+            <span class="think-preview">Analisando o fluxo de eventos do daemon…</span>
+            <button class="chip"><svg class="chev" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>2.3s</button>
+          </div>
+        </div>
+        <div class="panel" style="padding: 18px 20px;">
+          <div class="name" style="font-family: var(--mono); font-size: 12px; color: var(--t2); margin-bottom: 10px;">Expandido (chevron girado)</div>
+          <div class="think-row" style="margin-bottom: 6px;">
+            <span class="think-dots"><span></span><span></span><span></span></span>
+            <span class="think-preview" style="opacity: 1; color: var(--think-fg);">Analisando o fluxo de eventos do daemon</span>
+            <button class="chip open"><svg class="chev" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>2.3s</button>
+          </div>
+          <div class="think-body">Vou localizar o normalizer, mapear cada tipo de evento para um entryType, decidir render vs ignore, escrever o mapper puro e cobrir tudo com testes parametrizados por provider.</div>
+        </div>
+      </div>
+
+      <h2>3 · Resumo das decisões</h2>
+      <div class="text" style="color: var(--t1); font-size: 13px;">
+        <ul style="line-height: 1.9; padding-left: 18px;">
+          <li><b style="color: var(--t0)">Expandir</b> — chevron pill substitui ▶/▼; clicar abre o think-body completo (padrão atual).</li>
+          <li><b style="color: var(--t0)">Tool call = card</b> — header colorido + dot de status (run/ok/erro).</li>
+          <li><b style="color: var(--t0)">Diff inline em edit/write</b> — linhas +/− coloridas + stat <span class="diff-stat"><span class="plus">+N</span> <span class="minus">−M</span></span>, expansível p/ diff completo.</li>
+          <li><b style="color: var(--t0)">Permission calmo</b> — surface neutra, sem vermelho; só Allow ganha acento.</li>
+          <li><b style="color: var(--t0)">run.failed minimalista</b> — texto com borda vermelha à esquerda, sem node/badge.</li>
+          <li><b style="color: var(--t0)">Badge de tipo</b> — atrás de flag de debug, p/ validar homologação.</li>
+        </ul>
+      </div>
+    </div>
+  </body>
+</html>

@@ -4,6 +4,7 @@ pub mod diff_manager;
 pub mod git_service;
 pub mod http_server;
 pub mod mcp_config;
+pub mod process_util;
 pub mod pty_manager;
 pub mod session_manager;
 pub mod spawn_manager;

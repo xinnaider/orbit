@@ -4,6 +4,7 @@
   import Markdown from './Markdown.svelte';
   import ToolCallEntry from './ToolCallEntry.svelte';
   import { backends } from '../lib/stores/providers';
+  import { fly } from '../lib/motion';
 
   export let entries: JournalEntry[] = [];
   export let status: string = '';
@@ -60,6 +61,49 @@
     return items;
   })();
 
+  // Collapse long runs of the same repeated tool (e.g. 8 reads in a row) into
+  // one expandable cluster so they don't bury the conversation.
+  const GROUP_MIN = 4;
+  type Row =
+    | { kind: 'item'; item: DisplayItem }
+    | { kind: 'group'; tool: string; items: DisplayItem[] };
+
+  $: rows = (() => {
+    const out: Row[] = [];
+    let i = 0;
+    while (i < display.length) {
+      const it = display[i];
+      const tool = it.entry.entryType === 'toolCall' ? (it.entry.tool ?? '') : null;
+      if (tool) {
+        let j = i + 1;
+        while (
+          j < display.length &&
+          display[j].entry.entryType === 'toolCall' &&
+          (display[j].entry.tool ?? '') === tool
+        ) {
+          j++;
+        }
+        const run = display.slice(i, j);
+        if (run.length >= GROUP_MIN) {
+          out.push({ kind: 'group', tool, items: run });
+          i = j;
+          continue;
+        }
+      }
+      out.push({ kind: 'item', item: it });
+      i++;
+    }
+    return out;
+  })();
+
+  let expandedGroups = new Set<number>();
+  function toggleGroup(absIdx: number) {
+    const next = new Set(expandedGroups);
+    if (next.has(absIdx)) next.delete(absIdx);
+    else next.add(absIdx);
+    expandedGroups = next;
+  }
+
   function ts(entry: JournalEntry) {
     return entry.timestamp?.slice(11, 16) ?? '';
   }
@@ -102,7 +146,7 @@
   // When display shrinks (session switch via {#key}), always reset.
   let prevTotal = 0;
   $: {
-    const total = display.length;
+    const total = rows.length;
     if (total < prevTotal) {
       // session remount or reset — start at tail
       visibleFrom = Math.max(0, total - PAGE_SIZE);
@@ -113,7 +157,7 @@
     prevTotal = total;
   }
 
-  $: visibleItems = display.slice(visibleFrom);
+  $: visibleItems = rows.slice(visibleFrom);
 
   $: hasMore = visibleFrom > 0;
 
@@ -179,7 +223,7 @@
   // ── Auto-scroll to bottom ──────────────────────────────────────────────────
   export function scrollToBottom() {
     if (!scrollerEl) return;
-    visibleFrom = Math.max(0, display.length - PAGE_SIZE);
+    visibleFrom = Math.max(0, rows.length - PAGE_SIZE);
     isAtBottom = true;
     tick().then(() => {
       if (scrollerEl) {
@@ -236,72 +280,127 @@
       <button type="button" class="load-more" onclick={loadMore}>load earlier</button>
     {/if}
 
-    {#each visibleItems as item, i (visibleFrom + i)}
-      {@const entry = item.entry}
+    {#each visibleItems as row, i (visibleFrom + i)}
       {@const absIdx = visibleFrom + i}
-      <article
-        class="timeline-event {eventClass(entry)}"
-        aria-label="{actorLabel(entry)} {ts(entry)}"
-      >
-        <div class="timeline-node {eventClass(entry)}" aria-hidden="true"></div>
-        <div class="timeline-body">
-          <div class="event-meta">
-            <span class="event-actor {eventClass(entry)}">{actorLabel(entry)}</span>
-            {#if ts(entry)}<span>{ts(entry)}</span>{/if}
-          </div>
-
-          {#if entry.entryType === 'toolCall'}
-            <ToolCallEntry
-              {entry}
-              resultEntry={item.result}
-              streamingEntries={item.streaming}
-              {cwd}
-              {compact}
-            />
-          {:else if entry.entryType === 'thinking'}
-            {@const expanded = expandedThinking.has(absIdx)}
-            <div class="thinking-inline" class:expanded>
-              <span
-                class="think-dots-label"
-                onclick={() => toggleThinking(absIdx)}
-                role="button"
-                tabindex="0"
-                onkeydown={(e) => e.key === 'Enter' && toggleThinking(absIdx)}
-              >
-                <span class="think-dots">
-                  <span></span><span></span><span></span>
-                </span>
-                <span class="think-preview-text">
-                  {#if expanded}
-                    {(entry.thinking ?? '').split('\n')[0].slice(0, 60)}
-                  {:else}
-                    {(entry.thinking ?? '').split('\n')[0].slice(0, 80)}…
-                  {/if}
-                </span>
-              </span>
-              {#if entry.thinkingDuration}
-                <span class="event-ts">{entry.thinkingDuration.toFixed(1)}s</span>
-              {/if}
-              <button class="expand-btn" onclick={() => toggleThinking(absIdx)}>
-                {expanded ? '▼' : '▶'}
-              </button>
-            </div>
-            {#if expanded}
-              <div class="event-text think-body">{entry.thinking}</div>
+      {#if row.kind === 'group'}
+        {@const gOpen = expandedGroups.has(absIdx)}
+        <article class="timeline-event tool" aria-label="{row.items.length} {row.tool} steps">
+          <div class="timeline-node tool" aria-hidden="true"></div>
+          <div class="timeline-body">
+            <button
+              class="tool-group-toggle"
+              class:open={gOpen}
+              onclick={() => toggleGroup(absIdx)}
+              aria-expanded={gOpen}
+            >
+              <svg class="chev" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path
+                  d="M6 4l4 4-4 4"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              {row.items.length}
+              {row.tool}
+              {row.items.length === 1 ? 'step' : 'steps'}
+            </button>
+            {#if gOpen}
+              <div class="tool-group-items">
+                {#each row.items as gi (gi.entry.seq)}
+                  <ToolCallEntry
+                    entry={gi.entry}
+                    resultEntry={gi.result}
+                    streamingEntries={gi.streaming}
+                    {cwd}
+                    {compact}
+                  />
+                {/each}
+              </div>
             {/if}
-          {:else if entry.entryType === 'assistant'}
-            <div class="event-text assistant-text">
-              <Markdown content={entry.text ?? ''} />
+          </div>
+        </article>
+      {:else}
+        {@const item = row.item}
+        {@const entry = item.entry}
+        <article
+          class="timeline-event {eventClass(entry)}"
+          aria-label="{actorLabel(entry)} {ts(entry)}"
+          in:fly|local={{ y: 8, duration: 180 }}
+        >
+          <div class="timeline-node {eventClass(entry)}" aria-hidden="true"></div>
+          <div class="timeline-body">
+            <div class="event-meta">
+              <span class="event-actor {eventClass(entry)}">{actorLabel(entry)}</span>
+              {#if ts(entry)}<span>{ts(entry)}</span>{/if}
             </div>
-          {:else if entry.entryType === 'user'}
-            <div class="event-text user-text">{entry.text}</div>
-          {:else}
-            <div class="event-text system-text" class:system-error={entry.feedError}>
-              {entry.text}
-            </div>
-          {/if}
-        </div>
-      </article>
+
+            {#if entry.entryType === 'toolCall'}
+              <ToolCallEntry
+                {entry}
+                resultEntry={item.result}
+                streamingEntries={item.streaming}
+                {cwd}
+                {compact}
+              />
+            {:else if entry.entryType === 'thinking'}
+              {@const expanded = expandedThinking.has(absIdx)}
+              <div class="thinking-inline" class:expanded>
+                <span
+                  class="think-dots-label"
+                  onclick={() => toggleThinking(absIdx)}
+                  role="button"
+                  tabindex="0"
+                  onkeydown={(e) => e.key === 'Enter' && toggleThinking(absIdx)}
+                >
+                  <span class="think-dots">
+                    <span></span><span></span><span></span>
+                  </span>
+                  <span class="think-preview-text">
+                    {#if expanded}
+                      {(entry.thinking ?? '').split('\n')[0].slice(0, 60)}
+                    {:else}
+                      {(entry.thinking ?? '').split('\n')[0].slice(0, 80)}…
+                    {/if}
+                  </span>
+                </span>
+                <button
+                  class="think-chip"
+                  class:open={expanded}
+                  onclick={() => toggleThinking(absIdx)}
+                  aria-label={expanded ? 'collapse thinking' : 'expand thinking'}
+                  aria-expanded={expanded}
+                >
+                  <svg class="chev" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path
+                      d="M6 4l4 4-4 4"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                  {#if entry.thinkingDuration}{entry.thinkingDuration.toFixed(1)}s{/if}
+                </button>
+              </div>
+              {#if expanded}
+                <div class="event-text think-body">{entry.thinking}</div>
+              {/if}
+            {:else if entry.entryType === 'assistant'}
+              <div class="event-text assistant-text">
+                <Markdown content={entry.text ?? ''} />
+              </div>
+            {:else if entry.entryType === 'user'}
+              <div class="event-text user-text">{entry.text}</div>
+            {:else}
+              <div class="event-text system-text" class:system-error={entry.feedError}>
+                {entry.text}
+              </div>
+            {/if}
+          </div>
+        </article>
+      {/if}
     {/each}
 
     {#if isWorking}
@@ -460,13 +559,11 @@
     font-size: 12px;
   }
   .system-text.system-error {
-    color: var(--s-error);
+    color: var(--t1);
     border-left: 2px solid var(--s-error);
-    padding-left: 10px;
-    background: color-mix(in srgb, var(--s-error), transparent 92%);
-    border-radius: 4px;
-    padding-top: 6px;
-    padding-bottom: 6px;
+    padding: 4px 0 4px 12px;
+    background: none;
+    border-radius: 0;
   }
 
   .working-pill {
@@ -618,19 +715,69 @@
     margin-top: 5px;
   }
 
-  .expand-btn {
+  .tool-group-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: var(--bg2);
+    border: 1px solid var(--bd1);
+    border-radius: 999px;
+    color: var(--t1);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 4px 12px;
+    cursor: pointer;
+    transition:
+      color 0.15s,
+      border-color 0.15s;
+  }
+  .tool-group-toggle:hover {
+    color: var(--tool-fg);
+    border-color: color-mix(in srgb, var(--tool-fg), transparent 60%);
+  }
+  .tool-group-toggle .chev {
+    width: 9px;
+    height: 9px;
+    transition: transform 0.18s ease;
+  }
+  .tool-group-toggle.open .chev {
+    transform: rotate(90deg);
+  }
+  .tool-group-items {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .think-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
     background: none;
-    border: none;
+    border: 1px solid var(--bd1);
+    border-radius: 999px;
     color: var(--t2);
     font-size: 10px;
-    cursor: pointer;
     font-family: var(--mono);
-    padding: 0;
     line-height: 1;
-    letter-spacing: 0.05em;
+    padding: 3px 9px 3px 7px;
+    cursor: pointer;
+    transition:
+      color 0.15s,
+      border-color 0.15s;
   }
-  .expand-btn:hover {
-    color: var(--t1);
+  .think-chip:hover {
+    color: var(--think-fg);
+    border-color: color-mix(in srgb, var(--think-fg), transparent 60%);
+  }
+  .think-chip .chev {
+    width: 9px;
+    height: 9px;
+    transition: transform 0.18s ease;
+  }
+  .think-chip.open .chev {
+    transform: rotate(90deg);
   }
 
   /* ── Compact density ── */

@@ -114,11 +114,7 @@
   $: inlineVisible = inlineLines.slice(0, 6);
   $: modalLines = buildModalLines(rawChunks);
 
-  $: writeLines = hasWriteContent
-    ? (entry.toolInput!.content as string)
-        .split('\n')
-        .map((text, i) => ({ type: 'add' as const, text, lineNo: i + 1 }))
-    : [];
+  $: writeLines = hasWriteContent ? splitContentLines(entry.toolInput!.content as string) : [];
   $: writeOverflow = Math.max(0, writeLines.length - 6);
 
   // Real-time diff from streaming entries (visible while tool is running)
@@ -145,11 +141,7 @@
       return tool === 'write' && s.toolInput?.content;
     })
     .map((s) => ({
-      lines: (s.toolInput!.content as string).split('\n').map((text, i) => ({
-        type: 'add' as const,
-        text,
-        lineNo: i + 1,
-      })),
+      lines: splitContentLines(s.toolInput!.content as string),
       name: (s.toolInput as Record<string, any>)?.file_path ?? 'file',
     }));
 
@@ -157,6 +149,55 @@
   $: showStreamingBody = streamingEntries.length > 0 && !resultEntry;
   $: showBody = hasDetail || !!resultEntry?.output || showStreamingBody;
   $: writeVisible = writeLines.slice(0, 6);
+
+  // Unified output clamp: every tool's inline result (read table, generic
+  // output) shows at most clampN lines, then a consistent overflow row
+  // opens the full content in the modal. Keeps long write/read/bash/MCP output
+  // from flooding the feed, identical across providers.
+  $: clampN = compact ? 8 : 14;
+  $: readParsed = isReadTool && resultEntry?.output ? stripLineNumbers(resultEntry.output) : null;
+  $: readLines = readParsed ? readParsed.code.split('\n') : [];
+  $: resultLines = !isReadTool && resultEntry?.output ? resultEntry.output.split('\n') : [];
+
+  // ── Header metric + duration (shown consistently for every tool/provider) ──
+  $: addCount = hasEditDiff ? inlineLines.filter((l) => l.type === 'add').length : 0;
+  $: remCount = hasEditDiff ? inlineLines.filter((l) => l.type === 'rem').length : 0;
+  /** "+18 −2" for edits, "+149" for writes, "149 lines" otherwise; null if empty. */
+  $: metricStr = (() => {
+    if (hasBashCommand) return null; // bash uses the exit code instead
+    if (hasEditDiff) return addCount || remCount ? `+${addCount} −${remCount}` : null;
+    if (hasWriteContent) return writeLines.length ? `+${writeLines.length}` : null;
+    if (isReadTool) return readLines.length ? `${readLines.length} lines` : null;
+    if (resultLines.length) return `${resultLines.length} lines`;
+    return null;
+  })();
+  $: exitStr =
+    hasBashCommand && resultEntry?.exitCode != null ? `exit ${resultEntry.exitCode}` : '';
+  $: durationMs =
+    resultEntry?.timestamp && entry.timestamp
+      ? Date.parse(resultEntry.timestamp) - Date.parse(entry.timestamp)
+      : NaN;
+  $: durationStr =
+    Number.isFinite(durationMs) && durationMs >= 100 && durationMs < 3_600_000
+      ? `${(durationMs / 1000).toFixed(1)}s`
+      : '';
+  $: metaParts = [exitStr, metricStr, durationStr].filter(Boolean) as string[];
+
+  // ── Unified expander: total line count + whether the body is clamped ──
+  $: bodyTotal = hasEditDiff
+    ? inlineLines.length
+    : hasWriteContent
+      ? writeLines.length
+      : isReadTool
+        ? readLines.length
+        : resultLines.length;
+  $: bodyClamped = hasEditDiff
+    ? inlineOverflow > 0
+    : hasWriteContent
+      ? writeOverflow > 0
+      : isReadTool
+        ? readLines.length > clampN
+        : resultLines.length > clampN;
 
   // Code text (bash only — Write is handled via writeLines)
   $: codeText = hasBashCommand ? (entry.toolInput!.command as string) : '';
@@ -197,6 +238,15 @@
     let out = parts.length > 2 ? parts.slice(-2).join('/') : clean;
     if (out.length > 50) out = out.slice(0, 47) + '...';
     return out;
+  }
+
+  /** Split file content into add-diff lines, dropping the trailing empty entry
+   * that `split('\n')` yields when the content ends with a newline (which would
+   * otherwise render as a phantom blank "+" line). */
+  function splitContentLines(content: string): DiffLine[] {
+    const lines = content.split('\n');
+    if (lines.length > 1 && lines[lines.length - 1] === '') lines.pop();
+    return lines.map((text, i) => ({ type: 'add' as const, text, lineNo: i + 1 }));
   }
 
   function buildInlineLines(chunks: Change[]): DiffLine[] {
@@ -268,39 +318,95 @@
   }
 </script>
 
-<div class="tc-card quiet-tool-card" class:compact>
+{#snippet codeView(
+  lines: string[],
+  language: string | null,
+  nums: Array<number | string> | null,
+  clamped: boolean
+)}
+  <div class="code-view" class:clamped>
+    {#each lines as line, i}
+      <div class="code-line">
+        <span class="cv-num">{nums ? (nums[i] ?? '') : i + 1}</span>
+        {#if language}
+          <span class="cv-code">{@html highlightCode(line, language)}</span>
+        {:else}
+          <span class="cv-code">{line}</span>
+        {/if}
+      </div>
+    {/each}
+  </div>
+{/snippet}
+
+{#snippet terminalView(lines: string[], prompt: boolean, clamped: boolean)}
+  <div class="term-view" class:clamped>
+    {#each lines as line, i}
+      <div class="term-line">
+        {#if prompt && i === 0}<span class="term-prompt">$</span>{/if}
+        <span class="term-text">{line}</span>
+      </div>
+    {/each}
+  </div>
+{/snippet}
+
+{#snippet expander(total: number)}
+  <div class="expand-row">
+    <button class="expand-pill" onclick={() => (modalOpen = true)}>
+      <svg class="chev" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path
+          d="M4 6l4 4 4-4"
+          stroke="currentColor"
+          stroke-width="1.6"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+      Show all {total} lines
+    </button>
+  </div>
+{/snippet}
+
+<div class="tc-card quiet-tool-card" class:compact class:failed={toolState === 'failed'}>
   <div class="tc-header quiet-tool-head">
-    <span
+    <span class="tc-icon {toolClass}"><ToolIcon size={12} /></span>
+    <button
       class="tc-title"
       onclick={() => (modalOpen = true)}
-      role="button"
-      tabindex="0"
-      onkeydown={(e) => e.key === 'Enter' && (modalOpen = true)}
+      title="View full"
+      aria-label="View full"
     >
       <span class="tc-tool">{entry.tool ?? 'tool'}</span>
       {#if target}
         <span class="tc-sep">→</span>
         <span class="tc-target">{shortPath(target, toolClass)}</span>
       {/if}
-    </span>
-    <span class="tc-state" class:failed={toolState === 'failed'}>{toolState}</span>
+    </button>
+    <span class="tc-spacer"></span>
+    {#if (hasEditDiff || hasWriteContent || isReadTool) && lang}
+      <span class="tc-lang">{lang}</span>
+    {/if}
+    {#if metaParts.length}
+      <span class="tc-meta">
+        {#each metaParts as part, i}
+          {#if i > 0}<span class="tc-meta-sep">·</span>{/if}
+          <span class:failed={part === exitStr && toolState === 'failed'}>{part}</span>
+        {/each}
+      </span>
+    {/if}
     <span class="tc-actions">
-      <button
-        class="tc-expand tc-action--label"
-        onclick={handleCopy}
-        title="Copy command"
-        aria-label="Copy command"><Copy size={10} /><span class="actxt">cmd</span></button
+      <button class="tc-iconbtn" onclick={handleCopy} title="Copy command" aria-label="Copy command"
+        ><Copy size={11} /></button
       >
       {#if resultEntry?.output}
         <button
-          class="tc-expand tc-action--label"
+          class="tc-iconbtn"
           onclick={handleCopyResult}
           title="Copy output"
-          aria-label="Copy output"><Copy size={10} /><span class="actxt">out</span></button
+          aria-label="Copy output"><FileText size={11} /></button
         >
       {/if}
       <button
-        class="tc-expand"
+        class="tc-iconbtn"
         onclick={() => (modalOpen = true)}
         title="View full"
         aria-label="View full"><Maximize2 size={11} /></button
@@ -311,7 +417,7 @@
   {#if showBody}
     <div class="tc-body quiet-tool-body">
       {#if hasEditDiff}
-        <div class="diff-block">
+        <div class="diff-block" class:clamped={inlineOverflow > 0}>
           {#each inlineVisible as dl}
             <div class="diff-line {dl.type}">
               <span class="dl-num">{dl.lineNo}</span>
@@ -321,14 +427,10 @@
               <span class="dl-code">{@html highlightCode(dl.text, lang)}</span>
             </div>
           {/each}
-          {#if inlineOverflow > 0}
-            <button class="diff-overflow" onclick={() => (modalOpen = true)}>
-              ▸ +{inlineOverflow} linhas · clique para ver tudo
-            </button>
-          {/if}
         </div>
+        {#if inlineOverflow > 0}{@render expander(inlineLines.length)}{/if}
       {:else if hasWriteContent}
-        <div class="diff-block">
+        <div class="diff-block" class:clamped={writeOverflow > 0}>
           {#each writeVisible as dl}
             <div class="diff-line add">
               <span class="dl-num">{dl.lineNo}</span>
@@ -336,16 +438,10 @@
               <span class="dl-code">{@html highlightCode(dl.text, lang)}</span>
             </div>
           {/each}
-          {#if writeOverflow > 0}
-            <button class="diff-overflow" onclick={() => (modalOpen = true)}>
-              ▸ +{writeOverflow} linhas · clique para ver tudo
-            </button>
-          {/if}
         </div>
+        {#if writeOverflow > 0}{@render expander(writeLines.length)}{/if}
       {:else if hasBashCommand}
-        <div class="bash-body">
-          <pre class="bash-code"><code>{@html highlightCode(codeText, 'bash')}</code></pre>
-        </div>
+        {@render terminalView(codeText.split('\n'), true, false)}
       {/if}
 
       {#if showStreamingBody}
@@ -379,7 +475,7 @@
                     </div>
                   {/each}
                   {#if write.lines.length > 6}
-                    <div class="diff-overflow">▸ +{write.lines.length - 6} linhas</div>
+                    <div class="diff-overflow">▾ +{write.lines.length - 6} lines</div>
                   {/if}
                 </div>
               </div>
@@ -397,23 +493,16 @@
           <div class="result-divider"></div>
         {/if}
         {#if isReadTool}
-          {@const parsed = stripLineNumbers(resultEntry.output)}
-          <div class="read-output">
-            <table class="read-table">
-              <tbody>
-                {#each parsed.code.split('\n') as line, li}
-                  <tr>
-                    <td class="line-num">{parsed.lineNums[li] ?? ''}</td>
-                    <td class="line-code">{@html highlightCode(line, lang)}</td>
-                  </tr>
-                {/each}
-              </tbody>
-            </table>
-          </div>
+          {@render codeView(
+            readLines.slice(0, clampN),
+            lang,
+            readParsed?.lineNums ?? null,
+            readLines.length > clampN
+          )}
+          {#if readLines.length > clampN}{@render expander(readLines.length)}{/if}
         {:else}
-          <div class="result-output">
-            <pre class="result-pre mono">{resultEntry.output}</pre>
-          </div>
+          {@render terminalView(resultLines.slice(0, clampN), false, resultLines.length > clampN)}
+          {#if resultLines.length > clampN}{@render expander(resultLines.length)}{/if}
         {/if}
       {/if}
     </div>
@@ -449,7 +538,7 @@
               <button
                 class="card-copy-btn"
                 onclick={async () => copyToClipboard(await getCopyContent())}
-                title="Copiar conteúdo"
+                title="Copy content"
               >
                 <Copy size={10} /> copy
               </button>
@@ -475,7 +564,7 @@
               <button
                 class="card-copy-btn"
                 onclick={async () => copyToClipboard(await getCopyContent())}
-                title="Copiar conteúdo"
+                title="Copy content"
               >
                 <Copy size={10} /> copy
               </button>
@@ -499,13 +588,13 @@
               <button
                 class="card-copy-btn"
                 onclick={() => copyToClipboard(entry.toolInput!.command as string)}
-                title="Copiar comando"
+                title="Copy command"
               >
                 <Copy size={10} /> copy
               </button>
             </div>
             <div class="modal-card-body">
-              <pre class="code-text"><code>{@html highlightCode(codeText, 'bash')}</code></pre>
+              {@render terminalView(codeText.split('\n'), true, false)}
             </div>
           </div>
         {/if}
@@ -517,7 +606,7 @@
               <button
                 class="card-copy-btn"
                 onclick={() => copyToClipboard(resultEntry.output!)}
-                title="Copiar output"
+                title="Copy output"
               >
                 <Copy size={10} /> copy
               </button>
@@ -525,22 +614,9 @@
             <div class="modal-card-body">
               {#if isReadTool}
                 {@const parsed = stripLineNumbers(resultEntry.output)}
-                <div class="read-output">
-                  <table class="read-table">
-                    <tbody>
-                      {#each parsed.code.split('\n') as line, li}
-                        <tr>
-                          <td class="line-num">{parsed.lineNums[li] ?? ''}</td>
-                          <td class="line-code">{@html highlightCode(line, lang)}</td>
-                        </tr>
-                      {/each}
-                    </tbody>
-                  </table>
-                </div>
+                {@render codeView(parsed.code.split('\n'), lang, parsed.lineNums, false)}
               {:else}
-                <div class="result-output">
-                  <pre class="result-pre mono">{resultEntry.output}</pre>
-                </div>
+                {@render terminalView(resultEntry.output.split('\n'), false, false)}
               {/if}
             </div>
           </div>
@@ -558,6 +634,53 @@
     border-radius: var(--radius-md);
     overflow: hidden;
     background: var(--bg1);
+  }
+  .tc-card.failed {
+    border-color: color-mix(in srgb, var(--s-error), transparent 58%);
+  }
+
+  /* ── Unified "show all N lines" expander (fade + centered pill) ── */
+  .diff-block.clamped,
+  .code-view.clamped,
+  .term-view.clamped {
+    position: relative;
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+  }
+  .expand-row {
+    display: flex;
+    justify-content: center;
+    /* Float the pill over the faded tail of the content instead of sitting on
+       a solid bar below it. */
+    margin-top: -26px;
+    padding-bottom: 7px;
+    position: relative;
+    pointer-events: none;
+  }
+  .expand-pill {
+    pointer-events: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--t1);
+    background: var(--bg3);
+    border: 1px solid var(--bd1);
+    border-radius: 999px;
+    padding: 3px 12px;
+    cursor: pointer;
+    transition:
+      color 0.12s,
+      border-color 0.12s;
+  }
+  .expand-pill:hover {
+    color: var(--ac);
+    border-color: var(--ac-border);
+  }
+  .expand-pill .chev {
+    width: 9px;
+    height: 9px;
   }
 
   .tc-header {
@@ -603,13 +726,67 @@
     min-width: 0;
     overflow: hidden;
     white-space: nowrap;
-    margin-right: auto;
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+  }
+  .tc-title:hover .tc-target {
+    color: var(--t0);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .tc-lang {
+    flex-shrink: 0;
+    color: var(--t3);
+    font-size: 9px;
+    text-transform: lowercase;
+    border: 1px solid var(--bd1);
+    border-radius: 3px;
+    padding: 0 5px;
+    line-height: 15px;
+  }
+  .tc-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+    color: var(--t3);
+    font-size: 10px;
+  }
+  .tc-meta .failed {
+    color: var(--s-error);
+  }
+  .tc-meta-sep {
+    color: var(--t3);
+    opacity: 0.6;
   }
   .tc-actions {
     display: flex;
     align-items: center;
     gap: 2px;
     flex-shrink: 0;
+  }
+  .tc-iconbtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border: none;
+    background: none;
+    color: var(--t3);
+    border-radius: 4px;
+    cursor: pointer;
+    transition:
+      color 0.12s,
+      background 0.12s;
+  }
+  .tc-iconbtn:hover {
+    color: var(--t1);
+    background: rgba(255, 255, 255, 0.05);
   }
   .tc-tool {
     font-weight: 600;
@@ -700,10 +877,10 @@
     background: var(--bg1);
   }
   .diff-line.add {
-    background: var(--diff-add-bg);
+    background: color-mix(in srgb, var(--ac), transparent 90%);
   }
   .diff-line.rem {
-    background: var(--diff-rem-bg);
+    background: color-mix(in srgb, var(--s-error), transparent 90%);
   }
 
   .dl-num {
@@ -726,6 +903,69 @@
     white-space: pre-wrap;
     word-break: break-word;
   }
+  .diff-line.add .dl-prefix {
+    color: var(--ac);
+  }
+  .diff-line.rem .dl-prefix {
+    color: var(--s-error);
+  }
+
+  /* ── Integrated code viewer (read / bash / output) ── */
+  .code-view {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    line-height: 1.6;
+    padding: 6px 0;
+    overflow-x: auto;
+  }
+  .code-line {
+    display: grid;
+    grid-template-columns: 48px 1fr;
+    transition: background 0.1s;
+  }
+  .code-line:hover {
+    background: rgba(255, 255, 255, 0.025);
+  }
+  .cv-num {
+    color: var(--t3);
+    text-align: right;
+    padding: 0 10px 0 12px;
+    user-select: none;
+    font-size: 10px;
+    background: color-mix(in srgb, var(--bg2), transparent 35%);
+    border-right: 1px solid color-mix(in srgb, var(--bd), transparent 30%);
+  }
+  .code-line:hover .cv-num {
+    color: var(--t1);
+  }
+  .cv-code {
+    padding: 0 12px;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  /* ── Terminal view (bash command + command output) ── */
+  .term-view {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    line-height: 1.6;
+    padding: 8px 12px;
+    overflow-x: auto;
+  }
+  .term-line {
+    display: flex;
+    gap: 8px;
+  }
+  .term-prompt {
+    color: var(--ac);
+    user-select: none;
+    flex-shrink: 0;
+  }
+  .term-text {
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--t1);
+  }
   .diff-overflow {
     width: 100%;
     text-align: left;
@@ -744,57 +984,6 @@
   }
 
   /* ── Bash body ── */
-  .bash-body {
-    padding: var(--sp-3) var(--sp-4);
-  }
-  .bash-code {
-    margin: 0;
-    font-family: var(--mono);
-    font-size: 10.5px;
-    line-height: 1.5;
-    color: var(--ac);
-  }
-  .bash-code code {
-    font-family: var(--mono);
-  }
-
-  /* ── Read output ── */
-  .read-output {
-    padding: var(--sp-3) var(--sp-4);
-    overflow-x: auto;
-  }
-  .read-output table {
-    font-family: var(--mono);
-    font-size: 10.5px;
-    border-collapse: collapse;
-  }
-  .read-output td {
-    padding: 0 var(--sp-2);
-    line-height: 1.55;
-    vertical-align: top;
-  }
-  .read-output td.line-num {
-    color: var(--t3);
-    text-align: right;
-    user-select: none;
-    width: 32px;
-    padding-right: var(--sp-2);
-    font-size: 10px;
-  }
-
-  /* ── Result output ── */
-  .result-output {
-    padding: var(--sp-3) var(--sp-4);
-    overflow-x: auto;
-  }
-  .result-pre {
-    margin: 0;
-    white-space: pre-wrap;
-    word-break: break-word;
-    font-size: 10.5px;
-    line-height: 1.55;
-    font-family: var(--mono);
-  }
 
   .result-divider {
     height: 1px;
@@ -932,32 +1121,9 @@
   .modal-card-body .diff-block .diff-line {
     padding: 0 var(--sp-4);
   }
-  .modal-card-body .code-text {
-    margin: 0;
-    padding: var(--sp-3) var(--sp-4);
-    font-family: var(--mono);
+  .modal-card-body .code-view {
     font-size: var(--sm);
     line-height: 1.6;
-    color: var(--ac);
-    white-space: pre-wrap;
-    word-break: break-word;
-  }
-  .modal-card-body .code-text code {
-    font-family: var(--mono);
-  }
-  .modal-card-body .read-output {
-    padding: var(--sp-3) var(--sp-4);
-  }
-  .modal-card-body .result-output {
-    padding: var(--sp-3) var(--sp-4);
-  }
-  .modal-card-body .result-pre {
-    margin: 0;
-    white-space: pre-wrap;
-    word-break: break-word;
-    font-size: var(--sm);
-    line-height: 1.6;
-    font-family: var(--mono);
   }
 
   .card-copy-btn {
@@ -998,67 +1164,53 @@
     font-family: var(--mono);
     font-size: 11px;
   }
-  .tc-state {
-    color: var(--t2);
-  }
-  .tc-state.failed {
-    color: var(--s-error);
-  }
-  .tc-expand {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 20px;
-    height: 20px;
-    border: 1px solid transparent;
-    border-radius: 6px;
-    background: transparent;
-    color: var(--t3);
-    cursor: pointer;
-    font-size: 12px;
-    line-height: 1;
-    padding: 0;
-    flex-shrink: 0;
-    transition: all 0.12s;
-  }
-  .tc-expand:hover {
-    border-color: var(--bd1);
-    color: var(--t1);
-    background: color-mix(in srgb, var(--t0), transparent 95%);
-  }
-  .tc-action--label {
-    width: auto;
-    gap: 4px;
-    padding: 0 6px;
-    font-size: 9px;
-    font-family: var(--mono);
-    font-weight: 500;
-    background: color-mix(in srgb, var(--t0), transparent 94%);
-    border-color: color-mix(in srgb, var(--t0), transparent 88%);
-  }
-  .tc-action--label:hover {
-    background: color-mix(in srgb, var(--t0), transparent 88%);
-  }
-  .actxt {
-    line-height: 1;
-  }
   .quiet-tool-body {
-    padding: 12px;
+    /* No padding: diff/code/terminal fill the card edge-to-edge so the tinted
+       rows meet the card border instead of floating inside a margin. */
+    padding: 0;
     background: rgba(0, 0, 0, 0.12);
     color: var(--t1);
     font-family: var(--mono);
     font-size: 11px;
     line-height: 1.55;
   }
-  .quiet-tool-card.compact {
-    border-radius: var(--radius-md);
-  }
-  .quiet-tool-card.compact .quiet-tool-head {
-    padding: 8px 10px;
+  /* ── Compact density: tighter header, code, and gutters ── */
+  .quiet-tool-card.compact .tc-header {
+    padding: 3px 10px;
+    min-height: 22px;
     font-size: 10px;
   }
-  .quiet-tool-card.compact .quiet-tool-body {
-    padding: 9px 10px;
-    font-size: 10px;
+  .quiet-tool-card.compact .tc-lang {
+    display: none;
+  }
+  .quiet-tool-card.compact .tc-actions {
+    gap: 0;
+  }
+  .quiet-tool-card.compact .code-view,
+  .quiet-tool-card.compact .diff-block {
+    font-size: 9.5px;
+    line-height: 1.4;
+    padding-top: 2px;
+    padding-bottom: 2px;
+  }
+  .quiet-tool-card.compact .code-line {
+    grid-template-columns: 38px 1fr;
+  }
+  .quiet-tool-card.compact .diff-line {
+    min-height: 15px;
+    font-size: 9.5px;
+  }
+  .quiet-tool-card.compact .term-view {
+    font-size: 9.5px;
+    line-height: 1.4;
+    padding: 4px 10px;
+  }
+  .quiet-tool-card.compact .expand-row {
+    margin-top: -22px;
+    padding-bottom: 5px;
+  }
+  .quiet-tool-card.compact .expand-pill {
+    font-size: 9.5px;
+    padding: 2px 9px;
   }
 </style>

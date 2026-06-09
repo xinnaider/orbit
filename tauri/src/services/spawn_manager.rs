@@ -89,14 +89,10 @@ pub fn find_claude() -> Option<String> {
 
     #[cfg(windows)]
     {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x08000000;
-        let out = std::process::Command::new("where")
-            .arg("claude")
-            .env("PATH", &aug)
-            .creation_flags(CREATE_NO_WINDOW)
-            .output()
-            .ok()?;
+        let mut lookup = std::process::Command::new("where");
+        lookup.arg("claude").env("PATH", &aug);
+        crate::services::process_util::apply_silent(&mut lookup);
+        let out = lookup.output().ok()?;
         if out.status.success() {
             if let Some(line) = String::from_utf8_lossy(&out.stdout).lines().next() {
                 let p = line.trim().to_string();
@@ -181,7 +177,7 @@ pub fn spawn_claude(config: SpawnConfig) -> Result<SpawnHandle, String> {
         "claude not found — install with: npm i -g @anthropic-ai/claude-code".to_string()
     })?;
 
-    let mut cmd = std::process::Command::new(&claude);
+    let mut cmd = crate::services::process_util::command_for_program(&claude);
     cmd.args(["--output-format", "stream-json", "--verbose"]);
     if config.permission_mode == "ignore" {
         cmd.arg("--dangerously-skip-permissions");
@@ -210,14 +206,6 @@ pub fn spawn_claude(config: SpawnConfig) -> Result<SpawnHandle, String> {
     // Piped stdout and stderr — no PTY needed
     cmd.stdout(std::process::Stdio::piped());
     cmd.stderr(std::process::Stdio::piped());
-
-    // Windows: suppress the console window that flashes on every spawn
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x08000000;
-        cmd.creation_flags(CREATE_NO_WINDOW);
-    }
 
     let mut child = cmd.spawn().map_err(|e| format!("spawn failed: {e}"))?;
 
@@ -251,35 +239,18 @@ pub fn find_cli_in_path(name: &str) -> Option<String> {
 
     #[cfg(windows)]
     {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x08000000;
-        let out = std::process::Command::new("where")
-            .arg(name)
-            .env("PATH", &aug)
-            .creation_flags(CREATE_NO_WINDOW)
-            .output()
-            .ok()?;
+        let mut lookup = std::process::Command::new("where");
+        lookup.arg(name).env("PATH", &aug);
+        crate::services::process_util::apply_silent(&mut lookup);
+        let out = lookup.output().ok()?;
         if out.status.success() {
-            // `where` may return multiple lines. On Windows, prefer .cmd/.exe
-            // over extensionless shell scripts (which cause "not a valid Win32
-            // application" errors).
             let stdout = String::from_utf8_lossy(&out.stdout);
             let lines: Vec<&str> = stdout
                 .lines()
                 .map(|l| l.trim())
                 .filter(|l| !l.is_empty())
                 .collect();
-            // First try .cmd or .exe
-            if let Some(win) = lines.iter().find(|l| {
-                let lower = l.to_lowercase();
-                lower.ends_with(".cmd") || lower.ends_with(".exe")
-            }) {
-                return Some(win.to_string());
-            }
-            // Fallback to first result
-            if let Some(first) = lines.first() {
-                return Some(first.to_string());
-            }
+            return crate::services::process_util::pick_windows_cli_path(&lines);
         }
     }
 
@@ -410,7 +381,7 @@ pub fn spawn_opencode(config: OpenCodeConfig) -> Result<SpawnHandle, String> {
 
     let cli_model = opencode_cli_model_arg(&config.provider_id, &config.model);
 
-    let mut cmd = std::process::Command::new(&opencode);
+    let mut cmd = crate::services::process_util::command_for_program(&opencode);
     cmd.args(opencode_run_argv(
         &cli_model,
         config.opencode_session_id.as_deref(),
@@ -438,13 +409,6 @@ pub fn spawn_opencode(config: OpenCodeConfig) -> Result<SpawnHandle, String> {
 
     cmd.stdout(std::process::Stdio::piped());
     cmd.stderr(std::process::Stdio::piped());
-
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x08000000;
-        cmd.creation_flags(CREATE_NO_WINDOW);
-    }
 
     let mut child = cmd
         .spawn()
@@ -481,7 +445,7 @@ pub fn spawn_codex(config: CodexConfig) -> Result<SpawnHandle, String> {
 
     let prompt = config.prompt.clone();
     let use_stdin = prompt_requires_stdin(&prompt);
-    let mut cmd = std::process::Command::new(&codex);
+    let mut cmd = crate::services::process_util::command_for_program(&codex);
 
     if let Some(ref sid) = config.codex_session_id {
         cmd.args(["exec", "resume", "--json"]);
@@ -528,13 +492,6 @@ pub fn spawn_codex(config: CodexConfig) -> Result<SpawnHandle, String> {
 
     cmd.stdout(std::process::Stdio::piped());
     cmd.stderr(std::process::Stdio::piped());
-
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x08000000;
-        cmd.creation_flags(CREATE_NO_WINDOW);
-    }
 
     let mut child = cmd
         .spawn()

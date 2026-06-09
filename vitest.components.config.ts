@@ -16,6 +16,7 @@ export default defineConfig(async () => {
     ],
     test: {
       include: ['ui/lib/**/*.component.test.ts', 'ui/components/**/*.component.test.ts'],
+      setupFiles: ['./ui/test-setup.ts'],
       environment: 'happy-dom',
       alias: {
         $lib: path.resolve(__dirname, 'ui/lib'),

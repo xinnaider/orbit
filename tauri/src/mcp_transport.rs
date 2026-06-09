@@ -10,7 +10,11 @@ pub fn is_ipc_listening() -> bool {
 }
 
 use interprocess::local_socket::prelude::*;
-use interprocess::local_socket::{GenericFilePath, GenericNamespaced, ListenerOptions, Stream};
+#[cfg(not(windows))]
+use interprocess::local_socket::GenericFilePath;
+#[cfg(windows)]
+use interprocess::local_socket::GenericNamespaced;
+use interprocess::local_socket::{ListenerOptions, Stream};
 
 pub struct McpTransport {
     stop: Arc<AtomicBool>,
@@ -19,10 +23,17 @@ pub struct McpTransport {
 const DEFAULT_SOCKET_NAME: &str = "orbit-mcp";
 
 pub fn socket_name_for(socket_name: &str) -> interprocess::local_socket::Name<'static> {
-    if GenericNamespaced::is_supported() {
+    // Windows: named pipe (namespaced). Unix: a filesystem socket under /tmp that
+    // we explicitly clean up before binding — the namespaced variant reports as
+    // "supported" on macOS but leaves a stale socket between runs, causing
+    // EADDRINUSE on restart.
+    #[cfg(windows)]
+    {
         let leaked: &'static str = Box::leak(socket_name.to_string().into_boxed_str());
         leaked.to_ns_name::<GenericNamespaced>().unwrap()
-    } else {
+    }
+    #[cfg(not(windows))]
+    {
         let path = format!("/tmp/{socket_name}.sock");
         let leaked: &'static str = Box::leak(path.into_boxed_str());
         leaked.to_fs_name::<GenericFilePath>().unwrap()
@@ -42,8 +53,10 @@ impl McpTransport {
         let stop_clone = Arc::clone(&stop);
         let socket_name_owned = socket_name.to_string();
 
+        // Remove any stale socket left by a previous run so bind() doesn't fail
+        // with "Address already in use".
         #[cfg(not(windows))]
-        if !GenericNamespaced::is_supported() {
+        {
             let sock_path = format!("/tmp/{socket_name}.sock");
             let _ = std::fs::remove_file(&sock_path);
         }

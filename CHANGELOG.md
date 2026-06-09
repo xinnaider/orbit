@@ -2,10 +2,50 @@
 
 ---
 
+## June 2026
+
+### 06/09 · Release — Version 6.0.2
+Brings the development branch into the main release line: real syntax-highlighted code in the chat, redesigned tool cards with an integrated code viewer, repeated tool steps that fold away, a collapsible sidebar, smoother panels, and a fix for untracked files in subfolders. Terminal and Git overview are temporarily turned off while they are reworked.
+
+### 06/09 · Adjustment — Chats only, for now
+The "+" tab menu's Terminal and Git overview options are temporarily turned off and shown greyed out while they are being reworked. Chat sessions are unaffected.
+
+### 06/09 · Fix — Compact density can be turned off again
+The compact toggle is now the single source of truth. It was being forced on whenever a pane was split or had multiple tabs, so it could not be switched off; that override is gone.
+
+### 06/08 · Improvement — Compact mode, revived
+The compact density toggle now meaningfully tightens the redesigned tool cards: smaller headers and code, a narrower line-number gutter, and fewer preview lines before the "Show all" button, so more of the conversation fits on screen.
+
+### 06/08 · Fix — Diff line shading restored
+Added and removed lines in a diff again show their green and red tint; the shading had been pointing at an undefined color and rendered blank.
+
+### 06/08 · Improvement — Real syntax colors in code
+Code in the chat is now actually syntax-highlighted: keywords, strings, numbers, comments and function names take on distinct colors from your theme, instead of the previous single-color text. File views show the language and an editor-style gutter that highlights the line under your cursor, and command output reads like a terminal with a prompt instead of numbered lines.
+
+### 06/08 · Improvement — Repeated tool steps fold away
+When the agent runs the same tool many times in a row (say eight file reads), the chat now folds them into a single "5 read steps" row you can expand on demand, instead of stacking eight cards.
+
+### 06/08 · Improvement — Redesigned tool cards
+Every tool step now reads the same way across all providers: the tool and file, and a compact summary on the right (lines changed, exit code, how long it took). File contents, commands, and command output all render in one integrated code viewer with line numbers and syntax highlighting, in the card and in the full-screen view. Diffs colour the + and - markers. Long output is capped with a "Show all N lines" button that floats over a soft fade. Failed steps are outlined in red.
+
+### 06/08 · Improvement — Calmer tool output and smoother panels
+Long tool results no longer flood the chat. Every tool, across all providers, now caps its inline output at a glance with a "click to expand" row that opens the full content. The sidebar and inspector panel now slide in and out, and new messages ease into the feed, for a calmer feel. All motion respects your system's reduced-motion setting.
+
+### 06/08 · New — Hide the sidebar for more space
+You can now collapse the left sidebar to give the chat and editor more room, just like the right inspector panel. Use the ‹ button in the sidebar header or press ⌘B / Ctrl+B to toggle it; the choice is remembered.
+
+### 06/08 · Improvement — Clearer chat feed
+The chat feed is easier to read at a glance. The "thinking" line now expands with a tidy chevron button instead of a small arrow, tool steps show a colored status dot (green when done, red on failure, pulsing while running), and error messages are simpler — a clean red line instead of a heavy highlighted box.
+
+---
+
 ## May 2026
 
 ### 05/25 · Release — Version 6.0.1
 Version 6.0.1 brings the latest provider, MCP, desktop notification, tray, git workflow, and UI improvements from the development branch into the main release line.
+
+### 05/25 · Fix — No flashing console windows on Windows
+Sending messages, watching git status, and spawning agent CLIs no longer briefly opens a black terminal window in the background.
 
 ### 05/25 · Fix — Follow-up messages stay in chat after restart
 Messages you send after the first prompt in a session are now saved with the session history. Restarting Orbit or reopening a session no longer drops those follow-up prompts from the chat feed.

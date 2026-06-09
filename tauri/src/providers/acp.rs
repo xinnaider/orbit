@@ -40,7 +40,7 @@ impl Provider for AcpProvider {
             .find_cli()
             .ok_or_else(|| format!("{} not found — {}", self.cli, self.install_hint()))?;
 
-        let mut cmd = std::process::Command::new(&cli_path);
+        let mut cmd = crate::services::process_util::command_for_program(&cli_path);
 
         for arg in &self.extra_args {
             cmd.arg(arg);
@@ -56,13 +56,6 @@ impl Provider for AcpProvider {
         cmd.stdin(std::process::Stdio::piped());
         cmd.stdout(std::process::Stdio::piped());
         cmd.stderr(std::process::Stdio::piped());
-
-        #[cfg(windows)]
-        {
-            use std::os::windows::process::CommandExt;
-            const CREATE_NO_WINDOW: u32 = 0x08000000;
-            cmd.creation_flags(CREATE_NO_WINDOW);
-        }
 
         let mut child = cmd.spawn().map_err(|e| format!("acp spawn failed: {e}"))?;
         let pid = child.id();

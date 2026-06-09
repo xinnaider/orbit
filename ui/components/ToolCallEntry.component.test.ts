@@ -181,7 +181,8 @@ describe('ToolCallEntry', () => {
 
     expect(container.querySelector('.quiet-tool-card')).toBeTruthy();
     expect(getByText('bash')).toBeTruthy();
-    expect(getByText('done')).toBeTruthy();
+    // State is conveyed by the exit code + card styling, not a text/dot label.
+    expect(container.textContent).toContain('exit 0');
     expect(container.textContent).toContain('npm test');
     expect(container.textContent).toContain('20 passed');
   });
@@ -242,5 +243,35 @@ describe('ToolCallEntry', () => {
       props: { entry, resultEntry: null, streamingEntries: [], cwd: null, compact: true },
     });
     expect(container.querySelector('.quiet-tool-card.compact')).toBeTruthy();
+  });
+
+  it('clamps long tool output and shows an expand affordance', () => {
+    const output = Array.from({ length: 30 }, (_, i) => `line ${i + 1}`).join('\n');
+    const entry = makeEntry({
+      entryType: 'toolCall',
+      tool: 'bash',
+      toolInput: { command: 'seq 30' },
+    });
+    const result = makeEntry({ entryType: 'toolResult', tool: 'bash', output, exitCode: 0 });
+    const { container } = render(ToolCallEntry, {
+      props: { entry, resultEntry: result, streamingEntries: [], cwd: null },
+    });
+
+    const view = container.querySelector('.term-view.clamped');
+    expect(view).toBeTruthy();
+    expect(view!.querySelectorAll('.term-text').length).toBe(14);
+    expect(container.querySelector('.expand-pill')?.textContent).toContain('Show all 30 lines');
+  });
+
+  it('compact mode clamps output tighter (8 lines)', () => {
+    const output = Array.from({ length: 30 }, (_, i) => `line ${i + 1}`).join('\n');
+    const entry = makeEntry({ entryType: 'toolCall', tool: 'bash', toolInput: { command: 'x' } });
+    const result = makeEntry({ entryType: 'toolResult', tool: 'bash', output, exitCode: 0 });
+    const { container } = render(ToolCallEntry, {
+      props: { entry, resultEntry: result, streamingEntries: [], cwd: null, compact: true },
+    });
+    expect(
+      container.querySelector('.term-view.clamped')!.querySelectorAll('.term-text').length
+    ).toBe(8);
   });
 });

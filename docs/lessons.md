@@ -64,6 +64,21 @@ Padrões de erro identificados durante o desenvolvimento. Leia ao início de cad
 
 ---
 
+## Criacao de Branch com Tracking Automatico
+
+**Regra:** Ao criar uma nova branch a partir de um remote (`git checkout -b <nome> <remote>/<branch>`), SEMPRE usar `--no-track` para evitar tracking automático. Ou crie a branch primeiro, depois faça rebase/merge manual.
+
+**Exemplo correto:**
+```bash
+git checkout -b fix/chat-feed --no-track origin/dev
+```
+
+**Por quê:** `git checkout -b fix/chat-feed origin/dev` sem `--no-track` configurou tracking automático para `origin/dev`. O `git branch -vv` mostrava `[origin/dev]`, dando a impressão incorreta de que commits iriam direto para `dev`. Apesar de na prática `git push` sem `-u` não funcionar, a configuração de tracking causou confusão sobre o comportamento esperado.
+
+**Quando aplicar:** Sempre ao criar branches a partir de um remote. Verificar com `git branch -vv` após a criação.
+
+---
+
 ## OpenCode Providers
 
 **Regra:** Não usar o `opencode.json` do diretório do projeto Orbit como fonte de providers do OpenCode. A lista deve vir de `~/.cache/opencode/models.json` e da config global do próprio OpenCode em `~/.config/opencode/opencode.json` / `.jsonc`; deixe o CLI validar providers default e autenticação no spawn.

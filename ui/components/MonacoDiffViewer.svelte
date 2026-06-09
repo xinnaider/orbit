@@ -123,7 +123,39 @@
       _initFrame = null;
       if (!host) return;
 
-      monaco.editor.setTheme('vs-dark');
+      monaco.editor.defineTheme('orbit-dark', {
+        base: 'vs-dark',
+        inherit: true,
+        rules: [
+          { token: 'comment', foreground: '67615a', fontStyle: 'italic' },
+          { token: 'keyword', foreground: 'c8a8ff' },
+          { token: 'string', foreground: '7cff9e' },
+          { token: 'number', foreground: 'f2c96f' },
+          { token: 'regexp', foreground: '7cff9e' },
+          { token: 'type', foreground: 'f2c96f' },
+          { token: 'class', foreground: 'f2c96f' },
+          { token: 'function', foreground: '4da3ff' },
+          { token: 'variable', foreground: 'f1ece3' },
+          { token: 'constant', foreground: 'f2c96f' },
+          { token: 'tag', foreground: 'c8a8ff' },
+          { token: 'attribute.name', foreground: 'f2c96f' },
+        ],
+        colors: {
+          'editor.background': '#0c0d0d',
+          'editor.foreground': '#f1ece3',
+          'editorLineNumber.foreground': '#5b554f',
+          'editorLineNumber.activeForeground': '#a19a90',
+          'editorGutter.background': '#101111',
+          'editor.selectionBackground': '#7cff9e22',
+          'editor.lineHighlightBackground': '#ffffff08',
+          'diffEditor.insertedTextBackground': '#7cff9e22',
+          'diffEditor.removedTextBackground': '#e4777022',
+          'diffEditor.insertedLineBackground': '#7cff9e12',
+          'diffEditor.removedLineBackground': '#e4777012',
+          'editorOverviewRuler.border': '#00000000',
+        },
+      });
+      monaco.editor.setTheme('orbit-dark');
       editor = monaco.editor.createDiffEditor(host, {
         automaticLayout: true,
         readOnly: !editable,
