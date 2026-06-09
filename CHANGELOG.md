@@ -4,6 +4,9 @@
 
 ## June 2026
 
+### 06/08 · Improvement — Repeated tool steps fold away
+When the agent runs the same tool many times in a row (say eight file reads), the chat now folds them into a single "5 read steps" row you can expand on demand, instead of stacking eight cards.
+
 ### 06/08 · Improvement — Redesigned tool cards
 Every tool step now reads the same way across all providers: a status dot, the tool and file, and a compact summary on the right (lines changed, exit code, how long it took). Long output is capped with a centered "Show all N lines" button that fades into the content, and copy and expand actions appear when you hover the card. Failed steps are outlined in red.
 

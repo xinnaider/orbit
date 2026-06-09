@@ -174,6 +174,38 @@ describe('Feed', () => {
     expect(toolCard!.textContent).toContain('echo hi');
   });
 
+  it('collapses 4+ consecutive same-tool calls into one expandable group', () => {
+    const entries = Array.from({ length: 5 }, (_, i) =>
+      makeEntry({
+        entryType: 'toolCall',
+        tool: 'read',
+        toolInput: { file_path: `/tmp/file-${i}.ts` },
+        seq: i,
+        text: '',
+      })
+    );
+    const { container } = render(Feed, {
+      props: { entries, status: '', provider: 'claude-code', cwd: null },
+    });
+
+    const toggle = container.querySelector('.tool-group-toggle');
+    expect(toggle).toBeTruthy();
+    expect(toggle!.textContent).toContain('5 read steps');
+    // Collapsed by default: tool cards hidden until expanded.
+    expect(container.querySelector('.tc-card')).toBeNull();
+  });
+
+  it('does not group short runs of the same tool', () => {
+    const entries = Array.from({ length: 2 }, (_, i) =>
+      makeEntry({ entryType: 'toolCall', tool: 'read', toolInput: { file_path: `/a-${i}` }, seq: i })
+    );
+    const { container } = render(Feed, {
+      props: { entries, status: '', provider: 'claude-code', cwd: null },
+    });
+    expect(container.querySelector('.tool-group-toggle')).toBeNull();
+    expect(container.querySelectorAll('.tc-card').length).toBe(2);
+  });
+
   // ═══════════════════════════════════════
   //  Timeline & Compact
   // ═══════════════════════════════════════

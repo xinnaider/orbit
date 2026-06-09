@@ -61,6 +61,49 @@
     return items;
   })();
 
+  // Collapse long runs of the same repeated tool (e.g. 8 reads in a row) into
+  // one expandable cluster so they don't bury the conversation.
+  const GROUP_MIN = 4;
+  type Row =
+    | { kind: 'item'; item: DisplayItem }
+    | { kind: 'group'; tool: string; items: DisplayItem[] };
+
+  $: rows = (() => {
+    const out: Row[] = [];
+    let i = 0;
+    while (i < display.length) {
+      const it = display[i];
+      const tool = it.entry.entryType === 'toolCall' ? (it.entry.tool ?? '') : null;
+      if (tool) {
+        let j = i + 1;
+        while (
+          j < display.length &&
+          display[j].entry.entryType === 'toolCall' &&
+          (display[j].entry.tool ?? '') === tool
+        ) {
+          j++;
+        }
+        const run = display.slice(i, j);
+        if (run.length >= GROUP_MIN) {
+          out.push({ kind: 'group', tool, items: run });
+          i = j;
+          continue;
+        }
+      }
+      out.push({ kind: 'item', item: it });
+      i++;
+    }
+    return out;
+  })();
+
+  let expandedGroups = new Set<number>();
+  function toggleGroup(absIdx: number) {
+    const next = new Set(expandedGroups);
+    if (next.has(absIdx)) next.delete(absIdx);
+    else next.add(absIdx);
+    expandedGroups = next;
+  }
+
   function ts(entry: JournalEntry) {
     return entry.timestamp?.slice(11, 16) ?? '';
   }
@@ -103,7 +146,7 @@
   // When display shrinks (session switch via {#key}), always reset.
   let prevTotal = 0;
   $: {
-    const total = display.length;
+    const total = rows.length;
     if (total < prevTotal) {
       // session remount or reset — start at tail
       visibleFrom = Math.max(0, total - PAGE_SIZE);
@@ -114,7 +157,7 @@
     prevTotal = total;
   }
 
-  $: visibleItems = display.slice(visibleFrom);
+  $: visibleItems = rows.slice(visibleFrom);
 
   $: hasMore = visibleFrom > 0;
 
@@ -180,7 +223,7 @@
   // ── Auto-scroll to bottom ──────────────────────────────────────────────────
   export function scrollToBottom() {
     if (!scrollerEl) return;
-    visibleFrom = Math.max(0, display.length - PAGE_SIZE);
+    visibleFrom = Math.max(0, rows.length - PAGE_SIZE);
     isAtBottom = true;
     tick().then(() => {
       if (scrollerEl) {
@@ -237,14 +280,53 @@
       <button type="button" class="load-more" onclick={loadMore}>load earlier</button>
     {/if}
 
-    {#each visibleItems as item, i (visibleFrom + i)}
-      {@const entry = item.entry}
+    {#each visibleItems as row, i (visibleFrom + i)}
       {@const absIdx = visibleFrom + i}
-      <article
-        class="timeline-event {eventClass(entry)}"
-        aria-label="{actorLabel(entry)} {ts(entry)}"
-        in:fly|local={{ y: 8, duration: 180 }}
-      >
+      {#if row.kind === 'group'}
+        {@const gOpen = expandedGroups.has(absIdx)}
+        <article class="timeline-event tool" aria-label="{row.items.length} {row.tool} steps">
+          <div class="timeline-node tool" aria-hidden="true"></div>
+          <div class="timeline-body">
+            <button
+              class="tool-group-toggle"
+              class:open={gOpen}
+              onclick={() => toggleGroup(absIdx)}
+              aria-expanded={gOpen}
+            >
+              <svg class="chev" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path
+                  d="M6 4l4 4-4 4"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              {row.items.length} {row.tool} {row.items.length === 1 ? 'step' : 'steps'}
+            </button>
+            {#if gOpen}
+              <div class="tool-group-items">
+                {#each row.items as gi (gi.entry.seq)}
+                  <ToolCallEntry
+                    entry={gi.entry}
+                    resultEntry={gi.result}
+                    streamingEntries={gi.streaming}
+                    {cwd}
+                    {compact}
+                  />
+                {/each}
+              </div>
+            {/if}
+          </div>
+        </article>
+      {:else}
+        {@const item = row.item}
+        {@const entry = item.entry}
+        <article
+          class="timeline-event {eventClass(entry)}"
+          aria-label="{actorLabel(entry)} {ts(entry)}"
+          in:fly|local={{ y: 8, duration: 180 }}
+        >
         <div class="timeline-node {eventClass(entry)}" aria-hidden="true"></div>
         <div class="timeline-body">
           <div class="event-meta">
@@ -316,6 +398,7 @@
           {/if}
         </div>
       </article>
+      {/if}
     {/each}
 
     {#if isWorking}
@@ -628,6 +711,40 @@
     max-height: 280px;
     overflow-y: auto;
     margin-top: 5px;
+  }
+
+  .tool-group-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: var(--bg2);
+    border: 1px solid var(--bd1);
+    border-radius: 999px;
+    color: var(--t1);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 4px 12px;
+    cursor: pointer;
+    transition:
+      color 0.15s,
+      border-color 0.15s;
+  }
+  .tool-group-toggle:hover {
+    color: var(--tool-fg);
+    border-color: color-mix(in srgb, var(--tool-fg), transparent 60%);
+  }
+  .tool-group-toggle .chev {
+    width: 9px;
+    height: 9px;
+    transition: transform 0.18s ease;
+  }
+  .tool-group-toggle.open .chev {
+    transform: rotate(90deg);
+  }
+  .tool-group-items {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
   }
 
   .think-chip {
