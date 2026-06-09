@@ -131,6 +131,64 @@ select {
   caret-color: var(--ac);
 }
 
+/* ── Syntax highlighting (highlight.js token theme, orbit palette) ──────────
+   highlight.js emits `.hljs-*` spans but ships no colours; without these rules
+   all code renders monochrome. Colours reference theme tokens so they adapt to
+   light/dark automatically. */
+.hljs-comment,
+.hljs-quote {
+  color: var(--t3);
+  font-style: italic;
+}
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal,
+.hljs-section,
+.hljs-doctag,
+.hljs-name,
+.hljs-tag {
+  color: var(--think-fg);
+}
+.hljs-string,
+.hljs-regexp,
+.hljs-meta .hljs-string,
+.hljs-addition {
+  color: var(--ac);
+}
+.hljs-number,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-attr,
+.hljs-attribute,
+.hljs-template-variable,
+.hljs-type,
+.hljs-built_in,
+.hljs-class .hljs-title {
+  color: var(--tool-fg);
+}
+.hljs-title,
+.hljs-title.function_,
+.hljs-function .hljs-title,
+.hljs-property {
+  color: var(--user-fg);
+}
+.hljs-variable,
+.hljs-params,
+.hljs-selector-attr,
+.hljs-selector-pseudo,
+.hljs-meta {
+  color: var(--t1);
+}
+.hljs-deletion {
+  color: var(--s-error);
+}
+.hljs-emphasis {
+  font-style: italic;
+}
+.hljs-strong {
+  font-weight: 600;
+}
+
 /* ── Mobile responsiveness ─────────────────────────────────── */
 
 @media (max-width: 768px) {

@@ -338,6 +338,17 @@
   </div>
 {/snippet}
 
+{#snippet terminalView(lines: string[], prompt: boolean, clamped: boolean)}
+  <div class="term-view" class:clamped>
+    {#each lines as line, i}
+      <div class="term-line">
+        {#if prompt && i === 0}<span class="term-prompt">$</span>{/if}
+        <span class="term-text">{line}</span>
+      </div>
+    {/each}
+  </div>
+{/snippet}
+
 {#snippet expander(total: number)}
   <div class="expand-row">
     <button class="expand-pill" onclick={() => (modalOpen = true)}>
@@ -371,6 +382,9 @@
       {/if}
     </button>
     <span class="tc-spacer"></span>
+    {#if (hasEditDiff || hasWriteContent || isReadTool) && lang}
+      <span class="tc-lang">{lang}</span>
+    {/if}
     {#if metaParts.length}
       <span class="tc-meta">
         {#each metaParts as part, i}
@@ -427,7 +441,7 @@
         </div>
         {#if writeOverflow > 0}{@render expander(writeLines.length)}{/if}
       {:else if hasBashCommand}
-        {@render codeView(codeText.split('\n'), 'bash', null, false)}
+        {@render terminalView(codeText.split('\n'), true, false)}
       {/if}
 
       {#if showStreamingBody}
@@ -487,10 +501,9 @@
           )}
           {#if readLines.length > RESULT_CLAMP}{@render expander(readLines.length)}{/if}
         {:else}
-          {@render codeView(
+          {@render terminalView(
             resultLines.slice(0, RESULT_CLAMP),
-            null,
-            null,
+            false,
             resultLines.length > RESULT_CLAMP
           )}
           {#if resultLines.length > RESULT_CLAMP}{@render expander(resultLines.length)}{/if}
@@ -585,7 +598,7 @@
               </button>
             </div>
             <div class="modal-card-body">
-              {@render codeView(codeText.split('\n'), 'bash', null, false)}
+              {@render terminalView(codeText.split('\n'), true, false)}
             </div>
           </div>
         {/if}
@@ -607,7 +620,7 @@
                 {@const parsed = stripLineNumbers(resultEntry.output)}
                 {@render codeView(parsed.code.split('\n'), lang, parsed.lineNums, false)}
               {:else}
-                {@render codeView(resultEntry.output.split('\n'), null, null, false)}
+                {@render terminalView(resultEntry.output.split('\n'), false, false)}
               {/if}
             </div>
           </div>
@@ -632,7 +645,8 @@
 
   /* ── Unified "show all N lines" expander (fade + centered pill) ── */
   .diff-block.clamped,
-  .code-view.clamped {
+  .code-view.clamped,
+  .term-view.clamped {
     position: relative;
     -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
     mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
@@ -727,6 +741,16 @@
     color: var(--t0);
     text-decoration: underline;
     text-underline-offset: 2px;
+  }
+  .tc-lang {
+    flex-shrink: 0;
+    color: var(--t3);
+    font-size: 9px;
+    text-transform: lowercase;
+    border: 1px solid var(--bd1);
+    border-radius: 3px;
+    padding: 0 5px;
+    line-height: 15px;
   }
   .tc-meta {
     display: inline-flex;
@@ -894,13 +918,17 @@
   .code-view {
     font-family: var(--mono);
     font-size: 10.5px;
-    line-height: 1.55;
+    line-height: 1.6;
     padding: 6px 0;
     overflow-x: auto;
   }
   .code-line {
     display: grid;
-    grid-template-columns: 44px 1fr;
+    grid-template-columns: 48px 1fr;
+    transition: background 0.1s;
+  }
+  .code-line:hover {
+    background: rgba(255, 255, 255, 0.025);
   }
   .cv-num {
     color: var(--t3);
@@ -908,12 +936,39 @@
     padding: 0 10px 0 12px;
     user-select: none;
     font-size: 10px;
+    background: color-mix(in srgb, var(--bg2), transparent 35%);
     border-right: 1px solid color-mix(in srgb, var(--bd), transparent 30%);
+  }
+  .code-line:hover .cv-num {
+    color: var(--t1);
   }
   .cv-code {
     padding: 0 12px;
     white-space: pre-wrap;
     word-break: break-word;
+  }
+
+  /* ── Terminal view (bash command + command output) ── */
+  .term-view {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    line-height: 1.6;
+    padding: 8px 12px;
+    overflow-x: auto;
+  }
+  .term-line {
+    display: flex;
+    gap: 8px;
+  }
+  .term-prompt {
+    color: var(--ac);
+    user-select: none;
+    flex-shrink: 0;
+  }
+  .term-text {
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--t1);
   }
   .diff-overflow {
     width: 100%;

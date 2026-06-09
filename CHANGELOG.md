@@ -4,6 +4,9 @@
 
 ## June 2026
 
+### 06/08 · Improvement — Real syntax colors in code
+Code in the chat is now actually syntax-highlighted: keywords, strings, numbers, comments and function names take on distinct colors from your theme, instead of the previous single-color text. File views show the language and an editor-style gutter that highlights the line under your cursor, and command output reads like a terminal with a prompt instead of numbered lines.
+
 ### 06/08 · Improvement — Repeated tool steps fold away
 When the agent runs the same tool many times in a row (say eight file reads), the chat now folds them into a single "5 read steps" row you can expand on demand, instead of stacking eight cards.
 

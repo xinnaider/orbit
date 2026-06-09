@@ -257,9 +257,9 @@ describe('ToolCallEntry', () => {
       props: { entry, resultEntry: result, streamingEntries: [], cwd: null },
     });
 
-    const view = container.querySelector('.code-view.clamped');
+    const view = container.querySelector('.term-view.clamped');
     expect(view).toBeTruthy();
-    expect(view!.querySelectorAll('.cv-code').length).toBe(14);
+    expect(view!.querySelectorAll('.term-text').length).toBe(14);
     expect(container.querySelector('.expand-pill')?.textContent).toContain('Show all 30 lines');
   });
 });
