@@ -1169,7 +1169,9 @@
     font-size: 11px;
   }
   .quiet-tool-body {
-    padding: 12px;
+    /* No padding: diff/code/terminal fill the card edge-to-edge so the tinted
+       rows meet the card border instead of floating inside a margin. */
+    padding: 0;
     background: rgba(0, 0, 0, 0.12);
     color: var(--t1);
     font-family: var(--mono);

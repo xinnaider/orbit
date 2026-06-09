@@ -5,22 +5,18 @@
   export let x: number;
   export let y: number;
 
-  type AddAction = 'terminal' | 'git';
-
+  // TEMPORARILY DISABLED: Terminal and Git overview tabs are turned off for now
+  // — we are shipping chats only. The options are shown greyed out so users know
+  // they are coming back. To re-enable, restore the `select(action)` dispatch on
+  // each item below (see git history) and re-enable PaneContainer.handleAddAction.
   const dispatch = createEventDispatcher<{
-    select: { action: AddAction };
     close: void;
   }>();
 
-  $: viewportWidth = typeof window === 'undefined' ? 176 : window.innerWidth;
-  $: viewportHeight = typeof window === 'undefined' ? 132 : window.innerHeight;
-  $: menuLeft = Math.min(x, viewportWidth - 176);
-  $: menuTop = Math.min(y, viewportHeight - 132);
-
-  function select(action: AddAction) {
-    dispatch('select', { action });
-    dispatch('close');
-  }
+  $: viewportWidth = typeof window === 'undefined' ? 200 : window.innerWidth;
+  $: viewportHeight = typeof window === 'undefined' ? 150 : window.innerHeight;
+  $: menuLeft = Math.min(x, viewportWidth - 200);
+  $: menuTop = Math.min(y, viewportHeight - 150);
 
   onMount(() => {
     setTimeout(() => {
@@ -38,7 +34,8 @@
 </script>
 
 <div class="menu" style="left: {menuLeft}px; top: {menuTop}px;" role="menu">
-  <button class="menu-item" role="menuitem" on:click={() => select('terminal')}>
+  <div class="menu-note">Paused — chats only for now</div>
+  <button class="menu-item" role="menuitem" disabled title="Coming back soon">
     <Terminal size={14} />
     New terminal
   </button>
@@ -46,7 +43,8 @@
     class="menu-item"
     data-testid="add-git-tab-option"
     role="menuitem"
-    on:click={() => select('git')}
+    disabled
+    title="Coming back soon"
   >
     <GitBranch size={14} />
     Git overview
@@ -56,13 +54,20 @@
 <style>
   .menu {
     position: fixed;
-    min-width: 176px;
+    min-width: 200px;
     padding: var(--sp-2) 0;
     z-index: 1000;
     border: 1px solid var(--bd);
     border-radius: 6px;
     background: var(--bg1);
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.38);
+  }
+
+  .menu-note {
+    padding: var(--sp-1) var(--sp-4) var(--sp-2);
+    font-size: var(--xs);
+    color: var(--t3);
+    font-family: var(--mono);
   }
 
   .menu-item {
@@ -82,8 +87,14 @@
       color 0.15s;
   }
 
-  .menu-item:hover {
+  .menu-item:hover:not(:disabled) {
     background: var(--ac-d2);
     color: var(--t0);
+  }
+
+  .menu-item:disabled {
+    color: var(--t3);
+    cursor: not-allowed;
+    opacity: 0.6;
   }
 </style>

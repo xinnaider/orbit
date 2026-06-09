@@ -17,9 +17,11 @@
   export let session: Session;
   export let onClose: (() => void) | null = null;
   export let focused: boolean = true;
-  export let compact: boolean = false;
 
-  $: effectiveCompact = compact || $compactDensity;
+  // The user's compact-density toggle is the single source of truth. Previously
+  // this was OR-ed with a per-pane auto hint, which forced compact "on" whenever
+  // a pane was split or had multiple tabs — so the toggle could never turn it off.
+  $: effectiveCompact = $compactDensity;
 
   let feedComponent: Feed;
   let atBottom = true;

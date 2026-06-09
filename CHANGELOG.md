@@ -4,6 +4,12 @@
 
 ## June 2026
 
+### 06/09 · Adjustment — Chats only, for now
+The "+" tab menu's Terminal and Git overview options are temporarily turned off and shown greyed out while they are being reworked. Chat sessions are unaffected.
+
+### 06/09 · Fix — Compact density can be turned off again
+The compact toggle is now the single source of truth. It was being forced on whenever a pane was split or had multiple tabs, so it could not be switched off; that override is gone.
+
 ### 06/08 · Improvement — Compact mode, revived
 The compact density toggle now meaningfully tightens the redesigned tool cards: smaller headers and code, a narrower line-number gutter, and fewer preview lines before the "Show all" button, so more of the conversation fits on screen.
 
