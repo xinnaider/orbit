@@ -159,6 +159,46 @@
   $: readLines = readParsed ? readParsed.code.split('\n') : [];
   $: resultLines = !isReadTool && resultEntry?.output ? resultEntry.output.split('\n') : [];
 
+  // ── Header metric + duration (shown consistently for every tool/provider) ──
+  $: addCount = hasEditDiff ? inlineLines.filter((l) => l.type === 'add').length : 0;
+  $: remCount = hasEditDiff ? inlineLines.filter((l) => l.type === 'rem').length : 0;
+  /** "+18 −2" for edits, "+149" for writes, "149 lines" otherwise; null if empty. */
+  $: metricStr = (() => {
+    if (hasBashCommand) return null; // bash uses the exit code instead
+    if (hasEditDiff) return addCount || remCount ? `+${addCount} −${remCount}` : null;
+    if (hasWriteContent) return writeLines.length ? `+${writeLines.length}` : null;
+    if (isReadTool) return readLines.length ? `${readLines.length} lines` : null;
+    if (resultLines.length) return `${resultLines.length} lines`;
+    return null;
+  })();
+  $: exitStr =
+    hasBashCommand && resultEntry?.exitCode != null ? `exit ${resultEntry.exitCode}` : '';
+  $: durationMs =
+    resultEntry?.timestamp && entry.timestamp
+      ? Date.parse(resultEntry.timestamp) - Date.parse(entry.timestamp)
+      : NaN;
+  $: durationStr =
+    Number.isFinite(durationMs) && durationMs >= 100 && durationMs < 3_600_000
+      ? `${(durationMs / 1000).toFixed(1)}s`
+      : '';
+  $: metaParts = [exitStr, metricStr, durationStr].filter(Boolean) as string[];
+
+  // ── Unified expander: total line count + whether the body is clamped ──
+  $: bodyTotal = hasEditDiff
+    ? inlineLines.length
+    : hasWriteContent
+      ? writeLines.length
+      : isReadTool
+        ? readLines.length
+        : resultLines.length;
+  $: bodyClamped = hasEditDiff
+    ? inlineOverflow > 0
+    : hasWriteContent
+      ? writeOverflow > 0
+      : isReadTool
+        ? readLines.length > RESULT_CLAMP
+        : resultLines.length > RESULT_CLAMP;
+
   // Code text (bash only — Write is handled via writeLines)
   $: codeText = hasBashCommand ? (entry.toolInput!.command as string) : '';
 
@@ -278,42 +318,62 @@
   }
 </script>
 
-<div class="tc-card quiet-tool-card" class:compact>
+{#snippet expander(total: number)}
+  <div class="expand-row">
+    <button class="expand-pill" onclick={() => (modalOpen = true)}>
+      <svg class="chev" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path
+          d="M4 6l4 4 4-4"
+          stroke="currentColor"
+          stroke-width="1.6"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+      Show all {total} lines
+    </button>
+  </div>
+{/snippet}
+
+<div class="tc-card quiet-tool-card" class:compact class:failed={toolState === 'failed'}>
   <div class="tc-header quiet-tool-head">
-    <span
+    <span class="tc-dot {toolState}" aria-hidden="true"></span>
+    <span class="tc-icon {toolClass}"><ToolIcon size={12} /></span>
+    <button
       class="tc-title"
       onclick={() => (modalOpen = true)}
-      role="button"
-      tabindex="0"
-      onkeydown={(e) => e.key === 'Enter' && (modalOpen = true)}
+      title="View full"
+      aria-label="View full"
     >
       <span class="tc-tool">{entry.tool ?? 'tool'}</span>
       {#if target}
         <span class="tc-sep">→</span>
         <span class="tc-target">{shortPath(target, toolClass)}</span>
       {/if}
-    </span>
-    <span class="tc-status">
-      <span class="tc-dot {toolState}" aria-hidden="true"></span>
-      <span class="tc-state" class:failed={toolState === 'failed'}>{toolState}</span>
-    </span>
+    </button>
+    <span class="tc-spacer"></span>
+    {#if metaParts.length}
+      <span class="tc-meta">
+        {#each metaParts as part, i}
+          {#if i > 0}<span class="tc-meta-sep">·</span>{/if}
+          <span class:failed={part === exitStr && toolState === 'failed'}>{part}</span>
+        {/each}
+      </span>
+    {/if}
     <span class="tc-actions">
-      <button
-        class="tc-expand tc-action--label"
-        onclick={handleCopy}
-        title="Copy command"
-        aria-label="Copy command"><Copy size={10} /><span class="actxt">cmd</span></button
+      <button class="tc-iconbtn" onclick={handleCopy} title="Copy command" aria-label="Copy command"
+        ><Copy size={11} /></button
       >
       {#if resultEntry?.output}
         <button
-          class="tc-expand tc-action--label"
+          class="tc-iconbtn"
           onclick={handleCopyResult}
           title="Copy output"
-          aria-label="Copy output"><Copy size={10} /><span class="actxt">out</span></button
+          aria-label="Copy output"><FileText size={11} /></button
         >
       {/if}
       <button
-        class="tc-expand"
+        class="tc-iconbtn"
         onclick={() => (modalOpen = true)}
         title="View full"
         aria-label="View full"><Maximize2 size={11} /></button
@@ -324,7 +384,7 @@
   {#if showBody}
     <div class="tc-body quiet-tool-body">
       {#if hasEditDiff}
-        <div class="diff-block">
+        <div class="diff-block" class:clamped={inlineOverflow > 0}>
           {#each inlineVisible as dl}
             <div class="diff-line {dl.type}">
               <span class="dl-num">{dl.lineNo}</span>
@@ -334,14 +394,10 @@
               <span class="dl-code">{@html highlightCode(dl.text, lang)}</span>
             </div>
           {/each}
-          {#if inlineOverflow > 0}
-            <button class="diff-overflow" onclick={() => (modalOpen = true)}>
-              ▾ +{inlineOverflow} more lines · click to expand
-            </button>
-          {/if}
         </div>
+        {#if inlineOverflow > 0}{@render expander(inlineLines.length)}{/if}
       {:else if hasWriteContent}
-        <div class="diff-block">
+        <div class="diff-block" class:clamped={writeOverflow > 0}>
           {#each writeVisible as dl}
             <div class="diff-line add">
               <span class="dl-num">{dl.lineNo}</span>
@@ -349,12 +405,8 @@
               <span class="dl-code">{@html highlightCode(dl.text, lang)}</span>
             </div>
           {/each}
-          {#if writeOverflow > 0}
-            <button class="diff-overflow" onclick={() => (modalOpen = true)}>
-              ▾ +{writeOverflow} more lines · click to expand
-            </button>
-          {/if}
         </div>
+        {#if writeOverflow > 0}{@render expander(writeLines.length)}{/if}
       {:else if hasBashCommand}
         <div class="bash-body">
           <pre class="bash-code"><code>{@html highlightCode(codeText, 'bash')}</code></pre>
@@ -410,7 +462,7 @@
           <div class="result-divider"></div>
         {/if}
         {#if isReadTool}
-          <div class="read-output">
+          <div class="read-output" class:clamped={readLines.length > RESULT_CLAMP}>
             <table class="read-table">
               <tbody>
                 {#each readLines.slice(0, RESULT_CLAMP) as line, li}
@@ -422,20 +474,12 @@
               </tbody>
             </table>
           </div>
-          {#if readLines.length > RESULT_CLAMP}
-            <button class="diff-overflow" onclick={() => (modalOpen = true)}>
-              ▾ +{readLines.length - RESULT_CLAMP} more lines · click to expand
-            </button>
-          {/if}
+          {#if readLines.length > RESULT_CLAMP}{@render expander(readLines.length)}{/if}
         {:else}
-          <div class="result-output">
+          <div class="result-output" class:clamped={resultLines.length > RESULT_CLAMP}>
             <pre class="result-pre mono">{resultLines.slice(0, RESULT_CLAMP).join('\n')}</pre>
           </div>
-          {#if resultLines.length > RESULT_CLAMP}
-            <button class="diff-overflow" onclick={() => (modalOpen = true)}>
-              ▾ +{resultLines.length - RESULT_CLAMP} more lines · click to expand
-            </button>
-          {/if}
+          {#if resultLines.length > RESULT_CLAMP}{@render expander(resultLines.length)}{/if}
         {/if}
       {/if}
     </div>
@@ -581,6 +625,48 @@
     overflow: hidden;
     background: var(--bg1);
   }
+  .tc-card.failed {
+    border-color: color-mix(in srgb, var(--s-error), transparent 58%);
+  }
+
+  /* ── Unified "show all N lines" expander (fade + centered pill) ── */
+  .diff-block.clamped,
+  .read-output.clamped,
+  .result-output.clamped {
+    position: relative;
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+  }
+  .expand-row {
+    display: flex;
+    justify-content: center;
+    padding: 5px 0 7px;
+    background: var(--bg1);
+  }
+  .expand-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--t1);
+    background: var(--bg3);
+    border: 1px solid var(--bd1);
+    border-radius: 999px;
+    padding: 3px 12px;
+    cursor: pointer;
+    transition:
+      color 0.12s,
+      border-color 0.12s;
+  }
+  .expand-pill:hover {
+    color: var(--ac);
+    border-color: var(--ac-border);
+  }
+  .expand-pill .chev {
+    width: 9px;
+    height: 9px;
+  }
 
   .tc-header {
     display: flex;
@@ -625,13 +711,63 @@
     min-width: 0;
     overflow: hidden;
     white-space: nowrap;
-    margin-right: auto;
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+  }
+  .tc-title:hover .tc-target {
+    color: var(--t0);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .tc-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+    color: var(--t3);
+    font-size: 10px;
+  }
+  .tc-meta .failed {
+    color: var(--s-error);
+  }
+  .tc-meta-sep {
+    color: var(--t3);
+    opacity: 0.6;
   }
   .tc-actions {
     display: flex;
     align-items: center;
     gap: 2px;
     flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.12s;
+  }
+  .tc-card:hover .tc-actions,
+  .tc-actions:focus-within {
+    opacity: 1;
+  }
+  .tc-iconbtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border: none;
+    background: none;
+    color: var(--t3);
+    border-radius: 4px;
+    cursor: pointer;
+    transition:
+      color 0.12s,
+      background 0.12s;
+  }
+  .tc-iconbtn:hover {
+    color: var(--t1);
+    background: rgba(255, 255, 255, 0.05);
   }
   .tc-tool {
     font-weight: 600;
@@ -1020,11 +1156,6 @@
     font-family: var(--mono);
     font-size: 11px;
   }
-  .tc-status {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-  }
   .tc-dot {
     width: 6px;
     height: 6px;
@@ -1050,50 +1181,6 @@
     50% {
       opacity: 1;
     }
-  }
-  .tc-state {
-    color: var(--t2);
-  }
-  .tc-state.failed {
-    color: var(--s-error);
-  }
-  .tc-expand {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 20px;
-    height: 20px;
-    border: 1px solid transparent;
-    border-radius: 6px;
-    background: transparent;
-    color: var(--t3);
-    cursor: pointer;
-    font-size: 12px;
-    line-height: 1;
-    padding: 0;
-    flex-shrink: 0;
-    transition: all 0.12s;
-  }
-  .tc-expand:hover {
-    border-color: var(--bd1);
-    color: var(--t1);
-    background: color-mix(in srgb, var(--t0), transparent 95%);
-  }
-  .tc-action--label {
-    width: auto;
-    gap: 4px;
-    padding: 0 6px;
-    font-size: 9px;
-    font-family: var(--mono);
-    font-weight: 500;
-    background: color-mix(in srgb, var(--t0), transparent 94%);
-    border-color: color-mix(in srgb, var(--t0), transparent 88%);
-  }
-  .tc-action--label:hover {
-    background: color-mix(in srgb, var(--t0), transparent 88%);
-  }
-  .actxt {
-    line-height: 1;
   }
   .quiet-tool-body {
     padding: 12px;

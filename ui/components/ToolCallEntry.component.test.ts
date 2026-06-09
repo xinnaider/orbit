@@ -181,7 +181,9 @@ describe('ToolCallEntry', () => {
 
     expect(container.querySelector('.quiet-tool-card')).toBeTruthy();
     expect(getByText('bash')).toBeTruthy();
-    expect(getByText('done')).toBeTruthy();
+    // State is conveyed by the status dot colour, not a text label.
+    expect(container.querySelector('.tc-dot.done')).toBeTruthy();
+    expect(container.textContent).toContain('exit 0');
     expect(container.textContent).toContain('npm test');
     expect(container.textContent).toContain('20 passed');
   });
@@ -258,6 +260,7 @@ describe('ToolCallEntry', () => {
 
     const pre = container.querySelector('.result-pre');
     expect(pre?.textContent?.split('\n').length).toBe(14);
-    expect(container.querySelector('.diff-overflow')?.textContent).toContain('more lines');
+    expect(container.querySelector('.result-output.clamped')).toBeTruthy();
+    expect(container.querySelector('.expand-pill')?.textContent).toContain('Show all 30 lines');
   });
 });
