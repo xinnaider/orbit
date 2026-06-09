@@ -190,7 +190,8 @@ describe('Feed', () => {
 
     const toggle = container.querySelector('.tool-group-toggle');
     expect(toggle).toBeTruthy();
-    expect(toggle!.textContent).toContain('5 read steps');
+    // Normalize whitespace: the label spans several lines in the markup.
+    expect(toggle!.textContent!.replace(/\s+/g, ' ').trim()).toContain('5 read steps');
     // Collapsed by default: tool cards hidden until expanded.
     expect(container.querySelector('.tc-card')).toBeNull();
   });
