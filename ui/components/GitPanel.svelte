@@ -5,18 +5,16 @@
     FolderTree,
     GitCommit,
     List,
-    Minus,
     Pencil,
-    Plus,
     RefreshCw,
     RotateCcw,
     Tag,
     Timer,
     TimerOff,
+    X,
     Zap,
   } from 'lucide-svelte';
-  import MonacoDiffViewer from './MonacoDiffViewer.svelte';
-  import PanelHeader from './workspace/PanelHeader.svelte';
+  import CodeMirrorDiff from './CodeMirrorDiff.svelte';
   import TreeNode from './GitTreeNode.svelte';
   import GitFlatList from './GitFlatList.svelte';
   import {
@@ -24,7 +22,6 @@
     gitDiffFile,
     gitOverview,
     gitQuickCommit,
-    gitResetStaged,
     gitResetWorkingTree,
     gitStageAll,
     gitStageFile,
@@ -35,6 +32,7 @@
     type GitOverview,
   } from '../lib/tauri/git';
   import { onSessionGitUpdate } from '../lib/tauri/events';
+  import { gitEditable, gitAutoSave } from '../lib/stores/preferences';
   import { buildFlatTree, filterGitFiles } from '../lib/git-tree';
   import {
     applyTagToFiles,
@@ -63,13 +61,11 @@
   let diff: GitDiffFile | null = null;
   let diffLoading = false;
   let diffError = '';
-  let editMode = false;
   let treeCollapsed = false;
   let saving = false;
   let saveMessage = '';
   let dirtyAfterSave = false;
   let diffViewer: any = undefined;
-  let autoSave = false;
   let viewMode: 'flat' | 'tree' = 'flat';
   let actionBusy = false;
   let showCommitModal = false;
@@ -85,6 +81,24 @@
   $: activeDiffLoaded = !!selectedFile && !!diff && diff.id === selectedFile.id;
   $: aheadLabel = overview && overview.ahead > 0 ? `↑${overview.ahead}` : null;
   $: behindLabel = overview && overview.behind > 0 ? `↓${overview.behind}` : null;
+
+  // Group files into Staged / Changed / Untracked sections for the flat view.
+  $: stagedFiles = filteredFiles.filter((f) => f.group === 'staged');
+  $: changedFiles = filteredFiles.filter((f) => f.group === 'unstaged');
+  $: untrackedFiles = filteredFiles.filter((f) => f.group === 'untracked');
+  $: stagedCount = files.filter((f) => f.group === 'staged').length;
+  $: changedCount = files.filter((f) => f.group === 'unstaged').length;
+  $: untrackedCount = files.filter((f) => f.group === 'untracked').length;
+  $: totalAdds = files.reduce((s, f) => s + (f.additions ?? 0), 0);
+  $: totalDels = files.reduce((s, f) => s + (f.deletions ?? 0), 0);
+
+  let collapsedSections = new Set<string>();
+  function toggleSection(key: string) {
+    const next = new Set(collapsedSections);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    collapsedSections = next;
+  }
 
   function pathsMatch(a: string, b: string): boolean {
     return a.replace(/\\/g, '/').toLowerCase() === b.replace(/\\/g, '/').toLowerCase();
@@ -137,7 +151,6 @@
 
   async function loadDiff(file: GitFileChange) {
     selectedFile = file;
-    editMode = false;
     diffLoading = true;
     diffError = '';
     try {
@@ -289,80 +302,106 @@
   });
 </script>
 
-<section class="git-panel" data-testid="git-panel">
-  <PanelHeader
-    title={overview?.branch ?? 'Git'}
-    meta={totalChanged > 0 ? `${totalChanged} file${totalChanged !== 1 ? 's' : ''}` : null}
-    status={aheadLabel}
-    model={behindLabel}
-    {onClose}
-    {focused}
-  />
+{#snippet section(key: string, label: string, list: GitFileChange[])}
+  {#if list.length}
+    <div class="git-section">
+      <button
+        type="button"
+        class="git-sec-head"
+        aria-expanded={!collapsedSections.has(key)}
+        on:click={() => toggleSection(key)}
+      >
+        <svg
+          class="sec-chev"
+          class:open={!collapsedSections.has(key)}
+          viewBox="0 0 16 16"
+          fill="none"
+          aria-hidden="true"
+        >
+          <path
+            d="M6 4l4 4-4 4"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+        <span class="sec-label">{label}</span>
+        <span class="sec-count">{list.length}</span>
+      </button>
+      {#if !collapsedSections.has(key)}
+        <GitFlatList
+          files={list}
+          {selectedFile}
+          {selectedIds}
+          {fileTags}
+          {actionBusy}
+          onSelectFile={loadDiff}
+          onToggleSelected={toggleSelected}
+          onStageFile={handleStageFile}
+          onUnstageFile={handleUnstageFile}
+        />
+      {/if}
+    </div>
+  {/if}
+{/snippet}
 
-  <div class="git-toolbar">
+<section class="git-panel" class:focused data-testid="git-panel">
+  <div class="git-topbar">
+    <span class="gt-branch" title={overview?.branch ?? 'Git'}>⎇ {overview?.branch ?? 'Git'}</span>
+    {#if aheadLabel || behindLabel}
+      <span class="gt-sync">
+        {#if aheadLabel}<span class="up">{aheadLabel}</span>{/if}
+        {#if behindLabel}<span class="down">{behindLabel}</span>{/if}
+      </span>
+    {/if}
+    <span class="gt-spacer"></span>
+    {#if totalChanged > 0}
+      <span class="gt-stat">
+        {totalChanged} file{totalChanged !== 1 ? 's' : ''}
+        {#if totalAdds}<span class="p">+{totalAdds}</span>{/if}
+        {#if totalDels}<span class="m">−{totalDels}</span>{/if}
+      </span>
+    {/if}
+    <span class="gt-seg">
+      <button
+        type="button"
+        class:on={viewMode === 'flat'}
+        title="List view"
+        on:click={() => setViewMode('flat')}><List size={12} /></button
+      >
+      <button
+        type="button"
+        class:on={viewMode === 'tree'}
+        title="Tree view"
+        on:click={() => setViewMode('tree')}><FolderTree size={12} /></button
+      >
+    </span>
     <button
       type="button"
-      class="toolbar-btn"
+      class="gt-ico"
       title="Refresh"
       disabled={loading || actionBusy}
       data-testid="git-refresh"
-      on:click={() => refresh()}
+      on:click={() => refresh()}><span class:spin={loading}><RefreshCw size={12} /></span></button
     >
-      <span class:spin={loading}><RefreshCw size={12} /></span>
-      <span>Refresh</span>
-    </button>
     <button
       type="button"
-      class="toolbar-btn"
-      title="Stage all changes"
+      class="gt-ico"
+      title="Quick commit (stage all + auto message)"
       disabled={actionBusy}
-      data-testid="git-stage-all-button"
-      on:click={() => runGitAction(() => gitStageAll(cwd))}
+      on:click={() => requestConfirm('quick-commit')}><Zap size={12} /></button
     >
-      <Plus size={12} />
-      <span>Stage All</span>
-    </button>
     <button
       type="button"
-      class="toolbar-btn"
-      title="Unstage all staged changes"
-      disabled={actionBusy}
-      on:click={() => runGitAction(() => gitResetStaged(cwd))}
-    >
-      <Minus size={12} />
-      <span>Unstage All</span>
-    </button>
-    <button
-      type="button"
-      class="toolbar-btn"
-      title="Commit staged changes"
-      disabled={actionBusy}
-      data-testid="git-commit-button"
-      on:click={openCommitModal}
-    >
-      <GitCommit size={12} />
-      <span>Commit</span>
-    </button>
-    <button
-      type="button"
-      class="toolbar-btn"
-      title="Stage all and commit with auto-generated message"
-      disabled={actionBusy}
-      on:click={() => requestConfirm('quick-commit')}
-    >
-      <Zap size={12} />
-      <span>Quick Commit</span>
-    </button>
-    <button
-      type="button"
-      class="toolbar-btn danger"
+      class="gt-ico danger"
       title="Discard all unstaged changes"
       disabled={actionBusy}
-      on:click={() => requestConfirm('reset-working-tree')}
+      on:click={() => requestConfirm('reset-working-tree')}><RotateCcw size={12} /></button
     >
-      <RotateCcw size={12} />
-      <span>Reset</span>
-    </button>
+    {#if onClose}
+      <button type="button" class="gt-ico" title="Close" on:click={onClose}><X size={12} /></button>
+    {/if}
   </div>
 
   {#if loading}
@@ -414,45 +453,48 @@
               />
             {/each}
           {:else}
-            <GitFlatList
-              files={filteredFiles}
-              {selectedFile}
-              {selectedIds}
-              {fileTags}
-              {actionBusy}
-              onSelectFile={loadDiff}
-              onToggleSelected={toggleSelected}
-              onStageFile={handleStageFile}
-              onUnstageFile={handleUnstageFile}
-            />
+            {@render section('staged', 'Staged', stagedFiles)}
+            {@render section('changed', 'Changed', changedFiles)}
+            {@render section('untracked', 'Untracked', untrackedFiles)}
           {/if}
           {#if (viewMode === 'tree' && tree.length === 0) || (viewMode === 'flat' && filteredFiles.length === 0)}
             <div class="tree-empty">No changes</div>
           {/if}
         </div>
 
-        <div class="view-mode-toggle">
-          <button
-            type="button"
-            class="view-btn"
-            class:active={viewMode === 'flat'}
-            aria-pressed={viewMode === 'flat'}
-            title="Flat view"
-            on:click={() => setViewMode('flat')}
-          >
-            <List size={12} />
-          </button>
-          <button
-            type="button"
-            class="view-btn"
-            class:active={viewMode === 'tree'}
-            aria-pressed={viewMode === 'tree'}
-            title="Tree view"
-            on:click={() => setViewMode('tree')}
-          >
-            <FolderTree size={12} />
-          </button>
-        </div>
+        {#if !loading && !error && totalChanged > 0}
+          <div class="inline-commit">
+            <textarea
+              bind:value={commitMessage}
+              rows="2"
+              placeholder="Commit message…"
+              data-testid="git-inline-commit-message"
+            ></textarea>
+            <div class="inline-commit-actions">
+              <button
+                type="button"
+                class="commit-btn"
+                data-testid="git-commit-button"
+                disabled={actionBusy || stagedCount === 0}
+                title={stagedCount === 0 ? 'Stage files first' : 'Commit staged changes'}
+                on:click={submitCommit}
+              >
+                <GitCommit size={11} />
+                {stagedCount > 0 ? `Commit ${stagedCount} staged` : 'Commit'}
+              </button>
+              <button
+                type="button"
+                class="commit-btn ghost"
+                data-testid="git-stage-all-button"
+                disabled={actionBusy}
+                title="Stage all changes"
+                on:click={() => runGitAction(() => gitStageAll(cwd))}
+              >
+                Stage all
+              </button>
+            </div>
+          </div>
+        {/if}
       </aside>
 
       <main class="diff-pane">
@@ -468,31 +510,33 @@
           {/each}
           {#if selectedFile && activeDiffLoaded && diff && !diff.binary}
             <div class="diff-header-actions">
-              <button
-                type="button"
-                class="hdr-action"
-                class:active={autoSave}
-                title={autoSave
-                  ? 'Auto-save is on'
-                  : 'Enable auto-save (saves 1.5s after last change)'}
-                on:click={() => (autoSave = !autoSave)}
-              >
-                {#if autoSave}
-                  <Timer size={11} />
-                {:else}
-                  <TimerOff size={11} />
-                {/if}
-              </button>
+              {#if $gitEditable}
+                <button
+                  type="button"
+                  class="hdr-action"
+                  class:active={$gitAutoSave}
+                  title={$gitAutoSave
+                    ? 'Auto-save is on'
+                    : 'Enable auto-save (saves 1.5s after last change)'}
+                  on:click={() => gitAutoSave.set(!$gitAutoSave)}
+                >
+                  {#if $gitAutoSave}
+                    <Timer size={11} />
+                  {:else}
+                    <TimerOff size={11} />
+                  {/if}
+                </button>
+              {/if}
               <button
                 type="button"
                 class="hdr-action edit-toggle"
-                class:active={editMode}
-                title={editMode ? 'Disable editing (Ctrl+S to save)' : 'Enable editing'}
-                on:click={() => (editMode = !editMode)}
+                class:active={$gitEditable}
+                title={$gitEditable ? 'Switch to read-only view' : 'Edit file'}
+                on:click={() => gitEditable.set(!$gitEditable)}
               >
                 <Pencil size={11} />
               </button>
-              {#if editMode && dirtyAfterSave && !autoSave}
+              {#if $gitEditable && dirtyAfterSave && !$gitAutoSave}
                 <span class="save-status dirty">Unsaved changes</span>
               {:else if saving}
                 <span class="save-status">{saveMessage}</span>
@@ -514,13 +558,13 @@
           {:else}
             {#key diff?.id}
               {#if diff}
-                <MonacoDiffViewer
+                <CodeMirrorDiff
                   bind:this={diffViewer}
                   original={diff.original}
                   modified={diff.modified}
                   language={diff.language}
-                  editable={editMode}
-                  {autoSave}
+                  editable={$gitEditable}
+                  autoSave={$gitAutoSave}
                   on:save={handleSave}
                   on:dirty={handleDirty}
                 />
@@ -602,61 +646,186 @@
     background: var(--bg);
   }
 
-  .git-toolbar {
+  /* ── Consolidated topbar ── */
+  .git-topbar {
+    height: 34px;
     display: flex;
     align-items: center;
-    flex-wrap: wrap;
-    gap: 4px;
-    padding: 6px 10px;
+    gap: 8px;
+    padding: 0 10px;
     border-bottom: 1px solid var(--bd);
     background: var(--bg2);
+    font-family: var(--mono);
+    font-size: 10.5px;
+  }
+  .gt-branch {
+    color: var(--ac);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 180px;
+  }
+  .gt-sync {
+    display: inline-flex;
+    gap: 6px;
+    font-size: 10px;
     flex-shrink: 0;
   }
-
-  .toolbar-btn {
+  .gt-sync .up {
+    color: var(--ac);
+  }
+  .gt-sync .down {
+    color: var(--user-fg);
+  }
+  .gt-spacer {
+    flex: 1;
+  }
+  .gt-stat {
     display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    height: 24px;
-    padding: 0 8px;
-    border: 1px solid var(--bd);
-    border-radius: var(--radius-sm);
-    background: transparent;
+    gap: 6px;
     color: var(--t2);
-    cursor: pointer;
-    font-family: var(--mono);
-    font-size: 9px;
-    transition:
-      background 0.1s,
-      color 0.1s,
-      border-color 0.1s;
+    font-size: 10px;
+    flex-shrink: 0;
   }
-
-  .toolbar-btn:hover:not(:disabled) {
-    background: var(--bg3);
-    color: var(--t1);
-    border-color: color-mix(in srgb, var(--ac), transparent 60%);
+  .gt-stat .p {
+    color: var(--ac);
   }
-
-  .toolbar-btn:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-  }
-
-  .toolbar-btn.danger:hover:not(:disabled) {
-    border-color: color-mix(in srgb, var(--s-error), transparent 50%);
+  .gt-stat .m {
     color: var(--s-error);
   }
-
-  .toolbar-btn .spin {
+  .gt-seg {
+    display: inline-flex;
+    border: 1px solid var(--bd1);
+    border-radius: 999px;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .gt-seg button {
+    display: inline-flex;
+    align-items: center;
+    background: none;
+    border: none;
+    color: var(--t3);
+    padding: 2px 8px;
+    cursor: pointer;
+  }
+  .gt-seg button.on {
+    background: var(--bg4);
+    color: var(--t0);
+  }
+  .gt-ico {
+    width: 22px;
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--bd1);
+    border-radius: var(--radius-sm, 4px);
+    background: none;
+    color: var(--t2);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .gt-ico:hover:not(:disabled) {
+    color: var(--t0);
+    background: var(--bg3);
+  }
+  .gt-ico.danger:hover:not(:disabled) {
+    color: var(--s-error);
+  }
+  .gt-ico:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .gt-ico .spin {
     display: inline-flex;
     animation: git-spin 0.8s linear infinite;
   }
-
   @keyframes git-spin {
     to {
       transform: rotate(360deg);
     }
+  }
+
+  /* ── File sections ── */
+  .git-sec-head {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    width: 100%;
+    padding: 5px 12px;
+    background: var(--bg2);
+    border: none;
+    border-top: 1px solid var(--bd);
+    color: var(--t2);
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+  }
+  .git-section:first-child .git-sec-head {
+    border-top: none;
+  }
+  .sec-chev {
+    width: 9px;
+    height: 9px;
+    transition: transform 0.15s;
+  }
+  .sec-chev.open {
+    transform: rotate(90deg);
+  }
+  .sec-count {
+    margin-left: auto;
+    color: var(--t3);
+  }
+
+  /* ── Inline commit ── */
+  .inline-commit {
+    border-top: 1px solid var(--bd);
+    padding: 10px 12px;
+    background: var(--bg2);
+  }
+  .inline-commit textarea {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--bd1);
+    border-radius: var(--radius-sm, 4px);
+    color: var(--t0);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 7px 9px;
+    resize: none;
+  }
+  .inline-commit textarea:focus {
+    outline: none;
+    border-color: var(--ac-border, rgba(124, 255, 158, 0.32));
+  }
+  .inline-commit-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .commit-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 5px 12px;
+    border-radius: var(--radius-sm, 4px);
+    cursor: pointer;
+    border: 1px solid var(--ac-border, rgba(124, 255, 158, 0.32));
+    background: none;
+    color: var(--ac);
+  }
+  .commit-btn.ghost {
+    border-color: var(--bd1);
+    color: var(--t2);
+  }
+  .commit-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
   }
 
   .modal-overlay {
@@ -1000,40 +1169,5 @@
   .save-status.dirty {
     color: var(--s-input);
     font-weight: 500;
-  }
-
-  .view-mode-toggle {
-    display: flex;
-    align-items: center;
-    gap: 1px;
-    padding: 4px 8px;
-    border-top: 1px solid var(--bd);
-    flex-shrink: 0;
-  }
-
-  .view-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 22px;
-    border: none;
-    background: transparent;
-    color: var(--t3);
-    cursor: pointer;
-    border-radius: var(--radius-sm);
-    transition:
-      background 0.1s,
-      color 0.1s;
-  }
-
-  .view-btn:hover {
-    background: var(--bg3);
-    color: var(--t1);
-  }
-
-  .view-btn.active {
-    color: var(--ac);
-    background: var(--ac-d2);
   }
 </style>

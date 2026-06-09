@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="pt-br" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Orbit · Git overview v2 — redesenho</title>
+    <style>
+      :root {
+        --bg: #090a0a; --bg1: #0c0d0d; --bg2: #101111; --bg3: #141515; --bg4: #191a1a;
+        --bd: rgba(241, 236, 227, 0.09); --bd1: rgba(241, 236, 227, 0.13);
+        --t0: #f1ece3; --t1: #a19a90; --t2: #7a736b; --t3: #5b554f;
+        --ac: #7cff9e; --s-error: #e47770; --tool-fg: #f2c96f; --user-fg: #4da3ff; --think-fg: #c8a8ff;
+        --add: #7cff9e; --del: #e47770; --add-bg: rgba(124, 255, 158, 0.07); --del-bg: rgba(228, 119, 112, 0.07);
+        --add-bar: #2ea86a; --del-bar: #b8463f;
+        --mono: 'JetBrains Mono', ui-monospace, monospace;
+        --r: 7px; --r-sm: 4px;
+        --tg-ready:#00d47e;--tg-review:#e8a030;--tg-docs:#4888e0;--tg-risky:#e04848;--tg-wip:#a855f7;--tg-bug:#f97316;--tg-refactor:#06b6d4;--tg-generated:#888;
+        /* shiki-style syntax */
+        --sx-key:#c792ea;--sx-str:#9fdf9f;--sx-num:#f2c96f;--sx-com:#5b554f;--sx-fn:#82aaff;--sx-pun:#a19a90;--sx-type:#ffcb6b;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--t0); font-family: 'Inter', system-ui, sans-serif; font-size: 13px; }
+      .page { max-width: 1320px; margin: 0 auto; padding: 26px 22px 60px; }
+      h1 { font-size: 19px; font-weight: 600; margin: 0 0 4px; }
+      .sub { color: var(--t2); font-size: 13px; margin: 0 0 8px; }
+      .why { color: var(--t2); font-size: 12.5px; margin: 0 0 20px; max-width: 90ch; }
+      .why b { color: var(--t1); }
+
+      .app { display: grid; grid-template-columns: 300px 1fr; height: 660px; border: 1px solid var(--bd); border-radius: var(--r); overflow: hidden; background: var(--bg1); }
+
+      /* ── ONE consolidated top bar (spans both panes) ── */
+      .topbar { grid-column: 1 / -1; height: 34px; display: flex; align-items: center; gap: 9px; padding: 0 12px; border-bottom: 1px solid var(--bd); background: var(--bg2); font-family: var(--mono); font-size: 10.5px; }
+      .branch { display: inline-flex; align-items: center; gap: 5px; color: var(--ac); }
+      .sync { display: inline-flex; gap: 7px; color: var(--t2); font-size: 10px; }
+      .sync .u { color: var(--ac); } .sync .d { color: var(--user-fg); }
+      .topbar .spacer { flex: 1; }
+      .seg { display: inline-flex; border: 1px solid var(--bd1); border-radius: 999px; overflow: hidden; }
+      .seg button { background: none; border: none; color: var(--t2); font-family: var(--mono); font-size: 9.5px; padding: 2px 10px; cursor: pointer; }
+      .seg button.on { background: var(--bg4); color: var(--t0); }
+      .ico { width: 22px; height: 20px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--bd1); border-radius: var(--r-sm); background: none; color: var(--t2); cursor: pointer; font-size: 12px; }
+      .summary { display: inline-flex; align-items: center; gap: 7px; color: var(--t2); font-size: 10px; }
+      .barstat { display: inline-flex; gap: 2px; }
+      .barstat i { width: 6px; height: 6px; border-radius: 1px; }
+      .barstat .a { background: var(--add-bar); } .barstat .d { background: var(--del-bar); } .barstat .n { background: var(--bg4); }
+
+      /* ── Left: file list ── */
+      .list { border-right: 1px solid var(--bd); display: flex; flex-direction: column; min-height: 0; }
+      .search { margin: 8px 10px 6px; background: var(--bg); border: 1px solid var(--bd1); border-radius: var(--r-sm); color: var(--t1); font-family: var(--mono); font-size: 11px; padding: 5px 9px; }
+      .files { flex: 1; overflow-y: auto; min-height: 0; padding-bottom: 6px; }
+      .sec { display: flex; align-items: center; gap: 7px; padding: 6px 12px 4px; font-family: var(--mono); font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--t3); cursor: pointer; }
+      .sec .c { margin-left: auto; }
+      .frow { display: grid; grid-template-columns: 14px 1fr auto; align-items: center; gap: 8px; padding: 3px 12px; font-family: var(--mono); font-size: 11px; cursor: pointer; position: relative; }
+      .frow:hover { background: rgba(255,255,255,0.03); }
+      .frow.on { background: rgba(124,255,158,0.08); box-shadow: inset 2px 0 0 var(--ac); }
+      .frow .st { font-weight: 700; text-align: center; }
+      .st.m { color: var(--tool-fg); } .st.a { color: var(--add); } .st.d { color: var(--del); } .st.u { color: var(--t2); }
+      .nm { color: var(--t1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+      .nm .dir { color: var(--t3); }
+      .right { display: inline-flex; align-items: center; gap: 8px; }
+      .mini { display: inline-flex; gap: 1px; align-items: center; }
+      .mini i { width: 4px; height: 8px; border-radius: 1px; } .mini .a { background: var(--add-bar); } .mini .d { background: var(--del-bar); }
+      .ft { font-size: 8px; padding: 0 5px; border-radius: 999px; border: 1px solid; line-height: 13px; }
+      .commit { border-top: 1px solid var(--bd); padding: 9px 10px; background: var(--bg2); }
+      .commit textarea { width: 100%; background: var(--bg); border: 1px solid var(--bd1); border-radius: var(--r-sm); color: var(--t0); font-family: var(--mono); font-size: 11px; padding: 6px 8px; resize: none; }
+      .commit .a { display: flex; gap: 7px; margin-top: 7px; }
+      .btn { font-family: var(--mono); font-size: 11px; padding: 5px 11px; border-radius: var(--r-sm); cursor: pointer; border: 1px solid var(--bd1); background: none; color: var(--t1); flex: 1; }
+      .btn.primary { color: var(--ac); border-color: color-mix(in srgb, var(--ac), transparent 66%); background: color-mix(in srgb, var(--ac), transparent 92%); }
+
+      /* ── Right: unified diff viewer ── */
+      .viewer { display: flex; flex-direction: column; min-height: 0; }
+      .vhead { display: flex; align-items: center; gap: 9px; padding: 9px 14px; border-bottom: 1px solid var(--bd); background: var(--bg2); font-family: var(--mono); font-size: 11px; position: sticky; top: 0; }
+      .vhead .fn { color: var(--t0); } .vhead .fn .dir { color: var(--t3); }
+      .vhead .lang { color: var(--t3); border: 1px solid var(--bd1); border-radius: 3px; padding: 0 5px; font-size: 9px; }
+      .vhead .st2 { margin-left: auto; font-size: 10px; } .vhead .st2 .p { color: var(--add); } .vhead .st2 .m { color: var(--del); }
+      .vhead .copy { color: var(--t3); cursor: pointer; }
+      .diff { flex: 1; overflow: auto; font-family: var(--mono); font-size: 12px; line-height: 1.62; }
+      .hunk { position: sticky; top: 0; background: #0e1116; color: var(--user-fg); padding: 3px 14px; font-size: 10.5px; border-top: 1px solid var(--bd); border-bottom: 1px solid var(--bd); }
+      .dl { display: grid; grid-template-columns: 42px 42px 18px 1fr; align-items: start; }
+      .dl:hover { background: rgba(255,255,255,0.02); }
+      .dl .o, .dl .n { color: var(--t3); text-align: right; padding: 0 9px 0 0; user-select: none; font-size: 10.5px; }
+      .dl .o { background: var(--bg2); } .dl .n { background: var(--bg2); border-right: 1px solid var(--bd); }
+      .dl .sg { text-align: center; user-select: none; color: var(--t3); }
+      .dl .c { padding: 0 12px; white-space: pre; overflow-x: visible; }
+      .dl.add { background: var(--add-bg); } .dl.add .sg { color: var(--add); } .dl.add .n { background: color-mix(in srgb, var(--add), transparent 88%); }
+      .dl.del { background: var(--del-bg); } .dl.del .sg { color: var(--del); } .dl.del .o { background: color-mix(in srgb, var(--del), transparent 88%); }
+      .wa { background: color-mix(in srgb, var(--add), transparent 70%); border-radius: 2px; }
+      .wd { background: color-mix(in srgb, var(--del), transparent 70%); border-radius: 2px; }
+      .k { color: var(--sx-key); } .s { color: var(--sx-str); } .nu { color: var(--sx-num); } .cm { color: var(--sx-com); font-style: italic; } .fn2 { color: var(--sx-fn); } .ty { color: var(--sx-type); } .pu { color: var(--sx-pun); }
+
+      .props { list-style: none; padding: 0; margin: 22px 0 0; }
+      .props li { display: grid; grid-template-columns: 22px 1fr; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--bd); }
+      .props .n2 { font-family: var(--mono); font-size: 11px; color: var(--ac); }
+      .props b { color: var(--t0); } .props span { color: var(--t1); font-size: 13px; }
+      code { font-family: var(--mono); background: rgba(255,255,255,0.06); padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <h1>Orbit · Git overview v2</h1>
+      <p class="sub">Redesenho: 1 barra consolidada, lista compacta, diff unificado dominante.</p>
+      <p class="why"><b>O que mudou:</b> antes eram 4 barras empilhadas (header + chips + toolbar + tags) comendo altura e o diff (Monaco side-by-side) ficava espremido. Agora: <b>uma barra só</b> no topo (branch · sync · view · stat · ações), lista à esquerda mais estreita, e o <b>diff unificado</b> ocupa o espaço. Tech: <b>Shiki</b> (highlight grade VS Code), diff unificado com gutter old/new + word-level, panes redimensionáveis.</p>
+
+      <div class="app">
+        <!-- ONE top bar -->
+        <div class="topbar">
+          <span class="branch">⎇ fix/chat-feed</span>
+          <span class="sync"><span class="u">↑21</span><span class="d">↓0</span></span>
+          <span class="spacer"></span>
+          <span class="summary">7 files <span class="barstat"><i class="a"></i><i class="a"></i><i class="a"></i><i class="d"></i><i class="n"></i></span> <span style="color:var(--add)">+158</span> <span style="color:var(--del)">−12</span></span>
+          <span class="seg"><button>Tree</button><button class="on">List</button></span>
+          <button class="ico" title="Refresh">⟳</button>
+          <button class="ico" title="Reset" style="color:var(--s-error)">⨯</button>
+        </div>
+
+        <!-- LEFT list -->
+        <div class="list">
+          <input class="search" placeholder="Search files or #tags…" />
+          <div class="files">
+            <div class="sec">▾ Staged <span class="c">2</span></div>
+            <div class="frow on"><span class="st m">M</span><span class="nm"><span class="dir">ui/components/</span>ToolCallEntry.svelte</span><span class="right"><span class="ft" style="color:var(--tg-refactor);border-color:color-mix(in srgb,var(--tg-refactor),transparent 55%)">refactor</span><span class="mini"><i class="a"></i><i class="a"></i><i class="d"></i></span></span></div>
+            <div class="frow"><span class="st m">M</span><span class="nm"><span class="dir">ui/components/</span>Feed.svelte</span><span class="right"><span class="mini"><i class="a"></i></span></span></div>
+            <div class="sec">▾ Changed <span class="c">2</span></div>
+            <div class="frow"><span class="st m">M</span><span class="nm"><span class="dir">tauri/src/commands/</span>git.rs</span><span class="right"><span class="ft" style="color:var(--tg-bug);border-color:color-mix(in srgb,var(--tg-bug),transparent 55%)">bug</span><span class="mini"><i class="a"></i><i class="d"></i></span></span></div>
+            <div class="frow"><span class="st m">M</span><span class="nm">CHANGELOG.md</span><span class="right"><span class="mini"><i class="a"></i></span></span></div>
+            <div class="sec">▾ Untracked <span class="c">3</span></div>
+            <div class="frow" style="padding-left:24px"><span class="st u">?</span><span class="nm"><span class="dir">docs/specs/</span>git-overview-v2-mockup.html</span><span class="right"><span class="ft" style="color:var(--tg-generated);border-color:color-mix(in srgb,var(--tg-generated),transparent 55%)">generated</span></span></div>
+            <div class="frow" style="padding-left:24px"><span class="st u">?</span><span class="nm"><span class="dir">docs/specs/</span>code-viewer-mockup.html</span><span class="right"></span></div>
+            <div class="frow" style="padding-left:24px"><span class="st u">?</span><span class="nm"><span class="dir">docs/specs/</span>feed-events-mockup.html</span><span class="right"></span></div>
+          </div>
+          <div class="commit">
+            <textarea rows="2" placeholder="Commit message…">fix(git): list untracked files in subfolders</textarea>
+            <div class="a"><button class="btn primary">Commit 2</button><button class="btn">Stage all</button></div>
+          </div>
+        </div>
+
+        <!-- RIGHT unified diff -->
+        <div class="viewer">
+          <div class="vhead">
+            <span class="st m" style="font-family:var(--mono);font-weight:700">M</span>
+            <span class="fn"><span class="dir">ui/components/</span>ToolCallEntry.svelte</span>
+            <span class="lang">svelte</span>
+            <span class="st2"><span class="p">+12</span> <span class="m">−4</span></span>
+            <span class="copy" title="Copy">⧉</span>
+          </div>
+          <div class="diff">
+            <div class="hunk">@@ -883,6 +883,6 @@ .diff-line.add</div>
+            <div class="dl del"><span class="o">883</span><span class="n"></span><span class="sg">−</span><span class="c">  <span class="k">background</span><span class="pu">:</span> <span class="fn2">var</span><span class="pu">(</span><span class="wd">--diff-add-bg</span><span class="pu">);</span></span></div>
+            <div class="dl add"><span class="o"></span><span class="n">883</span><span class="sg">+</span><span class="c">  <span class="k">background</span><span class="pu">:</span> <span class="fn2">color-mix</span><span class="pu">(</span><span class="k">in</span> srgb<span class="pu">,</span> <span class="fn2">var</span><span class="pu">(</span><span class="wa">--ac</span><span class="pu">),</span> transparent <span class="nu">90%</span><span class="pu">);</span></span></div>
+            <div class="dl del"><span class="o">886</span><span class="n"></span><span class="sg">−</span><span class="c">  <span class="k">background</span><span class="pu">:</span> <span class="fn2">var</span><span class="pu">(</span><span class="wd">--diff-rem-bg</span><span class="pu">);</span></span></div>
+            <div class="dl add"><span class="o"></span><span class="n">886</span><span class="sg">+</span><span class="c">  <span class="k">background</span><span class="pu">:</span> <span class="fn2">color-mix</span><span class="pu">(</span><span class="k">in</span> srgb<span class="pu">,</span> <span class="fn2">var</span><span class="pu">(</span><span class="wa">--s-error</span><span class="pu">),</span> transparent <span class="nu">90%</span><span class="pu">);</span></span></div>
+            <div class="dl"><span class="o">889</span><span class="n">889</span><span class="sg"></span><span class="c">  <span class="pu">}</span></span></div>
+            <div class="hunk">@@ -495,4 +495,7 @@ {#snippet codeView}</div>
+            <div class="dl"><span class="o">495</span><span class="n">495</span><span class="sg"></span><span class="c">  <span class="k">const</span> <span class="fn2">lines</span> <span class="pu">=</span> text<span class="pu">.</span><span class="fn2">split</span><span class="pu">(</span><span class="s">'\n'</span><span class="pu">);</span></span></div>
+            <div class="dl add"><span class="o"></span><span class="n">496</span><span class="sg">+</span><span class="c">  <span class="cm">// terminal output: prompt, no line numbers</span></span></div>
+            <div class="dl add"><span class="o"></span><span class="n">497</span><span class="sg">+</span><span class="c">  {@render <span class="fn2">terminalView</span><span class="pu">(</span>lines<span class="pu">,</span> <span class="k">true</span><span class="pu">,</span> <span class="k">false</span><span class="pu">)}</span></span></div>
+            <div class="dl add"><span class="o"></span><span class="n">498</span><span class="sg">+</span><span class="c">  <span class="k">return</span> <span class="ty">DaemonEvent</span><span class="pu">;</span></span></div>
+            <div class="dl"><span class="o">496</span><span class="n">499</span><span class="sg"></span><span class="c">  <span class="pu">}</span></span></div>
+          </div>
+        </div>
+      </div>
+
+      <ol class="props">
+        <li><span class="n2">01</span><span><b>Uma barra consolidada.</b> branch · sync · stat global (<span style="color:var(--add)">+158</span> <span style="color:var(--del)">−12</span> + sparkline) · view toggle · refresh/reset. Some 3 barras empilhadas.</span></li>
+        <li><span class="n2">02</span><span><b>Diff unificado dominante.</b> Gutter <b>old + new</b>, sinal, word-level highlight (<span class="wa">--ac</span> / <span class="wd">--diff-add-bg</span>), hunk headers <b>sticky</b>. Cabe na largura do painel (Monaco side-by-side espremia).</span></li>
+        <li><span class="n2">03</span><span><b>Shiki para highlight.</b> Temas grade VS Code (TextMate grammars) em vez do hljs sem tema. Cor real e consistente, code + diff.</span></li>
+        <li><span class="n2">04</span><span><b>Lista compacta com mini-stat.</b> Barras <span class="mini" style="display:inline-flex"><i class="a"></i><i class="a"></i><i class="d"></i></span> por arquivo + tag chip. Linhas de 20px, seções com contagem.</span></li>
+        <li><span class="n2">05</span><span><b>Panes redimensionáveis.</b> Arrastar a divisória; lista colapsa pra dar tudo ao diff.</span></li>
+        <li><span class="n2">06</span><span><b>Commit inline</b> no rodapé da lista, com contagem de staged.</span></li>
+        <li><span class="n2">07</span><span><b>Seleção ativa clara.</b> Barra de acento à esquerda + leve fundo, em vez de só highlight.</span></li>
+        <li><span class="n2">08</span><span><b>Stat global no topo</b> com sparkline added/removed — leitura instantânea do tamanho do changeset.</span></li>
+      </ol>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="pt-br" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Orbit · Git overview v3 — refeito do zero</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #090a0a; --bg1: #0c0d0d; --bg2: #101111; --bg3: #141515; --bg4: #191a1a;
+        --bd: rgba(241, 236, 227, 0.09); --bd1: rgba(241, 236, 227, 0.14);
+        --t0: #f1ece3; --t1: #a19a90; --t2: #7a736b; --t3: #5b554f;
+        --ac: #7cff9e; --ac-d: rgba(124, 255, 158, 0.1); --ac-bd: rgba(124, 255, 158, 0.32);
+        --err: #e47770; --warn: #f2c96f; --blue: #4da3ff; --purple: #c8a8ff;
+        --add: #7cff9e; --del: #e47770;
+        --sans: 'Atkinson Hyperlegible', system-ui, sans-serif;
+        --mono: 'JetBrains Mono', ui-monospace, monospace;
+        --r: 8px; --r-sm: 5px;
+        --tg-ready:#00d47e;--tg-review:#e8a030;--tg-docs:#4888e0;--tg-risky:#e04848;--tg-wip:#a855f7;--tg-bug:#f97316;--tg-refactor:#06b6d4;
+        --sx-key:#c8a8ff;--sx-str:#7cff9e;--sx-num:#f2c96f;--sx-com:#5b554f;--sx-fn:#4da3ff;--sx-pun:#a19a90;--sx-ty:#f2c96f;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; background:
+        radial-gradient(900px 500px at 80% -10%, rgba(124,255,158,0.05), transparent 60%),
+        var(--bg); color: var(--t0); font-family: var(--sans); font-size: 14px; }
+      .page { max-width: 1340px; margin: 0 auto; padding: 30px 24px 70px; }
+      .eyebrow { font-family: var(--mono); font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ac); }
+      h1 { font-size: 26px; font-weight: 700; margin: 6px 0 6px; letter-spacing: -0.01em; }
+      .sub { color: var(--t2); font-size: 13.5px; margin: 0 0 8px; max-width: 86ch; }
+      .sub b { color: var(--t1); }
+      .pill-tech { display: inline-flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 11px; color: var(--ac); border: 1px solid var(--ac-bd); background: var(--ac-d); border-radius: 999px; padding: 4px 12px; margin: 6px 0 24px; }
+
+      /* ── App frame (orbit-native) ── */
+      .app { display: grid; grid-template-columns: 296px 1fr; height: 668px; border: 1px solid var(--bd1); border-radius: var(--r); overflow: hidden; background: var(--bg1); box-shadow: 0 30px 80px rgba(0,0,0,0.5); }
+
+      /* topbar spans */
+      .bar { grid-column: 1/-1; height: 40px; display: flex; align-items: center; gap: 10px; padding: 0 14px; border-bottom: 1px solid var(--bd); background: linear-gradient(var(--bg2), var(--bg1)); font-family: var(--mono); font-size: 11px; }
+      .bar .brand { display: inline-flex; align-items: center; gap: 7px; color: var(--ac); font-weight: 600; }
+      .bar .brand svg { width: 13px; height: 13px; }
+      .bar .sync { display: inline-flex; gap: 8px; color: var(--t2); font-size: 10.5px; }
+      .bar .sync .u { color: var(--ac); } .bar .sync .d { color: var(--blue); }
+      .bar .sp { flex: 1; }
+      .bar .stat { display: inline-flex; gap: 7px; color: var(--t2); font-size: 10.5px; align-items: center; }
+      .bar .stat .p { color: var(--add); } .bar .stat .m { color: var(--del); }
+      .spark { display: inline-flex; gap: 2px; align-items: flex-end; height: 12px; }
+      .spark i { width: 3px; border-radius: 1px; } .spark .a { background: var(--add); } .spark .d { background: var(--del); }
+      .bar .ico { width: 24px; height: 22px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--bd1); border-radius: var(--r-sm); color: var(--t2); cursor: pointer; }
+      .bar .ico:hover { color: var(--t0); background: var(--bg3); }
+
+      /* ── Rail (file list) ── */
+      .rail { border-right: 1px solid var(--bd); display: flex; flex-direction: column; min-height: 0; }
+      .rail .find { margin: 9px 11px 4px; display: flex; align-items: center; gap: 7px; background: var(--bg); border: 1px solid var(--bd1); border-radius: var(--r-sm); padding: 5px 9px; }
+      .rail .find input { flex: 1; background: none; border: none; color: var(--t1); font-family: var(--mono); font-size: 11px; outline: none; }
+      .rail .find .k { font-family: var(--mono); font-size: 9px; color: var(--t3); border: 1px solid var(--bd1); border-radius: 3px; padding: 0 4px; }
+      .files { flex: 1; overflow-y: auto; min-height: 0; padding: 4px 0; }
+      .sg { display: flex; align-items: center; gap: 7px; padding: 7px 13px 4px; font-family: var(--mono); font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--t3); }
+      .sg .dot { width: 6px; height: 6px; border-radius: 50%; }
+      .sg.s .dot { background: var(--add); } .sg.c .dot { background: var(--warn); } .sg.u .dot { background: var(--t2); }
+      .sg .c2 { margin-left: auto; }
+      .f { display: grid; grid-template-columns: 16px 1fr auto; align-items: center; gap: 8px; padding: 3px 13px; font-family: var(--mono); font-size: 11.5px; cursor: pointer; position: relative; height: 24px; }
+      .f:hover { background: rgba(255,255,255,0.03); }
+      .f.on { background: linear-gradient(90deg, var(--ac-d), transparent); box-shadow: inset 2px 0 0 var(--ac); }
+      .f .st { font-weight: 700; text-align: center; }
+      .st.m { color: var(--warn); } .st.a { color: var(--add); } .st.d { color: var(--del); } .st.u { color: var(--t2); }
+      .f .nm { color: var(--t1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .f.on .nm { color: var(--t0); } .f .nm .dir { color: var(--t3); }
+      .f .meta { display: inline-flex; gap: 7px; align-items: center; }
+      .mini { display: inline-flex; gap: 1px; } .mini i { width: 4px; height: 9px; border-radius: 1px; } .mini .a { background: var(--add); } .mini .d { background: var(--del); }
+      .tg { font-size: 8px; padding: 0 5px; border-radius: 999px; border: 1px solid; line-height: 14px; }
+      .f .stage { opacity: 0; color: var(--t3); font-size: 13px; }
+      .f:hover .stage { opacity: 1; }
+      .sub-f { padding-left: 26px; }
+      .commit { border-top: 1px solid var(--bd); padding: 10px 11px; background: var(--bg2); }
+      .commit .ta { width: 100%; background: var(--bg); border: 1px solid var(--bd1); border-radius: var(--r-sm); color: var(--t0); font-family: var(--mono); font-size: 11.5px; padding: 7px 9px; resize: none; outline: none; }
+      .commit .ta:focus { border-color: var(--ac-bd); }
+      .commit .row { display: flex; gap: 8px; margin-top: 8px; }
+      .cb { flex: 1; font-family: var(--mono); font-size: 11px; padding: 6px; border-radius: var(--r-sm); cursor: pointer; border: 1px solid var(--bd1); background: none; color: var(--t1); }
+      .cb.go { color: var(--ac); border-color: var(--ac-bd); background: var(--ac-d); font-weight: 600; }
+
+      /* ── Editor/diff (CodeMirror merge, orbit theme) ── */
+      .ed { display: flex; flex-direction: column; min-height: 0; }
+      .ed-head { display: flex; align-items: center; gap: 9px; padding: 8px 14px; border-bottom: 1px solid var(--bd); background: var(--bg2); font-family: var(--mono); font-size: 11px; }
+      .ed-head .fn { color: var(--t0); } .ed-head .fn .dir { color: var(--t3); }
+      .ed-head .lang { color: var(--t3); border: 1px solid var(--bd1); border-radius: 3px; padding: 0 5px; font-size: 9px; }
+      .editing { display: inline-flex; align-items: center; gap: 6px; color: var(--ac); font-size: 10px; }
+      .editing .blink { width: 6px; height: 6px; border-radius: 50%; background: var(--ac); animation: blink 1.4s ease-in-out infinite; }
+      @keyframes blink { 0%,100%{opacity:.4} 50%{opacity:1} }
+      .ed-head .sp { flex: 1; }
+      .ed-head .act { color: var(--t3); cursor: pointer; font-size: 13px; padding: 0 3px; } .ed-head .act:hover { color: var(--t0); }
+      .ed-head .act.on { color: var(--ac); }
+      .cm { flex: 1; overflow: auto; font-family: var(--mono); font-size: 12.5px; line-height: 1.7; background: var(--bg1); }
+      .hk { position: sticky; top: 0; display: flex; align-items: center; gap: 10px; background: var(--bg2); color: var(--blue); padding: 3px 14px; font-size: 10.5px; border-top: 1px solid var(--bd); border-bottom: 1px solid var(--bd); }
+      .hk .stage-hunk { margin-left: auto; color: var(--t3); font-size: 9.5px; cursor: pointer; }
+      .hk .stage-hunk:hover { color: var(--ac); }
+      .ln { display: grid; grid-template-columns: 40px 40px 16px 1fr; align-items: start; }
+      .ln:hover { background: rgba(255,255,255,0.018); }
+      .ln .o,.ln .n { color: var(--t3); text-align: right; padding: 0 9px 0 0; user-select: none; font-size: 10.5px; background: var(--bg2); }
+      .ln .n { border-right: 1px solid var(--bd); }
+      .ln .s { text-align: center; user-select: none; color: var(--t3); }
+      .ln .c { padding: 0 12px; white-space: pre; }
+      .ln.add { background: rgba(124,255,158,0.07); } .ln.add .s { color: var(--add); } .ln.add .n { background: rgba(124,255,158,0.13); }
+      .ln.del { background: rgba(228,119,112,0.07); } .ln.del .s { color: var(--del); } .ln.del .o { background: rgba(228,119,112,0.13); }
+      .ln.edit { background: rgba(124,255,158,0.05); box-shadow: inset 2px 0 0 var(--ac); }
+      .caret { display: inline-block; width: 1.5px; height: 1.05em; background: var(--ac); vertical-align: text-bottom; animation: blink 1.1s steps(1) infinite; margin: 0 -1px; }
+      .wa { background: rgba(124,255,158,0.28); border-radius: 2px; } .wd { background: rgba(228,119,112,0.28); border-radius: 2px; }
+      .k{color:var(--sx-key)}.s2{color:var(--sx-str)}.nu{color:var(--sx-num)}.cm2{color:var(--sx-com);font-style:italic}.fn{color:var(--sx-fn)}.pu{color:var(--sx-pun)}.ty{color:var(--sx-ty)}
+
+      .concepts { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-top: 30px; }
+      .cc { border: 1px solid var(--bd); border-radius: var(--r); padding: 14px; background: var(--bg1); }
+      .cc h3 { font-size: 13px; margin: 0 0 4px; } .cc p { color: var(--t2); font-size: 12px; margin: 0; }
+      .cc .mini-vis { height: 70px; border: 1px solid var(--bd); border-radius: var(--r-sm); margin-bottom: 10px; display: grid; }
+      .props { list-style: none; padding: 0; margin: 26px 0 0; }
+      .props li { display: grid; grid-template-columns: 24px 1fr; gap: 11px; padding: 11px 0; border-bottom: 1px solid var(--bd); }
+      .props .n2 { font-family: var(--mono); font-size: 11px; color: var(--ac); }
+      .props b { color: var(--t0); } .props span { color: var(--t1); font-size: 13.5px; }
+      code { font-family: var(--mono); background: rgba(255,255,255,0.06); padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="eyebrow">Orbit · refeito do zero</div>
+      <h1>Git overview v3</h1>
+      <p class="sub">Mesmo DNA visual do orbit (Atkinson Hyperlegible + JetBrains Mono, verde <code>#7cff9e</code>, superfícies escuras). <b>Um único editor</b> faz view e edit — sem dois renderers, sem troca de modo confusa.</p>
+      <div class="pill-tech">◆ nova tech: CodeMirror 6 + @codemirror/merge — diff unificado editável, leve, 100% tematizável</div>
+
+      <div class="app">
+        <div class="bar">
+          <span class="brand"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/></svg> orbit</span>
+          <span style="color:var(--t3)">/</span>
+          <span style="color:var(--t1);font-weight:600">⎇ fix/chat-feed</span>
+          <span class="sync"><span class="u">↑21</span><span class="d">↓0</span></span>
+          <span class="sp"></span>
+          <span class="stat">7 files <span class="spark"><i class="a" style="height:11px"></i><i class="a" style="height:7px"></i><i class="a" style="height:9px"></i><i class="d" style="height:4px"></i><i class="a" style="height:6px"></i></span> <span class="p">+158</span> <span class="m">−12</span></span>
+          <span style="display:inline-flex;border:1px solid var(--bd1);border-radius:999px;overflow:hidden">
+            <button class="ico" style="border:none;border-radius:0;background:var(--bg4);color:var(--t0)">▤</button>
+            <button class="ico" style="border:none;border-radius:0">▦</button>
+          </span>
+          <button class="ico" title="Refresh">⟳</button>
+          <button class="ico" title="Quick commit">⚡</button>
+          <button class="ico" title="Reset" style="color:var(--err)">⟲</button>
+        </div>
+
+        <!-- rail -->
+        <div class="rail">
+          <div class="find"><span style="color:var(--t3)">⌕</span><input placeholder="files or #tags" /><span class="k">⌘P</span></div>
+          <div class="files">
+            <div class="sg s"><span class="dot"></span>Staged <span class="c2">2</span></div>
+            <div class="f on"><span class="st m">M</span><span class="nm"><span class="dir">ui/components/</span>ToolCallEntry.svelte</span><span class="meta"><span class="tg" style="color:var(--tg-refactor);border-color:color-mix(in srgb,var(--tg-refactor),transparent 55%)">refactor</span><span class="mini"><i class="a"></i><i class="a"></i><i class="d"></i></span></span></div>
+            <div class="f"><span class="st m">M</span><span class="nm"><span class="dir">ui/components/</span>Feed.svelte</span><span class="meta"><span class="mini"><i class="a"></i></span><span class="stage">−</span></span></div>
+            <div class="sg c"><span class="dot"></span>Changed <span class="c2">2</span></div>
+            <div class="f"><span class="st m">M</span><span class="nm"><span class="dir">tauri/src/commands/</span>git.rs</span><span class="meta"><span class="tg" style="color:var(--tg-bug);border-color:color-mix(in srgb,var(--tg-bug),transparent 55%)">bug</span><span class="stage">+</span></span></div>
+            <div class="f"><span class="st m">M</span><span class="nm">CHANGELOG.md</span><span class="meta"><span class="stage">+</span></span></div>
+            <div class="sg u"><span class="dot"></span>Untracked <span class="c2">3</span></div>
+            <div class="f sub-f"><span class="st u">?</span><span class="nm"><span class="dir">docs/specs/</span>git-overview-v3.html</span><span class="meta"><span class="stage">+</span></span></div>
+            <div class="f sub-f"><span class="st u">?</span><span class="nm"><span class="dir">docs/specs/</span>code-viewer.html</span><span class="meta"><span class="stage">+</span></span></div>
+            <div class="f sub-f"><span class="st u">?</span><span class="nm"><span class="dir">docs/specs/</span>feed-events.html</span><span class="meta"><span class="stage">+</span></span></div>
+          </div>
+          <div class="commit">
+            <textarea class="ta" rows="2">fix(git): list untracked files in subfolders</textarea>
+            <div class="row"><button class="cb go">Commit 2 staged</button><button class="cb">Stage all</button></div>
+          </div>
+        </div>
+
+        <!-- editor -->
+        <div class="ed">
+          <div class="ed-head">
+            <span class="st m" style="font-family:var(--mono);font-weight:700">M</span>
+            <span class="fn"><span class="dir">ui/components/</span>ToolCallEntry.svelte</span>
+            <span class="lang">svelte</span>
+            <span class="editing"><span class="blink"></span>editing · auto-save on</span>
+            <span class="sp"></span>
+            <span class="act" title="Wrap">↵</span>
+            <span class="act on" title="Edit (click to view)">✎</span>
+            <span class="act" title="Copy">⧉</span>
+          </div>
+          <div class="cm">
+            <div class="hk">@@ -883,6 +883,6 @@ .diff-line.add <span class="stage-hunk">stage hunk ⌥S</span></div>
+            <div class="ln del"><span class="o">883</span><span class="n"></span><span class="s">−</span><span class="c">  <span class="k">background</span><span class="pu">:</span> <span class="fn">var</span>(<span class="wd">--diff-add-bg</span>)<span class="pu">;</span></span></div>
+            <div class="ln add edit"><span class="o"></span><span class="n">883</span><span class="s">+</span><span class="c">  <span class="k">background</span><span class="pu">:</span> <span class="fn">color-mix</span>(<span class="k">in</span> srgb<span class="pu">,</span> <span class="fn">var</span>(<span class="wa">--ac</span>)<span class="pu">,</span> transparent <span class="nu">90%</span>)<span class="caret"></span><span class="pu">;</span></span></div>
+            <div class="ln del"><span class="o">886</span><span class="n"></span><span class="s">−</span><span class="c">  <span class="k">background</span><span class="pu">:</span> <span class="fn">var</span>(<span class="wd">--diff-rem-bg</span>)<span class="pu">;</span></span></div>
+            <div class="ln add"><span class="o"></span><span class="n">886</span><span class="s">+</span><span class="c">  <span class="k">background</span><span class="pu">:</span> <span class="fn">color-mix</span>(<span class="k">in</span> srgb<span class="pu">,</span> <span class="fn">var</span>(<span class="wa">--s-error</span>)<span class="pu">,</span> transparent <span class="nu">90%</span>)<span class="pu">;</span></span></div>
+            <div class="ln"><span class="o">889</span><span class="n">889</span><span class="s"></span><span class="c">  <span class="pu">}</span></span></div>
+            <div class="hk">@@ -495,4 +495,7 @@ {#snippet codeView} <span class="stage-hunk">stage hunk ⌥S</span></div>
+            <div class="ln"><span class="o">495</span><span class="n">495</span><span class="s"></span><span class="c">  <span class="k">const</span> <span class="fn">lines</span> <span class="pu">=</span> text<span class="pu">.</span><span class="fn">split</span>(<span class="s2">'\n'</span>)<span class="pu">;</span></span></div>
+            <div class="ln add"><span class="o"></span><span class="n">496</span><span class="s">+</span><span class="c">  <span class="cm2">// terminal: prompt, no line numbers</span></span></div>
+            <div class="ln add"><span class="o"></span><span class="n">497</span><span class="s">+</span><span class="c">  {@render <span class="fn">terminalView</span>(lines<span class="pu">,</span> <span class="k">true</span>)}</span></div>
+            <div class="ln"><span class="o">496</span><span class="n">498</span><span class="s"></span><span class="c">  <span class="pu">}</span></span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- concepts -->
+      <div class="concepts">
+        <div class="cc">
+          <div class="mini-vis" style="grid-template-columns:1fr 2fr"><div style="border-right:1px solid var(--bd);background:var(--bg2)"></div><div style="background:repeating-linear-gradient(transparent,transparent 6px,rgba(124,255,158,0.06) 6px,rgba(124,255,158,0.06) 8px)"></div></div>
+          <h3>A · Rail + editor (acima)</h3>
+          <p>Lista estreita + editor dominante. Padrão, familiar, máximo espaço pro código.</p>
+        </div>
+        <div class="cc">
+          <div class="mini-vis" style="grid-template-rows:auto 1fr"><div style="border-bottom:1px solid var(--bd);background:var(--bg2)"></div><div style="background:repeating-linear-gradient(transparent,transparent 6px,rgba(124,255,158,0.06) 6px,rgba(124,255,158,0.06) 8px)"></div></div>
+          <h3>B · Stack vertical</h3>
+          <p>Arquivos no topo (chips horizontais roláveis) + editor full-width abaixo. Ótimo em painel estreito.</p>
+        </div>
+        <div class="cc">
+          <div class="mini-vis" style="place-items:center"><div style="width:70%;height:70%;border:1px solid var(--ac-bd);border-radius:6px;background:var(--ac-d)"></div></div>
+          <h3>C · Editor-first + overlay</h3>
+          <p>Editor ocupa tudo; lista de arquivos é um overlay/command-palette (⌘P). Foco total no diff.</p>
+        </div>
+      </div>
+
+      <ol class="props">
+        <li><span class="n2">01</span><span><b>Um editor só (CodeMirror 6 + merge).</b> View = read-only, Edit = editável — <i>mesmo</i> componente, zero inconsistência. Leve (sem workers do Monaco), tema orbit nativo (Atkinson/JetBrains, verde).</span></li>
+        <li><span class="n2">02</span><span><b>Editar dentro do diff.</b> Caret e edição na própria linha modificada (<span style="color:var(--ac)">●</span> editing · auto-save). Sem sair pro Monaco, sem trocar de tela.</span></li>
+        <li><span class="n2">03</span><span><b>Stage por hunk.</b> <code>stage hunk ⌥S</code> em cada bloco — granularidade estilo GitHub, direto no diff.</span></li>
+        <li><span class="n2">04</span><span><b>Gutter old/new + word-level</b> coerente com o code viewer do chat (mesma linguagem visual).</span></li>
+        <li><span class="n2">05</span><span><b>Barra única.</b> branch · sync · stat global + sparkline · view · ações. Nada de 4 barras empilhadas.</span></li>
+        <li><span class="n2">06</span><span><b>Command palette ⌘P</b> pra pular arquivo/tag; <code>j/k</code> navega, <code>⌘S</code> salva. Usabilidade de teclado.</span></li>
+        <li><span class="n2">07</span><span><b>Lista compacta</b> com mini-stat, tag chip, stage no hover, seções coloridas, subpastas (bug já corrigido).</span></li>
+        <li><span class="n2">08</span><span><b>Commit inline</b> com contagem de staged + stage-all.</span></li>
+      </ol>
+    </div>
+  </body>
+</html>
