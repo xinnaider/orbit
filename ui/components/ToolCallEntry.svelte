@@ -151,10 +151,10 @@
   $: writeVisible = writeLines.slice(0, 6);
 
   // Unified output clamp: every tool's inline result (read table, generic
-  // output) shows at most RESULT_CLAMP lines, then a consistent overflow row
+  // output) shows at most clampN lines, then a consistent overflow row
   // opens the full content in the modal. Keeps long write/read/bash/MCP output
   // from flooding the feed, identical across providers.
-  const RESULT_CLAMP = 14;
+  $: clampN = compact ? 8 : 14;
   $: readParsed = isReadTool && resultEntry?.output ? stripLineNumbers(resultEntry.output) : null;
   $: readLines = readParsed ? readParsed.code.split('\n') : [];
   $: resultLines = !isReadTool && resultEntry?.output ? resultEntry.output.split('\n') : [];
@@ -196,8 +196,8 @@
     : hasWriteContent
       ? writeOverflow > 0
       : isReadTool
-        ? readLines.length > RESULT_CLAMP
-        : resultLines.length > RESULT_CLAMP;
+        ? readLines.length > clampN
+        : resultLines.length > clampN;
 
   // Code text (bash only — Write is handled via writeLines)
   $: codeText = hasBashCommand ? (entry.toolInput!.command as string) : '';
@@ -494,19 +494,19 @@
         {/if}
         {#if isReadTool}
           {@render codeView(
-            readLines.slice(0, RESULT_CLAMP),
+            readLines.slice(0, clampN),
             lang,
             readParsed?.lineNums ?? null,
-            readLines.length > RESULT_CLAMP
+            readLines.length > clampN
           )}
-          {#if readLines.length > RESULT_CLAMP}{@render expander(readLines.length)}{/if}
+          {#if readLines.length > clampN}{@render expander(readLines.length)}{/if}
         {:else}
           {@render terminalView(
-            resultLines.slice(0, RESULT_CLAMP),
+            resultLines.slice(0, clampN),
             false,
-            resultLines.length > RESULT_CLAMP
+            resultLines.length > clampN
           )}
-          {#if resultLines.length > RESULT_CLAMP}{@render expander(resultLines.length)}{/if}
+          {#if resultLines.length > clampN}{@render expander(resultLines.length)}{/if}
         {/if}
       {/if}
     </div>
@@ -881,10 +881,10 @@
     background: var(--bg1);
   }
   .diff-line.add {
-    background: var(--diff-add-bg);
+    background: color-mix(in srgb, var(--ac), transparent 90%);
   }
   .diff-line.rem {
-    background: var(--diff-rem-bg);
+    background: color-mix(in srgb, var(--s-error), transparent 90%);
   }
 
   .dl-num {
@@ -1176,15 +1176,43 @@
     font-size: 11px;
     line-height: 1.55;
   }
-  .quiet-tool-card.compact {
-    border-radius: var(--radius-md);
-  }
-  .quiet-tool-card.compact .quiet-tool-head {
-    padding: 8px 10px;
+  /* ── Compact density: tighter header, code, and gutters ── */
+  .quiet-tool-card.compact .tc-header {
+    padding: 3px 10px;
+    min-height: 22px;
     font-size: 10px;
   }
-  .quiet-tool-card.compact .quiet-tool-body {
-    padding: 9px 10px;
-    font-size: 10px;
+  .quiet-tool-card.compact .tc-lang {
+    display: none;
+  }
+  .quiet-tool-card.compact .tc-actions {
+    gap: 0;
+  }
+  .quiet-tool-card.compact .code-view,
+  .quiet-tool-card.compact .diff-block {
+    font-size: 9.5px;
+    line-height: 1.4;
+    padding-top: 2px;
+    padding-bottom: 2px;
+  }
+  .quiet-tool-card.compact .code-line {
+    grid-template-columns: 38px 1fr;
+  }
+  .quiet-tool-card.compact .diff-line {
+    min-height: 15px;
+    font-size: 9.5px;
+  }
+  .quiet-tool-card.compact .term-view {
+    font-size: 9.5px;
+    line-height: 1.4;
+    padding: 4px 10px;
+  }
+  .quiet-tool-card.compact .expand-row {
+    margin-top: -22px;
+    padding-bottom: 5px;
+  }
+  .quiet-tool-card.compact .expand-pill {
+    font-size: 9.5px;
+    padding: 2px 9px;
   }
 </style>

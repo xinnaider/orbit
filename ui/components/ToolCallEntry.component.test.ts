@@ -262,4 +262,16 @@ describe('ToolCallEntry', () => {
     expect(view!.querySelectorAll('.term-text').length).toBe(14);
     expect(container.querySelector('.expand-pill')?.textContent).toContain('Show all 30 lines');
   });
+
+  it('compact mode clamps output tighter (8 lines)', () => {
+    const output = Array.from({ length: 30 }, (_, i) => `line ${i + 1}`).join('\n');
+    const entry = makeEntry({ entryType: 'toolCall', tool: 'bash', toolInput: { command: 'x' } });
+    const result = makeEntry({ entryType: 'toolResult', tool: 'bash', output, exitCode: 0 });
+    const { container } = render(ToolCallEntry, {
+      props: { entry, resultEntry: result, streamingEntries: [], cwd: null, compact: true },
+    });
+    expect(container.querySelector('.term-view.clamped')!.querySelectorAll('.term-text').length).toBe(
+      8
+    );
+  });
 });

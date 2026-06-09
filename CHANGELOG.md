@@ -4,6 +4,12 @@
 
 ## June 2026
 
+### 06/08 · Improvement — Compact mode, revived
+The compact density toggle now meaningfully tightens the redesigned tool cards: smaller headers and code, a narrower line-number gutter, and fewer preview lines before the "Show all" button, so more of the conversation fits on screen.
+
+### 06/08 · Fix — Diff line shading restored
+Added and removed lines in a diff again show their green and red tint; the shading had been pointing at an undefined color and rendered blank.
+
 ### 06/08 · Improvement — Real syntax colors in code
 Code in the chat is now actually syntax-highlighted: keywords, strings, numbers, comments and function names take on distinct colors from your theme, instead of the previous single-color text. File views show the language and an editor-style gutter that highlights the line under your cursor, and command output reads like a terminal with a prompt instead of numbered lines.
 
