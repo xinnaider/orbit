@@ -10,11 +10,11 @@ pub fn is_ipc_listening() -> bool {
 }
 
 use interprocess::local_socket::prelude::*;
-use interprocess::local_socket::{ListenerOptions, Stream};
-#[cfg(windows)]
-use interprocess::local_socket::GenericNamespaced;
 #[cfg(not(windows))]
 use interprocess::local_socket::GenericFilePath;
+#[cfg(windows)]
+use interprocess::local_socket::GenericNamespaced;
+use interprocess::local_socket::{ListenerOptions, Stream};
 
 pub struct McpTransport {
     stop: Arc<AtomicBool>,

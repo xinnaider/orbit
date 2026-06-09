@@ -241,7 +241,9 @@ fn apply_numstat(
 }
 
 fn changed_files(cwd: &str) -> Result<(Vec<GitFileChange>, String), String> {
-    let output = run_git(cwd, &["status", "--porcelain=v1"])?;
+    // `--untracked-files=all` so untracked files inside new subfolders are listed
+    // individually instead of collapsed into a single `?? subdir/` entry.
+    let output = run_git(cwd, &["status", "--porcelain=v1", "--untracked-files=all"])?;
     let mut files: Vec<GitFileChange> = output.lines().flat_map(parse_status_line).collect();
     if let Ok(stats) = numstat_map(cwd) {
         apply_numstat(&mut files, &stats);
@@ -443,8 +445,8 @@ pub fn git_diff_formatted(cwd: String, file_path: String) -> Result<String, Stri
 /// Quick commit with auto-generated message from file changes
 #[tauri::command]
 pub fn git_quick_commit(cwd: String) -> Result<(), String> {
-    let status =
-        run_git(&cwd, &["status", "--short"]).map_err(|e| format!("Failed to get status: {e}"))?;
+    let status = run_git(&cwd, &["status", "--short", "--untracked-files=all"])
+        .map_err(|e| format!("Failed to get status: {e}"))?;
 
     let files: Vec<String> = status
         .lines()

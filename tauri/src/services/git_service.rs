@@ -102,7 +102,10 @@ impl GitWatcher {
             .filter(|s| !s.is_empty())
         });
 
-        let status_output = Self::run_git(cwd, &["status", "--porcelain"]).ok();
+        // `--untracked-files=all` lists files inside new subfolders individually
+        // instead of collapsing them into a single `?? subdir/` entry.
+        let status_output =
+            Self::run_git(cwd, &["status", "--porcelain", "--untracked-files=all"]).ok();
         let files: Vec<String> = status_output
             .as_ref()
             .map(|s| {
