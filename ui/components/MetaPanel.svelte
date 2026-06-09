@@ -6,6 +6,7 @@
   import { isActive, modelShortName } from '../lib/status';
   import { sessionEffort } from '../lib/stores/ui';
   import { metaPanelVisible } from '../lib/stores/preferences';
+  import { fly } from '../lib/motion';
   import { sessions, updateSessionState } from '../lib/stores/sessions';
   import TasksList from './TasksList.svelte';
   import SubagentsPanel from './SubagentsPanel.svelte';
@@ -58,7 +59,7 @@
   $: stopped = session.status === 'stopped';
 </script>
 
-<aside class="meta inspector" aria-label="Session inspector">
+<aside class="meta inspector" aria-label="Session inspector" transition:fly={{ x: 216 }}>
   <div class="tabs">
     <button class="tab" class:active={tab === 'stats'} on:click={() => (tab = 'stats')}
       >stats</button

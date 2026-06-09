@@ -16,6 +16,7 @@
   import { expandedParentSessions } from '../lib/stores/mcp-ui';
   import { sidebarVisible } from '../lib/stores/preferences';
   import { sidebarToggleHint } from '../lib/shortcuts';
+  import { fly } from '../lib/motion';
 
   let appVersion = '';
   import OrbitLogo from '../lib/assets/orbit.svg?raw';
@@ -235,7 +236,7 @@
   />
 {/if}
 
-<aside class="sidebar" data-testid="quiet-sidebar">
+<aside class="sidebar" data-testid="quiet-sidebar" transition:fly={{ x: -292 }}>
   <header class="header quiet-header">
     <div class="brand">
       <span class="brand-logo" data-testid="orbit-brand-icon">{@html OrbitLogo}</span>

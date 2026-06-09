@@ -4,6 +4,9 @@
 
 ## June 2026
 
+### 06/08 · Improvement — Calmer tool output and smoother panels
+Long tool results no longer flood the chat. Every tool, across all providers, now caps its inline output at a glance with a "click to expand" row that opens the full content. The sidebar and inspector panel now slide in and out, and new messages ease into the feed, for a calmer feel. All motion respects your system's reduced-motion setting.
+
 ### 06/08 · New — Hide the sidebar for more space
 You can now collapse the left sidebar to give the chat and editor more room, just like the right inspector panel. Use the ‹ button in the sidebar header or press ⌘B / Ctrl+B to toggle it; the choice is remembered.
 

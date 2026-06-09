@@ -4,6 +4,7 @@
   import Markdown from './Markdown.svelte';
   import ToolCallEntry from './ToolCallEntry.svelte';
   import { backends } from '../lib/stores/providers';
+  import { fly } from '../lib/motion';
 
   export let entries: JournalEntry[] = [];
   export let status: string = '';
@@ -242,6 +243,7 @@
       <article
         class="timeline-event {eventClass(entry)}"
         aria-label="{actorLabel(entry)} {ts(entry)}"
+        in:fly|local={{ y: 8, duration: 180 }}
       >
         <div class="timeline-node {eventClass(entry)}" aria-hidden="true"></div>
         <div class="timeline-body">
