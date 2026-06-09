@@ -209,7 +209,7 @@
   /* ── Inspector pop badge ── */
   .inspector-pop {
     position: absolute;
-    top: 72px;
+    top: 44px;
     right: 24px;
     display: flex;
     gap: 8px;
