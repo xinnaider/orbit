@@ -114,11 +114,7 @@
   $: inlineVisible = inlineLines.slice(0, 6);
   $: modalLines = buildModalLines(rawChunks);
 
-  $: writeLines = hasWriteContent
-    ? (entry.toolInput!.content as string)
-        .split('\n')
-        .map((text, i) => ({ type: 'add' as const, text, lineNo: i + 1 }))
-    : [];
+  $: writeLines = hasWriteContent ? splitContentLines(entry.toolInput!.content as string) : [];
   $: writeOverflow = Math.max(0, writeLines.length - 6);
 
   // Real-time diff from streaming entries (visible while tool is running)
@@ -145,11 +141,7 @@
       return tool === 'write' && s.toolInput?.content;
     })
     .map((s) => ({
-      lines: (s.toolInput!.content as string).split('\n').map((text, i) => ({
-        type: 'add' as const,
-        text,
-        lineNo: i + 1,
-      })),
+      lines: splitContentLines(s.toolInput!.content as string),
       name: (s.toolInput as Record<string, any>)?.file_path ?? 'file',
     }));
 
@@ -197,6 +189,15 @@
     let out = parts.length > 2 ? parts.slice(-2).join('/') : clean;
     if (out.length > 50) out = out.slice(0, 47) + '...';
     return out;
+  }
+
+  /** Split file content into add-diff lines, dropping the trailing empty entry
+   * that `split('\n')` yields when the content ends with a newline (which would
+   * otherwise render as a phantom blank "+" line). */
+  function splitContentLines(content: string): DiffLine[] {
+    const lines = content.split('\n');
+    if (lines.length > 1 && lines[lines.length - 1] === '') lines.pop();
+    return lines.map((text, i) => ({ type: 'add' as const, text, lineNo: i + 1 }));
   }
 
   function buildInlineLines(chunks: Change[]): DiffLine[] {
@@ -326,7 +327,7 @@
           {/each}
           {#if inlineOverflow > 0}
             <button class="diff-overflow" onclick={() => (modalOpen = true)}>
-              ▸ +{inlineOverflow} linhas · clique para ver tudo
+              ▾ +{inlineOverflow} more lines · click to expand
             </button>
           {/if}
         </div>
@@ -341,7 +342,7 @@
           {/each}
           {#if writeOverflow > 0}
             <button class="diff-overflow" onclick={() => (modalOpen = true)}>
-              ▸ +{writeOverflow} linhas · clique para ver tudo
+              ▾ +{writeOverflow} more lines · click to expand
             </button>
           {/if}
         </div>
@@ -382,7 +383,7 @@
                     </div>
                   {/each}
                   {#if write.lines.length > 6}
-                    <div class="diff-overflow">▸ +{write.lines.length - 6} linhas</div>
+                    <div class="diff-overflow">▾ +{write.lines.length - 6} lines</div>
                   {/if}
                 </div>
               </div>
