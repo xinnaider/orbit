@@ -4,6 +4,18 @@
 
 ## June 2026
 
+### 06/15 · Fix — Session permissions survive restart
+Sessions created in approval mode no longer silently switch to auto-approve after you restart the app or send a follow-up message.
+
+### 06/15 · Fix — Stopped sessions stay stopped
+Stopping a running session no longer flips it to "completed" a moment later when the agent process shuts down.
+
+### 06/15 · Fix — Deleting a session stops its agent
+Deleting a session from the sidebar now terminates the underlying CLI process instead of leaving it running in the background.
+
+### 06/15 · Fix — Chat history no longer disappears on tab switch
+Switching back to a session that is still running no longer wipes live messages that arrived while you were away.
+
 ### 06/09 · Adjustment — Chats only, for now
 The "+" tab menu's Terminal and Git overview options are temporarily turned off and shown greyed out while they are being reworked. Chat sessions are unaffected.
 

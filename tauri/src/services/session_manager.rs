@@ -698,6 +698,20 @@ impl SessionManager {
         }
     }
 
+    /// Status to apply when the stdout reader exits. Preserves an explicit
+    /// `Stopped` status set by `stop_session` instead of overwriting it.
+    fn reader_exit_status(
+        db: &DatabaseService,
+        session_id: SessionId,
+    ) -> crate::models::SessionStatus {
+        match db.get_session(session_id) {
+            Ok(Some(s)) if s.status == crate::models::SessionStatus::Stopped => {
+                crate::models::SessionStatus::Stopped
+            }
+            _ => crate::models::SessionStatus::Completed,
+        }
+    }
+
     /// Read JSON lines from Claude's stdout, parse, emit events.
     #[allow(clippy::too_many_arguments)]
     fn reader_loop(
@@ -934,24 +948,28 @@ impl SessionManager {
 
         {
             let mut m = manager.write().unwrap_or_else(|e| e.into_inner());
-            if let Some(a) = m.active.get_mut(&session_id) {
-                a.session.status = crate::models::SessionStatus::Completed;
-                a.session.attention = Some(crate::models::AttentionState {
-                    requires_attention: true,
-                    reason: Some(crate::models::AttentionReason::Completed),
-                    since: Some(chrono::Utc::now().to_rfc3339()),
-                });
-            }
-            if let Some(state) = m.journal_states.get_mut(&session_id) {
-                state.status = AgentStatus::Idle;
-                state.attention = crate::models::AttentionState {
-                    requires_attention: true,
-                    reason: Some(crate::models::AttentionReason::Completed),
-                    since: Some(chrono::Utc::now().to_rfc3339()),
-                };
+            let terminal_status = Self::reader_exit_status(&db, session_id);
+            if terminal_status == crate::models::SessionStatus::Completed {
+                if let Some(a) = m.active.get_mut(&session_id) {
+                    a.session.status = crate::models::SessionStatus::Completed;
+                    a.session.attention = Some(crate::models::AttentionState {
+                        requires_attention: true,
+                        reason: Some(crate::models::AttentionReason::Completed),
+                        since: Some(chrono::Utc::now().to_rfc3339()),
+                    });
+                }
+                if let Some(state) = m.journal_states.get_mut(&session_id) {
+                    state.status = AgentStatus::Idle;
+                    state.attention = crate::models::AttentionState {
+                        requires_attention: true,
+                        reason: Some(crate::models::AttentionReason::Completed),
+                        since: Some(chrono::Utc::now().to_rfc3339()),
+                    };
+                }
+                let _ =
+                    db.update_session_status(session_id, crate::models::SessionStatus::Completed);
             }
             m.spawning_sessions.remove(&session_id);
-            let _ = db.update_session_status(session_id, crate::models::SessionStatus::Completed);
         }
 
         let _ = app.emit(
@@ -1283,6 +1301,14 @@ impl SessionManager {
         if let Some(cwd) = self.watch_map.remove(&session_id) {
             self.diff_manager.unwatch(&cwd);
         }
+        if let Some(a) = self.active.get(&session_id) {
+            if let Some(pid) = a.session.pid {
+                kill_pid(pid as u32);
+                let pid_file = std::env::temp_dir().join(format!("orbit-session-{pid}.id"));
+                let _ = std::fs::remove_file(pid_file);
+            }
+        }
+        self.spawning_sessions.remove(&session_id);
         self.active.remove(&session_id);
         self.journal_states.remove(&session_id);
         self.db
@@ -2018,6 +2044,33 @@ mod tests {
             "second entry has session_id",
             journal[1].session_id.as_str(),
             expected_id.as_str(),
+        );
+    }
+
+    #[test]
+    fn should_preserve_stopped_status_when_reader_loop_exits() {
+        let mut t = TestCase::new("should_preserve_stopped_status_when_reader_loop_exits");
+        let db = make_db();
+        let sid = db
+            .create_session(None, None, "/tmp", "ignore", None, None, None, None)
+            .expect("session");
+        db.update_session_status(sid, crate::models::SessionStatus::Stopped)
+            .expect("stop");
+
+        let status = SessionManager::reader_exit_status(&db, sid);
+        t.eq(
+            "stopped status preserved",
+            &status,
+            &crate::models::SessionStatus::Stopped,
+        );
+
+        db.update_session_status(sid, crate::models::SessionStatus::Running)
+            .expect("running");
+        let status = SessionManager::reader_exit_status(&db, sid);
+        t.eq(
+            "running session becomes completed",
+            &status,
+            &crate::models::SessionStatus::Completed,
         );
     }
 }

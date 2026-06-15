@@ -26,13 +26,27 @@
   let feedComponent: Feed;
   let atBottom = true;
 
-  // Load DB history once on mount
+  // Load DB history once on mount; merge with any live entries already in memory.
   async function loadHistory(id: number) {
     try {
       const entries = await getSessionJournal(id);
-      if (entries.length > 0) {
-        journal.update((m) => new Map(m).set(id, entries));
-      }
+      if (entries.length === 0) return;
+      journal.update((m) => {
+        const existing = m.get(id) ?? [];
+        if (existing.length === 0) {
+          return new Map(m).set(id, entries);
+        }
+        const bySeq = new Map<number, (typeof entries)[0]>();
+        for (const e of existing) bySeq.set(e.seq, e);
+        for (const e of entries) {
+          const prev = bySeq.get(e.seq);
+          if (!prev || e.timestamp >= prev.timestamp) {
+            bySeq.set(e.seq, e);
+          }
+        }
+        const merged = [...bySeq.values()].sort((a, b) => a.seq - b.seq);
+        return new Map(m).set(id, merged);
+      });
     } catch (_e) {
       /* no-op */
     }

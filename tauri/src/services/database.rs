@@ -21,7 +21,6 @@ fn flush_batch(conn: &Mutex<Connection>, buf: &mut Vec<(SessionId, String)>) {
     let conn = conn.lock().unwrap_or_else(|e| e.into_inner());
     if let Err(e) = conn.execute_batch("BEGIN") {
         eprintln!("[orbit] flush_batch: BEGIN failed: {e}");
-        buf.clear();
         return;
     }
     for (session_id, data) in buf.drain(..) {
@@ -209,9 +208,10 @@ impl DatabaseService {
         ssh_user: Option<&str>,
     ) -> SqlResult<SessionId> {
         let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+        let skip_permissions = permission_mode == "ignore";
         conn.execute(
-            "INSERT INTO sessions (project_id, name, cwd, status, permission_mode, model, provider, ssh_host, ssh_user)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            "INSERT INTO sessions (project_id, name, cwd, status, permission_mode, model, provider, ssh_host, ssh_user, skip_permissions)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
             params![
                 project_id,
                 name,
@@ -222,6 +222,7 @@ impl DatabaseService {
                 provider.unwrap_or("claude-code"),
                 ssh_host,
                 ssh_user,
+                skip_permissions,
             ],
         )?;
         Ok(conn.last_insert_rowid())
@@ -456,7 +457,7 @@ impl DatabaseService {
         let mut stmt = conn.prepare(
             "SELECT id, project_id, name, status, worktree_path, branch_name,
                     permission_mode, model, pid, cwd, created_at, updated_at,
-                    provider, ssh_host, ssh_user
+                    provider, ssh_host, ssh_user, skip_permissions, parent_session_id, depth
              FROM sessions WHERE id = ?1",
         )?;
         let session = stmt
@@ -1017,5 +1018,87 @@ mod tests {
         let s2 = db.get_session(pid2).unwrap().unwrap();
         t.none("ssh_host is None for local session", &s2.ssh_host);
         t.none("ssh_user is None for local session", &s2.ssh_user);
+    }
+
+    #[test]
+    fn should_persist_skip_permissions_from_permission_mode_on_create() {
+        let mut t = TestCase::new("should_persist_skip_permissions_from_permission_mode_on_create");
+        let db = make_db();
+        let approve_id = db
+            .create_session(
+                None,
+                Some("approve"),
+                "/tmp",
+                "approve",
+                None,
+                None,
+                None,
+                None,
+            )
+            .expect("create approve");
+        let ignore_id = db
+            .create_session(
+                None,
+                Some("ignore"),
+                "/tmp",
+                "ignore",
+                None,
+                None,
+                None,
+                None,
+            )
+            .expect("create ignore");
+
+        let approve = db
+            .get_session(approve_id)
+            .expect("get approve")
+            .expect("missing");
+        let ignore = db
+            .get_session(ignore_id)
+            .expect("get ignore")
+            .expect("missing");
+
+        t.eq(
+            "approve mode disables skip_permissions",
+            approve.skip_permissions,
+            false,
+        );
+        t.eq(
+            "ignore mode enables skip_permissions",
+            ignore.skip_permissions,
+            true,
+        );
+    }
+
+    #[test]
+    fn should_load_parent_and_depth_via_get_session() {
+        let mut t = TestCase::new("should_load_parent_and_depth_via_get_session");
+        let db = make_db();
+        let parent_id = seed_session(&db);
+        let child_id = db
+            .create_session(
+                None,
+                Some("child"),
+                "/tmp",
+                "ignore",
+                None,
+                None,
+                None,
+                None,
+            )
+            .expect("create child");
+        db.set_session_parent(child_id, parent_id, 1)
+            .expect("set parent");
+
+        let child = db
+            .get_session(child_id)
+            .expect("get child")
+            .expect("missing");
+        t.eq(
+            "parent_session_id loaded",
+            child.parent_session_id,
+            Some(parent_id),
+        );
+        t.eq("depth loaded", child.depth, 1);
     }
 }
