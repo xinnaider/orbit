@@ -684,13 +684,51 @@ pub fn process_line_opencode(state: &mut JournalState, line: &str) {
             }
         }
 
-        // Initial user prompt is injected by create_session; OpenCode may echo user JSONL.
-        "user" => {}
+        // Orbit persists user prompts in Claude-style JSONL; OpenCode may echo the same line
+        // on stdout. Replay from DB, but skip an immediate duplicate (live echo).
+        "user" => replay_opencode_user_line(state, &val),
 
         _ => {
             process_line(state, line);
         }
     }
+}
+
+/// Restore Orbit-persisted user prompts for OpenCode sessions without duplicating live echoes.
+fn replay_opencode_user_line(state: &mut JournalState, val: &Value) {
+    let Some(content) = val.pointer("/message/content").and_then(|c| c.as_str()) else {
+        return;
+    };
+    if content.is_empty() {
+        return;
+    }
+
+    let is_immediate_echo = state.entries.last().is_some_and(|entry| {
+        entry.entry_type == JournalEntryType::User
+            && entry
+                .text
+                .as_deref()
+                .is_some_and(|text| text.trim() == content.trim())
+    });
+    if is_immediate_echo {
+        return;
+    }
+
+    let timestamp = val
+        .get("timestamp")
+        .and_then(|v| v.as_str())
+        .map(String::from)
+        .unwrap_or_else(|| chrono::Utc::now().to_rfc3339());
+
+    state.last_activity = Some(timestamp.clone());
+    state.entries.push(JournalEntry {
+        timestamp,
+        entry_type: JournalEntryType::User,
+        text: Some(content.to_string()),
+        ..JournalEntry::default()
+    });
+    state.status = AgentStatus::Working;
+    state.pending_approval = None;
 }
 
 /// Extract the inner command from a Codex PowerShell wrapper.
@@ -1367,6 +1405,73 @@ mod process_line_opencode_tests {
         t.eq("output tokens", state.output_tokens, 5u64);
         t.eq("cache write", state.cache_write, 3u64);
         t.eq("cache read", state.cache_read, 4u64);
+    }
+
+    #[test]
+    fn should_restore_orbit_persisted_user_line_for_opencode() {
+        let mut t = TestCase::new("should_restore_orbit_persisted_user_line_for_opencode");
+        t.phase("Act");
+        let mut state = JournalState::default();
+        process_line_opencode(
+            &mut state,
+            r#"{"type":"user","message":{"content":"Fix the OpenCode feed"},"timestamp":"2026-01-01T00:00:01Z"}"#,
+        );
+        t.phase("Assert");
+        t.len("one user entry", &state.entries, 1);
+        t.eq(
+            "user text restored",
+            state.entries[0].text.as_deref(),
+            Some("Fix the OpenCode feed"),
+        );
+        t.eq(
+            "entry type",
+            state.entries[0].entry_type,
+            JournalEntryType::User,
+        );
+    }
+
+    #[test]
+    fn should_skip_immediate_opencode_user_echo() {
+        let mut t = TestCase::new("should_skip_immediate_opencode_user_echo");
+        t.phase("Act");
+        let mut state = JournalState::default();
+        state.entries.push(JournalEntry {
+            entry_type: JournalEntryType::User,
+            text: Some("Already in journal".to_string()),
+            ..JournalEntry::default()
+        });
+        process_line_opencode(
+            &mut state,
+            r#"{"type":"user","message":{"content":"Already in journal"}}"#,
+        );
+        t.phase("Assert");
+        t.len("still one user entry", &state.entries, 1);
+    }
+
+    #[test]
+    fn should_restore_follow_up_user_after_assistant_reply() {
+        let mut t = TestCase::new("should_restore_follow_up_user_after_assistant_reply");
+        t.phase("Act");
+        let mut state = JournalState::default();
+        process_line_opencode(
+            &mut state,
+            r#"{"type":"user","message":{"content":"First prompt"}}"#,
+        );
+        process_line_opencode(
+            &mut state,
+            r#"{"type":"text","part":{"type":"text","text":"Done"}}"#,
+        );
+        process_line_opencode(
+            &mut state,
+            r#"{"type":"user","message":{"content":"Follow up"}}"#,
+        );
+        t.phase("Assert");
+        t.len("two user entries and one assistant", &state.entries, 3);
+        t.eq(
+            "follow-up text restored",
+            state.entries[2].text.as_deref(),
+            Some("Follow up"),
+        );
     }
 
     #[test]

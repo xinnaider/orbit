@@ -1763,6 +1763,50 @@ mod tests {
     }
 
     #[test]
+    fn should_restore_opencode_user_messages_from_db() {
+        let mut t = TestCase::new("should_restore_opencode_user_messages_from_db");
+        t.phase("Seed");
+        let db = make_db();
+        let sid = db
+            .create_session(
+                None,
+                None,
+                "/tmp",
+                "ignore",
+                None,
+                Some("opencode"),
+                None,
+                None,
+            )
+            .expect("session");
+        seed_outputs(
+            &db,
+            sid,
+            &[
+                &crate::test_utils::user_text("Initial OpenCode prompt"),
+                &crate::test_utils::user_text("Initial OpenCode prompt"),
+                &crate::test_utils::user_text("Follow-up after restart"),
+            ],
+        );
+        t.phase("Act");
+        let mut sm = SessionManager::new(Arc::clone(&db));
+        sm.restore_from_db();
+        t.phase("Assert");
+        let journal = sm.get_journal(sid);
+        t.len("echo deduped, follow-up kept", &journal, 2);
+        t.eq(
+            "initial prompt restored",
+            journal[0].text.as_deref(),
+            Some("Initial OpenCode prompt"),
+        );
+        t.eq(
+            "follow-up restored",
+            journal[1].text.as_deref(),
+            Some("Follow-up after restart"),
+        );
+    }
+
+    #[test]
     fn should_not_duplicate_entries_on_double_restore() {
         let mut t = TestCase::new("should_not_duplicate_entries_on_double_restore");
         t.phase("Seed");
