@@ -4,6 +4,15 @@
 
 ## June 2026
 
+### 06/22 · Fix — Follow-up messages while the agent is busy
+If you send a new message while the agent is still working on the previous one, Orbit now shows a clear error instead of adding your message to the chat without ever delivering it to the agent.
+
+### 06/22 · Fix — Stopped sessions no longer flip to completed
+Stopping a running session no longer gets overwritten as "completed" when the agent process exits.
+
+### 06/22 · Fix — Chat history when switching sessions
+Switching between sessions no longer drops recent messages that had not yet been saved to the database.
+
 ### 06/09 · Adjustment — Chats only, for now
 The "+" tab menu's Terminal and Git overview options are temporarily turned off and shown greyed out while they are being reworked. Chat sessions are unaffected.
 
