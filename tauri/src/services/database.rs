@@ -21,7 +21,6 @@ fn flush_batch(conn: &Mutex<Connection>, buf: &mut Vec<(SessionId, String)>) {
     let conn = conn.lock().unwrap_or_else(|e| e.into_inner());
     if let Err(e) = conn.execute_batch("BEGIN") {
         eprintln!("[orbit] flush_batch: BEGIN failed: {e}");
-        buf.clear();
         return;
     }
     for (session_id, data) in buf.drain(..) {

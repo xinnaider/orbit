@@ -4,6 +4,9 @@
 
 ## June 2026
 
+### 06/29 · Fix — Session lifecycle and chat history reliability
+Switching between sessions no longer drops messages that arrived while history was loading. Follow-up messages sent while the agent is still starting are rejected with a clear error instead of appearing in chat without being delivered. Stopping a session no longer flips back to "completed" when the process exits. Session output is no longer lost when the database is briefly busy.
+
 ### 06/09 · Adjustment — Chats only, for now
 The "+" tab menu's Terminal and Git overview options are temporarily turned off and shown greyed out while they are being reworked. Chat sessions are unaffected.
 

@@ -3,6 +3,7 @@
   import { journal, pendingMessages } from '../lib/stores/journal';
   import { backends as backendsStore } from '../lib/stores/providers';
   import { getSessionJournal } from '../lib/tauri/sessions';
+  import { mergeJournalBySeq } from '../lib/journal-merge';
   import { invoke } from '../lib/tauri/invoke';
   import { updateSessionState, sessions } from '../lib/stores/sessions';
   import { statusColor, statusLabel, modelShortName } from '../lib/status';
@@ -30,9 +31,12 @@
   async function loadHistory(id: number) {
     try {
       const entries = await getSessionJournal(id);
-      if (entries.length > 0) {
-        journal.update((m) => new Map(m).set(id, entries));
-      }
+      if (entries.length === 0) return;
+      journal.update((m) => {
+        const existing = m.get(id) ?? [];
+        const merged = mergeJournalBySeq(existing, entries);
+        return new Map(m).set(id, merged);
+      });
     } catch (_e) {
       /* no-op */
     }

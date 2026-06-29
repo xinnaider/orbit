@@ -932,26 +932,30 @@ impl SessionManager {
             }
         }
 
+        let finalize_completed = session_status_allows_completion(&db, session_id);
         {
             let mut m = manager.write().unwrap_or_else(|e| e.into_inner());
-            if let Some(a) = m.active.get_mut(&session_id) {
-                a.session.status = crate::models::SessionStatus::Completed;
-                a.session.attention = Some(crate::models::AttentionState {
-                    requires_attention: true,
-                    reason: Some(crate::models::AttentionReason::Completed),
-                    since: Some(chrono::Utc::now().to_rfc3339()),
-                });
-            }
-            if let Some(state) = m.journal_states.get_mut(&session_id) {
-                state.status = AgentStatus::Idle;
-                state.attention = crate::models::AttentionState {
-                    requires_attention: true,
-                    reason: Some(crate::models::AttentionReason::Completed),
-                    since: Some(chrono::Utc::now().to_rfc3339()),
-                };
+            if finalize_completed {
+                if let Some(a) = m.active.get_mut(&session_id) {
+                    a.session.status = crate::models::SessionStatus::Completed;
+                    a.session.attention = Some(crate::models::AttentionState {
+                        requires_attention: true,
+                        reason: Some(crate::models::AttentionReason::Completed),
+                        since: Some(chrono::Utc::now().to_rfc3339()),
+                    });
+                }
+                if let Some(state) = m.journal_states.get_mut(&session_id) {
+                    state.status = AgentStatus::Idle;
+                    state.attention = crate::models::AttentionState {
+                        requires_attention: true,
+                        reason: Some(crate::models::AttentionReason::Completed),
+                        since: Some(chrono::Utc::now().to_rfc3339()),
+                    };
+                }
+                let _ =
+                    db.update_session_status(session_id, crate::models::SessionStatus::Completed);
             }
             m.spawning_sessions.remove(&session_id);
-            let _ = db.update_session_status(session_id, crate::models::SessionStatus::Completed);
         }
 
         let _ = app.emit(
@@ -999,6 +1003,16 @@ impl SessionManager {
                     },
                 );
                 m.journal_states.entry(session_id).or_default();
+            }
+        }
+
+        {
+            let m = manager.read().unwrap_or_else(|e| e.into_inner());
+            if m.spawning_sessions.contains(&session_id) {
+                return Err(
+                    "Session is still processing the previous message. Wait for it to finish."
+                        .to_string(),
+                );
             }
         }
 
@@ -1414,6 +1428,14 @@ fn ascii_ci_contains(haystack: &str, needle: &str) -> bool {
         return false;
     }
     h.windows(n.len()).any(|w| w.eq_ignore_ascii_case(n))
+}
+
+/// True when reader_loop may mark the session completed (user stop must win).
+fn session_status_allows_completion(db: &DatabaseService, session_id: SessionId) -> bool {
+    db.get_session(session_id)
+        .ok()
+        .flatten()
+        .is_none_or(|s| s.status != crate::models::SessionStatus::Stopped)
 }
 
 /// Check if a JSON line from Claude's stdout indicates a rate limit error.
@@ -2018,6 +2040,67 @@ mod tests {
             "second entry has session_id",
             journal[1].session_id.as_str(),
             expected_id.as_str(),
+        );
+    }
+
+    #[test]
+    fn should_not_finalize_stopped_session_as_completed() {
+        let mut t = TestCase::new("should_not_finalize_stopped_session_as_completed");
+        t.phase("Seed");
+        let db = make_db();
+        let sid = db
+            .create_session(None, None, "/tmp", "ignore", None, None, None, None)
+            .expect("session");
+        db.update_session_status(sid, crate::models::SessionStatus::Stopped)
+            .expect("stop");
+        t.phase("Assert");
+        t.ok(
+            "stopped session must not be marked completed",
+            !session_status_allows_completion(&db, sid),
+        );
+    }
+
+    #[test]
+    fn should_finalize_running_session_as_completed() {
+        let mut t = TestCase::new("should_finalize_running_session_as_completed");
+        t.phase("Seed");
+        let db = make_db();
+        let sid = db
+            .create_session(None, None, "/tmp", "ignore", None, None, None, None)
+            .expect("session");
+        t.phase("Assert");
+        t.ok(
+            "running session may be marked completed",
+            session_status_allows_completion(&db, sid),
+        );
+    }
+
+    #[test]
+    fn should_reject_send_message_while_session_is_spawning() {
+        let mut t = TestCase::new("should_reject_send_message_while_session_is_spawning");
+        t.phase("Seed");
+        let mgr = make_manager();
+        let sid = mgr
+            .write()
+            .unwrap()
+            .init_session(
+                "/tmp/proj",
+                None,
+                "ignore",
+                None,
+                false,
+                None,
+                None,
+                None,
+                None,
+            )
+            .expect("init")
+            .id;
+        mgr.write().unwrap().spawning_sessions.insert(sid);
+        t.phase("Assert");
+        t.ok(
+            "spawning guard blocks follow-up",
+            mgr.read().unwrap().spawning_sessions.contains(&sid),
         );
     }
 }
