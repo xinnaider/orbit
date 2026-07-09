@@ -6,4 +6,5 @@ pub use parser::parse_journal;
 pub use processor::process_line;
 pub use processor::process_line_codex;
 pub use processor::process_line_opencode;
+pub use processor::{injected_user_text, is_duplicate_injected_user_line, push_injected_user_line};
 pub use state::JournalState;

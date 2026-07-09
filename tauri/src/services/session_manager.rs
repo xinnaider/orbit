@@ -767,6 +767,16 @@ impl SessionManager {
                         );
                     }
 
+                    let skip_duplicate_user = {
+                        let m = manager.read().unwrap_or_else(|e| e.into_inner());
+                        m.journal_states.get(&session_id).is_some_and(|s| {
+                            crate::journal::is_duplicate_injected_user_line(s, &trimmed)
+                        })
+                    };
+                    if skip_duplicate_user {
+                        continue;
+                    }
+
                     let _ = db.insert_output(session_id, &trimmed);
                     let _ = app.emit(
                         "session:raw-output",
@@ -1728,6 +1738,41 @@ mod tests {
             "entry type",
             journal[0].entry_type,
             crate::models::JournalEntryType::Assistant,
+        );
+    }
+
+    #[test]
+    fn should_restore_follow_up_user_message_for_opencode_from_db() {
+        let mut t = TestCase::new("should_restore_follow_up_user_message_for_opencode_from_db");
+        t.phase("Seed");
+        let db = make_db();
+        let sid = db
+            .create_session(
+                None,
+                None,
+                "/tmp",
+                "ignore",
+                None,
+                None,
+                Some("opencode"),
+                Some("openrouter/minimax"),
+            )
+            .expect("session");
+        seed_outputs(
+            &db,
+            sid,
+            &[&crate::test_utils::user_text("Also fix OpenCode history")],
+        );
+        t.phase("Act");
+        let mut sm = SessionManager::new(Arc::clone(&db));
+        sm.restore_from_db();
+        t.phase("Assert");
+        let journal = sm.get_journal(sid);
+        t.len("one user entry", &journal, 1);
+        t.eq(
+            "follow-up text restored",
+            journal[0].text.as_deref(),
+            Some("Also fix OpenCode history"),
         );
     }
 
