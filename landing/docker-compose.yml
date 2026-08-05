@@ -1,6 +1,12 @@
 services:
   orbit-landing:
-    image: ghcr.io/xinnaider/orbit-landing:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     restart: unless-stopped
-    expose:
-      - "80"
+    networks:
+      - dokploy-network
+
+networks:
+  dokploy-network:
+    external: true
